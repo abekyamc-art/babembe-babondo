@@ -7,6 +7,7 @@ import {
   parseAgentTypeFromToken,
 } from "@heygen/liveavatar-web-sdk";
 import { base44 } from "@/api/base44Client";
+import { guardAvatarHousekeeping } from "@/lib/avatarSessionGuard";
 
 const OPEN_QUIET_MS = 3000;
 const CLOSE_QUIET_MS = 10000;
@@ -45,6 +46,7 @@ export default class AvatarCall {
   }
 
   async open({ withMic = true, videoEl = null, memory = "" } = {}) {
+    guardAvatarHousekeeping();
     this.answered = false;
     this.userSpoke = false;
     this.heardVoice = false;
