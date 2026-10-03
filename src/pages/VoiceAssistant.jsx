@@ -346,7 +346,7 @@ export default function VoiceAssistant() {
         {/* one fixed band holds the conversation and the status line, so nothing on screen moves */}
         <div className="flex h-[104px] w-full max-w-md shrink-0 flex-col gap-1.5 overflow-hidden">
           <div className="min-h-0 flex-1">
-            <ConversationStrip turns={turns} />
+            <ConversationStrip turns={turns} pending={thinking} />
           </div>
           <p
             aria-live="polite"

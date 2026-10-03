@@ -1,18 +1,20 @@
 import React, { useEffect, useRef } from "react";
+import TypingDots from "@/components/voice/TypingDots";
 
 // only the newest lines stay on screen: ten at most, both sides counted together
 const SHOWN = 10;
 
-export default function ConversationStrip({ turns }) {
+export default function ConversationStrip({ turns, pending }) {
   const ref = useRef(null);
-  const shown = turns.slice(-SHOWN);
+  // the writing line is a line too, so it takes one of the ten places
+  const shown = turns.slice(-(pending ? SHOWN - 1 : SHOWN));
 
   useEffect(() => {
     const el = ref.current;
     if (el) el.scrollTop = el.scrollHeight;
-  }, [turns]);
+  }, [turns, pending]);
 
-  if (!shown.length) return null;
+  if (!shown.length && !pending) return null;
 
   return (
     <div ref={ref} className="h-full w-full overflow-y-auto overscroll-contain px-1">
@@ -33,6 +35,13 @@ export default function ConversationStrip({ turns }) {
             </p>
           </div>
         ))}
+        {pending ? (
+          <div className="flex justify-start">
+            <p className="rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-2.5 text-foreground">
+              <TypingDots />
+            </p>
+          </div>
+        ) : null}
       </div>
     </div>
   );

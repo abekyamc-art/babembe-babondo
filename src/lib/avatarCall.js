@@ -9,9 +9,11 @@ import {
 import { base44 } from "@/api/base44Client";
 import { guardAvatarHousekeeping } from "@/lib/avatarSessionGuard";
 
-const OPEN_QUIET_MS = 3000;
+const OPEN_QUIET_MS = 10000;
 const CLOSE_QUIET_MS = 10000;
-const CALL_MAX_MS = 30000;
+// a call that carries on is held from speaking until the person takes their turn;
+// this is the longest that hold can last if nothing releases it
+const HOLD_MAX_MS = 15000;
 
 /**
  * A call whose face is the owner's LiveAvatar, with the same ElevenLabs agent
@@ -41,18 +43,29 @@ export default class AvatarCall {
     this.watchId = 0;
     // a written turn that has been sent and not yet answered: the orb shows it
     this.awaiting = false;
+    // carrying on: the face is heard only once the person has taken their turn
+    this.holdQuiet = false;
+    this.holdTimer = null;
+    this.laterTurn = false;
   }
 
   get connected() {
     return !!this.session && this.session.state === "CONNECTED";
   }
 
-  async open({ withMic = true, videoEl = null, memory = "" } = {}) {
+  async open({ withMic = true, videoEl = null, memory = "", laterTurn = false } = {}) {
     guardAvatarHousekeeping();
     this.answered = false;
     this.userSpoke = false;
     this.heardVoice = false;
     this.withMic = withMic;
+    // he has already introduced himself: this call is held quiet until the person
+    // takes their turn, so the introduction never reaches their ears
+    this.laterTurn = !!laterTurn;
+    this.holdQuiet = this.laterTurn;
+    clearTimeout(this.holdTimer);
+    this.holdTimer = null;
+    if (this.holdQuiet) this.holdTimer = setTimeout(() => this.releaseQuiet(), HOLD_MAX_MS);
     this.h.onStatus?.("connecting");
 
     const res = await base44.functions.invoke("liveAvatarSession", {});
@@ -78,18 +91,27 @@ export default class AvatarCall {
     session.on(AgentEventsEnum.USER_TRANSCRIPTION, (event) => {
       if (!event?.text) return;
       this.userSpoke = true;
+      this.releaseQuiet();
       this.h.onUserText?.(event.text);
     });
     session.on(AgentEventsEnum.AVATAR_TRANSCRIPTION, (event) => {
       if (!event?.text) return;
       this.noteAnswer();
+      // the greeting of a call that carries on is held out of the room, so its
+      // words are not shown either
+      if (this.holdQuiet) return;
       this.h.onAgentText?.(event.text);
     });
     session.on(AgentEventsEnum.AVATAR_SPEAK_STARTED, () => this.startSpeaking());
-    session.on(AgentEventsEnum.AVATAR_SPEAK_ENDED, () => this.stopSpeaking());
+    session.on(AgentEventsEnum.AVATAR_SPEAK_ENDED, () => {
+      // the held greeting is over, so nothing after it may be silenced
+      this.stopSpeaking();
+      this.releaseQuiet();
+    });
     session.on(AgentEventsEnum.ELEVENLABS_AGENT_EVENT, (event) => {
       if (event?.elevenlabs_event_type !== "interruption") return;
       this.stopSpeaking();
+      this.releaseQuiet();
       this.setAwaiting(false);
       this.h.onInterrupted?.();
     });
@@ -125,6 +147,8 @@ export default class AvatarCall {
   showStream(el) {
     if (!el) return;
     this.el = el;
+    // held quiet: the greeting plays out of the room until the person takes their turn
+    el.muted = this.holdQuiet;
     try {
       this.session?.attach(el);
     } catch (err) {
@@ -162,21 +186,32 @@ export default class AvatarCall {
     this.userSpoke = true;
     this.heardVoice = true;
     this.lastVoiceAt = performance.now();
+    this.releaseQuiet();
   }
 
   startSpeaking() {
     this.speaking = true;
     // the mic stays closed while the face answers, so its own voice coming out of
-    // the phone can never be sent back as an interruption
-    if (this.withMic) this.session?.voiceChat?.mute?.().catch(() => {});
+    // the phone can never be sent back as an interruption — except during the held
+    // greeting, which is out of the room, so the person can take their turn over it
+    if (this.withMic && !this.holdQuiet) this.session?.voiceChat?.mute?.().catch(() => {});
     this.h.onAgentAudioStart?.();
   }
 
   stopSpeaking() {
     this.speaking = false;
     this.answerEndAt = performance.now();
-    if (this.withMic) this.session?.voiceChat?.unmute?.().catch(() => {});
+    if (this.withMic && !this.holdQuiet) this.session?.voiceChat?.unmute?.().catch(() => {});
     this.h.onAgentAudioEnd?.();
+  }
+
+  /** The person has taken their turn: the face is heard from here on. */
+  releaseQuiet() {
+    if (!this.holdQuiet) return;
+    this.holdQuiet = false;
+    clearTimeout(this.holdTimer);
+    this.holdTimer = null;
+    if (this.el) this.el.muted = false;
   }
 
   /** A written turn is waited on: shown from the send until its answer lands. */
@@ -199,6 +234,7 @@ export default class AvatarCall {
     // a fresh message is its own turn, so its answer is its own to spend
     this.userSpoke = true;
     this.answered = false;
+    this.releaseQuiet();
     try {
       this.session.sendUserMessage(text);
       this.setAwaiting(true);
@@ -220,8 +256,9 @@ export default class AvatarCall {
   }
 
   /**
-   * Opening guard: three seconds of quiet before anything is said and the call
-   * hangs up. Closing guard: once something has been said the call waits for the
+   * Opening guard: ten seconds of quiet before anything is said and the call hangs
+   * up — a call that carries on greets nobody, so the person needs that long to take
+   * their turn. Closing guard: once something has been said the call waits for the
    * answer to finish, then ten seconds of quiet.
    */
   watch() {
@@ -242,11 +279,6 @@ export default class AvatarCall {
             this.autoEnd("done");
             return;
           }
-        }
-
-        if (now - this.watchStart >= CALL_MAX_MS) {
-          this.autoEnd("limit");
-          return;
         }
       }
 
@@ -274,6 +306,9 @@ export default class AvatarCall {
 
   teardown() {
     this.setAwaiting(false);
+    clearTimeout(this.holdTimer);
+    this.holdTimer = null;
+    this.holdQuiet = false;
     if (this.watchId) cancelAnimationFrame(this.watchId);
     this.watchId = 0;
 

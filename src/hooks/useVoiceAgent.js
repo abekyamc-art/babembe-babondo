@@ -5,6 +5,12 @@ import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
 import { loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
 
+// the knowledge note travels in blocks and needs a beat to settle before the
+// question is put to him; the wait is shown as him working
+const TYPED_HOLD_MS = 5000;
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
 export default function useVoiceAgent({ videoRef } = {}) {
   const socketRef = useRef(null);
   const levelRef = useRef(0);
@@ -99,6 +105,13 @@ export default function useVoiceAgent({ videoRef } = {}) {
     [pushTurn]
   );
 
+  // a written question is held back while the knowledge he was handed settles, and
+  // the hold is shown as him working
+  const holdForKnowledge = useCallback(async (engine) => {
+    engine.setAwaiting?.(true);
+    await wait(TYPED_HOLD_MS);
+  }, []);
+
   const start = useCallback(
     async ({ withMic = true, firstMessage = "", onAnswered, silent = false } = {}) => {
       const existing = socketRef.current;
@@ -111,7 +124,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // a call already listening through the microphone carries on; a written session
       // gives way the moment the microphone is asked for
       if (existing?.connected && (!withMic || existing.micOn)) {
-        if (firstMessage) existing.sendText(firstMessage);
+        if (firstMessage) {
+          if (silent) await holdForKnowledge(existing);
+          existing.sendText(firstMessage);
+        }
         return true;
       }
       if (existing?.connected) {
@@ -137,7 +153,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         quietRef.current = false;
         setMicActive(withMic);
         try {
-          await call.open({ withMic, videoEl: videoRef.current, memory });
+          await call.open({ withMic, videoEl: videoRef.current, memory, laterTurn });
           setAvatarLive(true);
           if (firstMessage) call.sendText(firstMessage);
           return true;
@@ -161,7 +177,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
 
       try {
         await socket.open({ withMic, silent, memory: written, laterTurn });
-        if (firstMessage) socket.sendText(firstMessage);
+        if (firstMessage) {
+          // the question goes in once the note has settled, not the moment the
+          // session opens
+          await holdForKnowledge(socket);
+          if (socketRef.current === socket) socket.sendText(firstMessage);
+        }
         return true;
       } catch (err) {
         setError(
@@ -174,7 +195,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         return false;
       }
     },
-    [makeHandlers, pushTurn, videoRef]
+    [holdForKnowledge, makeHandlers, pushTurn, videoRef]
   );
 
   const stop = useCallback(async () => {

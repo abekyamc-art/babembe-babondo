@@ -5,10 +5,12 @@ const IN_RATE = 16000;
 // one contextual update carries this much of the note; a longer note is handed
 // over as several of them
 const CONTEXT_BLOCK = 4000;
-const OPEN_QUIET_MS = 3000;
+const OPEN_QUIET_MS = 10000;
 const CLOSE_QUIET_MS = 10000;
-const CALL_MAX_MS = 30000;
 const VOICE_LEVEL = 0.06;
+// a session that carries on is held from speaking until the person takes their
+// turn; this is the longest that hold can last if nothing releases it
+const HOLD_MAX_MS = 15000;
 // a written session has no microphone to listen to: it hangs up a few seconds after
 // the written answer has landed, or once it has waited long enough for one to arrive
 const WRITTEN_CLOSE_MS = 5000;
@@ -97,6 +99,9 @@ export default class VoiceSocket {
     // a session opened after he has already spoken is not a first meeting
     this.laterTurn = false;
     this.intro = "";
+    // carrying on: nothing is heard from him until the person takes their turn
+    this.holdQuiet = false;
+    this.holdTimer = null;
   }
 
   get connected() {
@@ -112,6 +117,14 @@ export default class VoiceSocket {
     // a written message is answered in writing: no microphone, nothing on the speaker
     this.silent = !withMic && !!silent;
     this.laterTurn = !!laterTurn;
+    // he has already introduced himself, so this session is held quiet until the
+    // person takes their turn: the introduction never reaches their ears
+    this.holdQuiet = this.laterTurn;
+    clearTimeout(this.holdTimer);
+    this.holdTimer = null;
+    if (this.holdQuiet) {
+      this.holdTimer = setTimeout(() => this.releaseQuiet(), HOLD_MAX_MS);
+    }
     this.silentWaitAt = performance.now();
     this.answered = false;
     this.userSpoke = false;
@@ -246,6 +259,7 @@ export default class VoiceSocket {
     this.userSpoke = true;
     // a fresh message is its own turn, so its answer is its own to spend
     this.answered = false;
+    this.releaseQuiet();
     const sent = this.send({ type: "user_message", text });
     if (sent) this.setAwaiting(true);
     return sent;
@@ -256,6 +270,17 @@ export default class VoiceSocket {
     if (this.awaiting === next) return;
     this.awaiting = next;
     this.h.onThinking?.(next);
+  }
+
+  /**
+   * The person has taken their turn, so he may speak aloud from here on. Until
+   * that happens on a session that carries on, his voice stays out of the room.
+   */
+  releaseQuiet() {
+    if (!this.holdQuiet) return;
+    this.holdQuiet = false;
+    clearTimeout(this.holdTimer);
+    this.holdTimer = null;
   }
 
   // only a call the person took part in, and the agent answered, is spent
@@ -285,7 +310,9 @@ export default class VoiceSocket {
     if (msg.type === "audio") {
       const chunk = msg.audio_event?.audio_base_64;
       if (chunk) {
-        this.noteAnswer();
+        // a written answer's audio is silent and only carries its timing: the wait
+        // ends when the written line lands, not when the first silent chunk arrives
+        if (!this.silent) this.noteAnswer();
         this.play(chunk);
       }
       return;
@@ -295,6 +322,7 @@ export default class VoiceSocket {
       const text = msg.user_transcription_event?.user_transcript;
       if (text) {
         this.userSpoke = true;
+        this.releaseQuiet();
         this.h.onUserText?.(text);
       }
       return;
@@ -306,9 +334,10 @@ export default class VoiceSocket {
         msg.agent_response_correction_event?.corrected_agent_response;
       if (text) {
         this.noteAnswer();
-        // a written session that opened mid-conversation: his greeting coming round
-        // again is something he has already said, so it is not shown a second time
-        if (this.silent && this.laterTurn && isRepeatIntro(text, this.intro)) return;
+        // a session that opened mid-conversation: his greeting coming round again is
+        // something he has already said, so it is not shown a second time
+        if (this.laterTurn && isRepeatIntro(text, this.intro)) return;
+        this.releaseQuiet();
         this.h.onAgentText?.(text);
       }
       return;
@@ -316,6 +345,7 @@ export default class VoiceSocket {
 
     if (msg.type === "interruption") {
       this.stopPlayback();
+      this.releaseQuiet();
       this.setAwaiting(false);
       this.h.onInterrupted?.();
       return;
@@ -360,10 +390,11 @@ export default class VoiceSocket {
   }
 
   /**
-   * Opening guard: three seconds of quiet before anything is said and the call
-   * hangs up. Closing guard: once something has been said the call waits for the
-   * answer to finish playing, then ten seconds of quiet. Nothing at all hangs up,
-   * and no playback is cleared, while the assistant still has something to say.
+   * Opening guard: ten seconds of quiet before anything is said and the call hangs
+   * up — a session that carries on greets nobody, so the person needs that long to
+   * take their turn. Closing guard: once something has been said the call waits for
+   * the answer to finish playing, then ten seconds of quiet. Nothing at all hangs
+   * up, and no playback is cleared, while the assistant still has something to say.
    */
   watch() {
     const step = () => {
@@ -393,11 +424,6 @@ export default class VoiceSocket {
             this.autoEnd("done");
             return;
           }
-        }
-
-        if (now - this.watchStart >= CALL_MAX_MS) {
-          this.autoEnd("limit");
-          return;
         }
       }
 
@@ -449,7 +475,9 @@ export default class VoiceSocket {
 
     const node = this.ctx.createBufferSource();
     node.buffer = buffer;
-    node.connect(this.silent ? this.silencer() : this.ctx.destination);
+    // on a session that carries on, his voice stays in the silent sink until the
+    // person takes their turn, so the introduction is never heard
+    node.connect(this.silent || this.holdQuiet ? this.silencer() : this.ctx.destination);
 
     const now = this.ctx.currentTime;
     if (this.playHead < now + 0.04) this.playHead = now + 0.04;
@@ -460,7 +488,7 @@ export default class VoiceSocket {
       this.sources = this.sources.filter((s) => s !== node);
     };
 
-    if (!this.speaking) {
+    if (!this.speaking && !this.silent && !this.holdQuiet) {
       this.speaking = true;
       this.h.onAgentAudioStart?.();
     }
@@ -468,9 +496,11 @@ export default class VoiceSocket {
     clearTimeout(this.endTimer);
     const remainingMs = Math.max(0, (this.playHead - this.ctx.currentTime) * 1000) + 240;
     this.endTimer = setTimeout(() => {
-      this.speaking = false;
       this.answerEndAt = performance.now();
-      this.h.onAgentAudioEnd?.();
+      if (this.speaking) {
+        this.speaking = false;
+        this.h.onAgentAudioEnd?.();
+      }
     }, remainingMs);
   }
 
@@ -524,6 +554,9 @@ export default class VoiceSocket {
 
   teardown() {
     this.setAwaiting(false);
+    clearTimeout(this.holdTimer);
+    this.holdTimer = null;
+    this.holdQuiet = false;
     if (this.watchId) cancelAnimationFrame(this.watchId);
     this.watchId = 0;
     this.stopPlayback();
