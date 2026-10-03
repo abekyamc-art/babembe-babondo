@@ -58,6 +58,7 @@ export default function OrbVisualizer({ levelRef, status, speaking, videoRef, fa
       <div className="orb-halo" />
       <div className="orb-ring" ref={ringRef} />
       <div className="orb-face" ref={faceRef}>
+        {/* the clip holds the whole orb on its own until his face takes a bubble of its own */}
         <video
           ref={backdropRef}
           src={ORB_BACKDROP_URL}
@@ -67,7 +68,9 @@ export default function OrbVisualizer({ levelRef, status, speaking, videoRef, fa
           playsInline
           preload="auto"
           aria-hidden="true"
-          className="absolute inset-0 h-full w-full object-cover"
+          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+            faceOn ? "opacity-0" : "opacity-100"
+          }`}
         />
         {videoRef ? (
           // the raw avatar stream is read by the painter, and stays the element the
