@@ -9,21 +9,12 @@ import {
   addGuestStamp,
   creditsFrom,
   getGuestStamps,
-  liveStamps,
   loadUserStamps,
   pruneUsage,
-  releaseOldestMessages,
   spendCredit,
 } from "@/lib/usage";
 import { ensureProfile } from "@/lib/social";
-import {
-  MESSAGE_COST,
-  MESSAGES_PER_COIN,
-  balanceOf,
-  owedMessages,
-  spendCoins,
-  writeOwedMessages,
-} from "@/lib/coins";
+import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
@@ -60,11 +51,7 @@ export default function VoiceAssistant() {
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState(null);
-  const [refilling, setRefilling] = useState(false);
-  const [refillError, setRefillError] = useState("");
   const pendingGate = useRef(false);
-  // how many of the messages a coin bought are still to be answered
-  const owedRef = useRef(0);
 
   const limit = user ? DAILY_LIMIT : GUEST_LIMIT;
   const { remaining, nextReturnAt } = creditsFrom(stamps, limit, clock);
@@ -101,7 +88,6 @@ export default function VoiceAssistant() {
             })
             .catch(() => {});
           setStamps(await loadUserStamps(me.email));
-          owedRef.current = owedMessages(me.email);
           pruneUsage(me.email).catch(() => {});
         } else {
           setStamps(getGuestStamps());
@@ -134,82 +120,61 @@ export default function VoiceAssistant() {
     };
   }, [ready, refreshWallet]);
 
-  // once the last allowed turn is used, prompt when the answer has finished
+  // once the free questions and the wallet are both used up, the prompt comes a
+  // moment after the answer finishes — before the call's own quiet close
   useEffect(() => {
-    if (!pendingGate.current || micActive || speaking || status === "connecting") return undefined;
+    if (!pendingGate.current || speaking || status === "connecting") return undefined;
     const timer = setTimeout(() => {
       if (!pendingGate.current) return;
       pendingGate.current = false;
-      setRefillError("");
       setGate(user ? "daily" : "signin");
     }, 1400);
     return () => clearTimeout(timer);
-  }, [turns, speaking, micActive, status, user]);
+  }, [turns, speaking, status, user]);
 
-  // while the wallet holds coins, the messages come out of it — the free daily
-  // records are left alone until every coin is gone
-  const canPay = useCallback(
-    () => !!user && (balanceOf(profile) > 0 || owedRef.current > 0),
-    [user, profile]
-  );
+  // a person can ask while a free daily question is left, or while the wallet holds coins
+  const canAsk = remaining > 0 || balanceOf(profile) > 0;
 
-  // a message is only spent once the assistant has actually answered
-  const consume = useCallback(async () => {
+  // an answer is only charged once the assistant has actually given it. The free
+  // daily questions are read fresh and used first; only when none is left does the
+  // answer take a coin, and that coin does not come back.
+  const spend = useCallback(async () => {
     const now = Date.now();
-    let next;
     try {
       if (!user) {
-        next = addGuestStamp();
-      } else if (canPay()) {
-        next = liveStamps(stamps, now);
-      } else {
+        const next = addGuestStamp();
+        setStamps(next);
+        setClock(now);
+        if (creditsFrom(next, GUEST_LIMIT, now).remaining <= 0) pendingGate.current = true;
+        return;
+      }
+
+      // read from the server, so a long call never spends one free question twice
+      const live = await loadUserStamps(user.email);
+      if (creditsFrom(live, DAILY_LIMIT, now).remaining > 0) {
         const stamp = await spendCredit(user.email);
-        next = [...liveStamps(stamps, now), stamp];
+        const next = [...live, stamp];
+        setStamps(next);
+        setClock(now);
+        // the free questions are gone: the prompt is due unless the wallet can pay
+        if (creditsFrom(next, DAILY_LIMIT, now).remaining <= 0) {
+          const wallet = await ensureProfile(user);
+          setProfile(wallet);
+          if (balanceOf(wallet) <= 0) pendingGate.current = true;
+        }
+        return;
       }
-    } catch (err) {
-      next = [...liveStamps(stamps, now), now];
-    }
-    setStamps(next);
-    setClock(now);
-    return next.length;
-  }, [user, stamps, canPay]);
 
-  // the wallet pays first: one coin covers four messages and leaves only once the
-  // fourth of them has been answered. While any coin is left, the free daily messages
-  // are never touched.
-  const settle = useCallback(async () => {
-    if (!user) return;
-    // no block open: a coin opens one, as long as the wallet holds any
-    if (owedRef.current <= 0) {
-      if (balanceOf(profile) <= 0) return;
-      owedRef.current = MESSAGES_PER_COIN;
-    }
-    const left = owedRef.current - 1;
-    owedRef.current = left;
-    writeOwedMessages(user.email, left);
-    if (left > 0) return;
-    try {
-      const spent = await spendCoins(await ensureProfile(user), MESSAGE_COST);
-      if (!spent) return;
-      setProfile(spent);
-      // the wallet still holds coins, so the next four messages are already bought
-      if (balanceOf(spent) > 0) {
-        owedRef.current = MESSAGES_PER_COIN;
-        writeOwedMessages(user.email, MESSAGES_PER_COIN);
-      }
+      const wallet = await ensureProfile(user);
+      const spent = await spendCoins(wallet, MESSAGE_COST);
+      if (spent) setProfile(spent);
+      setClock(now);
+      if (balanceOf(spent || wallet) <= 0) pendingGate.current = true;
     } catch (err) {
-      // the four messages stay given rather than the answer being lost
+      // a charge that cannot be counted never loses the answer that was given
+      setClock(now);
     }
-  }, [user, profile]);
-
-  const spend = useCallback(async () => {
-    const live = await consume();
-    // only a person with no coins left and no daily messages left is asked for more
-    if (live >= limit && !(user && (balanceOf(profile) > 0 || owedRef.current > 0))) {
-      pendingGate.current = true;
-    }
-    await settle();
-  }, [consume, limit, settle, user, profile]);
+  }, [user]);
 
   const openGate = useCallback(() => {
     setGate(user ? "daily" : "signin");
@@ -221,7 +186,7 @@ export default function VoiceAssistant() {
       await stop();
       return;
     }
-    if (remaining <= 0 && !canPay()) {
+    if (!canAsk) {
       openGate();
       return;
     }
@@ -232,7 +197,7 @@ export default function VoiceAssistant() {
 
   const handleSend = async (text) => {
     if (!ready) return;
-    if (remaining <= 0 && !canPay()) {
+    if (!canAsk) {
       openGate();
       return;
     }
@@ -256,40 +221,15 @@ export default function VoiceAssistant() {
     navigate("/markets");
   };
 
-  // the header chip opens the wallet straight away
-  const handleCoins = () => navigate("/markets");
+  // the coin chip and the prompt both open the wallet straight away
+  const handleCoins = () => {
+    setGate(null);
+    navigate("/markets");
+  };
 
   const handleMessages = () => {
     setAccountOpen(false);
     navigate("/messages");
-  };
-
-  // a coin buys four messages and stays in the wallet until the fourth of them is answered
-  const handleRefill = async () => {
-    if (!user || refilling) return;
-    if (!profile) {
-      setRefillError("Your wallet hasn't loaded yet — try again in a moment.");
-      return;
-    }
-    if (balanceOf(profile) < MESSAGE_COST) {
-      setRefillError(
-        `You have no coins — get coins to unlock ${MESSAGES_PER_COIN} more messages.`
-      );
-      return;
-    }
-    setRefillError("");
-    setRefilling(true);
-    try {
-      await releaseOldestMessages(user.email, MESSAGES_PER_COIN);
-      owedRef.current = MESSAGES_PER_COIN;
-      writeOwedMessages(user.email, MESSAGES_PER_COIN);
-      setStamps(await loadUserStamps(user.email));
-      setClock(Date.now());
-      pendingGate.current = false;
-      setGate(null);
-    } finally {
-      setRefilling(false);
-    }
   };
 
   // signing in happens on the app's own login page, which handles Google and returns home
@@ -417,17 +357,12 @@ export default function VoiceAssistant() {
         limit={limit}
         signedIn={!!user}
         coins={balanceOf(profile)}
-        refillCost={MESSAGE_COST}
-        refillMessages={MESSAGES_PER_COIN}
-        refillBusy={refilling}
-        message={refillError}
-        onRefill={handleRefill}
+        onGetCoins={handleCoins}
         onGoogle={handleGoogle}
         onSignOut={handleSignOut}
         onOpenChange={(next) => {
           if (next) return;
           setGate(null);
-          setRefillError("");
         }}
       />
 

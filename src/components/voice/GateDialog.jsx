@@ -18,10 +18,7 @@ export default function GateDialog({
   limit,
   signedIn,
   coins = 0,
-  refillCost = 0,
-  refillMessages = 1,
-  refillBusy,
-  onRefill,
+  onGetCoins,
   busy,
   message,
   onGoogle,
@@ -41,7 +38,7 @@ export default function GateDialog({
     variant === "signin"
       ? "You've used your free messages. Sign in with Google to keep going — you get 5 messages, each one coming back 24 hours after you use it."
       : variant === "daily"
-        ? `You've used all 5 messages. They come back one at a time, 24 hours after each was used — the number at the top counts down to the next one. Or use coins for ${refillMessages} more straight away.`
+        ? "You've used all 5 messages. They come back one at a time, 24 hours after each was used — the number at the top counts down to the next one. Or get coins to keep talking right away."
         : signedIn
           ? `You've used ${used} of ${limit}. Each message comes back 24 hours after it was used — the number at the top counts down to the next one.`
           : "You get 2 free messages, each coming back 24 hours after you use it. Sign in with Google for 5.";
@@ -93,14 +90,9 @@ export default function GateDialog({
 
           {variant === "daily" ? (
             <>
-              {/* the tap always answers: a wallet that can't cover it says so instead of going quiet */}
-              <Button className="w-full gap-2" onClick={onRefill} disabled={refillBusy}>
-                {refillBusy ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Coins className="h-4 w-4" />
-                )}
-                {refillMessages} more messages — {refillCost} {refillCost === 1 ? "coin" : "coins"}
+              <Button className="w-full gap-2" onClick={onGetCoins}>
+                <Coins className="h-4 w-4" />
+                Get coins
               </Button>
               <p className="text-center text-[12px] text-muted-foreground">
                 You have {coins} coins.

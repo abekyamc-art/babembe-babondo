@@ -7,7 +7,9 @@ const IN_RATE = 16000;
 // handed have a moment to land before he answers
 const BEAT_MS = 2000;
 const OPEN_QUIET_MS = 10000;
-const CLOSE_QUIET_MS = 10000;
+// once his answer has finished, this much quiet ends the call, so the person can
+// start it again whenever they are ready
+const CLOSE_QUIET_MS = 4000;
 const VOICE_LEVEL = 0.06;
 // a session that carries on is held from speaking until the person takes their
 // turn; this is the longest that hold can last if nothing releases it
@@ -87,6 +89,8 @@ export default class VoiceSocket {
     this.awaiting = false;
     this.closing = false;
     this.answered = false;
+    // whether the answer being given right now has already been charged for
+    this.spent = false;
     this.userSpoke = false;
     this.heardVoice = false;
     this.lastVoiceAt = 0;
@@ -133,6 +137,7 @@ export default class VoiceSocket {
     }
     this.silentWaitAt = performance.now();
     this.answered = false;
+    this.spent = false;
     this.userSpoke = false;
     this.autoEnding = false;
     this.h.onStatus?.("connecting");
@@ -256,6 +261,7 @@ export default class VoiceSocket {
     this.userSpoke = true;
     // a fresh message is its own turn, so its answer is its own to spend
     this.answered = false;
+    this.spent = false;
     this.releaseQuiet();
     const sent = this.send({ type: "user_message", text });
     if (sent) this.setAwaiting(true);
@@ -280,9 +286,11 @@ export default class VoiceSocket {
     this.holdTimer = null;
   }
 
-  // only a call the person took part in, and the agent answered, is spent
+  // only a call the person took part in, and the agent answered, is spent — and
+  // every answer is its own, so a turn taken after this one is spent as well
   noteAnswer() {
-    if (!this.userSpoke || this.answered) return;
+    if (!this.userSpoke || this.spent) return;
+    this.spent = true;
     this.answered = true;
     this.setAwaiting(false);
     this.h.onAgentAnswered?.();
@@ -319,6 +327,8 @@ export default class VoiceSocket {
       const text = msg.user_transcription_event?.user_transcript;
       if (text) {
         this.userSpoke = true;
+        // a fresh turn: the answer coming for it is its own to spend
+        this.spent = false;
         this.turnAt = performance.now();
         this.beatDue = true;
         this.releaseQuiet();
@@ -392,7 +402,7 @@ export default class VoiceSocket {
    * Opening guard: ten seconds of quiet before anything is said and the call hangs
    * up — a session that carries on greets nobody, so the person needs that long to
    * take their turn. Closing guard: once something has been said the call waits for
-   * the answer to finish playing, then ten seconds of quiet. Nothing at all hangs
+   * the answer to finish playing, then four seconds of quiet. Nothing at all hangs
    * up, and no playback is cleared, while the assistant still has something to say.
    */
   watch() {

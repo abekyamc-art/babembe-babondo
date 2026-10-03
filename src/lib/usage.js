@@ -77,20 +77,6 @@ export async function spendCredit(email) {
   return Date.parse(usedAt);
 }
 
-/** Gives messages back straight away: the used messages that would return first stop counting.
- *  Fewer than asked for come back when fewer have been used. */
-export async function releaseOldestMessages(email, count) {
-  const now = Date.now();
-  const page = await base44.entities.UsageRecord.filter(
-    { user_email: email, used_at: { $gte: isoOf(now - WINDOW_MS) } },
-    { sort: "used_at", limit: Math.max(1, count) }
-  );
-  const rows = page?.items || [];
-  if (!rows.length) return 0;
-  await Promise.all(rows.map((row) => base44.entities.UsageRecord.delete(row.id)));
-  return rows.length;
-}
-
 /** Clears messages that have already come back, so only the live window is ever kept. */
 export async function pruneUsage(email) {
   await base44.entities.UsageRecord.deleteMany({

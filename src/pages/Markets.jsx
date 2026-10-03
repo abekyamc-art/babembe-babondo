@@ -7,7 +7,6 @@ import {
   COIN_PACKAGES,
   GIFTS,
   MESSAGE_COST,
-  MESSAGES_PER_COIN,
   WELCOME_COINS,
   balanceOf,
 } from "@/lib/coins";
@@ -110,16 +109,14 @@ export default function Markets() {
         </li>
         <li className="flex items-center gap-3 px-4 py-3.5">
           <MessageCircle className="h-4 w-4 shrink-0 text-accent" />
-          <span className="flex-1 text-[14px]">
-            Get {MESSAGES_PER_COIN} more voice messages right away
-          </span>
+          <span className="flex-1 text-[14px]">Each answer past your free daily questions</span>
           <span className="text-[13px] font-semibold text-muted-foreground">{MESSAGE_COST}</span>
         </li>
       </ul>
 
       <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
-        Every account starts with {WELCOME_COINS} welcome coins, and they are used on
-        messages before your free daily ones.
+        Every account starts with {WELCOME_COINS} welcome coins. Your free daily questions
+        are used first — after those, each answer takes one coin.
       </p>
     </div>
   );

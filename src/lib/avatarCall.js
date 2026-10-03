@@ -11,7 +11,9 @@ import { guardAvatarHousekeeping } from "@/lib/avatarSessionGuard";
 import { contextBlocks } from "@/lib/contextBlocks";
 
 const OPEN_QUIET_MS = 10000;
-const CLOSE_QUIET_MS = 10000;
+// once his answer has finished, this much quiet ends the call, so the person can
+// start it again whenever they are ready
+const CLOSE_QUIET_MS = 4000;
 // a call that carries on is held from speaking until the person takes their turn;
 // this is the longest that hold can last if nothing releases it
 const HOLD_MAX_MS = 15000;
@@ -34,6 +36,8 @@ export default class AvatarCall {
     this.speaking = false;
     this.closing = false;
     this.answered = false;
+    // whether the answer being given right now has already been charged for
+    this.spent = false;
     this.userSpoke = false;
     this.heardVoice = false;
     this.withMic = false;
@@ -57,6 +61,7 @@ export default class AvatarCall {
   async open({ withMic = true, videoEl = null, memory = "", laterTurn = false } = {}) {
     guardAvatarHousekeeping();
     this.answered = false;
+    this.spent = false;
     this.userSpoke = false;
     this.heardVoice = false;
     this.withMic = withMic;
@@ -97,6 +102,8 @@ export default class AvatarCall {
     session.on(AgentEventsEnum.USER_TRANSCRIPTION, (event) => {
       if (!event?.text) return;
       this.userSpoke = true;
+      // a fresh turn: the answer coming for it is its own to spend
+      this.spent = false;
       this.releaseQuiet();
       this.h.onUserText?.(event.text);
     });
@@ -224,9 +231,11 @@ export default class AvatarCall {
     this.h.onThinking?.(next);
   }
 
-  // only a call the person took part in, and the agent answered, is spent
+  // only a call the person took part in, and the agent answered, is spent — and
+  // every answer is its own, so a turn taken after this one is spent as well
   noteAnswer() {
-    if (!this.userSpoke || this.answered) return;
+    if (!this.userSpoke || this.spent) return;
+    this.spent = true;
     this.answered = true;
     this.setAwaiting(false);
     this.h.onAgentAnswered?.();
@@ -276,7 +285,7 @@ export default class AvatarCall {
    * Opening guard: ten seconds of quiet before anything is said and the call hangs
    * up — a call that carries on greets nobody, so the person needs that long to take
    * their turn. Closing guard: once something has been said the call waits for the
-   * answer to finish, then ten seconds of quiet.
+   * answer to finish, then four seconds of quiet.
    */
   watch() {
     const step = () => {
