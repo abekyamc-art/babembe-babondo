@@ -11,6 +11,7 @@ export default function useVoiceAgent() {
   const [micActive, setMicActive] = useState(false);
   const [turns, setTurns] = useState([]);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
 
   const pushTurn = useCallback((role, text) => {
     setTurns((prev) => {
@@ -23,7 +24,7 @@ export default function useVoiceAgent() {
   }, []);
 
   const start = useCallback(
-    async ({ withMic = true, firstMessage = "" } = {}) => {
+    async ({ withMic = true, firstMessage = "", onAnswered } = {}) => {
       const existing = socketRef.current;
       if (existing?.connected) {
         if (firstMessage) existing.sendText(firstMessage);
@@ -31,6 +32,7 @@ export default function useVoiceAgent() {
       }
 
       setError("");
+      setNotice("");
       setStatus("connecting");
 
       const socket = new VoiceSocket({
@@ -48,6 +50,15 @@ export default function useVoiceAgent() {
         onAgentAudioStart: () => setSpeaking(true),
         onAgentAudioEnd: () => setSpeaking(false),
         onInterrupted: () => setSpeaking(false),
+        onAgentAnswered: () => onAnswered?.(),
+        onAutoEnd: ({ reason, answered }) => {
+          if (answered) return;
+          setNotice(
+            reason === "timeout"
+              ? "Didn't hear anything — tap the orb to talk again."
+              : "Call ended — tap the orb to talk again."
+          );
+        },
       });
 
       socketRef.current = socket;
@@ -108,6 +119,7 @@ export default function useVoiceAgent() {
     micActive,
     turns,
     error,
+    notice,
     levelRef,
     connected: status === "live",
     start,

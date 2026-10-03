@@ -1,6 +1,9 @@
 import { base44 } from "@/api/base44Client";
 
 const IN_RATE = 16000;
+const SILENCE_MS = 3000;
+const MAX_LISTEN_MS = 10000;
+const VOICE_LEVEL = 0.06;
 
 function b64ToBytes(b64) {
   const bin = atob(b64);
@@ -69,6 +72,13 @@ export default class VoiceSocket {
     this.endTimer = null;
     this.speaking = false;
     this.closing = false;
+    this.answered = false;
+    this.userSpoke = false;
+    this.heardVoice = false;
+    this.lastVoiceAt = 0;
+    this.watchStart = 0;
+    this.watchId = 0;
+    this.autoEnding = false;
   }
 
   get connected() {
@@ -76,6 +86,9 @@ export default class VoiceSocket {
   }
 
   async open({ withMic } = {}) {
+    this.answered = false;
+    this.userSpoke = false;
+    this.autoEnding = false;
     this.h.onStatus?.("connecting");
 
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -169,7 +182,17 @@ export default class VoiceSocket {
 
   sendText(text) {
     this.stopPlayback();
+    this.userSpoke = true;
+    // a fresh message is its own turn, so its answer is its own to spend
+    this.answered = false;
     return this.send({ type: "user_message", text });
+  }
+
+  // only a call the person took part in, and the agent answered, is spent
+  noteAnswer() {
+    if (!this.userSpoke || this.answered) return;
+    this.answered = true;
+    this.h.onAgentAnswered?.();
   }
 
   handleMessage(event) {
@@ -190,13 +213,19 @@ export default class VoiceSocket {
 
     if (msg.type === "audio") {
       const chunk = msg.audio_event?.audio_base_64;
-      if (chunk) this.play(chunk);
+      if (chunk) {
+        this.noteAnswer();
+        this.play(chunk);
+      }
       return;
     }
 
     if (msg.type === "user_transcript") {
       const text = msg.user_transcription_event?.user_transcript;
-      if (text) this.h.onUserText?.(text);
+      if (text) {
+        this.userSpoke = true;
+        this.h.onUserText?.(text);
+      }
       return;
     }
 
@@ -204,7 +233,10 @@ export default class VoiceSocket {
       const text =
         msg.agent_response_event?.agent_response ||
         msg.agent_response_correction_event?.corrected_agent_response;
-      if (text) this.h.onAgentText?.(text);
+      if (text) {
+        this.noteAnswer();
+        this.h.onAgentText?.(text);
+      }
       return;
     }
 
@@ -242,6 +274,63 @@ export default class VoiceSocket {
     this.source.connect(this.processor);
     this.processor.connect(this.sink);
     this.sink.connect(this.ctx.destination);
+
+    this.watchStart = performance.now();
+    this.lastVoiceAt = 0;
+    this.heardVoice = false;
+    this.watch();
+  }
+
+  /**
+   * The microphone never stays open for long: three seconds of quiet once you
+   * have said something, ten seconds of listening at the very most.
+   */
+  watch() {
+    const step = () => {
+      if (!this.analyser || this.autoEnding) return;
+      const now = performance.now();
+
+      if (this.level() > VOICE_LEVEL) {
+        this.heardVoice = true;
+        this.userSpoke = true;
+        this.lastVoiceAt = now;
+      }
+
+      if (this.heardVoice && now - this.lastVoiceAt >= SILENCE_MS) {
+        this.autoEnd("silence");
+        return;
+      }
+
+      if (now - this.watchStart >= MAX_LISTEN_MS) {
+        this.autoEnd("timeout");
+        return;
+      }
+
+      this.watchId = requestAnimationFrame(step);
+    };
+    this.watchId = requestAnimationFrame(step);
+  }
+
+  autoEnd(reason) {
+    if (this.autoEnding) return;
+    this.autoEnding = true;
+    if (this.watchId) cancelAnimationFrame(this.watchId);
+    this.watchId = 0;
+
+    const answered = this.answered;
+    this.closing = true;
+    const ws = this.ws;
+    this.ws = null;
+    if (ws) {
+      try {
+        ws.close();
+      } catch (err) {
+        // socket already gone
+      }
+    }
+    this.teardown();
+    this.h.onStatus?.("ended");
+    this.h.onAutoEnd?.({ reason, answered });
   }
 
   level() {
@@ -303,6 +392,8 @@ export default class VoiceSocket {
   }
 
   teardown() {
+    if (this.watchId) cancelAnimationFrame(this.watchId);
+    this.watchId = 0;
     this.stopPlayback();
     [this.processor, this.source, this.analyser, this.sink].forEach((node) => {
       if (node) {

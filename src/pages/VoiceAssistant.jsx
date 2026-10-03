@@ -20,7 +20,8 @@ import AccountIcon from "@/components/voice/AccountIcon";
 import AccountSheet from "@/components/voice/AccountSheet";
 
 export default function VoiceAssistant() {
-  const { status, speaking, micActive, turns, error, levelRef, start, stop } = useVoiceAgent();
+  const { status, speaking, micActive, turns, error, notice, levelRef, start, stop } =
+    useVoiceAgent();
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
@@ -67,7 +68,7 @@ export default function VoiceAssistant() {
     return () => clearTimeout(timer);
   }, [turns, speaking, micActive, status, user]);
 
-  // a message is only spent once a call has actually connected
+  // a message is only spent once the assistant has actually answered
   const consume = useCallback(async () => {
     try {
       if (user) {
@@ -106,8 +107,7 @@ export default function VoiceAssistant() {
     }
     const wasLive = status === "live";
     if (wasLive) await stop();
-    const connected = await start({ withMic: true });
-    if (connected && !wasLive) await spend();
+    await start({ withMic: true, onAnswered: spend });
   };
 
   const handleSend = async (text) => {
@@ -116,8 +116,7 @@ export default function VoiceAssistant() {
       openGate();
       return;
     }
-    const connected = await start({ withMic: false, firstMessage: text });
-    if (connected) await spend();
+    await start({ withMic: false, firstMessage: text, onAnswered: spend });
   };
 
   const handleAccount = () => setAccountOpen(true);
@@ -160,7 +159,7 @@ export default function VoiceAssistant() {
         </div>
         <div className="flex items-center gap-2.5">
           <UsagePill remaining={remaining} signedIn={!!user} ready={ready} onClick={handleAccount} />
-          <AccountIcon label="Account" onClick={handleAccount} />
+          <AccountIcon label="Account" onClick={handleAccount} size="lg" />
         </div>
       </header>
 
@@ -199,6 +198,10 @@ export default function VoiceAssistant() {
         </div>
 
         <ConversationStrip turns={turns} />
+
+        {notice ? (
+          <p className="max-w-xs text-center text-[12px] text-muted-foreground">{notice}</p>
+        ) : null}
 
         {error ? <p className="max-w-xs text-center text-[12px] text-destructive">{error}</p> : null}
       </main>

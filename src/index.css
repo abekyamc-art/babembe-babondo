@@ -272,6 +272,17 @@
     height: 18px;
   }
 
+  /* the home-screen control is a thumb target, not a sheet ornament */
+  .account-icon-lg {
+    width: 44px;
+    height: 44px;
+  }
+
+  .account-icon-lg svg {
+    width: 22px;
+    height: 22px;
+  }
+
   .account-panel {
     display: flex;
     flex-direction: column;

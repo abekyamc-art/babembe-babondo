@@ -1,8 +1,13 @@
 import React from "react";
 
-export default function AccountIcon({ label, onClick }) {
+export default function AccountIcon({ label, onClick, size = "md" }) {
   return (
-    <button type="button" onClick={onClick} aria-label={label} className="account-icon">
+    <button
+      type="button"
+      onClick={onClick}
+      aria-label={label}
+      className={`account-icon${size === "lg" ? " account-icon-lg" : ""}`}
+    >
       <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
         <circle cx="12" cy="8" r="3.4" stroke="currentColor" strokeWidth="1.7" />
         <path
