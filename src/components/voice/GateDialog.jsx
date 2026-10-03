@@ -93,11 +93,8 @@ export default function GateDialog({
 
           {variant === "daily" ? (
             <>
-              <Button
-                className="w-full gap-2"
-                onClick={onRefill}
-                disabled={refillBusy || coins < refillCost}
-              >
+              {/* the tap always answers: a wallet that can't cover it says so instead of going quiet */}
+              <Button className="w-full gap-2" onClick={onRefill} disabled={refillBusy}>
                 {refillBusy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : (

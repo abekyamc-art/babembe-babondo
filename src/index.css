@@ -199,6 +199,15 @@
     animation-duration: 2.6s;
   }
 
+  /* while the assistant is writing its answer the orb keeps its shape and only quickens */
+  .is-thinking .orb-halo {
+    animation-duration: 2.4s;
+  }
+
+  .is-thinking .orb-sheen {
+    animation-duration: 3.6s;
+  }
+
   /* Account surface — its palette and motion are scoped to this component only. */
   .account-backdrop {
     background: rgba(11, 16, 32, 0.55);

@@ -39,6 +39,8 @@ export default class AvatarCall {
     this.answerEndAt = 0;
     this.watchStart = 0;
     this.watchId = 0;
+    // a written turn that has been sent and not yet answered: the orb shows it
+    this.awaiting = false;
   }
 
   get connected() {
@@ -88,6 +90,7 @@ export default class AvatarCall {
     session.on(AgentEventsEnum.ELEVENLABS_AGENT_EVENT, (event) => {
       if (event?.elevenlabs_event_type !== "interruption") return;
       this.stopSpeaking();
+      this.setAwaiting(false);
       this.h.onInterrupted?.();
     });
     session.on(SessionEvent.SESSION_DISCONNECTED, () => {
@@ -176,10 +179,18 @@ export default class AvatarCall {
     this.h.onAgentAudioEnd?.();
   }
 
+  /** A written turn is waited on: shown from the send until its answer lands. */
+  setAwaiting(next) {
+    if (this.awaiting === next) return;
+    this.awaiting = next;
+    this.h.onThinking?.(next);
+  }
+
   // only a call the person took part in, and the agent answered, is spent
   noteAnswer() {
     if (!this.userSpoke || this.answered) return;
     this.answered = true;
+    this.setAwaiting(false);
     this.h.onAgentAnswered?.();
   }
 
@@ -190,6 +201,7 @@ export default class AvatarCall {
     this.answered = false;
     try {
       this.session.sendUserMessage(text);
+      this.setAwaiting(true);
       return true;
     } catch (err) {
       return false;
@@ -261,6 +273,7 @@ export default class AvatarCall {
   }
 
   teardown() {
+    this.setAwaiting(false);
     if (this.watchId) cancelAnimationFrame(this.watchId);
     this.watchId = 0;
 

@@ -3,7 +3,7 @@ import { ORB_BACKDROP_URL, startOrbScene } from "@/lib/orbScene";
 
 const CANVAS = 420;
 
-export default function OrbVisualizer({ levelRef, status, speaking, videoRef, faceOn }) {
+export default function OrbVisualizer({ levelRef, status, speaking, thinking, videoRef, faceOn }) {
   const faceRef = useRef(null);
   const ringRef = useRef(null);
   const backdropRef = useRef(null);
@@ -54,7 +54,11 @@ export default function OrbVisualizer({ levelRef, status, speaking, videoRef, fa
   }, [videoRef]);
 
   return (
-    <div className={`orb-shell${status === "connecting" ? " is-connecting" : ""}`}>
+    <div
+      className={`orb-shell${status === "connecting" ? " is-connecting" : ""}${
+        thinking ? " is-thinking" : ""
+      }`}
+    >
       <div className="orb-halo" />
       <div className="orb-ring" ref={ringRef} />
       <div className="orb-face" ref={faceRef}>

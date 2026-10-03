@@ -1,19 +1,23 @@
 import React, { useEffect, useRef } from "react";
 
+// only the newest lines stay on screen: ten at most, both sides counted together
+const SHOWN = 10;
+
 export default function ConversationStrip({ turns }) {
   const ref = useRef(null);
+  const shown = turns.slice(-SHOWN);
 
   useEffect(() => {
     const el = ref.current;
     if (el) el.scrollTop = el.scrollHeight;
   }, [turns]);
 
-  if (!turns.length) return null;
+  if (!shown.length) return null;
 
   return (
     <div ref={ref} className="h-full w-full overflow-y-auto overscroll-contain px-1">
       <div className="flex flex-col gap-2.5 pb-1">
-        {turns.map((turn, index) => (
+        {shown.map((turn, index) => (
           <div
             key={`${turn.role}-${index}`}
             className={turn.role === "user" ? "flex justify-end" : "flex justify-start"}

@@ -16,7 +16,14 @@ import {
   spendCredit,
 } from "@/lib/usage";
 import { ensureProfile } from "@/lib/social";
-import { MESSAGE_COST, MESSAGES_PER_COIN, balanceOf, spendCoins } from "@/lib/coins";
+import {
+  MESSAGE_COST,
+  MESSAGES_PER_COIN,
+  balanceOf,
+  owedMessages,
+  spendCoins,
+  writeOwedMessages,
+} from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
@@ -31,6 +38,7 @@ export default function VoiceAssistant() {
   const {
     status,
     speaking,
+    thinking,
     micActive,
     turns,
     error,
@@ -52,7 +60,10 @@ export default function VoiceAssistant() {
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState(null);
   const [refilling, setRefilling] = useState(false);
+  const [refillError, setRefillError] = useState("");
   const pendingGate = useRef(false);
+  // how many of the messages a coin bought are still to be answered
+  const owedRef = useRef(0);
 
   const limit = user ? DAILY_LIMIT : GUEST_LIMIT;
   const { remaining, nextReturnAt } = creditsFrom(stamps, limit, clock);
@@ -77,6 +88,7 @@ export default function VoiceAssistant() {
             })
             .catch(() => {});
           setStamps(await loadUserStamps(me.email));
+          owedRef.current = owedMessages(me.email);
           pruneUsage(me.email).catch(() => {});
         } else {
           setStamps(getGuestStamps());
@@ -112,6 +124,7 @@ export default function VoiceAssistant() {
     const timer = setTimeout(() => {
       if (!pendingGate.current) return;
       pendingGate.current = false;
+      setRefillError("");
       setGate(user ? "daily" : "signin");
     }, 1400);
     return () => clearTimeout(timer);
@@ -136,10 +149,26 @@ export default function VoiceAssistant() {
     return next.length;
   }, [user, stamps]);
 
+  // the coin leaves the wallet only once the fourth of the messages it bought is answered
+  const settle = useCallback(async () => {
+    if (owedRef.current <= 0) return;
+    const left = owedRef.current - 1;
+    owedRef.current = left;
+    writeOwedMessages(user?.email, left);
+    if (left > 0) return;
+    try {
+      const spent = await spendCoins(await ensureProfile(user), MESSAGE_COST);
+      if (spent) setProfile(spent);
+    } catch (err) {
+      // the four messages stay given rather than the answer being lost
+    }
+  }, [user]);
+
   const spend = useCallback(async () => {
     const live = await consume();
     if (live >= limit) pendingGate.current = true;
-  }, [consume, limit]);
+    await settle();
+  }, [consume, limit, settle]);
 
   const openGate = useCallback(() => {
     setGate(user ? "daily" : "signin");
@@ -191,15 +220,25 @@ export default function VoiceAssistant() {
     navigate("/messages");
   };
 
-  // coins give one message back straight away instead of waiting out the 24 hours
+  // a coin buys four messages and stays in the wallet until the fourth of them is answered
   const handleRefill = async () => {
     if (!user || refilling) return;
+    if (!profile) {
+      setRefillError("Your wallet hasn't loaded yet — try again in a moment.");
+      return;
+    }
+    if (balanceOf(profile) < MESSAGE_COST) {
+      setRefillError(
+        `You have no coins — get coins to unlock ${MESSAGES_PER_COIN} more messages.`
+      );
+      return;
+    }
+    setRefillError("");
     setRefilling(true);
     try {
-      const spent = await spendCoins(profile, MESSAGE_COST);
-      if (!spent) return;
-      setProfile(spent);
       await releaseOldestMessages(user.email, MESSAGES_PER_COIN);
+      owedRef.current = MESSAGES_PER_COIN;
+      writeOwedMessages(user.email, MESSAGES_PER_COIN);
       setStamps(await loadUserStamps(user.email));
       setClock(Date.now());
       pendingGate.current = false;
@@ -231,11 +270,13 @@ export default function VoiceAssistant() {
         ? "Connecting"
         : speaking
           ? "Speaking"
-          : micActive
-            ? "Listening"
-            : status === "live"
-              ? "Ready"
-              : "Tap to talk";
+          : thinking
+            ? "Thinking"
+            : micActive
+              ? "Listening"
+              : status === "live"
+                ? "Ready"
+                : "Tap to talk";
 
   return (
     <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground">
@@ -273,6 +314,7 @@ export default function VoiceAssistant() {
               levelRef={levelRef}
               status={status}
               speaking={speaking}
+              thinking={thinking}
               videoRef={orbVideoRef}
               faceOn={avatarLive}
             />
@@ -331,11 +373,14 @@ export default function VoiceAssistant() {
         refillCost={MESSAGE_COST}
         refillMessages={MESSAGES_PER_COIN}
         refillBusy={refilling}
+        message={refillError}
         onRefill={handleRefill}
         onGoogle={handleGoogle}
         onSignOut={handleSignOut}
         onOpenChange={(next) => {
-          if (!next) setGate(null);
+          if (next) return;
+          setGate(null);
+          setRefillError("");
         }}
       />
 

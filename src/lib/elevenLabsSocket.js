@@ -80,6 +80,8 @@ export default class VoiceSocket {
     this.sources = [];
     this.endTimer = null;
     this.speaking = false;
+    // a written turn that has been sent and not yet answered: the orb shows it
+    this.awaiting = false;
     this.closing = false;
     this.answered = false;
     this.userSpoke = false;
@@ -244,13 +246,23 @@ export default class VoiceSocket {
     this.userSpoke = true;
     // a fresh message is its own turn, so its answer is its own to spend
     this.answered = false;
-    return this.send({ type: "user_message", text });
+    const sent = this.send({ type: "user_message", text });
+    if (sent) this.setAwaiting(true);
+    return sent;
+  }
+
+  /** A written turn is waited on: shown from the send until its answer lands. */
+  setAwaiting(next) {
+    if (this.awaiting === next) return;
+    this.awaiting = next;
+    this.h.onThinking?.(next);
   }
 
   // only a call the person took part in, and the agent answered, is spent
   noteAnswer() {
     if (!this.userSpoke || this.answered) return;
     this.answered = true;
+    this.setAwaiting(false);
     this.h.onAgentAnswered?.();
   }
 
@@ -304,6 +316,7 @@ export default class VoiceSocket {
 
     if (msg.type === "interruption") {
       this.stopPlayback();
+      this.setAwaiting(false);
       this.h.onInterrupted?.();
       return;
     }
@@ -510,6 +523,7 @@ export default class VoiceSocket {
   }
 
   teardown() {
+    this.setAwaiting(false);
     if (this.watchId) cancelAnimationFrame(this.watchId);
     this.watchId = 0;
     this.stopPlayback();

@@ -39,3 +39,34 @@ export async function creditCoins(email, amount) {
   if (!host) return null;
   return base44.entities.Profile.update(host.id, { coins: balanceOf(host) + amount });
 }
+
+// —— a refill's four messages: the coin is only owed until the fourth is answered ——
+
+const OWED_KEY = "vv_coin_owed";
+
+function readOwed() {
+  try {
+    const all = JSON.parse(localStorage.getItem(OWED_KEY) || "{}");
+    return all && typeof all === "object" ? all : {};
+  } catch (err) {
+    // storage unavailable — the count lives in memory for this session
+    return {};
+  }
+}
+
+/** How many of the messages a coin bought are still to be answered. */
+export function owedMessages(email) {
+  return Math.max(0, Number(readOwed()[email]) || 0);
+}
+
+export function writeOwedMessages(email, count) {
+  if (!email) return;
+  const all = readOwed();
+  if (count > 0) all[email] = count;
+  else delete all[email];
+  try {
+    localStorage.setItem(OWED_KEY, JSON.stringify(all));
+  } catch (err) {
+    // storage unavailable — the count lives in memory for this session
+  }
+}

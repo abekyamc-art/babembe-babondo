@@ -18,9 +18,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const quietRef = useRef(false);
   // everything he has already said, in order, so a later session is never a blank one
   const linesRef = useRef([]);
+  // the typed line already on screen, so the agent's own echo of it is not shown twice
+  const sentRef = useRef("");
 
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
+  const [thinking, setThinking] = useState(false);
   const [micActive, setMicActive] = useState(false);
   const [turns, setTurns] = useState([]);
   const [error, setError] = useState("");
@@ -63,14 +66,23 @@ export default function useVoiceAgent({ videoRef } = {}) {
         if (next === "closed" || next === "ended") {
           setStatus("idle");
           setSpeaking(false);
+          setThinking(false);
           setMicActive(false);
           setAvatarLive(false);
           socketRef.current = null;
         }
       },
-      onUserText: (text) => pushTurn("user", text),
+      onUserText: (text) => {
+        // the typed line was put on screen as it was sent, so its echo is not a second one
+        if (sentRef.current && text.trim() === sentRef.current) {
+          sentRef.current = "";
+          return;
+        }
+        pushTurn("user", text);
+      },
       onAgentText: (text) => pushTurn("agent", text),
       onAgentAudioStart: () => setSpeaking(true),
+      onThinking: (on) => setThinking(on),
       onAgentAudioEnd: () => setSpeaking(false),
       onInterrupted: () => setSpeaking(false),
       onAgentAnswered: () => answeredRef.current?.(),
@@ -91,6 +103,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
     async ({ withMic = true, firstMessage = "", onAnswered, silent = false } = {}) => {
       const existing = socketRef.current;
       if (onAnswered) answeredRef.current = onAnswered;
+      // the line shows the moment it is sent, before the agent's own echo of it
+      if (firstMessage) {
+        sentRef.current = firstMessage.trim();
+        pushTurn("user", firstMessage);
+      }
       // a call already listening through the microphone carries on; a written session
       // gives way the moment the microphone is asked for
       if (existing?.connected && (!withMic || existing.micOn)) {
@@ -157,20 +174,28 @@ export default function useVoiceAgent({ videoRef } = {}) {
         return false;
       }
     },
-    [makeHandlers, videoRef]
+    [makeHandlers, pushTurn, videoRef]
   );
 
   const stop = useCallback(async () => {
     const socket = socketRef.current;
     socketRef.current = null;
     setSpeaking(false);
+    setThinking(false);
     setMicActive(false);
     setAvatarLive(false);
     setStatus("idle");
     if (socket) await socket.stop();
   }, []);
 
-  const sendText = useCallback((text) => socketRef.current?.sendText(text), []);
+  const sendText = useCallback(
+    (text) => {
+      sentRef.current = text.trim();
+      pushTurn("user", text);
+      return socketRef.current?.sendText(text);
+    },
+    [pushTurn]
+  );
 
   useEffect(() => {
     if (status !== "live") {
@@ -195,6 +220,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
   return {
     status,
     speaking,
+    thinking,
     micActive,
     turns,
     error,
