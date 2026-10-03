@@ -23,6 +23,10 @@
       "default": "none",
       "description": "Camera filter the host has picked; every phone watching shows the same one."
     },
+    "zoom": {
+      "type": "number",
+      "description": "How far in the host's camera is pulled, as a shared setting for the room's framing."
+    },
     "status": {
       "type": "string",
       "enum": [

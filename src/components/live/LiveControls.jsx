@@ -5,6 +5,7 @@ import {
   MicOff,
   RefreshCw,
   SlidersHorizontal,
+  ZoomIn,
   Video,
   VideoOff,
   Volume2,
@@ -23,6 +24,7 @@ export default function LiveControls({
   onFilters,
   onEffects,
   onGifts,
+  onZoom,
 }) {
   const items = [];
 
@@ -50,6 +52,7 @@ export default function LiveControls({
       label: "Filter",
       onClick: onFilters,
     });
+    items.push({ key: "zoom", icon: ZoomIn, label: "Zoom", onClick: onZoom });
   }
   items.push({ key: "effects", icon: Volume2, label: "Sound", onClick: onEffects });
   if (canGift) {

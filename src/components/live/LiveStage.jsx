@@ -2,6 +2,7 @@ import React from "react";
 import { ArrowLeft, Coins, X } from "lucide-react";
 import LiveVideo from "@/components/live/LiveVideo";
 import GuestRequests from "@/components/live/GuestRequests";
+import RoomAudio from "@/components/live/RoomAudio";
 
 /** The room itself: the host's video edge to edge, with everything else laid over it. */
 export default function LiveStage({
@@ -38,6 +39,7 @@ export default function LiveStage({
         filter={filter}
         pictureOn={pictureOn}
       />
+      <RoomAudio streams={remoteStreams} />
 
       <header className="absolute inset-x-0 top-0 z-30 flex items-start gap-2.5 bg-gradient-to-b from-black/70 to-transparent px-4 pb-6 pt-[max(0.7rem,env(safe-area-inset-top))]">
         <button

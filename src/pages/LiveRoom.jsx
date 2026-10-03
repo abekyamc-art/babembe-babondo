@@ -16,6 +16,7 @@ import LiveControls from "@/components/live/LiveControls";
 import GiftSheet from "@/components/live/GiftSheet";
 import EffectsSheet from "@/components/live/EffectsSheet";
 import FilterSheet from "@/components/live/FilterSheet";
+import ZoomControl from "@/components/live/ZoomControl";
 
 export default function LiveRoom() {
   const { id } = useParams();
@@ -30,6 +31,7 @@ export default function LiveRoom() {
   const [busy, setBusy] = useState(false);
   const [gifting, setGifting] = useState(false);
   const [sheet, setSheet] = useState(null);
+  const [zoomOpen, setZoomOpen] = useState(false);
   const [giftRequest, setGiftRequest] = useState(null);
   const [effectRequest, setEffectRequest] = useState(null);
   const [ready, setReady] = useState(false);
@@ -114,6 +116,9 @@ export default function LiveRoom() {
     guests,
     micOn,
     cameraOn,
+    zoom,
+    zoomRange,
+    applyZoom,
     toggleMic,
     toggleCamera,
     flipCamera,
@@ -130,6 +135,17 @@ export default function LiveRoom() {
   const hostRow = peers.find((peer) => peer.user_email === room?.host_email);
   const pictureOn = isHost ? cameraOn : hostRow?.camera_on !== false;
   const filter = room?.filter || "none";
+  const canZoom = zoomRange !== null;
+
+  /** Nudging the zoom is local while dragging; the level that sticks is kept on the room. */
+  const changeZoom = (level) => applyZoom(level);
+
+  const commitZoom = async (level) => {
+    const applied = await applyZoom(level);
+    if (!applied) return;
+    const updated = await base44.entities.LiveRoom.update(room.id, { zoom: level });
+    setRoom(updated);
+  };
 
   const requestToJoin = async () => {
     setBusy(true);
@@ -302,6 +318,10 @@ export default function LiveRoom() {
               coins={balanceOf(profile)}
               sending={gifting}
               onPick={pickGift}
+              onGetCoins={() => {
+                setSheet(null);
+                navigate("/markets");
+              }}
               onClose={() => setSheet(null)}
             />
             <EffectsSheet
@@ -324,12 +344,25 @@ export default function LiveRoom() {
           onFilters={() => setSheet("filters")}
           onEffects={() => setSheet("effects")}
           onGifts={() => setSheet("gifts")}
+          onZoom={() => setZoomOpen((prev) => !prev)}
         />
+        {isHost ? (
+          <ZoomControl
+            open={zoomOpen}
+            canZoom={canZoom}
+            level={zoom}
+            range={zoomRange}
+            onChange={changeZoom}
+            onCommit={commitZoom}
+            onClose={() => setZoomOpen(false)}
+          />
+        ) : null}
         <LiveGuests guests={guests} isHost={isHost} onRemove={removeGuest} />
         {!isHost ? (
           <JoinRequestBar
             approved={isGuest}
             pending={myRequest?.status === "pending"}
+            declined={myRequest?.status === "declined"}
             busy={busy}
             onRequest={requestToJoin}
             onCancel={cancelRequest}

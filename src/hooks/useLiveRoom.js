@@ -33,11 +33,14 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
   const [micOn, setMicOn] = useState(true);
   const [cameraOn, setCameraOn] = useState(true);
   const [facing, setFacing] = useState("user");
+  const [zoom, setZoom] = useState(null);
+  const [zoomRange, setZoomRange] = useState(null);
 
   const rowRef = useRef(null);
   const roleRef = useRef(role);
   const cameraOnRef = useRef(true);
   const facingRef = useRef("user");
+  const zoomRef = useRef(null);
   const localRef = useRef(null);
   const outRef = useRef(new Map());
   const inRef = useRef(new Map());
@@ -45,6 +48,22 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
 
   const noteState = useCallback((peerEmail, state) => {
     setLinkStates((prev) => (prev[peerEmail] === state ? prev : { ...prev, [peerEmail]: state }));
+  }, []);
+
+  /** Not every phone's camera offers zoom; when it does, this is the range it takes. */
+  const readZoom = useCallback((track) => {
+    const range = track?.getCapabilities?.().zoom;
+    if (!range) {
+      zoomRef.current = null;
+      setZoomRange(null);
+      setZoom(null);
+      return;
+    }
+    const held = track.getSettings?.().zoom;
+    const level = typeof held === "number" ? held : range.min;
+    zoomRef.current = level;
+    setZoomRange({ min: range.min, max: range.max, step: range.step || 0.1 });
+    setZoom(level);
   }, []);
 
   const closeEverything = useCallback(() => {
@@ -157,6 +176,7 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
         setMicOn(true);
         setMediaError("");
         setLocalStream(got);
+        readZoom(got.getVideoTracks()[0]);
       })
       .catch(() => {
         if (!alive) return;
@@ -170,9 +190,12 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
       alive = false;
       localRef.current = null;
       setLocalStream(null);
+      zoomRef.current = null;
+      setZoomRange(null);
+      setZoom(null);
       if (stream) stream.getTracks().forEach((track) => track.stop());
     };
-  }, [live, role]);
+  }, [live, role, readZoom]);
 
   // 4. one direct link per other phone
   useEffect(() => {
@@ -330,6 +353,13 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
       });
       const track = fresh.getVideoTracks()[0];
       if (!track) return;
+      const held = zoomRef.current;
+      readZoom(track);
+      if (held !== null && track.getCapabilities?.().zoom) {
+        track.applyConstraints({ advanced: [{ zoom: held }] }).catch(() => {});
+        zoomRef.current = held;
+        setZoom(held);
+      }
       outRef.current.forEach((link) => link.replaceVideo(track));
       const current = localRef.current;
       const audio = current.getAudioTracks();
@@ -342,6 +372,22 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
     } catch (err) {
       // this phone only has the one camera
     }
+  }, [readZoom]);
+
+  /** The host's framing: the phone applies it to the picture it sends everyone. */
+  const applyZoom = useCallback(async (level) => {
+    const track = localRef.current?.getVideoTracks()[0];
+    const range = track?.getCapabilities?.().zoom;
+    if (!range) return false;
+    const wanted = Math.min(range.max, Math.max(range.min, level));
+    try {
+      await track.applyConstraints({ advanced: [{ zoom: wanted }] });
+    } catch (err) {
+      return false;
+    }
+    zoomRef.current = wanted;
+    setZoom(wanted);
+    return true;
   }, []);
 
   const problem = useMemo(() => {
@@ -359,6 +405,9 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
     micOn,
     cameraOn,
     facing,
+    zoom,
+    zoomRange,
+    applyZoom,
     toggleMic,
     toggleCamera,
     flipCamera,

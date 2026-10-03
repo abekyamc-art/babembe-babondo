@@ -2,9 +2,8 @@ import React, { useRef } from "react";
 import { Loader2 } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import useStream from "@/hooks/useStream";
-import RemoteAudio from "@/components/live/RemoteAudio";
 
-/** The room's picture: the host's camera full screen, plus every guest's voice. */
+/** The room's picture: the host's camera full screen. The sound is played by RoomAudio. */
 export default function LiveVideo({
   isHost,
   hostEmail,
@@ -22,7 +21,6 @@ export default function LiveVideo({
 
   const hasVideo = !!main && main.getVideoTracks().length > 0;
   const picture = hasVideo && pictureOn;
-  const guests = Object.entries(remoteStreams).filter(([email]) => email !== hostEmail);
 
   return (
     <>
@@ -30,7 +28,7 @@ export default function LiveVideo({
         ref={videoRef}
         autoPlay
         playsInline
-        muted={isHost}
+        muted
         style={{ filter: filter || "none" }}
         className={picture ? "absolute inset-0 h-full w-full object-cover" : "hidden"}
       />
@@ -58,10 +56,6 @@ export default function LiveVideo({
           )}
         </div>
       ) : null}
-
-      {guests.map(([email, stream]) => (
-        <RemoteAudio key={email} stream={stream} />
-      ))}
     </>
   );
 }

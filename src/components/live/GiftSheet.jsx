@@ -4,7 +4,7 @@ import { GIFTS } from "@/lib/coins";
 import LiveSheet from "@/components/live/LiveSheet";
 
 /** The room's gift tray: pick one, the host's balance goes up. */
-export default function GiftSheet({ open, coins, sending, onPick, onClose }) {
+export default function GiftSheet({ open, coins, sending, onPick, onGetCoins, onClose }) {
   return (
     <LiveSheet open={open} title="Send a gift" onClose={onClose}>
       <div className="grid grid-cols-2 gap-2">
@@ -33,8 +33,18 @@ export default function GiftSheet({ open, coins, sending, onPick, onClose }) {
         })}
       </div>
       <p className="mt-3 text-center text-[11px] text-white/50">
-        {coins > 0 ? `You have ${coins} coins.` : "Get coins from the account menu to send gifts."}
+        {coins > 0 ? `You have ${coins} coins.` : "You need coins to send a gift."}
       </p>
+      {coins < Math.min(...GIFTS.map((gift) => gift.coins)) ? (
+        <button
+          type="button"
+          onClick={onGetCoins}
+          className="mt-2 flex w-full items-center justify-center gap-2 rounded-full bg-accent px-4 py-2.5 text-[13px] font-semibold text-accent-foreground"
+        >
+          <Coins className="h-4 w-4" />
+          Get coins
+        </button>
+      ) : null}
     </LiveSheet>
   );
 }
