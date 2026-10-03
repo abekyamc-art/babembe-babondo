@@ -1,0 +1,31 @@
+{
+  "name": "Reel",
+  "type": "object",
+  "properties": {
+    "author_email": {
+      "type": "string",
+      "description": "Email of the person who posted the reel."
+    },
+    "author_username": {
+      "type": "string",
+      "description": "Public handle of the author at the moment of posting."
+    },
+    "video_url": {
+      "type": "string",
+      "description": "Public URL of the uploaded video."
+    },
+    "caption": {
+      "type": "string",
+      "description": "Caption written by the author."
+    },
+    "publish_at": {
+      "type": "string",
+      "description": "ISO time the reel becomes visible in the feed. Reels posted immediately use the current time; scheduled reels use the chosen time."
+    }
+  },
+  "required": [
+    "author_email",
+    "video_url",
+    "publish_at"
+  ]
+}

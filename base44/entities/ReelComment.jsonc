@@ -1,0 +1,27 @@
+{
+  "name": "ReelComment",
+  "type": "object",
+  "properties": {
+    "reel_id": {
+      "type": "string",
+      "description": "The reel this comment belongs to."
+    },
+    "author_email": {
+      "type": "string",
+      "description": "Email of the person who wrote the comment."
+    },
+    "author_username": {
+      "type": "string",
+      "description": "Public handle of the commenter."
+    },
+    "text": {
+      "type": "string",
+      "description": "The comment itself."
+    }
+  },
+  "required": [
+    "reel_id",
+    "author_email",
+    "text"
+  ]
+}

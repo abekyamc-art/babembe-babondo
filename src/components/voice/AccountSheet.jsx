@@ -1,5 +1,7 @@
 import React from "react";
+import { Clapperboard } from "lucide-react";
 import AccountIcon from "@/components/voice/AccountIcon";
+import AccountProfile from "@/components/voice/AccountProfile";
 
 function Chevron() {
   return (
@@ -20,6 +22,7 @@ export default function AccountSheet({
   user,
   remaining,
   ready,
+  onReels,
   onClose,
   onSignIn,
   onSwitchAccount,
@@ -53,29 +56,18 @@ export default function AccountSheet({
         </div>
 
         <div className="account-panel">
-          <div className="account-identity">
-            <div className="account-avatar" aria-hidden="true">
-              <svg viewBox="0 0 40 40" fill="none">
-                <circle cx="20" cy="14" r="6" fill="currentColor" opacity=".88" />
-                <path
-                  d="M8.5 33c1.2-6.2 5-9.2 11.5-9.2S30.3 26.8 31.5 33"
-                  fill="currentColor"
-                  opacity=".72"
-                />
-              </svg>
-            </div>
-            <div className="account-label">Account</div>
-            <div className="account-name">
-              {signedIn ? user.full_name || "Signed in" : "Not signed in"}
-            </div>
-            <div className="account-email">
-              {signedIn ? user.email : "Sign in with Google for 5 messages"}
-            </div>
-          </div>
+          <AccountProfile user={user} />
 
           <div className="account-actions">
             {signedIn ? (
               <>
+                <button type="button" className="account-action" onClick={onReels}>
+                  <span className="account-action-label">
+                    <Clapperboard className="h-4 w-4" />
+                    Reels
+                  </span>
+                  <Chevron />
+                </button>
                 <button type="button" className="account-action" onClick={onSwitchAccount}>
                   <span>Switch account</span>
                   <Chevron />

@@ -14,6 +14,7 @@ import {
   pruneUsage,
   spendCredit,
 } from "@/lib/usage";
+import { ensureProfile } from "@/lib/social";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
@@ -52,6 +53,7 @@ export default function VoiceAssistant() {
       setUser(me);
       try {
         if (me) {
+          ensureProfile(me).catch(() => {});
           setStamps(await loadUserStamps(me.email));
           pruneUsage(me.email).catch(() => {});
         } else {
@@ -146,6 +148,11 @@ export default function VoiceAssistant() {
   };
 
   const handleAccount = () => setAccountOpen(true);
+
+  const handleReels = () => {
+    setAccountOpen(false);
+    navigate("/reels");
+  };
 
   // signing in happens on the app's own login page, which handles Google and returns home
   const handleGoogle = () => navigate("/login");
@@ -269,6 +276,7 @@ export default function VoiceAssistant() {
         remaining={remaining}
         ready={ready}
         onSignIn={handleGoogle}
+        onReels={handleReels}
         onSwitchAccount={handleSwitchAccount}
         onSignOut={handleSignOut}
         onClose={() => setAccountOpen(false)}

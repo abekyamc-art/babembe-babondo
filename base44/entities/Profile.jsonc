@@ -1,0 +1,21 @@
+{
+  "name": "Profile",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the app user this public profile belongs to."
+    },
+    "username": {
+      "type": "string",
+      "description": "Public handle shown next to reels, in search and on comments."
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Public URL of the profile picture."
+    }
+  },
+  "required": [
+    "user_email"
+  ]
+}

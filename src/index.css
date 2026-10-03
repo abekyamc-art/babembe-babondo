@@ -421,6 +421,82 @@
   .account-action-neutral:active {
     color: #6ba8ff;
   }
+
+  .account-action-label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .account-avatar-btn {
+    position: relative;
+    padding: 0;
+    cursor: pointer;
+  }
+
+  .account-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: 50%;
+  }
+
+  .account-avatar-busy {
+    position: absolute;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    border-radius: 50%;
+    background: rgba(11, 16, 32, 0.6);
+    color: #dce8ff;
+  }
+
+  .account-hint {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.2px;
+    color: #9ba9c6;
+    text-align: center;
+  }
+
+  .account-edit {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .account-input {
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    color: #f5f6ff;
+    background: #141c32;
+    border: 1px solid #293654;
+    border-radius: 12px;
+    font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  .account-input:focus {
+    outline: 2px solid #6ba8ff;
+    outline-offset: 2px;
+  }
+
+  .account-save {
+    flex: none;
+    padding: 12px 16px;
+    color: #ffffff;
+    background: #2f4a7d;
+    border: 1px solid #3f5e97;
+    border-radius: 12px;
+    font: 600 13px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+    cursor: pointer;
+  }
+
+  .account-save:disabled {
+    opacity: 0.45;
+    cursor: default;
+  }
 }
 
 @keyframes orb-breathe {
