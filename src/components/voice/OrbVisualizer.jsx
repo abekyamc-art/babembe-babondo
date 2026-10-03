@@ -1,6 +1,6 @@
 import React, { useEffect, useRef } from "react";
 
-export default function OrbVisualizer({ levelRef, status, speaking }) {
+export default function OrbVisualizer({ levelRef, status, speaking, videoRef, faceOn }) {
   const faceRef = useRef(null);
   const ringRef = useRef(null);
 
@@ -32,7 +32,18 @@ export default function OrbVisualizer({ levelRef, status, speaking }) {
       <div className="orb-halo" />
       <div className="orb-ring" ref={ringRef} />
       <div className="orb-face" ref={faceRef}>
-        <div className="orb-sheen" />
+        {videoRef ? (
+          <video
+            ref={videoRef}
+            autoPlay
+            playsInline
+            aria-hidden="true"
+            className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
+              faceOn ? "opacity-100" : "opacity-0"
+            }`}
+          />
+        ) : null}
+        {faceOn ? null : <div className="orb-sheen" />}
       </div>
     </div>
   );

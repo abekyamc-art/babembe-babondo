@@ -26,8 +26,20 @@ import AccountIcon from "@/components/voice/AccountIcon";
 import AccountSheet from "@/components/voice/AccountSheet";
 
 export default function VoiceAssistant() {
-  const { status, speaking, micActive, turns, error, notice, levelRef, start, stop } =
-    useVoiceAgent();
+  const orbVideoRef = useRef(null);
+  const {
+    status,
+    speaking,
+    micActive,
+    turns,
+    error,
+    notice,
+    levelRef,
+    avatarReady,
+    avatarLive,
+    start,
+    stop,
+  } = useVoiceAgent({ videoRef: orbVideoRef });
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
@@ -202,6 +214,9 @@ export default function VoiceAssistant() {
     await base44.auth.logout("/");
   };
 
+  // the face is optional — without it the orb stays exactly as it has always been
+  const faceNote = ready && !avatarReady ? "Face isn't connected yet — voice only for now." : "";
+
   const statusLabel =
     !ready
       ? "Checking…"
@@ -247,7 +262,13 @@ export default function VoiceAssistant() {
             aria-label={micActive ? "End the call" : "Start a voice call"}
             className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
           >
-            <OrbVisualizer levelRef={levelRef} status={status} speaking={speaking} />
+            <OrbVisualizer
+              levelRef={levelRef}
+              status={status}
+              speaking={speaking}
+              videoRef={orbVideoRef}
+              faceOn={avatarLive}
+            />
           </button>
 
           <div className="flex flex-col items-center gap-3">
@@ -284,7 +305,7 @@ export default function VoiceAssistant() {
               error ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {error || notice}
+            {error || notice || faceNote}
           </p>
         </div>
       </main>
