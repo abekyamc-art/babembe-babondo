@@ -465,6 +465,14 @@ export default class VoiceSocket {
     this.h.onAutoEnd?.({ reason, answered });
   }
 
+  /** The microphone track: closed while he speaks, open again the moment he stops. */
+  setMicOpen(open) {
+    if (!this.stream) return;
+    this.stream.getAudioTracks().forEach((track) => {
+      track.enabled = open;
+    });
+  }
+
   level() {
     if (!this.analyser || !this.levelBuf || !this.connected) return 0;
     this.analyser.getByteTimeDomainData(this.levelBuf);
@@ -515,6 +523,8 @@ export default class VoiceSocket {
       if (this.silent || this.holdQuiet || this.speaking) return;
       this.setAwaiting(false);
       this.speaking = true;
+      // the microphone closes by itself for as long as he is speaking
+      this.setMicOpen(false);
       this.h.onAgentAudioStart?.();
     };
 
@@ -531,6 +541,8 @@ export default class VoiceSocket {
       this.answerEndAt = performance.now();
       if (this.speaking) {
         this.speaking = false;
+        // the answer has been read out: the microphone opens by itself again
+        this.setMicOpen(true);
         this.h.onAgentAudioEnd?.();
       }
     }, remainingMs);
@@ -576,6 +588,8 @@ export default class VoiceSocket {
       this.speaking = false;
       this.h.onAgentAudioEnd?.();
     }
+    // an interruption hands the turn back: the microphone is open again for it
+    this.setMicOpen(true);
     this.sources.forEach((node) => {
       try {
         node.stop();
@@ -611,6 +625,8 @@ export default class VoiceSocket {
     this.levelBuf = null;
     this.muteGain = null;
 
+    // opened once more before it is stopped, so the next call starts listening
+    this.setMicOpen(true);
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;

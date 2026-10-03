@@ -3,7 +3,7 @@ import VoiceSocket from "@/lib/elevenLabsSocket";
 import AvatarCall from "@/lib/avatarCall";
 import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
-import { loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
+import { loadFreshMaterial, loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
 
 // the knowledge note travels in blocks and needs a beat to settle before the
 // question is put to him, so he reads it before he answers; the wait is shown as
@@ -29,6 +29,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const sentRef = useRef("");
   // the spoken turn already looked up, so one turn is never read twice
   const heardRef = useRef({ text: "", timer: 0 });
+  // the request for fresh material already looked up, so one turn is never searched for twice
+  const wantedRef = useRef({ text: "", timer: 0 });
 
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
@@ -92,6 +94,26 @@ export default function useVoiceAgent({ videoRef } = {}) {
     }, 350);
   }, []);
 
+  /**
+   * A request that needs material from outside the saved knowledge — a story, news, a
+   * word, a fact — is looked up as it lands, once, and what comes back reaches the
+   * session before the answer. The lookup itself decides whether anything is needed,
+   * saves what it finds for next time, and hands back only the material.
+   */
+  const reviewWanted = useCallback((text) => {
+    const said = String(text || "").trim();
+    const state = wantedRef.current;
+    if (said.length < 3 || said === state.text) return;
+
+    clearTimeout(state.timer);
+    state.timer = setTimeout(async () => {
+      state.text = said;
+      const material = await loadFreshMaterial(said);
+      const engine = socketRef.current;
+      if (material && engine && !engine.silent) engine.sendMemory?.(material);
+    }, 350);
+  }, []);
+
   // both kinds of call report back through the same set of handlers
   const makeHandlers = useCallback(
     () => ({
@@ -114,6 +136,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         }
         pushTurn("user", text);
         reviewHeard(text);
+        reviewWanted(text);
       },
       onAgentText: (text) => pushTurn("agent", text),
       onAgentAudioStart: () => setSpeaking(true),
@@ -127,11 +150,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
         setNotice(
           reason === "silence"
             ? "Didn't hear anything — tap the orb to talk again."
-            : "Call ended — tap the orb to talk again."
+            : "Nobody spoke — tap the orb to talk again."
         );
       },
     }),
-    [pushTurn, reviewHeard]
+    [pushTurn, reviewHeard, reviewWanted]
   );
 
   // a written question is held back while the knowledge he was handed settles, and
@@ -172,9 +195,19 @@ export default function useVoiceAgent({ videoRef } = {}) {
       const said = linesRef.current;
       const laterTurn = said.length > 0;
       const memory = buildMemory(said);
+      // a request for a story, news, a word or a fact is looked up online before the
+      // session opens, so the material is already in hand when he answers it
+      const asked = String(firstMessage || "").trim();
+      // a fresh session starts with no lookup behind it, so a spoken turn is always
+      // looked up for itself
+      wantedRef.current.text = asked;
+      const [note, fresh] = await Promise.all([
+        loadKnowledgeNote(firstMessage),
+        loadFreshMaterial(asked),
+      ]);
       // both kinds of call are handed the admin's knowledge: the words the question
-      // turns on, and the guidance that goes with them
-      const knowledge = withKnowledge(memory, await loadKnowledgeNote(firstMessage));
+      // turns on, the guidance that goes with them, and anything just looked up
+      const knowledge = withKnowledge(memory, withKnowledge(note, fresh));
 
       // when the owner's face is in place the call runs through it, with the same
       // ElevenLabs agent answering behind it. Typing is answered in writing, so it

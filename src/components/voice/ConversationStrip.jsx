@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from "react";
-import TypingDots from "@/components/voice/TypingDots";
+import ThinkingLine from "@/components/voice/ThinkingLine";
 
 // only the newest lines stay on screen: ten at most, both sides counted together
 const SHOWN = 10;
@@ -37,9 +37,9 @@ export default function ConversationStrip({ turns, pending }) {
         ))}
         {pending ? (
           <div className="flex justify-start">
-            <p className="rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-2.5 text-foreground">
-              <TypingDots />
-            </p>
+            <div className="rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-2.5">
+              <ThinkingLine className="text-foreground" />
+            </div>
           </div>
         ) : null}
       </div>

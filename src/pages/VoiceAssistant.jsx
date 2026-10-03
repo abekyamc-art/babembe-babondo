@@ -18,6 +18,7 @@ import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
+import ThinkingLine from "@/components/voice/ThinkingLine";
 import UsagePill from "@/components/voice/UsagePill";
 import CoinPill from "@/components/voice/CoinPill";
 import GateDialog from "@/components/voice/GateDialog";
@@ -347,6 +348,11 @@ export default function VoiceAssistant() {
       </main>
 
       <footer className="relative z-10 px-5 pb-6 pt-2">
+        {/* the same progress as the conversation, over the box, with its room kept so
+            nothing on the screen moves when it comes and goes */}
+        <div className="flex h-5 items-center justify-center">
+          {thinking ? <ThinkingLine /> : null}
+        </div>
         <ChatInput onSend={handleSend} onCall={handleCall} inCall={micActive} />
       </footer>
 
