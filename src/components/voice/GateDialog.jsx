@@ -29,17 +29,17 @@ export default function GateDialog({
     variant === "signin"
       ? "Keep talking"
       : variant === "daily"
-        ? "That's all for today"
+        ? "That's all for now"
         : "Your voice assistant";
 
   const description =
     variant === "signin"
-      ? "You've used your free messages. Sign in with Google to keep going — you get 5 every day."
+      ? "You've used your free messages. Sign in with Google to keep going — you get 5 messages, each one coming back 24 hours after you use it."
       : variant === "daily"
-        ? "You've used all 5 messages for today. Your limit resets tomorrow, and credits are coming soon."
+        ? "You've used all 5 messages. They come back one at a time, 24 hours after each was used — the number at the top counts down to the next one."
         : signedIn
-          ? `You've used ${used} of ${limit} today. Your limit resets every day.`
-          : "You get 2 free messages. Sign in with Google for 5 every day.";
+          ? `You've used ${used} of ${limit}. Each message comes back 24 hours after it was used — the number at the top counts down to the next one.`
+          : "You get 2 free messages, each coming back 24 hours after you use it. Sign in with Google for 5.";
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

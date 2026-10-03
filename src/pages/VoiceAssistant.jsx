@@ -6,10 +6,13 @@ import useVoiceAgent from "@/hooks/useVoiceAgent";
 import {
   DAILY_LIMIT,
   GUEST_LIMIT,
-  bumpDailyUsed,
-  bumpGuestUsed,
-  getDailyUsed,
-  getGuestUsed,
+  addGuestStamp,
+  creditsFrom,
+  getGuestStamps,
+  liveStamps,
+  loadUserStamps,
+  pruneUsage,
+  spendCredit,
 } from "@/lib/usage";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
@@ -25,14 +28,16 @@ export default function VoiceAssistant() {
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
-  const [used, setUsed] = useState(0);
+  const [stamps, setStamps] = useState([]);
+  const [clock, setClock] = useState(() => Date.now());
   const [gate, setGate] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const pendingGate = useRef(false);
 
   const limit = user ? DAILY_LIMIT : GUEST_LIMIT;
-  const remaining = Math.max(0, limit - used);
+  const { remaining, nextReturnAt } = creditsFrom(stamps, limit, clock);
+  const used = limit - remaining;
 
   useEffect(() => {
     let alive = true;
@@ -46,9 +51,14 @@ export default function VoiceAssistant() {
       if (!alive) return;
       setUser(me);
       try {
-        setUsed(me ? await getDailyUsed(me.email) : getGuestUsed());
+        if (me) {
+          setStamps(await loadUserStamps(me.email));
+          pruneUsage(me.email).catch(() => {});
+        } else {
+          setStamps(getGuestStamps());
+        }
       } catch (err) {
-        setUsed(0);
+        setStamps([]);
       }
       if (alive) setReady(true);
     })();
@@ -56,6 +66,21 @@ export default function VoiceAssistant() {
       alive = false;
     };
   }, []);
+
+  // the allowance keeps itself current, so a returning message appears without a reload
+  useEffect(() => {
+    if (!ready) return undefined;
+    const sync = () => setClock(Date.now());
+    const id = setInterval(sync, 30000);
+    const onVisible = () => {
+      if (document.visibilityState === "visible") sync();
+    };
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      clearInterval(id);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [ready]);
 
   // once the last allowed turn is used, prompt when the answer has finished
   useEffect(() => {
@@ -70,25 +95,26 @@ export default function VoiceAssistant() {
 
   // a message is only spent once the assistant has actually answered
   const consume = useCallback(async () => {
+    const now = Date.now();
+    let next;
     try {
       if (user) {
-        const next = await bumpDailyUsed(user.email);
-        setUsed(next);
-        return next;
+        const stamp = await spendCredit(user.email);
+        next = [...liveStamps(stamps, now), stamp];
+      } else {
+        next = addGuestStamp();
       }
-      const next = bumpGuestUsed();
-      setUsed(next);
-      return next;
     } catch (err) {
-      const next = used + 1;
-      setUsed(next);
-      return next;
+      next = [...liveStamps(stamps, now), now];
     }
-  }, [user, used]);
+    setStamps(next);
+    setClock(now);
+    return next.length;
+  }, [user, stamps]);
 
   const spend = useCallback(async () => {
-    const next = await consume();
-    if (next >= limit) pendingGate.current = true;
+    const live = await consume();
+    if (live >= limit) pendingGate.current = true;
   }, [consume, limit]);
 
   const openGate = useCallback(() => {
@@ -150,15 +176,22 @@ export default function VoiceAssistant() {
     <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground">
       <div aria-hidden className="ambient-wash" />
 
-      <header className="relative z-10 flex items-center justify-between px-5 pt-6">
-        <div className="flex items-center gap-2">
-          <span className="grid h-7 w-7 place-items-center rounded-full bg-foreground">
+      <header className="relative z-10 flex items-start justify-between gap-3 px-5 pt-[max(0.6rem,env(safe-area-inset-top))]">
+        <div className="flex min-w-0 items-center gap-2 pt-1">
+          <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-foreground">
             <Sparkles className="h-3.5 w-3.5 text-background" />
           </span>
-          <span className="font-display text-[15px] tracking-tight">Babembe Babondo GS</span>
+          <span className="truncate font-display text-[15px] tracking-tight">Babembe Babondo GS</span>
         </div>
-        <div className="flex items-center gap-2.5">
-          <UsagePill remaining={remaining} signedIn={!!user} ready={ready} onClick={handleAccount} />
+        <div className="flex shrink-0 items-center gap-2.5">
+          <UsagePill
+            remaining={remaining}
+            signedIn={!!user}
+            ready={ready}
+            nextReturnAt={nextReturnAt}
+            nowMs={clock}
+            onClick={handleAccount}
+          />
           <AccountIcon label="Account" onClick={handleAccount} size="lg" />
         </div>
       </header>

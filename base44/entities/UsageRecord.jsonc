@@ -4,20 +4,15 @@
   "properties": {
     "user_email": {
       "type": "string",
-      "description": "Email of the signed-in user this counter belongs to."
+      "description": "Email of the signed-in user this message belongs to."
     },
-    "date": {
+    "used_at": {
       "type": "string",
-      "description": "Day the counter belongs to, as YYYY-MM-DD."
-    },
-    "count": {
-      "type": "number",
-      "default": 0,
-      "description": "Number of messages or calls used on that day."
+      "description": "The moment the assistant answered the message, as an ISO timestamp. That message comes back to the allowance 24 hours after this moment."
     }
   },
   "required": [
     "user_email",
-    "date"
+    "used_at"
   ]
 }

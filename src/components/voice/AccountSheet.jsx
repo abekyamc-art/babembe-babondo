@@ -31,7 +31,7 @@ export default function AccountSheet({
   const usage = !ready
     ? "Checking…"
     : signedIn
-      ? `${remaining} left today`
+      ? `${remaining} left`
       : `${remaining} free ${remaining === 1 ? "message" : "messages"}`;
 
   return (
@@ -69,7 +69,7 @@ export default function AccountSheet({
               {signedIn ? user.full_name || "Signed in" : "Not signed in"}
             </div>
             <div className="account-email">
-              {signedIn ? user.email : "Sign in with Google for 5 messages a day"}
+              {signedIn ? user.email : "Sign in with Google for 5 messages"}
             </div>
           </div>
 
