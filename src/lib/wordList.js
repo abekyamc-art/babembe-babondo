@@ -47,6 +47,29 @@ export function wordCount(words) {
 }
 
 /**
+ * How much of the saved list the assistant is actually given, counted on the
+ * server so a list of any size is stated honestly.
+ */
+export async function loadWordStats() {
+  try {
+    const res = await base44.functions.invoke("assistantKnowledge", { stats: true });
+    const words = res?.data?.words;
+    if (!words || typeof words.total !== "number") return null;
+    return words;
+  } catch (err) {
+    return null;
+  }
+}
+
+/** What the assistant knows of the list, in one plain line. */
+export function knownLine(stats) {
+  if (!stats || !stats.total) return "";
+  const total = stats.total.toLocaleString();
+  if (stats.whole) return `The assistant knows all ${total} words.`;
+  return `The assistant knows ${stats.carried.toLocaleString()} of ${total} words — the list is longer than one session can carry.`;
+}
+
+/**
  * The whole list written as word entries. What did land comes back with what is
  * still to write, so a list is never half lost or written twice.
  */

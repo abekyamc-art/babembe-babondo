@@ -2,6 +2,9 @@ import { base44 } from "@/api/base44Client";
 import { isRepeatIntro } from "@/lib/agentMemory";
 
 const IN_RATE = 16000;
+// one contextual update carries this much of the note; a longer note is handed
+// over as several of them
+const CONTEXT_BLOCK = 4000;
 const OPEN_QUIET_MS = 3000;
 const CLOSE_QUIET_MS = 10000;
 const CALL_MAX_MS = 30000;
@@ -183,7 +186,7 @@ export default class VoiceSocket {
           init.conversation_config_override = { agent: { first_message: "" } };
         }
         this.send(init);
-        if (memory) this.send({ type: "contextual_update", text: memory });
+        if (memory) this.sendMemory(memory);
         settle(resolve);
       };
       ws.onerror = () => {
@@ -212,6 +215,26 @@ export default class VoiceSocket {
     } catch (err) {
       return false;
     }
+  }
+
+  /**
+   * The note is handed over in blocks of the size one update carries, so a whole
+   * word list rides along without any single update being oversized.
+   */
+  sendMemory(text) {
+    const raw = String(text || "");
+    let at = 0;
+    while (at < raw.length) {
+      let end = Math.min(raw.length, at + CONTEXT_BLOCK);
+      if (end < raw.length) {
+        // break between entries where one is there, so a word is never cut in half
+        const cut = raw.lastIndexOf("\n", end);
+        if (cut > at + CONTEXT_BLOCK / 2) end = cut + 1;
+      }
+      if (!this.send({ type: "contextual_update", text: raw.slice(at, end) })) return false;
+      at = end;
+    }
+    return true;
   }
 
   sendText(text) {

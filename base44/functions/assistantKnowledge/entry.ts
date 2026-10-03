@@ -1,13 +1,28 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 
-// the note rides along with a typed message, so it is kept to a size a session
-// opening can carry without bloating it; a message that also pulls passages out
-// of the admin's long texts leaves them their own part of the budget
-const MAX_NOTE = 4000;
-const MAX_ROWS = 200;
+// The note rides along with a typed message as silent context. It is handed over
+// in blocks of the size one update carries, so the whole note can be larger than
+// a single block without any one update being oversized.
+const MAX_NOTE = 32000;
+
+// The vocabulary keeps its own share of the note, so a long list of questions and
+// world notes can never crowd the words out.
+const WORDS_SHARE = 24000;
+
+// A list in the thousands is read page by page, so all of it is taken in.
+const WORDS_PER_PAGE = 500;
+const MAX_WORDS_READ = 20000;
+
+// Eight words to a line: a vocabulary costs the fewest characters that way.
+const WORDS_PER_LINE = 8;
+
+// A question also pulls the matching passages of the admin's long texts.
 const MAX_TEXTS = 50;
 const MAX_PASSAGES = 4;
 const PASSAGE_BUDGET = 2400;
+
+// The questions and world notes share whatever the words leave.
+const NOTES_LIMIT = 400;
 const MAX_QUERY = 600;
 
 const OPENING =
@@ -21,11 +36,16 @@ const PASSAGE_HEAD =
   "\nSEHEMU ZA MAANDISHI YA MWENYEJI (parts of the admin's own texts that match this question):\n" +
   "Jibu kutoka sehemu hizi kwa maneno yako, na sema wazi kama hakuna sehemu inayojibu swali hili.\n";
 
-const SECTIONS = [
-  { kind: "qa", title: "MASWALI NA MAJIBU" },
-  { kind: "note", title: "MAELEZO YA ULIMWENGU" },
-  { kind: "word", title: "MANENO YA EBEMBE" },
-];
+const HEADS = {
+  qa: "MASWALI NA MAJIBU\n",
+  note: "MAELEZO YA ULIMWENGU\n",
+  word:
+    "MANENO YA EBEMBE (kila neno alilohifadhi admin):\n" +
+    "Tumia maneno haya na maana yake unapojibu. Neno lenye (maana haijaelezwa bado) halijaelezwa bado — litaje tu, usibuni maana yake.\n",
+};
+
+const NOTE_BUDGET = MAX_NOTE - OPENING.length - FALLBACK.length;
+const WORDS_BUDGET = Math.min(WORDS_SHARE, NOTE_BUDGET);
 
 // short words that carry no meaning for matching, in both languages the admin writes in
 const STOPWORDS = new Set([
@@ -39,11 +59,11 @@ const STOPWORDS = new Set([
   "kwenye", "katika", "kuhusu", "ambayo", "ambao", "huu", "hii", "hilo",
 ]);
 
-function textOf(value) {
+function textOf(value: any) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function rowsOf(page) {
+function rowsOf(page: any) {
   return Array.isArray(page) ? page : page?.items || [];
 }
 
@@ -53,8 +73,13 @@ function tokensOf(value: string) {
   return found.filter((token) => token.length > 2 && !STOPWORDS.has(token));
 }
 
-/** One written entry, as a single line the assistant can read. */
-function lineFor(row) {
+/** The words a line is made of, so no word is ever mistaken for part of another. */
+function wordsOf(line: string) {
+  return (line.toLowerCase().match(/[\p{L}\p{N}']+/gu) || []).filter((word) => word.length > 2);
+}
+
+/** A question, or a world note, as a single line the assistant can read. */
+function noteLine(row: any) {
   if (row.kind === "qa") {
     const question = textOf(row.question);
     const answer = textOf(row.answer);
@@ -66,45 +91,138 @@ function lineFor(row) {
     if (!body) return "";
     return title ? `${title} — ${body}` : body;
   }
-  if (row.kind === "word") {
-    const term = textOf(row.term);
-    const meaning = textOf(row.meaning);
-    const usage = textOf(row.usage);
-    if (!term || !meaning) return "";
-    return `${term} = ${meaning}${usage ? ` (${usage})` : ""}`;
-  }
   return "";
 }
 
-/** The three kinds in order, each kept inside the note's size budget. */
-function buildNote(rows, maxNote) {
-  const budget = maxNote - OPENING.length - FALLBACK.length;
+/** One head plus as many lines as its budget holds; a line is never cut in half. */
+function fill(head: string, lines: string[], budget: number) {
+  if (!lines.length || head.length > budget) return { text: "", lines: 0 };
+
   let body = "";
-
-  for (const section of SECTIONS) {
-    const lines = rows
-      .filter((row) => row.kind === section.kind)
-      .map(lineFor)
-      .filter(Boolean);
-    if (!lines.length) continue;
-
-    const head = `${body ? "\n" : ""}${section.title}\n`;
-    if (body.length + head.length > budget) break;
-    body += head;
-
-    for (const line of lines) {
-      const item = `- ${line}\n`;
-      if (body.length + item.length > budget) break;
-      body += item;
-    }
+  let used = 0;
+  for (const line of lines) {
+    const item = `- ${line}\n`;
+    if (head.length + body.length + item.length > budget) break;
+    body += item;
+    used += 1;
   }
-
-  return body ? OPENING + body + FALLBACK : "";
+  return body ? { text: head + body, lines: used } : { text: "", lines: 0 };
 }
 
-/** The words a passage is made of, so no word is ever mistaken for part of another. */
-function wordsOf(passage: string) {
-  return (passage.toLowerCase().match(/[\p{L}\p{N}']+/gu) || []).filter((word) => word.length > 2);
+/** A saved word as the assistant reads it: its meaning, or that it has none yet. */
+function wordLine(row: any) {
+  const term = textOf(row.term);
+  if (!term) return "";
+  const meaning = textOf(row.meaning);
+  const usage = textOf(row.usage);
+  if (!meaning) return `${term} = (maana haijaelezwa bado)`;
+  return `${term} = ${meaning}${usage ? ` (${usage})` : ""}`;
+}
+
+/** Every saved word, packed into lines in the order it was saved. */
+function packWords(rows: any[]) {
+  const items = rows.map(wordLine).filter(Boolean);
+  const lines: string[] = [];
+  const counts: number[] = [];
+
+  for (let i = 0; i < items.length; i += WORDS_PER_LINE) {
+    const group = items.slice(i, i + WORDS_PER_LINE);
+    lines.push(group.join(" · "));
+    counts.push(group.length);
+  }
+  return { lines, counts, total: items.length };
+}
+
+/**
+ * Which packed lines ride along: all of them when they fit, and otherwise the
+ * lines a question turns on first, then the list from the top — always handed
+ * over in the order the words were saved.
+ */
+function carryLines(lines: string[], wanted: string[], budget: number) {
+  const sizeOf = (line: string) => line.length + 3;
+  const total = lines.reduce((sum, line) => sum + sizeOf(line), 0);
+  if (total <= budget) return { indexes: lines.map((_, index) => index), whole: true };
+
+  const keep = new Set<number>();
+  let used = 0;
+
+  // the words this question is about are kept first, so a list too long to fit
+  // never hides the one word that was asked about
+  lines.forEach((line, index) => {
+    if (!wanted.length) return;
+    const words = wordsOf(line);
+    const near = wanted.some(
+      (token) =>
+        words.includes(token) || (token.length >= 5 && words.some((word) => word.startsWith(token)))
+    );
+    if (near) {
+      keep.add(index);
+      used += sizeOf(line);
+    }
+  });
+
+  lines.forEach((line, index) => {
+    if (keep.has(index)) return;
+    if (used + sizeOf(line) > budget) return;
+    keep.add(index);
+    used += sizeOf(line);
+  });
+
+  const indexes = lines.map((_, index) => index).filter((index) => keep.has(index));
+  return { indexes, whole: indexes.length === lines.length };
+}
+
+/** Every saved word, read page by page so nothing is left behind. */
+async function loadWords(base44: any) {
+  const rows: any[] = [];
+  const seen = new Set<string>();
+  let cursor: string | undefined;
+
+  while (rows.length < MAX_WORDS_READ) {
+    const options: any = { sort: "created_date", limit: WORDS_PER_PAGE };
+    if (cursor) options.cursor = cursor;
+    const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
+      { kind: "word" },
+      options
+    );
+
+    // a page that brings nothing new ends the walk
+    const fresh = rowsOf(page).filter((row: any) => row?.id && !seen.has(row.id));
+    if (!fresh.length) break;
+    fresh.forEach((row: any) => seen.add(row.id));
+    rows.push(...fresh);
+
+    const next = page?.has_more ? page?.next_cursor : "";
+    if (!next) break;
+    cursor = next;
+  }
+  return rows;
+}
+
+/**
+ * The vocabulary the assistant is given, with how much of the saved list it holds
+ * — the same numbers the admin's words panel states.
+ */
+async function wordTally(base44: any, wanted: string[]) {
+  const words = packWords(await loadWords(base44));
+  // the section's own head is part of its share, so every line chosen is one that fits
+  const room = WORDS_BUDGET - HEADS.word.length;
+  const picked = carryLines(words.lines, wanted, room);
+  const section = fill(
+    HEADS.word,
+    picked.indexes.map((index) => words.lines[index]),
+    WORDS_BUDGET
+  );
+  const carried = picked.indexes
+    .slice(0, section.lines)
+    .reduce((sum, index) => sum + words.counts[index], 0);
+
+  return {
+    section: section.text,
+    total: words.total,
+    carried,
+    whole: words.total > 0 && carried === words.total,
+  };
 }
 
 /**
@@ -113,7 +231,7 @@ function wordsOf(passage: string) {
  * message ever reads a whole document; a word counts only when it stands on its
  * own or is the stem of a longer one.
  */
-function bestPassages(query, texts) {
+function bestPassages(query: string, texts: any[]) {
   const wanted = Array.from(new Set(tokensOf(query)));
   if (!wanted.length) return [];
 
@@ -178,7 +296,7 @@ function bestPassages(query, texts) {
 }
 
 /** The matched passages as a small section of the note, read in the order they rank. */
-function passageNote(query, texts) {
+function passageNote(query: string, texts: any[]) {
   const best = bestPassages(query, texts);
   if (!best.length) return "";
 
@@ -202,17 +320,40 @@ export default async function (req: Request): Promise<Response> {
     } catch (err) {
       payload = {};
     }
+
+    // the words panel asks how much of the list the assistant is actually given
+    if (payload?.stats) {
+      const tally = await wordTally(base44, []);
+      return Response.json({
+        words: { total: tally.total, carried: tally.carried, whole: tally.whole },
+      });
+    }
+
     const query = typeof payload?.query === "string" ? payload.query.trim().slice(0, MAX_QUERY) : "";
+    const wanted = query ? Array.from(new Set(tokensOf(query))) : [];
 
     // the entries themselves stay private to the admin: only this derived note
     // leaves the server, and it is the same text the assistant is given anyway
+    const tally = await wordTally(base44, wanted);
+    let left = NOTE_BUDGET - tally.section.length;
+
     const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
-      {},
-      { sort: "created_date", limit: MAX_ROWS }
+      { kind: { $in: ["qa", "note"] } },
+      { sort: "created_date", limit: NOTES_LIMIT }
     );
     const rows = rowsOf(page);
+    const linesOfKind = (kind: string) =>
+      rows
+        .filter((row: any) => row.kind === kind)
+        .map(noteLine)
+        .filter(Boolean);
 
-    let note = buildNote(rows, query ? 2400 : MAX_NOTE);
+    const qa = fill(HEADS.qa, linesOfKind("qa"), left);
+    left -= qa.text.length;
+    const world = fill(HEADS.note, linesOfKind("note"), left);
+
+    const body = qa.text + world.text + tally.section;
+    let note = body ? OPENING + body + FALLBACK : "";
 
     // a question is answered from the admin's long texts too, through the few
     // passages that match it and nothing more
@@ -225,7 +366,7 @@ export default async function (req: Request): Promise<Response> {
     }
 
     return Response.json({ note });
-  } catch (error) {
+  } catch (error: any) {
     console.error("Could not build the knowledge note:", error.message);
     return Response.json({ error: "Knowledge is unavailable right now." }, { status: 500 });
   }

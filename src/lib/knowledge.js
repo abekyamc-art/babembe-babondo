@@ -72,7 +72,9 @@ export function isComplete(draft) {
     return !!(draft.question || "").trim() && !!(draft.answer || "").trim();
   }
   if (draft.kind === "note") return !!(draft.text || "").trim();
-  return !!(draft.term || "").trim() && !!(draft.meaning || "").trim();
+  // a word saved from a pasted list may have no meaning yet, so the meaning is
+  // what the admin comes back to fill in
+  return !!(draft.term || "").trim();
 }
 
 export function kindHint(kind) {

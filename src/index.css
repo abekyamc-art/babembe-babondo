@@ -701,6 +701,13 @@
     color: #ffb6bd;
   }
 
+  /* the words panel's meter carries two lines: what is written, and what the assistant knows */
+  .knowledge-meter-stacked {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 4px;
+  }
+
   .knowledge-upload-wrap {
     display: flex;
     flex-direction: column;
