@@ -1,20 +1,25 @@
 import { base44 } from "@/api/base44Client";
+import { countWords, formatLength, splitPassages } from "@/lib/knowledgeTexts";
 
 // each line is split at the first of these, so "word = meaning", "word - meaning",
 // "word: meaning" and a tab between the two all read the same way
 const SEPARATOR = /[=\-—:\t]/;
 
+// the paste kept whole as a document is named this, so the words tab finds it again
+const PASTE_TITLE = "Words, plurals and rules";
+
 // a list goes to the server in these batches, so a whole vocabulary lands in one go
 const BATCH = 500;
 
 /**
- * A pasted list read line by line: the Ebembe word before the separator, its
- * meaning after it. A line with no separator still counts as a word, with the
- * meaning left blank to be filled in later.
+ * A paste read line by line: the Ebembe word before the separator, its meaning
+ * after it. A line with no separator is a plural or a rule, so it stays in the
+ * document the assistant answers from instead of becoming a word with no meaning.
  */
 export function parseWordList(raw) {
   const entries = [];
   const skipped = [];
+  let ruleCount = 0;
 
   String(raw || "")
     .split(/\r?\n/)
@@ -22,7 +27,7 @@ export function parseWordList(raw) {
       if (!line.trim()) return;
       const at = line.search(SEPARATOR);
       if (at === -1) {
-        entries.push({ term: line.trim(), meaning: "" });
+        ruleCount += 1;
         return;
       }
       const term = line.slice(0, at).trim();
@@ -34,7 +39,7 @@ export function parseWordList(raw) {
       entries.push({ term, meaning });
     });
 
-  return { entries, skipped };
+  return { entries, skipped, document: String(raw || "").trim(), ruleCount };
 }
 
 export function listLine(word) {
@@ -61,12 +66,77 @@ export async function loadWordStats() {
   }
 }
 
-/** What the assistant knows of the list, in one plain line. */
-export function knownLine(stats) {
-  if (!stats || !stats.total) return "";
-  const total = stats.total.toLocaleString();
-  if (stats.whole) return `The assistant knows all ${total} words.`;
-  return `The assistant knows ${stats.carried.toLocaleString()} of ${total} words — the list is longer than one session can carry.`;
+/** What one paste brought in, in one plain line: its words, and its plurals and rules. */
+export function readLine({ entries, ruleCount }) {
+  const said = [];
+  if (entries.length) said.push(wordCount(entries));
+  if (ruleCount) said.push(`${ruleCount.toLocaleString()} lines of plurals and rules`);
+  return said.length ? `${said.join(" and ")} read` : "";
+}
+
+/** What the assistant knows: how much of the list he is given, and the document he searches. */
+export function knownLine(stats, docWords) {
+  const said = [];
+  if (stats && stats.total) {
+    const total = stats.total.toLocaleString();
+    said.push(
+      stats.whole
+        ? `The assistant knows all ${total} words.`
+        : `The assistant knows ${stats.carried.toLocaleString()} of ${total} words — the list is longer than one session can carry.`
+    );
+  }
+  if (docWords) {
+    said.push(
+      `The whole document (${formatLength(docWords)}) is kept and searched with every question.`
+    );
+  }
+  return said.join(" ");
+}
+
+/**
+ * The paste kept whole as the document the assistant answers from, cut into the
+ * passages a question is matched against, so a paste of any length is stored in
+ * full and no part of it is ever left behind.
+ */
+export async function savePasteDocument(text, docId) {
+  const body = String(text || "").trim();
+  if (!body) return null;
+  const fields = {
+    title: pasteTitle(),
+    text: body,
+    word_count: countWords(body),
+    passages: splitPassages(body),
+    file_uri: "",
+  };
+  if (docId) {
+    const saved = await base44.entities.KnowledgeText.update(docId, fields);
+    return { id: saved.id, word_count: saved.word_count };
+  }
+  const saved = await base44.entities.KnowledgeText.create(fields);
+  return { id: saved.id, word_count: saved.word_count };
+}
+
+/** The document a paste was kept as, so a later paste writes over it instead of piling up. */
+export async function loadPasteDoc() {
+  try {
+    const page = await base44.entities.KnowledgeText.filter(
+      { title: { $regex: `^${PASTE_TITLE}` } },
+      { sort: "-updated_date", limit: 1, fields: ["title", "word_count"] }
+    );
+    const row = (page?.items || [])[0];
+    return row ? { id: row.id, word_count: row.word_count || 0 } : null;
+  } catch (err) {
+    return null;
+  }
+}
+
+function pasteTitle() {
+  const when = new Date().toLocaleDateString("en-GB", {
+    day: "numeric",
+    month: "short",
+    year: "numeric",
+  });
+  return `${PASTE_TITLE} — pasted ${when}`;
 }
 
 /**
