@@ -31,6 +31,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const heardRef = useRef({ text: "", timer: 0 });
   // the request for fresh material already looked up, so one turn is never searched for twice
   const wantedRef = useRef({ text: "", timer: 0 });
+  // the last turn the person took that no answer followed: the next call opens by
+  // answering it
+  const pendingRef = useRef("");
 
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
@@ -59,6 +62,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
   }, []);
 
   const pushTurn = useCallback((role, text) => {
+    // a turn is answered by the reply that follows it, so the last unanswered one is
+    // always the newest turn with no reply after it
+    if (role === "user") pendingRef.current = text;
+    if (role === "agent") pendingRef.current = "";
     if (role === "agent" && text) linesRef.current = [...linesRef.current, text];
     setTurns((prev) => {
       const last = prev[prev.length - 1];
@@ -87,7 +94,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
         const res = await base44.functions.invoke("assistantKnowledge", { heard: said });
         const note = res?.data?.note;
         const engine = socketRef.current;
-        if (note && engine && !engine.silent) engine.sendMemory?.(note);
+        // the extra words reach him before he starts answering, never over his answer
+        if (note && engine && !engine.silent && !engine.speaking) engine.sendMemory?.(note);
       } catch (err) {
         // the answer carries on without the extra words
       }
@@ -110,7 +118,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
       state.text = said;
       const material = await loadFreshMaterial(said);
       const engine = socketRef.current;
-      if (material && engine && !engine.silent) engine.sendMemory?.(material);
+      // material that arrives once he has started goes no further: it is saved for the
+      // answers that follow instead of being pushed over the one being given
+      if (material && engine && !engine.silent && !engine.speaking) engine.sendMemory?.(material);
     }, 350);
   }, []);
 
@@ -147,6 +157,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onAutoEnd: ({ reason }) => {
         // a written exchange is already answered on screen, so it ends without a note
         if (quietRef.current) return;
+        // a turn he never answered is kept, so the next call opens by answering it
+        if (pendingRef.current) {
+          setNotice("Tap call again and he'll answer your last question.");
+          return;
+        }
         setNotice(
           reason === "silence"
             ? "Didn't hear anything — tap the orb to talk again."
@@ -168,10 +183,18 @@ export default function useVoiceAgent({ videoRef } = {}) {
     async ({ withMic = true, firstMessage = "", onAnswered, silent = false } = {}) => {
       const existing = socketRef.current;
       if (onAnswered) answeredRef.current = onAnswered;
-      // the line shows the moment it is sent, before the agent's own echo of it
-      if (firstMessage) {
-        sentRef.current = firstMessage.trim();
-        pushTurn("user", firstMessage);
+      const asked = String(firstMessage || "").trim();
+      // a question that was left unanswered is the one he answers as the call opens
+      const pending = pendingRef.current;
+      const opening = asked || pending;
+      const resuming = !asked && !!pending;
+      // the line shows the moment it is sent, before the agent's own echo of it; a
+      // question carried over is already on screen, so only its echo is filtered out
+      if (asked) {
+        sentRef.current = asked;
+        pushTurn("user", asked);
+      } else if (resuming) {
+        sentRef.current = opening;
       }
       // a call already listening through the microphone carries on; a written session
       // gives way the moment the microphone is asked for
@@ -196,14 +219,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
       const laterTurn = said.length > 0;
       const memory = buildMemory(said);
       // a request for a story, news, a word or a fact is looked up online before the
-      // session opens, so the material is already in hand when he answers it
-      const asked = String(firstMessage || "").trim();
-      // a fresh session starts with no lookup behind it, so a spoken turn is always
-      // looked up for itself
-      wantedRef.current.text = asked;
+      // session opens, so the material is already in hand when he answers it, and a
+      // fresh session starts with no lookup behind it
+      wantedRef.current.text = opening;
       const [note, fresh] = await Promise.all([
-        loadKnowledgeNote(firstMessage),
-        loadFreshMaterial(asked),
+        loadKnowledgeNote(opening),
+        loadFreshMaterial(opening),
       ]);
       // both kinds of call are handed the admin's knowledge: the words the question
       // turns on, the guidance that goes with them, and anything just looked up
@@ -218,9 +239,15 @@ export default function useVoiceAgent({ videoRef } = {}) {
         quietRef.current = false;
         setMicActive(withMic);
         try {
-          await call.open({ withMic, videoEl: videoRef.current, memory: knowledge, laterTurn });
+          await call.open({
+            withMic,
+            videoEl: videoRef.current,
+            memory: knowledge,
+            laterTurn,
+            resuming,
+          });
           setAvatarLive(true);
-          if (firstMessage) call.sendText(firstMessage);
+          if (opening) call.sendText(opening);
           return true;
         } catch (err) {
           // the face is a bonus: the conversation carries on by voice alone
@@ -235,12 +262,13 @@ export default function useVoiceAgent({ videoRef } = {}) {
       setMicActive(withMic);
 
       try {
-        await socket.open({ withMic, silent, memory: knowledge, laterTurn });
-        if (firstMessage) {
-          // the question goes in once the note has settled, not the moment the
-          // session opens
-          await holdForKnowledge(socket);
-          if (socketRef.current === socket) socket.sendText(firstMessage);
+        await socket.open({ withMic, silent, memory: knowledge, laterTurn, resuming });
+        if (opening) {
+          // a typed question goes in once the note has settled, not the moment the
+          // session opens; a question carried over from the last call is answered
+          // straight away, since the note was handed over as the session opened
+          if (!resuming) await holdForKnowledge(socket);
+          if (socketRef.current === socket) socket.sendText(opening);
         }
         return true;
       } catch (err) {

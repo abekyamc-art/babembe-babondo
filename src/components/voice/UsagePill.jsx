@@ -9,7 +9,7 @@ export default function UsagePill({
   nowMs = Date.now(),
   onClick,
 }) {
-  const waiting = ready && remaining === 0 && nextReturnAt;
+  const waiting = ready && remaining === 0 && nextReturnAt != null;
 
   const dot = !ready
     ? "bg-muted-foreground"

@@ -14,6 +14,11 @@ const OPEN_QUIET_MS = 10000;
 // once his answer has finished, this much quiet ends the call, so the person can
 // start it again whenever they are ready
 const CLOSE_QUIET_MS = 4000;
+// a turn that gets no answer is put to the face once more after this long, and if it
+// is still unanswered this much later, the call closes as it always has — the question
+// is kept for the next call
+const RECOVER_MS = 12000;
+const GIVE_UP_MS = 30000;
 // a call that carries on is held from speaking until the person takes their turn;
 // this is the longest that hold can last if nothing releases it
 const HOLD_MAX_MS = 15000;
@@ -52,23 +57,37 @@ export default class AvatarCall {
     this.holdQuiet = false;
     this.holdTimer = null;
     this.laterTurn = false;
+    // a question carried over from the last call is being answered now: nothing is held
+    this.resuming = false;
+    // the turn waiting for its answer: what was said, and whether it has already been
+    // put to him a second time
+    this.lastUserText = "";
+    this.turnAt = 0;
+    this.recovered = false;
   }
 
   get connected() {
     return !!this.session && this.session.state === "CONNECTED";
   }
 
-  async open({ withMic = true, videoEl = null, memory = "", laterTurn = false } = {}) {
+  async open({ withMic = true, videoEl = null, memory = "", laterTurn = false, resuming = false } = {}) {
     guardAvatarHousekeeping();
     this.answered = false;
     this.spent = false;
     this.userSpoke = false;
     this.heardVoice = false;
     this.withMic = withMic;
+    this.resuming = !!resuming;
+    // nothing of the last call rides into this one: no turn, no stale breath
+    this.setAwaiting(false);
+    this.lastUserText = "";
+    this.turnAt = 0;
+    this.recovered = false;
     // he has already introduced himself: this call is held quiet until the person
-    // takes their turn, so the introduction never reaches their ears
+    // takes their turn, so the introduction never reaches their ears. A question
+    // carried over is answered aloud straight away, so it is never held.
     this.laterTurn = !!laterTurn;
-    this.holdQuiet = this.laterTurn;
+    this.holdQuiet = this.laterTurn && !this.resuming;
     clearTimeout(this.holdTimer);
     this.holdTimer = null;
     if (this.holdQuiet) this.holdTimer = setTimeout(() => this.releaseQuiet(), HOLD_MAX_MS);
@@ -97,6 +116,8 @@ export default class AvatarCall {
       this.hearUser();
       // their turn is over: he reviews what he was given before he answers, and the
       // orb shows him at it
+      this.turnAt = performance.now();
+      this.recovered = false;
       this.setAwaiting(true);
     });
     session.on(AgentEventsEnum.USER_TRANSCRIPTION, (event) => {
@@ -104,7 +125,11 @@ export default class AvatarCall {
       this.userSpoke = true;
       // a fresh turn: the answer coming for it is its own to spend
       this.spent = false;
+      this.lastUserText = event.text;
+      this.turnAt = performance.now();
+      this.recovered = false;
       this.releaseQuiet();
+      this.setAwaiting(true);
       this.h.onUserText?.(event.text);
     });
     session.on(AgentEventsEnum.AVATAR_TRANSCRIPTION, (event) => {
@@ -211,7 +236,8 @@ export default class AvatarCall {
   stopSpeaking() {
     this.speaking = false;
     this.answerEndAt = performance.now();
-    if (this.withMic && !this.holdQuiet) this.session?.voiceChat?.unmute?.().catch(() => {});
+    // the microphone always comes back when his voice ends, whatever the hold was
+    if (this.withMic) this.session?.voiceChat?.unmute?.().catch(() => {});
     this.h.onAgentAudioEnd?.();
   }
 
@@ -237,7 +263,7 @@ export default class AvatarCall {
     if (!this.userSpoke || this.spent) return;
     this.spent = true;
     this.answered = true;
-    this.setAwaiting(false);
+    // his words have landed; the working line stays until his voice actually begins
     this.h.onAgentAnswered?.();
   }
 
@@ -292,7 +318,27 @@ export default class AvatarCall {
       if (this.autoEnding) return;
       const now = performance.now();
 
-      if (!this.speaking) {
+      // a turn that gets no answer is put to him once more; only if that brings nothing
+      // does the turn stop waiting, so the call closes as it always has
+      if (this.awaiting && !this.speaking) {
+        const waited = now - this.turnAt;
+        if (!this.recovered && this.lastUserText && waited >= RECOVER_MS) {
+          this.recovered = true;
+          this.turnAt = now;
+          this.lastVoiceAt = now;
+          this.answerEndAt = now;
+          try {
+            this.session?.sendUserMessage(this.lastUserText);
+          } catch (err) {
+            // the turn stays waiting for the next call
+          }
+        } else if (waited >= GIVE_UP_MS) {
+          this.setAwaiting(false);
+        }
+      }
+
+      // nothing closes the call while a turn is still waiting for its answer
+      if (!this.speaking && !this.awaiting) {
         if (!this.heardVoice) {
           const quietSince = Math.max(this.watchStart, this.answerEndAt);
           if (now - quietSince >= OPEN_QUIET_MS) {

@@ -3,44 +3,36 @@ import { base44 } from "@/api/base44Client";
 export const GUEST_LIMIT = 2;
 export const DAILY_LIMIT = 5;
 
+/** Every message hands its own place back this long after it was used. */
+export const WINDOW_MS = 24 * 60 * 60 * 1000;
+
 const GUEST_KEY = "vv_guest_messages";
 
 // Fallback for browsers that block storage (private mode, embedded previews):
 // the stamps live in memory for this session instead of breaking the tap.
 let memoryGuest = [];
 
-/** The moment the day a message belongs to began, on the device's own clock. */
-export function dayStart(now = Date.now()) {
-  const from = new Date(now);
-  from.setHours(0, 0, 0, 0);
-  return from.getTime();
-}
-
-/** When the next day begins: the moment a used-up allowance is handed back in full. */
-export function nextDayStart(now = Date.now()) {
-  const next = new Date(dayStart(now));
-  next.setDate(next.getDate() + 1);
-  return next.getTime();
-}
-
-/** Only the messages used since the day began count — yesterday's have already come back. */
-export function todayStamps(stamps, now = Date.now()) {
-  const from = dayStart(now);
+/**
+ * Only the messages used in the last 24 hours count — each one comes back exactly 24
+ * hours after it was used, so every person's timing follows their own use.
+ */
+export function recentStamps(stamps, now = Date.now()) {
+  const from = now - WINDOW_MS;
   return (Array.isArray(stamps) ? stamps : [])
-    .filter((stamp) => Number.isFinite(stamp) && stamp >= from)
+    .filter((stamp) => Number.isFinite(stamp) && stamp > from)
     .sort((a, b) => a - b);
 }
 
 /**
- * What the allowance looks like right now: the messages left today, and when the new
- * day begins. A new day sets the allowance back to its full number — the fresh
- * messages are never added on top of ones that were not used, so it never grows.
+ * What the allowance looks like right now: the messages left, and when the next one
+ * returns. The earliest message still inside the window is the one that comes back
+ * first, and each of the others follows 24 hours after its own use.
  */
 export function creditsFrom(stamps, limit, now = Date.now()) {
-  const used = todayStamps(stamps, now).length;
+  const recent = recentStamps(stamps, now);
   return {
-    remaining: Math.max(0, limit - used),
-    nextReturnAt: nextDayStart(now),
+    remaining: Math.max(0, limit - recent.length),
+    nextReturnAt: recent.length ? recent[0] + WINDOW_MS : null,
   };
 }
 
@@ -50,7 +42,7 @@ export function formatWait(ms) {
   return hours > 0 ? `${hours}h ${minutes % 60}m` : `${minutes}m`;
 }
 
-// —— guests: the same fresh-each-day allowance, kept on the device ——
+// —— guests: the same rolling allowance, kept on the device ——
 
 export function getGuestStamps() {
   try {
@@ -64,7 +56,7 @@ export function getGuestStamps() {
 
 export function addGuestStamp() {
   const now = Date.now();
-  memoryGuest = [...todayStamps(getGuestStamps(), now), now];
+  memoryGuest = [...recentStamps(getGuestStamps(), now), now];
   try {
     localStorage.setItem(GUEST_KEY, JSON.stringify(memoryGuest));
   } catch (err) {
@@ -82,11 +74,11 @@ function isoOf(ms) {
 export async function loadUserStamps(email) {
   const now = Date.now();
   const page = await base44.entities.UsageRecord.filter(
-    { user_email: email, used_at: { $gte: isoOf(dayStart(now)) } },
+    { user_email: email, used_at: { $gte: isoOf(now - WINDOW_MS) } },
     { sort: "used_at", limit: 50, fields: ["used_at"] }
   );
   const stamps = (page?.items || []).map((record) => Date.parse(record.used_at));
-  return todayStamps(stamps, now);
+  return recentStamps(stamps, now);
 }
 
 export async function spendCredit(email) {
@@ -95,11 +87,11 @@ export async function spendCredit(email) {
   return Date.parse(usedAt);
 }
 
-/** Clears the days that are already over, so only today's messages are ever kept. */
+/** Clears the messages that have already returned, so only the last 24 hours are kept. */
 export async function pruneUsage(email) {
   await base44.entities.UsageRecord.deleteMany({
     user_email: email,
-    used_at: { $lt: isoOf(dayStart()) },
+    used_at: { $lt: isoOf(Date.now() - WINDOW_MS) },
   });
   await base44.entities.UsageRecord.deleteMany({
     user_email: email,

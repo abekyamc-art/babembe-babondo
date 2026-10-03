@@ -10,6 +10,11 @@ const OPEN_QUIET_MS = 10000;
 // once his answer has finished, this much quiet ends the call, so the person can
 // start it again whenever they are ready
 const CLOSE_QUIET_MS = 4000;
+// a turn that gets no answer is put to him once more after this long, and if it is
+// still unanswered this much later, the call closes as it always has — the question
+// is kept for the next call
+const RECOVER_MS = 12000;
+const GIVE_UP_MS = 30000;
 const VOICE_LEVEL = 0.06;
 // a session that carries on is held from speaking until the person takes their
 // turn; this is the longest that hold can last if nothing releases it
@@ -112,6 +117,12 @@ export default class VoiceSocket {
     this.turnAt = 0;
     this.beatDue = false;
     this.voiceTimer = null;
+    // the turn waiting for its answer: what was said, and whether it has already been
+    // put to him a second time
+    this.lastUserText = "";
+    this.recovered = false;
+    // a question carried over from the last call is being answered now: nothing is held
+    this.resuming = false;
   }
 
   get connected() {
@@ -123,13 +134,15 @@ export default class VoiceSocket {
     return !!this.stream;
   }
 
-  async open({ withMic, silent, memory, laterTurn } = {}) {
+  async open({ withMic, silent, memory, laterTurn, resuming } = {}) {
     // a written message is answered in writing: no microphone, nothing on the speaker
     this.silent = !withMic && !!silent;
     this.laterTurn = !!laterTurn;
+    this.resuming = !!resuming;
     // he has already introduced himself, so this session is held quiet until the
-    // person takes their turn: the introduction never reaches their ears
-    this.holdQuiet = this.laterTurn;
+    // person takes their turn: the introduction never reaches their ears. A question
+    // carried over is answered aloud straight away, so it is never held.
+    this.holdQuiet = this.laterTurn && !this.resuming;
     clearTimeout(this.holdTimer);
     this.holdTimer = null;
     if (this.holdQuiet) {
@@ -140,6 +153,12 @@ export default class VoiceSocket {
     this.spent = false;
     this.userSpoke = false;
     this.autoEnding = false;
+    // nothing of the last session rides into this one: no turn, no stale breath
+    this.setAwaiting(false);
+    this.lastUserText = "";
+    this.turnAt = 0;
+    this.beatDue = false;
+    this.recovered = false;
     this.h.onStatus?.("connecting");
 
     this.ctx = new (window.AudioContext || window.webkitAudioContext)();
@@ -259,6 +278,9 @@ export default class VoiceSocket {
     // every written message starts its own wait for its answer
     this.silentWaitAt = performance.now();
     this.userSpoke = true;
+    this.lastUserText = text;
+    this.turnAt = performance.now();
+    this.recovered = false;
     // a fresh message is its own turn, so its answer is its own to spend
     this.answered = false;
     this.spent = false;
@@ -292,7 +314,9 @@ export default class VoiceSocket {
     if (!this.userSpoke || this.spent) return;
     this.spent = true;
     this.answered = true;
-    this.setAwaiting(false);
+    // a written exchange is answered on screen, so its wait ends with the words; a
+    // spoken one keeps showing him working until his voice is heard
+    if (this.silent) this.setAwaiting(false);
     this.h.onAgentAnswered?.();
   }
 
@@ -330,8 +354,12 @@ export default class VoiceSocket {
         // a fresh turn: the answer coming for it is its own to spend
         this.spent = false;
         this.turnAt = performance.now();
+        this.recovered = false;
+        this.lastUserText = text;
         this.beatDue = true;
         this.releaseQuiet();
+        // he is working on this turn until his voice is actually heard
+        this.setAwaiting(true);
         this.h.onUserText?.(text);
       }
       return;
@@ -419,10 +447,28 @@ export default class VoiceSocket {
         this.lastVoiceAt = now;
         this.turnAt = now;
         this.beatDue = true;
+        // hearing the person is a turn taken, so nothing may hold him silent any more
+        this.releaseQuiet();
       }
 
-      // the wait starts when the assistant stops talking, so it always gets to finish
-      if (!answering) {
+      // a turn that gets no answer is put to him once more; only if that brings nothing
+      // does the turn stop waiting, so the call closes as it always has
+      if (this.awaiting && !answering) {
+        const waited = now - this.turnAt;
+        if (!this.recovered && this.lastUserText && waited >= RECOVER_MS) {
+          this.recovered = true;
+          this.turnAt = now;
+          this.lastVoiceAt = now;
+          this.answerEndAt = now;
+          this.send({ type: "user_message", text: this.lastUserText });
+        } else if (waited >= GIVE_UP_MS) {
+          this.setAwaiting(false);
+        }
+      }
+
+      // the wait starts when the assistant stops talking, so it always gets to finish,
+      // and nothing closes the call while a turn is still waiting for its answer
+      if (!answering && !this.awaiting) {
         if (!this.heardVoice) {
           const quietSince = Math.max(this.watchStart, this.answerEndAt);
           if (now - quietSince >= OPEN_QUIET_MS) {
