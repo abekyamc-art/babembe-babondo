@@ -30,9 +30,14 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
   const [remoteStreams, setRemoteStreams] = useState({});
   const [linkStates, setLinkStates] = useState({});
   const [mediaError, setMediaError] = useState("");
+  const [micOn, setMicOn] = useState(true);
+  const [cameraOn, setCameraOn] = useState(true);
+  const [facing, setFacing] = useState("user");
 
   const rowRef = useRef(null);
   const roleRef = useRef(role);
+  const cameraOnRef = useRef(true);
+  const facingRef = useRef("user");
   const localRef = useRef(null);
   const outRef = useRef(new Map());
   const inRef = useRef(new Map());
@@ -65,10 +70,12 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
         return;
       }
       rowRef.current = row?.id || null;
-      if (row && row.role !== roleRef.current) beat(row.id, roleRef.current);
+      if (row && row.role !== roleRef.current) {
+        beat(row.id, roleRef.current, cameraOnRef.current);
+      }
     });
     const timer = setInterval(() => {
-      if (rowRef.current) beat(rowRef.current, roleRef.current);
+      if (rowRef.current) beat(rowRef.current, roleRef.current, cameraOnRef.current);
     }, BEAT_MS);
     return () => {
       alive = false;
@@ -81,7 +88,7 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
 
   // a guest who is let go sits back down as a viewer
   useEffect(() => {
-    if (rowRef.current) beat(rowRef.current, role);
+    if (rowRef.current) beat(rowRef.current, role, cameraOnRef.current);
   }, [role]);
 
   // 2. who is in the room right now
@@ -128,7 +135,11 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
     const wanted =
       role === "host"
         ? {
-            video: { facingMode: "user", width: { ideal: 720 }, height: { ideal: 1280 } },
+            video: {
+              facingMode: facingRef.current,
+              width: { ideal: 720 },
+              height: { ideal: 1280 },
+            },
             audio: true,
           }
         : { audio: true };
@@ -141,6 +152,9 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
         }
         stream = got;
         localRef.current = got;
+        cameraOnRef.current = true;
+        setCameraOn(true);
+        setMicOn(true);
         setMediaError("");
         setLocalStream(got);
       })
@@ -284,6 +298,52 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
     [roomId, email, closeEverything]
   );
 
+  /** Silencing the microphone keeps the link open, it just goes quiet. */
+  const toggleMic = useCallback(() => {
+    setMicOn((prev) => {
+      const next = !prev;
+      localRef.current?.getAudioTracks().forEach((track) => {
+        track.enabled = next;
+      });
+      return next;
+    });
+  }, []);
+
+  const toggleCamera = useCallback(() => {
+    const next = !cameraOnRef.current;
+    cameraOnRef.current = next;
+    setCameraOn(next);
+    localRef.current?.getVideoTracks().forEach((track) => {
+      track.enabled = next;
+    });
+    if (rowRef.current) beat(rowRef.current, roleRef.current, next);
+  }, []);
+
+  // the front and back cameras swap inside the links that are already open
+  const flipCamera = useCallback(async () => {
+    if (!localRef.current || !navigator.mediaDevices?.getUserMedia) return;
+    const next = facingRef.current === "user" ? "environment" : "user";
+    try {
+      const fresh = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: next, width: { ideal: 720 }, height: { ideal: 1280 } },
+        audio: false,
+      });
+      const track = fresh.getVideoTracks()[0];
+      if (!track) return;
+      outRef.current.forEach((link) => link.replaceVideo(track));
+      const current = localRef.current;
+      const audio = current.getAudioTracks();
+      current.getVideoTracks().forEach((item) => item.stop());
+      const rebuilt = new MediaStream([track, ...audio]);
+      localRef.current = rebuilt;
+      facingRef.current = next;
+      setFacing(next);
+      setLocalStream(rebuilt);
+    } catch (err) {
+      // this phone only has the one camera
+    }
+  }, []);
+
   const problem = useMemo(() => {
     const stuck = Object.values(linkStates).some(
       (state) => state === "failed" || state === "disconnected"
@@ -296,6 +356,12 @@ export default function useLiveRoom({ roomId, me, username, avatarUrl, role, liv
     localStream,
     remoteStreams,
     mediaError,
+    micOn,
+    cameraOn,
+    facing,
+    toggleMic,
+    toggleCamera,
+    flipCamera,
     problem,
     guests: peers.filter((peer) => peer.role === "guest" && peer.user_email !== email),
   };

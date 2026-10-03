@@ -18,6 +18,11 @@
       "type": "string",
       "description": "What the host says the live is about."
     },
+    "filter": {
+      "type": "string",
+      "default": "none",
+      "description": "Camera filter the host has picked; every phone watching shows the same one."
+    },
     "status": {
       "type": "string",
       "enum": [

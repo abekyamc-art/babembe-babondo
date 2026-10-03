@@ -12,8 +12,11 @@ export const COIN_PACKAGES = [
 ];
 
 export const GIFTS = [
+  { id: "heart", name: "Heart", emoji: "❤️", coins: 3 },
   { id: "rose", name: "Rose", emoji: "🌹", coins: 5 },
+  { id: "coffee", name: "Coffee", emoji: "☕", coins: 8 },
   { id: "crown", name: "Crown", emoji: "👑", coins: 20 },
+  { id: "rocket", name: "Rocket", emoji: "🚀", coins: 50 },
 ];
 
 export function balanceOf(profile) {

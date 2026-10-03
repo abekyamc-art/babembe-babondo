@@ -4,6 +4,7 @@ import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { balanceOf, creditCoins, spendCoins } from "@/lib/coins";
+import { filterCss } from "@/lib/videoFilters";
 import { ensureProfile } from "@/lib/social";
 import { clearRoom } from "@/lib/livePeers";
 import useLiveRoom from "@/hooks/useLiveRoom";
@@ -11,6 +12,10 @@ import LiveStage from "@/components/live/LiveStage";
 import LiveChat from "@/components/live/LiveChat";
 import LiveGuests from "@/components/live/LiveGuests";
 import JoinRequestBar from "@/components/live/JoinRequestBar";
+import LiveControls from "@/components/live/LiveControls";
+import GiftSheet from "@/components/live/GiftSheet";
+import EffectsSheet from "@/components/live/EffectsSheet";
+import FilterSheet from "@/components/live/FilterSheet";
 
 export default function LiveRoom() {
   const { id } = useParams();
@@ -24,6 +29,9 @@ export default function LiveRoom() {
   const [requests, setRequests] = useState([]);
   const [busy, setBusy] = useState(false);
   const [gifting, setGifting] = useState(false);
+  const [sheet, setSheet] = useState(null);
+  const [giftRequest, setGiftRequest] = useState(null);
+  const [effectRequest, setEffectRequest] = useState(null);
   const [ready, setReady] = useState(false);
   const approvedRef = useRef(null);
 
@@ -97,7 +105,19 @@ export default function LiveRoom() {
   const live = !!room && room.status === "live";
   const role = isHost ? "host" : isGuest ? "guest" : "viewer";
 
-  const { peers, localStream, remoteStreams, mediaError, problem, guests } = useLiveRoom({
+  const {
+    peers,
+    localStream,
+    remoteStreams,
+    mediaError,
+    problem,
+    guests,
+    micOn,
+    cameraOn,
+    toggleMic,
+    toggleCamera,
+    flipCamera,
+  } = useLiveRoom({
     roomId: id,
     me,
     username: profile?.username,
@@ -107,6 +127,9 @@ export default function LiveRoom() {
   });
 
   const viewerCount = peers.filter((peer) => peer.user_email !== (room?.host_email || "")).length;
+  const hostRow = peers.find((peer) => peer.user_email === room?.host_email);
+  const pictureOn = isHost ? cameraOn : hostRow?.camera_on !== false;
+  const filter = room?.filter || "none";
 
   const requestToJoin = async () => {
     setBusy(true);
@@ -191,6 +214,23 @@ export default function LiveRoom() {
     }
   };
 
+  const pickGift = (gift) => {
+    setSheet(null);
+    setGiftRequest({ gift, at: Date.now() });
+  };
+
+  const pickEffect = (effect) => {
+    setSheet(null);
+    setEffectRequest({ effect, at: Date.now() });
+  };
+
+  const chooseFilter = async (id) => {
+    setSheet(null);
+    if (!isHost) return;
+    const updated = await base44.entities.LiveRoom.update(room.id, { filter: id });
+    setRoom(updated);
+  };
+
   if (!ready) {
     return (
       <div className="fixed inset-0 flex items-center justify-center bg-background">
@@ -244,10 +284,47 @@ export default function LiveRoom() {
         coins={balanceOf(profile)}
         requests={requests}
         busy={busy}
+        filter={filterCss(filter)}
+        pictureOn={pictureOn}
         onApprove={(request) => decide(request, "approved")}
         onDecline={(request) => decide(request, "declined")}
         onExit={isHost ? endLive : leaveRoom}
+        overlays={
+          <>
+            <FilterSheet
+              open={sheet === "filters"}
+              value={filter}
+              onPick={chooseFilter}
+              onClose={() => setSheet(null)}
+            />
+            <GiftSheet
+              open={sheet === "gifts"}
+              coins={balanceOf(profile)}
+              sending={gifting}
+              onPick={pickGift}
+              onClose={() => setSheet(null)}
+            />
+            <EffectsSheet
+              open={sheet === "effects"}
+              onPick={pickEffect}
+              onClose={() => setSheet(null)}
+            />
+          </>
+        }
       >
+        <LiveControls
+          isHost={isHost}
+          isGuest={isGuest}
+          canGift={!isHost}
+          micOn={micOn}
+          cameraOn={cameraOn}
+          onToggleMic={toggleMic}
+          onToggleCamera={toggleCamera}
+          onFlip={flipCamera}
+          onFilters={() => setSheet("filters")}
+          onEffects={() => setSheet("effects")}
+          onGifts={() => setSheet("gifts")}
+        />
         <LiveGuests guests={guests} isHost={isHost} onRemove={removeGuest} />
         {!isHost ? (
           <JoinRequestBar
@@ -263,9 +340,9 @@ export default function LiveRoom() {
           me={me}
           username={profile?.username}
           canChat={live}
-          canGift={!isHost}
           onGift={sendGift}
-          gifting={gifting}
+          giftRequest={giftRequest}
+          effectRequest={effectRequest}
           onOpenProfile={(email) => navigate(`/u/${email}`)}
         />
       </LiveStage>

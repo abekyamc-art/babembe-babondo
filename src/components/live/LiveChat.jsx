@@ -2,16 +2,16 @@ import React, { useEffect, useRef, useState } from "react";
 import { Send } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
-import { GIFTS } from "@/lib/coins";
+import { playEffect } from "@/lib/soundEffects";
 
 export default function LiveChat({
   room,
   me,
   username,
   canChat,
-  canGift,
   onGift,
-  gifting,
+  giftRequest,
+  effectRequest,
   onOpenProfile,
 }) {
   const [messages, setMessages] = useState([]);
@@ -29,6 +29,7 @@ export default function LiveChat({
     const unsubscribe = base44.entities.LiveMessage.subscribe((event) => {
       const line = event.data;
       if (!line || line.room_id !== room.id || event.type !== "create") return;
+      if (line.kind === "effect" && line.author_email !== me.email) playEffect(line.effect_id);
       setMessages((prev) => (prev.some((item) => item.id === line.id) ? prev : [...prev, line]));
     });
     return () => {
@@ -56,6 +57,28 @@ export default function LiveChat({
     setMessages((prev) => (prev.some((item) => item.id === line.id) ? prev : [...prev, line]));
   };
 
+  const sendEffect = async (effect) => {
+    playEffect(effect.id);
+    const line = await base44.entities.LiveMessage.create({
+      room_id: room.id,
+      author_email: me.email,
+      author_username: username || "viewer",
+      kind: "effect",
+      effect_id: effect.id,
+      text: `${effect.emoji} played ${effect.name}`,
+    });
+    setMessages((prev) => (prev.some((item) => item.id === line.id) ? prev : [...prev, line]));
+  };
+
+  // the room's controls ask for a gift or a sound by handing over a new request
+  useEffect(() => {
+    if (giftRequest?.at) sendGift(giftRequest.gift);
+  }, [giftRequest?.at]);
+
+  useEffect(() => {
+    if (effectRequest?.at) sendEffect(effectRequest.effect);
+  }, [effectRequest?.at]);
+
   const send = async (event) => {
     event.preventDefault();
     const value = text.trim();
@@ -76,7 +99,14 @@ export default function LiveChat({
       <div className="max-h-[30vh] min-h-[4.5rem] space-y-2 overflow-y-auto px-1">
         {messages.length ? (
           messages.map((line) =>
-            line.kind === "gift" ? (
+            line.kind === "effect" ? (
+              <p
+                key={line.id}
+                className="rounded-2xl bg-accent/10 px-3 py-2 text-[12px] font-semibold text-accent/90"
+              >
+                {line.text}
+              </p>
+            ) : line.kind === "gift" ? (
               <p
                 key={line.id}
                 className="rounded-2xl bg-accent/15 px-3 py-2 text-[13px] font-medium text-accent"
@@ -104,21 +134,6 @@ export default function LiveChat({
 
       {canChat ? (
         <div className="space-y-2">
-          {canGift ? (
-            <div className="flex gap-2">
-              {GIFTS.map((gift) => (
-                <button
-                  key={gift.id}
-                  type="button"
-                  onClick={() => sendGift(gift)}
-                  disabled={gifting}
-                  className="flex-1 rounded-full bg-white/10 px-3 py-2 text-[12px] font-semibold text-white"
-                >
-                  {gift.emoji} {gift.name} · {gift.coins}
-                </button>
-              ))}
-            </div>
-          ) : null}
           <form onSubmit={send} className="flex items-center gap-2">
             <Input
               value={text}

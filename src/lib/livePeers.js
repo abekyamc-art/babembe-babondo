@@ -14,6 +14,7 @@ export async function joinRoom({ roomId, user, username, avatarUrl, role }) {
     username,
     avatar_url: avatarUrl || "",
     role,
+    camera_on: role === "host",
     joined_at: new Date().toISOString(),
     last_seen: new Date().toISOString(),
   };
@@ -22,10 +23,11 @@ export async function joinRoom({ roomId, user, username, avatarUrl, role }) {
   return base44.entities.LivePeer.create(stamp);
 }
 
-export function beat(peerId, role) {
+export function beat(peerId, role, cameraOn) {
   return base44.entities.LivePeer.update(peerId, {
     last_seen: new Date().toISOString(),
     ...(role ? { role } : {}),
+    ...(typeof cameraOn === "boolean" ? { camera_on: cameraOn } : {}),
   });
 }
 

@@ -70,6 +70,13 @@ export default class LiveLink {
     await this.pc.setRemoteDescription(payload);
   }
 
+  /** Swapping cameras happens inside the link that is already open. */
+  replaceVideo(track) {
+    if (!track || this.closed) return;
+    const sender = this.pc.getSenders().find((item) => item.track?.kind === "video");
+    if (sender) sender.replaceTrack(track).catch(() => {});
+  }
+
   close() {
     if (this.closed) return;
     this.closed = true;

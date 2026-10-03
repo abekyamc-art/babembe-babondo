@@ -17,10 +17,13 @@ export default function LiveStage({
   coins,
   requests,
   busy,
+  filter,
+  pictureOn,
   onApprove,
   onDecline,
   onExit,
   children,
+  overlays,
 }) {
   return (
     <div className="relative h-[100dvh] w-full overflow-hidden bg-black text-white">
@@ -32,6 +35,8 @@ export default function LiveStage({
         localStream={localStream}
         remoteStreams={remoteStreams}
         mediaError={mediaError}
+        filter={filter}
+        pictureOn={pictureOn}
       />
 
       <header className="absolute inset-x-0 top-0 z-30 flex items-start gap-2.5 bg-gradient-to-b from-black/70 to-transparent px-4 pb-6 pt-[max(0.7rem,env(safe-area-inset-top))]">
@@ -81,6 +86,8 @@ export default function LiveStage({
         ) : null}
         {children}
       </div>
+
+      {overlays}
     </div>
   );
 }

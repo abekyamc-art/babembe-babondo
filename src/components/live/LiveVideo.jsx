@@ -13,11 +13,15 @@ export default function LiveVideo({
   localStream,
   remoteStreams,
   mediaError,
+  filter,
+  pictureOn,
 }) {
   const videoRef = useRef(null);
   const main = isHost ? localStream : remoteStreams[hostEmail];
   useStream(videoRef, main);
 
+  const hasVideo = !!main && main.getVideoTracks().length > 0;
+  const picture = hasVideo && pictureOn;
   const guests = Object.entries(remoteStreams).filter(([email]) => email !== hostEmail);
 
   return (
@@ -27,10 +31,11 @@ export default function LiveVideo({
         autoPlay
         playsInline
         muted={isHost}
-        className="absolute inset-0 h-full w-full object-cover"
+        style={{ filter: filter || "none" }}
+        className={picture ? "absolute inset-0 h-full w-full object-cover" : "hidden"}
       />
 
-      {!main ? (
+      {!picture ? (
         <div className="absolute inset-0 z-10 flex flex-col items-center justify-center gap-3 px-8 text-center">
           <div className="grid h-20 w-20 place-items-center overflow-hidden rounded-full border-2 border-accent/50 bg-white/10 text-[24px] font-semibold uppercase text-white/80">
             {hostAvatarUrl ? (
@@ -41,6 +46,10 @@ export default function LiveVideo({
           </div>
           {mediaError ? (
             <p className="max-w-[16rem] text-[12px] leading-snug text-white/70">{mediaError}</p>
+          ) : !pictureOn ? (
+            <p className="text-[12px] text-white/60">
+              {isHost ? "Your camera is off" : "The camera is off"}
+            </p>
           ) : (
             <p className="flex items-center gap-2 text-[13px] text-white/60">
               <Loader2 className="h-3.5 w-3.5 animate-spin" />

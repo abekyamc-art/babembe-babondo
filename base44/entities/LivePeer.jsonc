@@ -28,6 +28,11 @@
       "default": "viewer",
       "description": "Hosts are on camera, guests send their voice, viewers only watch and comment."
     },
+    "camera_on": {
+      "type": "boolean",
+      "default": true,
+      "description": "Whether the host's camera is on right now, so watchers show the right picture when it is switched off."
+    },
     "joined_at": {
       "type": "string",
       "description": "ISO time the person entered the room."

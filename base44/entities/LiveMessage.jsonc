@@ -18,14 +18,15 @@
       "type": "string",
       "enum": [
         "chat",
-        "gift"
+        "gift",
+        "effect"
       ],
       "default": "chat",
-      "description": "Gift lines are shown as a highlighted line in the room."
+      "description": "Gift lines are shown as a highlighted line in the room; effect lines are a sound every phone in the room plays."
     },
     "text": {
       "type": "string",
-      "description": "What was said, or the gift announcement for a gift line."
+      "description": "What was said, or the announcement for a gift or sound effect line."
     },
     "gift_name": {
       "type": "string",
@@ -34,6 +35,10 @@
     "gift_coins": {
       "type": "number",
       "description": "Coins the gift cost, on gift lines only."
+    },
+    "effect_id": {
+      "type": "string",
+      "description": "Sound effect id on effect lines, so every phone plays the same sound."
     }
   },
   "required": [
