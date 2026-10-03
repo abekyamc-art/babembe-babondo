@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { WELCOME_COINS } from "@/lib/coins";
 
 export function nowIso() {
   return new Date().toISOString();
@@ -16,11 +17,18 @@ export function usernameFrom(user) {
 export async function ensureProfile(user) {
   const page = await base44.entities.Profile.filter({ user_email: user.email }, { limit: 1 });
   const existing = page?.items?.[0];
-  if (existing) return existing;
+  if (existing) {
+    // accounts opened before coins existed get the same welcome balance
+    if (typeof existing.coins !== "number") {
+      return base44.entities.Profile.update(existing.id, { coins: WELCOME_COINS });
+    }
+    return existing;
+  }
   return base44.entities.Profile.create({
     user_email: user.email,
     username: usernameFrom(user),
     avatar_url: "",
+    coins: WELCOME_COINS,
   });
 }
 

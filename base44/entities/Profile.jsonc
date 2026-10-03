@@ -13,6 +13,11 @@
     "avatar_url": {
       "type": "string",
       "description": "Public URL of the profile picture."
+    },
+    "coins": {
+      "type": "number",
+      "default": 0,
+      "description": "Coin balance: what is left to spend on boosts, live gifts and extra voice messages."
     }
   },
   "required": [

@@ -1,9 +1,12 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus, Search } from "lucide-react";
+import { ArrowLeft, Loader2, Plus, Radio, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
+import { BOOST_COST, BOOST_HOURS, balanceOf, spendCoins } from "@/lib/coins";
 import { countMap, ensureProfile, escapeRegex, nowIso, reelLink } from "@/lib/social";
+import LiveBar from "@/components/live/LiveBar";
+import GoLiveDialog from "@/components/live/GoLiveDialog";
 import ReelFeed from "@/components/reels/ReelFeed";
 import ReelUpload from "@/components/reels/ReelUpload";
 import CommentsSheet from "@/components/reels/CommentsSheet";
@@ -25,6 +28,8 @@ export default function Reels() {
   const [muted, setMuted] = useState(true);
   const [peopleOpen, setPeopleOpen] = useState(false);
   const [uploadOpen, setUploadOpen] = useState(false);
+  const [liveOpen, setLiveOpen] = useState(false);
+  const [rooms, setRooms] = useState([]);
   const [commentReel, setCommentReel] = useState(null);
   const [ready, setReady] = useState(false);
 
@@ -34,11 +39,22 @@ export default function Reels() {
       const user = await base44.auth.me();
       if (!alive || !user) return;
       const mine = await ensureProfile(user);
-      const page = await base44.entities.Reel.filter(
-        { publish_at: { $lte: nowIso() } },
-        { sort: "-publish_at", limit: 30 }
-      );
-      const items = page?.items || [];
+      const [page, boosted] = await Promise.all([
+        base44.entities.Reel.filter(
+          { publish_at: { $lte: nowIso() } },
+          { sort: "-publish_at", limit: 30 }
+        ),
+        base44.entities.Reel.filter(
+          { boost_until: { $gte: nowIso() } },
+          { sort: "-boost_until", limit: 3 }
+        ),
+      ]);
+      // paid boosts hold their reel at the top of the feed
+      const promoted = boosted?.items || [];
+      const items = [
+        ...promoted,
+        ...(page?.items || []).filter((reel) => !promoted.some((item) => item.id === reel.id)),
+      ];
 
       // a shared link opens straight on that reel
       const sharedId = new URLSearchParams(window.location.search).get("reel");
@@ -53,7 +69,7 @@ export default function Reels() {
       setReels(items);
 
       const ids = items.map((reel) => reel.id);
-      const [likes, comments, mineLikes, following, followers, everyone] = await Promise.all([
+      const [likes, comments, mineLikes, following, followers, everyone, liveRooms] = await Promise.all([
         ids.length
           ? base44.entities.ReelLike.aggregate({
               query: { reel_id: { $in: ids } },
@@ -75,6 +91,7 @@ export default function Reels() {
         base44.entities.Follow.filter({ follower_email: user.email }, { limit: 200 }),
         base44.entities.Follow.filter({ following_email: user.email }, { limit: 200 }),
         base44.entities.Profile.list({ sort: "-created_date", limit: 50 }),
+        base44.entities.LiveRoom.filter({ status: "live" }, { sort: "-started_at", limit: 10 }),
       ]);
       if (!alive) return;
       setLikeCounts(countMap(likes?.rows));
@@ -85,12 +102,26 @@ export default function Reels() {
       );
       setFollowsMe((followers?.items || []).map((row) => row.follower_email));
       setPeople(everyone?.items || []);
+      setRooms(liveRooms?.items || []);
       setReady(true);
     })();
     return () => {
       alive = false;
     };
   }, []);
+
+  // the live bar stays current while the feed is open
+  useEffect(() => {
+    if (!ready) return undefined;
+    const load = async () => {
+      const page = await base44.entities.LiveRoom.filter(
+        { status: "live" },
+        { sort: "-started_at", limit: 10 }
+      );
+      setRooms(page?.items || []);
+    };
+    return base44.entities.LiveRoom.subscribe(load);
+  }, [ready]);
 
   const searchPeople = useCallback(async (term) => {
     const trimmed = term.trim();
@@ -144,6 +175,23 @@ export default function Reels() {
     setLikeCounts((prev) => ({ ...prev, [reel.id]: (prev[reel.id] || 0) + 1 }));
   };
 
+  const handleBoost = async (reel) => {
+    if (balanceOf(profile) < BOOST_COST) {
+      toast({
+        title: "Not enough coins",
+        description: `A boost costs ${BOOST_COST} coins — your balance lives in the coin store.`,
+      });
+      return;
+    }
+    const spent = await spendCoins(profile, BOOST_COST);
+    if (!spent) return;
+    setProfile(spent);
+    const until = new Date(Date.now() + BOOST_HOURS * 60 * 60 * 1000).toISOString();
+    const updated = await base44.entities.Reel.update(reel.id, { boost_until: until });
+    setReels((prev) => [updated, ...prev.filter((item) => item.id !== reel.id)]);
+    toast({ title: "Reel boosted", description: "It sits at the top of the feed for 24 hours." });
+  };
+
   const handleShare = async (reel) => {
     const url = reelLink(reel.id);
     try {
@@ -189,6 +237,14 @@ export default function Reels() {
         <h1 className="flex-1 font-display text-[16px] tracking-tight">Reels</h1>
         <button
           type="button"
+          onClick={() => setLiveOpen(true)}
+          aria-label="Go live"
+          className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card/70"
+        >
+          <Radio className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
           onClick={() => setPeopleOpen(true)}
           aria-label="Find people"
           className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card/70"
@@ -205,6 +261,8 @@ export default function Reels() {
         </button>
       </header>
 
+      <LiveBar rooms={rooms} onOpen={(room) => navigate(`/live/${room.id}`)} />
+
       <ReelFeed
         reels={reels}
         likeCounts={likeCounts}
@@ -219,6 +277,7 @@ export default function Reels() {
         onComments={setCommentReel}
         onShare={handleShare}
         onFollow={followEmail}
+        onBoost={handleBoost}
         onToggleMute={() => setMuted((prev) => !prev)}
         onUpload={() => setUploadOpen(true)}
       />
@@ -240,6 +299,14 @@ export default function Reels() {
         user={me}
         profile={profile}
         onPosted={handlePosted}
+      />
+
+      <GoLiveDialog
+        open={liveOpen}
+        onOpenChange={setLiveOpen}
+        user={me}
+        profile={profile}
+        onStarted={(room) => navigate(`/live/${room.id}`)}
       />
 
       <CommentsSheet

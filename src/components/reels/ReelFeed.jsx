@@ -15,6 +15,7 @@ export default function ReelFeed({
   onComments,
   onShare,
   onFollow,
+  onBoost,
   onToggleMute,
   onUpload,
 }) {
@@ -51,11 +52,13 @@ export default function ReelFeed({
             following={!!iFollow[reel.author_email]}
             followsMe={(followsMe || []).includes(reel.author_email)}
             isMine={reel.author_email === me?.email}
+            boosted={!!reel.boost_until && Date.parse(reel.boost_until) > Date.now()}
             muted={muted}
             onLike={() => onLike(reel)}
             onComments={() => onComments(reel)}
             onShare={() => onShare(reel)}
             onFollow={() => onFollow(reel.author_email)}
+            onBoost={() => onBoost(reel)}
             onToggleMute={onToggleMute}
           />
         </div>

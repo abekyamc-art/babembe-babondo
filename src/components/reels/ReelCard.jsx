@@ -12,11 +12,13 @@ export default function ReelCard({
   following,
   followsMe,
   isMine,
+  boosted,
   muted,
   onLike,
   onComments,
   onShare,
   onFollow,
+  onBoost,
   onToggleMute,
 }) {
   const videoRef = useRef(null);
@@ -104,6 +106,11 @@ export default function ReelCard({
             )}
           </div>
           <span className="truncate text-[14px] font-semibold">@{reel.author_username || "friend"}</span>
+          {boosted ? (
+            <span className="shrink-0 rounded-full bg-accent/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
+              Boosted
+            </span>
+          ) : null}
           {!isMine ? (
             <button
               type="button"
@@ -119,6 +126,15 @@ export default function ReelCard({
         </div>
         {reel.caption ? (
           <p className="mt-2 line-clamp-3 text-[13px] leading-snug text-white/90">{reel.caption}</p>
+        ) : null}
+        {isMine && !boosted ? (
+          <button
+            type="button"
+            onClick={onBoost}
+            className="pointer-events-auto mt-2 rounded-full bg-white/15 px-3 py-1 text-[11px] font-semibold text-white"
+          >
+            Boost this reel
+          </button>
         ) : null}
       </div>
     </section>

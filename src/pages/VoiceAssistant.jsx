@@ -12,9 +12,11 @@ import {
   liveStamps,
   loadUserStamps,
   pruneUsage,
+  releaseOldestMessage,
   spendCredit,
 } from "@/lib/usage";
 import { ensureProfile } from "@/lib/social";
+import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
@@ -34,6 +36,8 @@ export default function VoiceAssistant() {
   const [gate, setGate] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [ready, setReady] = useState(false);
+  const [profile, setProfile] = useState(null);
+  const [refilling, setRefilling] = useState(false);
   const pendingGate = useRef(false);
 
   const limit = user ? DAILY_LIMIT : GUEST_LIMIT;
@@ -53,7 +57,11 @@ export default function VoiceAssistant() {
       setUser(me);
       try {
         if (me) {
-          ensureProfile(me).catch(() => {});
+          ensureProfile(me)
+            .then((mine) => {
+              if (alive) setProfile(mine);
+            })
+            .catch(() => {});
           setStamps(await loadUserStamps(me.email));
           pruneUsage(me.email).catch(() => {});
         } else {
@@ -152,6 +160,29 @@ export default function VoiceAssistant() {
   const handleReels = () => {
     setAccountOpen(false);
     navigate("/reels");
+  };
+
+  const handleMarkets = () => {
+    setAccountOpen(false);
+    navigate("/markets");
+  };
+
+  // coins give one message back straight away instead of waiting out the 24 hours
+  const handleRefill = async () => {
+    if (!user || refilling) return;
+    setRefilling(true);
+    try {
+      const spent = await spendCoins(profile, MESSAGE_COST);
+      if (!spent) return;
+      setProfile(spent);
+      await releaseOldestMessage(user.email);
+      setStamps(await loadUserStamps(user.email));
+      setClock(Date.now());
+      pendingGate.current = false;
+      setGate(null);
+    } finally {
+      setRefilling(false);
+    }
   };
 
   // signing in happens on the app's own login page, which handles Google and returns home
@@ -263,6 +294,10 @@ export default function VoiceAssistant() {
         used={used}
         limit={limit}
         signedIn={!!user}
+        coins={balanceOf(profile)}
+        refillCost={MESSAGE_COST}
+        refillBusy={refilling}
+        onRefill={handleRefill}
         onGoogle={handleGoogle}
         onSignOut={handleSignOut}
         onOpenChange={(next) => {
@@ -277,6 +312,7 @@ export default function VoiceAssistant() {
         ready={ready}
         onSignIn={handleGoogle}
         onReels={handleReels}
+        onGetCoins={handleMarkets}
         onSwitchAccount={handleSwitchAccount}
         onSignOut={handleSignOut}
         onClose={() => setAccountOpen(false)}

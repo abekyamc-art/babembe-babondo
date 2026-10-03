@@ -10,6 +10,8 @@ import ScrollToTop from './components/ScrollToTop';
 // Add page imports here
 import VoiceAssistant from './pages/VoiceAssistant';
 import Reels from './pages/Reels';
+import Markets from './pages/Markets';
+import LiveRoom from './pages/LiveRoom';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
@@ -49,6 +51,8 @@ const AuthenticatedApp = () => {
       <Route path="/reset-password" element={<ResetPassword />} />
       <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
         <Route path="/reels" element={<Reels />} />
+        <Route path="/markets" element={<Markets />} />
+        <Route path="/live/:id" element={<LiveRoom />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

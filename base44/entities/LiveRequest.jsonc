@@ -1,0 +1,38 @@
+{
+  "name": "LiveRequest",
+  "type": "object",
+  "properties": {
+    "room_id": {
+      "type": "string",
+      "description": "The live room this request belongs to."
+    },
+    "viewer_email": {
+      "type": "string",
+      "description": "Email of the viewer asking to join."
+    },
+    "viewer_username": {
+      "type": "string",
+      "description": "Public handle of the viewer, shown to the host."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "pending",
+        "approved",
+        "declined",
+        "left"
+      ],
+      "default": "pending",
+      "description": "Approved viewers are the audience of the room; left viewers have gone."
+    },
+    "requested_at": {
+      "type": "string",
+      "description": "ISO time the viewer asked to join."
+    }
+  },
+  "required": [
+    "room_id",
+    "viewer_email",
+    "status"
+  ]
+}

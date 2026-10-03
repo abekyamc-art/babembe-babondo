@@ -21,6 +21,10 @@
     "publish_at": {
       "type": "string",
       "description": "ISO time the reel becomes visible in the feed. Reels posted immediately use the current time; scheduled reels use the chosen time."
+    },
+    "boost_until": {
+      "type": "string",
+      "description": "ISO time a paid boost stops holding this reel at the top of the feed. Unset means the reel has never been boosted."
     }
   },
   "required": [

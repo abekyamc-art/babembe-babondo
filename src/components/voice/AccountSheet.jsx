@@ -23,6 +23,7 @@ export default function AccountSheet({
   remaining,
   ready,
   onReels,
+  onGetCoins,
   onClose,
   onSignIn,
   onSwitchAccount,
@@ -56,7 +57,7 @@ export default function AccountSheet({
         </div>
 
         <div className="account-panel">
-          <AccountProfile user={user} />
+          <AccountProfile user={user} onGetCoins={onGetCoins} />
 
           <div className="account-actions">
             {signedIn ? (

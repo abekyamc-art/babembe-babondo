@@ -1,0 +1,44 @@
+{
+  "name": "LiveMessage",
+  "type": "object",
+  "properties": {
+    "room_id": {
+      "type": "string",
+      "description": "The live room this line belongs to."
+    },
+    "author_email": {
+      "type": "string",
+      "description": "Email of the person who wrote the line."
+    },
+    "author_username": {
+      "type": "string",
+      "description": "Public handle of the author."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "chat",
+        "gift"
+      ],
+      "default": "chat",
+      "description": "Gift lines are shown as a highlighted line in the room."
+    },
+    "text": {
+      "type": "string",
+      "description": "What was said, or the gift announcement for a gift line."
+    },
+    "gift_name": {
+      "type": "string",
+      "description": "Name of the gift, on gift lines only."
+    },
+    "gift_coins": {
+      "type": "number",
+      "description": "Coins the gift cost, on gift lines only."
+    }
+  },
+  "required": [
+    "room_id",
+    "author_email",
+    "kind"
+  ]
+}

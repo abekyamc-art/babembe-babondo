@@ -1,0 +1,44 @@
+{
+  "name": "LiveRoom",
+  "type": "object",
+  "properties": {
+    "host_email": {
+      "type": "string",
+      "description": "Email of the person who is live."
+    },
+    "host_username": {
+      "type": "string",
+      "description": "Public handle of the host while the room is open."
+    },
+    "host_avatar_url": {
+      "type": "string",
+      "description": "Public URL of the host's profile picture at the moment the room opened."
+    },
+    "title": {
+      "type": "string",
+      "description": "What the host says the live is about."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "live",
+        "ended"
+      ],
+      "default": "live",
+      "description": "Only rooms that are still live appear in the live bar."
+    },
+    "started_at": {
+      "type": "string",
+      "description": "ISO time the room went live."
+    },
+    "ended_at": {
+      "type": "string",
+      "description": "ISO time the host ended the live."
+    }
+  },
+  "required": [
+    "host_email",
+    "status",
+    "started_at"
+  ]
+}

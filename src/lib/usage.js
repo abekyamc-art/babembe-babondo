@@ -77,6 +77,19 @@ export async function spendCredit(email) {
   return Date.parse(usedAt);
 }
 
+/** Gives one message back straight away: the message that would return first stops counting. */
+export async function releaseOldestMessage(email) {
+  const now = Date.now();
+  const page = await base44.entities.UsageRecord.filter(
+    { user_email: email, used_at: { $gte: isoOf(now - WINDOW_MS) } },
+    { sort: "used_at", limit: 1 }
+  );
+  const oldest = page?.items?.[0];
+  if (!oldest) return false;
+  await base44.entities.UsageRecord.delete(oldest.id);
+  return true;
+}
+
 /** Clears messages that have already come back, so only the live window is ever kept. */
 export async function pruneUsage(email) {
   await base44.entities.UsageRecord.deleteMany({

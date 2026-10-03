@@ -497,6 +497,28 @@
     opacity: 0.45;
     cursor: default;
   }
+
+  .account-coins {
+    display: flex;
+    flex: none;
+    align-items: center;
+    gap: 5px;
+    font-size: 12px;
+    font-weight: 650;
+    letter-spacing: 0.2px;
+    color: #8ebaff;
+  }
+
+  /* live rooms are portrait only — landscape gets the turn-back screen instead */
+  .live-rotate-hint {
+    display: none;
+  }
+
+  @media (orientation: landscape) and (max-height: 540px) {
+    .live-rotate-hint {
+      display: flex;
+    }
+  }
 }
 
 @keyframes orb-breathe {

@@ -1,5 +1,5 @@
 import React from "react";
-import { Loader2, Moon, Sun } from "lucide-react";
+import { Coins, Loader2, Moon, Sun } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -17,6 +17,10 @@ export default function GateDialog({
   used,
   limit,
   signedIn,
+  coins = 0,
+  refillCost = 0,
+  refillBusy,
+  onRefill,
   busy,
   message,
   onGoogle,
@@ -36,7 +40,7 @@ export default function GateDialog({
     variant === "signin"
       ? "You've used your free messages. Sign in with Google to keep going — you get 5 messages, each one coming back 24 hours after you use it."
       : variant === "daily"
-        ? "You've used all 5 messages. They come back one at a time, 24 hours after each was used — the number at the top counts down to the next one."
+        ? "You've used all 5 messages. They come back one at a time, 24 hours after each was used — the number at the top counts down to the next one. Or use coins for one more straight away."
         : signedIn
           ? `You've used ${used} of ${limit}. Each message comes back 24 hours after it was used — the number at the top counts down to the next one.`
           : "You get 2 free messages, each coming back 24 hours after you use it. Sign in with Google for 5.";
@@ -87,9 +91,26 @@ export default function GateDialog({
           ) : null}
 
           {variant === "daily" ? (
-            <Button variant="secondary" className="w-full" onClick={() => onOpenChange(false)}>
-              Got it
-            </Button>
+            <>
+              <Button
+                className="w-full gap-2"
+                onClick={onRefill}
+                disabled={refillBusy || coins < refillCost}
+              >
+                {refillBusy ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Coins className="h-4 w-4" />
+                )}
+                One more message — {refillCost} coins
+              </Button>
+              <p className="text-center text-[12px] text-muted-foreground">
+                You have {coins} coins.
+              </p>
+              <Button variant="secondary" className="w-full" onClick={() => onOpenChange(false)}>
+                Got it
+              </Button>
+            </>
           ) : null}
         </DialogFooter>
       </DialogContent>

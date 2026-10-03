@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Loader2 } from "lucide-react";
+import { Coins, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { balanceOf } from "@/lib/coins";
 import { ensureProfile, publicFile } from "@/lib/social";
 
 function PersonIcon() {
@@ -16,7 +17,7 @@ function PersonIcon() {
   );
 }
 
-export default function AccountProfile({ user }) {
+export default function AccountProfile({ user, onGetCoins }) {
   const fileRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [username, setUsername] = useState("");
@@ -126,6 +127,14 @@ export default function AccountProfile({ user }) {
         </button>
       </div>
       <p className="account-hint">This is the name people see on your reels.</p>
+
+      <button type="button" className="account-action" onClick={onGetCoins}>
+        <span className="account-action-label">
+          <Coins className="h-4 w-4" />
+          Coins
+        </span>
+        <span className="account-coins">{balanceOf(profile)} coins</span>
+      </button>
     </>
   );
 }
