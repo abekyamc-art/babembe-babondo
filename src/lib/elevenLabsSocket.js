@@ -6,6 +6,10 @@ const IN_RATE = 16000;
 // his first words after the person's turn wait only this long, so his answer begins
 // as soon as the words he was just handed have landed
 const BEAT_MS = 500;
+// once his voice has drained, this much quiet ends his turn: a breath between two
+// chunks of the same answer is not the end of it, so the microphone stays closed
+// instead of opening onto his own voice
+const ANSWER_GAP_MS = 700;
 const OPEN_QUIET_MS = 10000;
 // once his answer has finished, this much quiet ends the call, so the person can
 // start it again whenever they are ready
@@ -381,6 +385,10 @@ export default class VoiceSocket {
     }
 
     if (msg.type === "interruption") {
+      // while his voice is playing the microphone is closed, so nothing of the
+      // person's has been sent: an interruption in this moment can only be his own
+      // voice coming back out of the phone, and it must never cut his answer short
+      if (this.speaking) return;
       this.stopPlayback();
       this.releaseQuiet();
       this.setAwaiting(false);
@@ -470,7 +478,9 @@ export default class VoiceSocket {
       // and nothing closes the call while a turn is still waiting for its answer
       if (!answering && !this.awaiting) {
         if (!this.heardVoice) {
-          const quietSince = Math.max(this.watchStart, this.answerEndAt);
+          // the greeting of a call that carries on is delivered out of the room, so
+          // that spell is not silence: the guard waits until the person takes their turn
+          const quietSince = Math.max(this.watchStart, this.answerEndAt, this.holdQuiet ? now : 0);
           if (now - quietSince >= OPEN_QUIET_MS) {
             this.autoEnd("silence");
             return;
@@ -581,8 +591,11 @@ export default class VoiceSocket {
       begins();
     }
 
+    // a chunk always puts the end off: his turn is over only once a breath has passed
+    // with nothing more arriving, so a gap inside one answer is never mistaken for its end
     clearTimeout(this.endTimer);
-    const remainingMs = Math.max(0, (this.playHead - this.ctx.currentTime) * 1000) + 240;
+    const remainingMs =
+      Math.max(0, (this.playHead - this.ctx.currentTime) * 1000) + ANSWER_GAP_MS;
     this.endTimer = setTimeout(() => {
       this.answerEndAt = performance.now();
       if (this.speaking) {

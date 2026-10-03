@@ -19,6 +19,10 @@ const GIVE_UP_MS = 30000;
 // a call that carries on is held from speaking until the person takes their turn;
 // this is the longest that hold can last if nothing releases it
 const HOLD_MAX_MS = 15000;
+// his turn is marked as speaking but nothing has been heard from him for this long:
+// the end signal was missed, so his turn is finished and the microphone comes back
+const SILENT_END_MS = 2500;
+const VOICE_LEVEL = 0.06;
 
 /**
  * A call whose face is the owner's LiveAvatar, with the same ElevenLabs agent
@@ -61,6 +65,8 @@ export default class AvatarCall {
     this.lastUserText = "";
     this.turnAt = 0;
     this.recovered = false;
+    // when his voice was last heard during the turn being spoken
+    this.loudAt = 0;
   }
 
   get connected() {
@@ -140,6 +146,10 @@ export default class AvatarCall {
     });
     session.on(AgentEventsEnum.ELEVENLABS_AGENT_EVENT, (event) => {
       if (event?.elevenlabs_event_type !== "interruption") return;
+      // while his voice is playing the microphone is closed, so nothing of the
+      // person's has been sent: an interruption in this moment can only be his own
+      // voice coming back out of the phone, and it must never cut his answer short
+      if (this.speaking) return;
       this.stopSpeaking();
       this.releaseQuiet();
       this.setAwaiting(false);
@@ -216,6 +226,8 @@ export default class AvatarCall {
 
   startSpeaking() {
     this.speaking = true;
+    // the watchdog counts from the first voice it hears in this turn
+    this.loudAt = 0;
     // his voice has begun, so the review is over
     this.setAwaiting(false);
     // the mic stays closed while the face answers, so its own voice coming out of
@@ -310,6 +322,14 @@ export default class AvatarCall {
       if (this.autoEnding) return;
       const now = performance.now();
 
+      // his turn is marked as speaking but nothing has been heard from him for a
+      // spell: the end signal was missed, so his turn finishes here and the
+      // microphone comes back instead of staying closed
+      if (this.speaking && this.analyser) {
+        if (this.level() > VOICE_LEVEL) this.loudAt = now;
+        else if (this.loudAt && now - this.loudAt >= SILENT_END_MS) this.stopSpeaking();
+      }
+
       // a turn that gets no answer is put to him once more; only if that brings nothing
       // does the turn stop waiting, so the call closes as it always has
       if (this.awaiting && !this.speaking) {
@@ -332,7 +352,9 @@ export default class AvatarCall {
       // nothing closes the call while a turn is still waiting for its answer
       if (!this.speaking && !this.awaiting) {
         if (!this.heardVoice) {
-          const quietSince = Math.max(this.watchStart, this.answerEndAt);
+          // the greeting of a call that carries on is delivered out of the room, so
+          // that spell is not silence: the guard waits until the person takes their turn
+          const quietSince = Math.max(this.watchStart, this.answerEndAt, this.holdQuiet ? now : 0);
           if (now - quietSince >= OPEN_QUIET_MS) {
             this.autoEnd("silence");
             return;
