@@ -1,15 +1,14 @@
 import { secrets } from "base44:runtime";
 
 export default async function (req: Request): Promise<Response> {
+  const unavailable = "The voice call couldn't start. Please try again in a moment.";
   try {
     const apiKey = secrets.get("ELEVENLABS_API_KEY");
     const agentId = secrets.get("ELEVENLABS_AGENT_ID");
 
     if (!apiKey || !agentId) {
-      return Response.json(
-        { error: "The voice agent is not connected yet." },
-        { status: 500 }
-      );
+      console.error("ElevenLabs key or agent id is missing.");
+      return Response.json({ error: unavailable }, { status: 500 });
     }
 
     const res = await fetch(
@@ -26,19 +25,19 @@ export default async function (req: Request): Promise<Response> {
       } catch (err) {
         reason = "";
       }
-      return Response.json(
-        { error: reason || "ElevenLabs refused the session (" + res.status + ")." },
-        { status: 502 }
-      );
+      console.error("ElevenLabs refused the session:", res.status, reason || detail);
+      return Response.json({ error: unavailable }, { status: 502 });
     }
 
     const data = await res.json();
     if (!data || !data.signed_url) {
-      return Response.json({ error: "No conversation link was returned." }, { status: 502 });
+      console.error("ElevenLabs returned no conversation link.");
+      return Response.json({ error: unavailable }, { status: 502 });
     }
 
     return Response.json({ signed_url: data.signed_url });
   } catch (error) {
-    return Response.json({ error: error.message }, { status: 500 });
+    console.error("Voice session failed:", error.message);
+    return Response.json({ error: unavailable }, { status: 500 });
   }
 }
