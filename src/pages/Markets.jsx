@@ -40,7 +40,7 @@ export default function Markets() {
   }
 
   return (
-    <div className="min-h-[100dvh] bg-background px-5 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))]">
+    <div className="h-full overflow-y-auto overscroll-none bg-background px-5 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <header className="flex items-center gap-3">
         <button
           type="button"

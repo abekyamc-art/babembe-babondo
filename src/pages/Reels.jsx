@@ -33,12 +33,11 @@ export default function Reels() {
   const [commentReel, setCommentReel] = useState(null);
   const [ready, setReady] = useState(false);
 
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      const user = await base44.auth.me();
-      if (!alive || !user) return;
-      const mine = await ensureProfile(user);
+  // the feed's own loader: the first load and a pull-to-refresh run the same queries
+  const loadFeed = useCallback(async () => {
+    const user = await base44.auth.me();
+    if (!user) return;
+    const mine = await ensureProfile(user);
       const [page, boosted] = await Promise.all([
         base44.entities.Reel.filter(
           { publish_at: { $lte: nowIso() } },
@@ -63,7 +62,6 @@ export default function Reels() {
         if (shared) items.unshift(shared);
       }
 
-      if (!alive) return;
       setMe(user);
       setProfile(mine);
       setReels(items);
@@ -93,7 +91,6 @@ export default function Reels() {
         base44.entities.Profile.list({ sort: "-created_date", limit: 50 }),
         base44.entities.LiveRoom.filter({ status: "live" }, { sort: "-started_at", limit: 10 }),
       ]);
-      if (!alive) return;
       setLikeCounts(countMap(likes?.rows));
       setCommentCounts(countMap(comments?.rows));
       setMyLikes(Object.fromEntries((mineLikes?.items || []).map((like) => [like.reel_id, like.id])));
@@ -104,11 +101,11 @@ export default function Reels() {
       setPeople(everyone?.items || []);
       setRooms(liveRooms?.items || []);
       setReady(true);
-    })();
-    return () => {
-      alive = false;
-    };
   }, []);
+
+  useEffect(() => {
+    loadFeed();
+  }, [loadFeed]);
 
   // the live bar stays current while the feed is open
   useEffect(() => {
@@ -137,42 +134,76 @@ export default function Reels() {
     setPeople(page?.items || []);
   }, []);
 
+  // following shows the moment it is tapped, and quietly comes undone if it could not be saved
   const followEmail = async (email) => {
     const existing = iFollow[email];
     if (existing) {
-      await base44.entities.Follow.delete(existing);
       setIFollow((prev) => {
         const next = { ...prev };
         delete next[email];
         return next;
       });
+      try {
+        await base44.entities.Follow.delete(existing);
+      } catch (err) {
+        setIFollow((prev) => ({ ...prev, [email]: existing }));
+      }
       return;
     }
-    const created = await base44.entities.Follow.create({
-      follower_email: me.email,
-      following_email: email,
-    });
-    setIFollow((prev) => ({ ...prev, [email]: created.id }));
+
+    const pending = `local-${Date.now()}`;
+    setIFollow((prev) => ({ ...prev, [email]: pending }));
+    try {
+      const created = await base44.entities.Follow.create({
+        follower_email: me.email,
+        following_email: email,
+      });
+      setIFollow((prev) => (prev[email] === pending ? { ...prev, [email]: created.id } : prev));
+    } catch (err) {
+      setIFollow((prev) => {
+        const next = { ...prev };
+        if (next[email] === pending) delete next[email];
+        return next;
+      });
+    }
   };
 
+  // the heart answers at once; the count goes back if the like never reached the server
   const handleLike = async (reel) => {
     const likeId = myLikes[reel.id];
     if (likeId) {
-      await base44.entities.ReelLike.delete(likeId);
       setMyLikes((prev) => {
         const next = { ...prev };
         delete next[reel.id];
         return next;
       });
       setLikeCounts((prev) => ({ ...prev, [reel.id]: Math.max(0, (prev[reel.id] || 0) - 1) }));
+      try {
+        await base44.entities.ReelLike.delete(likeId);
+      } catch (err) {
+        setMyLikes((prev) => ({ ...prev, [reel.id]: likeId }));
+        setLikeCounts((prev) => ({ ...prev, [reel.id]: (prev[reel.id] || 0) + 1 }));
+      }
       return;
     }
-    const created = await base44.entities.ReelLike.create({
-      reel_id: reel.id,
-      user_email: me.email,
-    });
-    setMyLikes((prev) => ({ ...prev, [reel.id]: created.id }));
+
+    const pending = `local-${Date.now()}`;
+    setMyLikes((prev) => ({ ...prev, [reel.id]: pending }));
     setLikeCounts((prev) => ({ ...prev, [reel.id]: (prev[reel.id] || 0) + 1 }));
+    try {
+      const created = await base44.entities.ReelLike.create({
+        reel_id: reel.id,
+        user_email: me.email,
+      });
+      setMyLikes((prev) => (prev[reel.id] === pending ? { ...prev, [reel.id]: created.id } : prev));
+    } catch (err) {
+      setMyLikes((prev) => {
+        const next = { ...prev };
+        if (next[reel.id] === pending) delete next[reel.id];
+        return next;
+      });
+      setLikeCounts((prev) => ({ ...prev, [reel.id]: Math.max(0, (prev[reel.id] || 0) - 1) }));
+    }
   };
 
   const handleBoost = async (reel) => {
@@ -224,7 +255,7 @@ export default function Reels() {
   }
 
   return (
-    <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-background">
       <header className="relative z-20 flex items-center gap-2 px-4 pb-2 pt-[max(0.6rem,env(safe-area-inset-top))]">
         <button
           type="button"
@@ -273,6 +304,7 @@ export default function Reels() {
 
       <ReelFeed
         reels={reels}
+        onRefresh={loadFeed}
         likeCounts={likeCounts}
         commentCounts={commentCounts}
         myLikes={myLikes}

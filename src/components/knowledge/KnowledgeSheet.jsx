@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { KINDS, emptyEntry, entryFields, kindHint } from "@/lib/knowledge";
@@ -109,7 +110,8 @@ export default function KnowledgeSheet({ open, onClose }) {
 
   const shown = rows.filter((row) => row.kind === kind);
 
-  return (
+  // drawn over the whole screen, so the tab bar never shows through the panel
+  return createPortal(
     <div className="fixed inset-0 z-50">
       <div aria-hidden className="account-backdrop absolute inset-0" />
 
@@ -186,6 +188,7 @@ export default function KnowledgeSheet({ open, onClose }) {
           )}
         </div>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }

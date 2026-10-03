@@ -31,6 +31,9 @@
     --chart-4: 43 74% 66%;
     --chart-5: 27 87% 67%;
     --radius: 1rem;
+    /* the tab bar's own height, and the room every page leaves for it */
+    --tabbar-h: 60px;
+    --tabbar-space: calc(var(--tabbar-h) + env(safe-area-inset-bottom, 0px));
     --font-heading: 'Fraunces', Georgia, 'Times New Roman', serif;
     --font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
     --font-display: 'Fraunces', Georgia, 'Times New Roman', serif;
@@ -92,9 +95,39 @@
     height: 100%;
   }
 
+  /* the page behind the app never rubber-bands or scrolls the shell away */
+  html,
+  body {
+    overscroll-behavior: none;
+  }
+
   body {
     @apply bg-background text-foreground font-body antialiased;
     -webkit-tap-highlight-color: transparent;
+  }
+
+  /* controls never catch a text selection; what a person writes or reads stays copyable */
+  button,
+  [role="tab"],
+  nav,
+  .account-icon,
+  .knowledge-tab,
+  .knowledge-tool,
+  .tab-item {
+    -webkit-user-select: none;
+    user-select: none;
+  }
+
+  input,
+  textarea,
+  [contenteditable="true"],
+  .account-input,
+  .account-area,
+  .knowledge-text,
+  .conversation-text,
+  article {
+    -webkit-user-select: text;
+    user-select: text;
   }
 }
 
@@ -115,7 +148,7 @@
   .orb-shell {
     --orb-size: clamp(
       150px,
-      calc(100dvh - 384px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)),
+      calc(100dvh - var(--tabbar-space) - 384px - env(safe-area-inset-top, 0px)),
       min(84vmin, 420px)
     );
     position: relative;
@@ -444,6 +477,20 @@
     color: #6ba8ff;
   }
 
+  /* the row that ends an account is the panel's own danger-toned row */
+  .account-action-danger {
+    color: #ffb6bd;
+  }
+
+  .account-action-danger:hover {
+    color: #ffd6da;
+    background: rgba(255, 126, 140, 0.06);
+  }
+
+  .account-action-danger:active {
+    color: #fff0f1;
+  }
+
   .account-action-label {
     display: flex;
     align-items: center;
@@ -656,8 +703,8 @@
   }
 
   .knowledge-tool {
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     display: grid;
     place-items: center;
     color: #8ebaff;
@@ -795,6 +842,81 @@
 
   .typing-dot:nth-child(3) {
     animation-delay: 0.3s;
+  }
+
+  /* The mobile shell: a page fills the room the bar leaves, the bar is pinned to the
+     very bottom above the home indicator, and both keep their own edges. */
+  .tab-shell {
+    position: relative;
+    height: 100dvh;
+    width: 100%;
+    overflow: hidden;
+    padding-bottom: var(--tabbar-space);
+  }
+
+  /* the screens outside the tabs — the live room and the sign-in pages — keep the whole screen */
+  .plain-shell {
+    position: relative;
+    height: 100dvh;
+    width: 100%;
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: none;
+  }
+
+  .tab-bar {
+    position: fixed;
+    inset-inline: 0;
+    bottom: 0;
+    z-index: 40;
+    display: flex;
+    align-items: stretch;
+    height: var(--tabbar-space);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+    background: hsl(var(--card) / 0.96);
+    border-top: 1px solid hsl(var(--border));
+    backdrop-filter: blur(14px);
+    -webkit-backdrop-filter: blur(14px);
+  }
+
+  .tab-item {
+    position: relative;
+    display: flex;
+    flex: 1 1 0;
+    min-height: 44px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 3px;
+    color: hsl(var(--muted-foreground));
+    background: none;
+    border: 0;
+    font: 500 12px/1 var(--font-body);
+    letter-spacing: 0.01em;
+    cursor: pointer;
+    transition: color 0.18s ease;
+  }
+
+  .tab-item.is-active {
+    color: hsl(var(--foreground));
+  }
+
+  .tab-item svg {
+    width: 20px;
+    height: 20px;
+  }
+
+  .tab-item:focus-visible {
+    outline: 2px solid hsl(var(--accent));
+    outline-offset: -4px;
+    border-radius: 12px;
+  }
+
+  .tab-dot {
+    width: 4px;
+    height: 4px;
+    border-radius: 9999px;
+    background: hsl(var(--accent));
   }
 }
 

@@ -95,7 +95,7 @@ export default function Profile() {
   }
 
   return (
-    <div className="min-h-[100dvh] w-full bg-background pb-6">
+    <div className="h-full w-full overflow-y-auto overscroll-none bg-background pb-6">
       <header className="flex items-center gap-2 px-4 pb-1 pt-[max(0.6rem,env(safe-area-inset-top))]">
         <button
           type="button"

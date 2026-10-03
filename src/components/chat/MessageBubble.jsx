@@ -9,7 +9,7 @@ export default function MessageBubble({ message, mine }) {
     <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
       <div
         className={cn(
-          "max-w-[78%] overflow-hidden rounded-2xl text-[14px] leading-snug",
+          "conversation-text max-w-[78%] overflow-hidden rounded-2xl text-[14px] leading-snug",
           photo ? "p-1" : "px-3.5 py-2",
           mine ? "bg-foreground text-background" : "bg-secondary text-foreground"
         )}

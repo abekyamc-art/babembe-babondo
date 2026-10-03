@@ -1,8 +1,10 @@
 import React from "react";
 import ReelCard from "@/components/reels/ReelCard";
+import PullToRefresh from "@/components/PullToRefresh";
 
 export default function ReelFeed({
   reels,
+  onRefresh,
   likeCounts,
   commentCounts,
   myLikes,
@@ -41,7 +43,10 @@ export default function ReelFeed({
   }
 
   return (
-    <div className="min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto overscroll-y-contain">
+    <PullToRefresh
+      onRefresh={onRefresh}
+      className="min-h-0 flex-1 snap-y snap-mandatory overflow-y-auto overscroll-none"
+    >
       {reels.map((reel) => (
         <div key={reel.id} className="h-full w-full snap-start snap-always">
           <ReelCard
@@ -65,6 +70,6 @@ export default function ReelFeed({
           />
         </div>
       ))}
-    </div>
+    </PullToRefresh>
   );
 }

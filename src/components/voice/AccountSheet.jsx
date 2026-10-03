@@ -1,7 +1,9 @@
 import React from "react";
+import { createPortal } from "react-dom";
 import { BookOpen, Clapperboard, MessageCircle } from "lucide-react";
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountProfile from "@/components/voice/AccountProfile";
+import DeleteAccount from "@/components/voice/DeleteAccount";
 
 function Chevron() {
   return (
@@ -41,7 +43,8 @@ export default function AccountSheet({
       ? `${remaining} left`
       : `${remaining} free ${remaining === 1 ? "message" : "messages"}`;
 
-  return (
+  // drawn over the whole screen, so the tab bar never shows through the panel
+  return createPortal(
     <div className="fixed inset-0 z-50">
       <button
         type="button"
@@ -96,6 +99,7 @@ export default function AccountSheet({
                   <span>Sign out</span>
                   <Chevron />
                 </button>
+                <DeleteAccount />
               </>
             ) : (
               <button
@@ -110,6 +114,7 @@ export default function AccountSheet({
           </div>
         </div>
       </section>
-    </div>
+    </div>,
+    document.body
   );
 }

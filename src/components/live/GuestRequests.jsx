@@ -20,7 +20,7 @@ export default function GuestRequests({ requests, busy, onApprove, onDecline }) 
             onClick={() => onApprove(request)}
             disabled={busy}
             aria-label="Let in"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-accent text-accent-foreground"
           >
             <Check className="h-4 w-4" />
           </button>
@@ -29,7 +29,7 @@ export default function GuestRequests({ requests, busy, onApprove, onDecline }) 
             onClick={() => onDecline(request)}
             disabled={busy}
             aria-label="Keep out"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-full bg-white/15 text-white"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-white/15 text-white"
           >
             <X className="h-4 w-4" />
           </button>

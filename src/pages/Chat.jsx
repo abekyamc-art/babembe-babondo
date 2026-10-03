@@ -94,7 +94,7 @@ export default function Chat() {
 
   if (!thread) {
     return (
-      <div className="flex h-[100dvh] flex-col items-center justify-center gap-4 px-8 text-center">
+      <div className="flex h-full flex-col items-center justify-center gap-4 px-8 text-center">
         <p className="text-[15px] text-muted-foreground">This conversation is no longer here.</p>
         <button
           type="button"
@@ -110,7 +110,7 @@ export default function Chat() {
   const username = other?.username || (other?.user_email || "").split("@")[0] || "friend";
 
   return (
-    <div className="flex h-[100dvh] w-full flex-col bg-background">
+    <div className="flex h-full w-full flex-col bg-background">
       <header className="flex shrink-0 items-center gap-2.5 border-b border-border px-4 pb-2.5 pt-[max(0.6rem,env(safe-area-inset-top))]">
         <button
           type="button"
@@ -140,7 +140,7 @@ export default function Chat() {
         </button>
       </header>
 
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-4">
+      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-none px-4 py-4">
         {messages.length ? (
           messages.map((line) => (
             <MessageBubble key={line.id} message={line} mine={line.sender_email === me.email} />

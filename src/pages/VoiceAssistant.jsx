@@ -263,7 +263,7 @@ export default function VoiceAssistant() {
                 : "Tap to talk";
 
   return (
-    <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground">
+    <div className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
       <div aria-hidden className="ambient-wash" />
 
       <header className="relative z-10 flex items-start justify-between gap-3 px-5 pt-[max(0.6rem,env(safe-area-inset-top))]">

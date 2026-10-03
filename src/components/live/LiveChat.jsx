@@ -42,19 +42,49 @@ export default function LiveChat({
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
 
+  // a line is on screen the moment it is sent, and leaves again only if it could not be saved
+  const showAtOnce = (line) => setMessages((prev) => [...prev, line]);
+
+  const settle = (pending, line) =>
+    setMessages((prev) => [
+      ...prev.filter((item) => item.id !== pending && item.id !== line.id),
+      line,
+    ]);
+
+  const withdraw = (pending) =>
+    setMessages((prev) => prev.filter((item) => item.id !== pending));
+
   const sendGift = async (gift) => {
     const spent = await onGift(gift);
     if (!spent) return;
-    const line = await base44.entities.LiveMessage.create({
+    const pending = `local-${Date.now()}`;
+    const announcement = `${gift.emoji} sent a ${gift.name}`;
+    showAtOnce({
+      id: pending,
       room_id: room.id,
       author_email: me.email,
       author_username: username || "viewer",
       kind: "gift",
-      text: `${gift.emoji} sent a ${gift.name}`,
+      text: announcement,
       gift_name: gift.name,
       gift_coins: gift.coins,
     });
-    setMessages((prev) => (prev.some((item) => item.id === line.id) ? prev : [...prev, line]));
+    try {
+      settle(
+        pending,
+        await base44.entities.LiveMessage.create({
+          room_id: room.id,
+          author_email: me.email,
+          author_username: username || "viewer",
+          kind: "gift",
+          text: announcement,
+          gift_name: gift.name,
+          gift_coins: gift.coins,
+        })
+      );
+    } catch (err) {
+      withdraw(pending);
+    }
   };
 
   const sendEffect = async (effect) => {
@@ -84,19 +114,34 @@ export default function LiveChat({
     const value = text.trim();
     if (!value) return;
     setText("");
-    const line = await base44.entities.LiveMessage.create({
+    const pending = `local-${Date.now()}`;
+    showAtOnce({
+      id: pending,
       room_id: room.id,
       author_email: me.email,
       author_username: username || "viewer",
       kind: "chat",
       text: value,
     });
-    setMessages((prev) => (prev.some((item) => item.id === line.id) ? prev : [...prev, line]));
+    try {
+      settle(
+        pending,
+        await base44.entities.LiveMessage.create({
+          room_id: room.id,
+          author_email: me.email,
+          author_username: username || "viewer",
+          kind: "chat",
+          text: value,
+        })
+      );
+    } catch (err) {
+      withdraw(pending);
+    }
   };
 
   return (
     <section className="flex flex-col gap-2">
-      <div className="max-h-[30vh] min-h-[4.5rem] space-y-2 overflow-y-auto px-1">
+      <div className="max-h-[30vh] min-h-[4.5rem] space-y-2 overflow-y-auto overscroll-none px-1">
         {messages.length ? (
           messages.map((line) =>
             line.kind === "effect" ? (
