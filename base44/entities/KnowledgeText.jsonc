@@ -24,6 +24,10 @@
     "file_uri": {
       "type": "string",
       "description": "Private storage reference for the document a text was lifted out of, when it was uploaded rather than pasted. It is never shared."
+    },
+    "review_note": {
+      "type": "string",
+      "description": "What the reading of a pasted list found: how many lines were words, how many were kept as rules and letters, and how many pronunciation guides were set aside. Shown in the words panel."
     }
   },
   "required": [

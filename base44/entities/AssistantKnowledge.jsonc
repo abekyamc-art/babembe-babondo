@@ -32,6 +32,10 @@
       "type": "string",
       "description": "The Ebembe word or expression, on word entries."
     },
+    "guide": {
+      "type": "string",
+      "description": "Pronunciation guide for the word, syllables joined by dashes. It is the assistant's alone: it shapes how the word is said and is never written or spoken to anyone."
+    },
     "meaning": {
       "type": "string",
       "description": "What the Ebembe word means, on word entries."

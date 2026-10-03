@@ -43,12 +43,17 @@ export const FIELDS = {
   ],
   word: [
     { name: "term", label: "Ebembe word", placeholder: "Mfano: babondo" },
+    {
+      name: "guide",
+      label: "Pronunciation (private)",
+      placeholder: "Mfano: oh-leg-bile — hii haionyeshwi kwa mtu",
+    },
     { name: "meaning", label: "Meaning", placeholder: "Maana yake" },
     { name: "usage", label: "How to use it", area: true, placeholder: "Jinsi anapaswa kuitumia" },
   ],
 };
 
-const TEXT_FIELDS = ["question", "answer", "title", "text", "term", "meaning", "usage"];
+const TEXT_FIELDS = ["question", "answer", "title", "text", "term", "guide", "meaning", "usage"];
 
 export function emptyEntry(kind) {
   const blank = { kind };
@@ -91,7 +96,11 @@ export function entryHeadline(row) {
 export function entryBody(row) {
   if (row.kind === "qa") return row.answer || "";
   if (row.kind === "note") return row.text || "";
-  return [row.meaning, row.usage].filter(Boolean).join(" · ");
+  return [
+    row.meaning,
+    row.usage,
+    row.guide ? `Pronunciation: ${row.guide}` : "",
+  ].filter(Boolean).join(" · ");
 }
 
 /**

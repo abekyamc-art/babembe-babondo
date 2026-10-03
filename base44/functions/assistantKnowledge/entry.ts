@@ -27,43 +27,63 @@ const NOTES_LIMIT = 400;
 const MAX_QUERY = 600;
 
 const OPENING =
-  "MAARIFA YA MWENYEJI (what the admin has written for you to know):\n" +
+  "MAARIFA YA MWENYEJI — what the admin has written for you to know:\n" +
   "Majibu yako kuhusu ulimwengu wa Babembe, utamaduni wake, na lugha ya Ebembe yatokee kwenye maarifa haya kwanza.\n";
 
 // How he answers: the three languages he serves, the review he takes before
 // answering, and what to do with a word that only sounded like a saved one.
 const GUIDE =
-  "\nJINSI YA KUJIBU (how to answer):\n" +
+  "\nJINSI YA KUJIBU — how to answer:\n" +
   "- Chukua muda wako: kabla ya kujibu, soma maarifa haya na orodha ya maneno kwanza, kisha jibu kwa utulivu na kwa ukamilifu.\n" +
   "- Jibu kwa lugha aliyotumia mtu — Ebembe, Kiswahili au Kiingereza. Kwa kawaida anza kwa Ebembe, kisha ongeza ufafanuzi mfupi kwa Kiswahili au Kiingereza. Mtu akiomba lugha nyingine, fuata yeye, na akibadilisha lugha, badilisha nawe.\n" +
   "- Mtu akiomba kitu — kuzungumza, hadithi, wimbo, kufundishwa neno, maelezo au mazoezi — fanya alichoomba, kwa lugha aliyoomba.\n" +
-  "- Neno alilosema likikaribia neno lililohifadhiwa (herufi moja au alama tofauti, au konsonanti zilezile kwa irabu tofauti), chukulia kuwa ni neno hilo hilo: jibu moja kwa moja kutoka maana yake. (Never say the word was wrong, never say it is unknown, never ask whether they meant a similar word, and never repeat their words back as your answer.)\n" +
+  "- Neno alilosema likikaribia neno lililohifadhiwa — herufi moja au alama tofauti, au konsonanti zilezile kwa irabu tofauti — chukulia kuwa ni neno hilo hilo: jibu moja kwa moja kutoka maana yake. Kumbuka: never say the word was wrong, never say it is unknown, never ask whether they meant a similar word, and never repeat their words back as your answer.\n" +
   "- Neno la kwanza kwenye orodha ya maneno yanayokaribia ndilo linalokaribia zaidi; ndilo neno alilomaanisha, hata kama mengine yanafanana nalo — jibu kutoka maana ya lile la kwanza, bila kuuliza.\n" +
-  "- Swali au ombi lisipoeleweka, jibu ulichoelewa kwa maneno yako mwenyewe: usirudie maneno yake kama jibu, wala usiulize uthibitisho.\n";
+  "- Swali au ombi lisipoeleweka, jibu ulichoelewa kwa maneno yako mwenyewe: usirudie maneno yake kama jibu, wala usiulize uthibitisho.\n" +
+  "- Mwongozo wa matamshi ni wa sikio lako pekee: chukua neno jinsi linasikika, lakini usiandike wala kusema kwa mtu chochote kilichowekwa ndani ya mabano, wala silabi zilizoandikwa zimetenganishwa kwa vistari. Onyesha na kutamka herufi za neno tu kama linavyoandikwa — mfano: \"ole bile\".\n";
 
 const FALLBACK =
   "\nKama swali halipo kwenye maarifa haya, jibu kwa ufahamu wako wa kawaida, lakini sema wazi katika jibu hilo kwamba jibu hilo halitoki kwenye maarifa ya admin.\n";
 
 const PASSAGE_HEAD =
-  "\nSEHEMU ZA MAANDISHI YA MWENYEJI (parts of the admin's own texts that match this question):\n" +
+  "\nSEHEMU ZA MAANDISHI YA MWENYEJI — parts of the admin's own texts that match this question:\n" +
   "Jibu kutoka sehemu hizi kwa maneno yako, na sema wazi kama hakuna sehemu inayojibu swali hili.\n";
 
 const HEADS = {
   qa: "MASWALI NA MAJIBU\n",
   note: "MAELEZO YA ULIMWENGU\n",
   word:
-    "MANENO YA EBEMBE (kila neno alilohifadhi admin):\n" +
-    "Tumia maneno haya na maana yake unapojibu. Neno lenye (maana haijaelezwa bado) halijaelezwa bado — litaje tu, usibuni maana yake.\n",
+    "MANENO YA EBEMBE — kila neno alilohifadhi admin:\n" +
+    "Tumia maneno haya na maana yake unapojibu. Neno lenye alama ya ? halijaandikwa maana yake: litaje tu, usibuni maana yake, wala usiseme alama hiyo kwa mtu.\n",
   like:
-    "\nMANENO YANAYOKARIBIA ULILOSIKIA (words close to what was heard):\n" +
+    "\nMANENO YANAYOKARIBIA ULILOSIKIA — words close to what was heard:\n" +
     "Neno la kwanza ndilo linalokaribia zaidi — ndilo neno alilomaanisha. Jibu moja kwa moja kutoka maana yake: usimwambie mtu amekosea, usiulize kama alimaanisha neno lingine, na usirudie maneno yake kama jibu lako. Maneno mengine kwenye orodha ni ya karibu tu — usiyataje kama mbadala, na usiulize kama alimaanisha mojawapo. Puuza orodha hii tu kama neno alilosema halipo kabisa.\n",
+  say:
+    "\nMATAMSHI YA SIRI — how to say the words above, for your ear only:\n" +
+    "Tumia mwongozo huu kusema neno vizuri, lakini USIANDIKE wala USISEME mwongozo huu kwa mtu: sema na uandike herufi za neno tu, kama \"ole bile\" na si \"oh-leg-bile\".\n",
 };
 
 // the section that rides with a question is set aside first, so it can never push
 // the vocabulary out of the note
 const LIKE_BUDGET = 900;
+// the private pronunciation hints have their own small share, and are never spoken
+const SAY_BUDGET = 1500;
 const NOTE_BUDGET =
-  MAX_NOTE - OPENING.length - GUIDE.length - FALLBACK.length - LIKE_BUDGET;
+  MAX_NOTE - OPENING.length - GUIDE.length - FALLBACK.length - LIKE_BUDGET - SAY_BUDGET;
+
+// Anything between brackets, and any syllable-by-syllable run, is a note for the ear
+// rather than a word to show: it is taken out of every line he is given.
+const BRACKETED = /[([][^)\]]*[)\]]/g;
+const SYLLABLES = /\b[a-z]{1,6}(?:-[a-z]{1,6}){2,}\b/gi;
+
+function plain(value: any) {
+  return String(value ?? "")
+    .replace(BRACKETED, " ")
+    .replace(SYLLABLES, " ")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([.,;:!?])/g, "$1")
+    .trim();
+}
 const WORDS_BUDGET = Math.min(WORDS_SHARE, NOTE_BUDGET);
 
 // short words that carry no meaning for matching, in both languages the admin writes in
@@ -100,13 +120,13 @@ function wordsOf(line: string) {
 /** A question, or a world note, as a single line the assistant can read. */
 function noteLine(row: any) {
   if (row.kind === "qa") {
-    const question = textOf(row.question);
-    const answer = textOf(row.answer);
+    const question = plain(textOf(row.question));
+    const answer = plain(textOf(row.answer));
     return question && answer ? `Q: ${question}\nA: ${answer}` : "";
   }
   if (row.kind === "note") {
-    const title = textOf(row.title);
-    const body = textOf(row.text);
+    const title = plain(textOf(row.title));
+    const body = plain(textOf(row.text));
     if (!body) return "";
     return title ? `${title} — ${body}` : body;
   }
@@ -128,14 +148,36 @@ function fill(head: string, lines: string[], budget: number) {
   return body ? { text: head + body, lines: used } : { text: "", lines: 0 };
 }
 
-/** A saved word as the assistant reads it: its meaning, or that it has none yet. */
+/**
+ * A saved word as the assistant reads it: its plain spelling and its meaning. The
+ * pronunciation guide never rides here — a word he may say is one without it.
+ */
 function wordLine(row: any) {
-  const term = textOf(row.term);
+  const term = plain(textOf(row.term));
   if (!term) return "";
-  const meaning = textOf(row.meaning);
-  const usage = textOf(row.usage);
-  if (!meaning) return `${term} = (maana haijaelezwa bado)`;
-  return `${term} = ${meaning}${usage ? ` (${usage})` : ""}`;
+  const meaning = plain(textOf(row.meaning));
+  const usage = plain(textOf(row.usage));
+  if (!meaning) return `${term} = ?`;
+  return `${term} = ${meaning}${usage ? ` · ${usage}` : ""}`;
+}
+
+/** The pronunciation guides he is given, held apart from every word he may say. */
+function saySection(rows: any[], budget: number) {
+  const lines: string[] = [];
+  let used = 0;
+  for (const row of rows) {
+    if (used >= budget) break;
+    const term = plain(textOf(row.term));
+    // a guide is the one line written as syllables joined by dashes, so it is kept
+    // exactly as the admin wrote it — only brackets are taken out of it
+    const guide = textOf(row.guide).replace(BRACKETED, " ").trim();
+    if (!term || !guide) continue;
+    const line = `- ${term} → ${guide}\n`;
+    if (HEADS.say.length + used + line.length > budget) break;
+    lines.push(line);
+    used += line.length;
+  }
+  return lines.length ? HEADS.say + lines.join("") : "";
 }
 
 /** Every saved word, packed into lines in the order it was saved. */
@@ -276,11 +318,12 @@ function likeSection(rows: any[], heard: string) {
 
   let body = "";
   for (const row of near) {
-    const meaning = textOf(row.meaning) || "(maana haijaelezwa bado)";
-    const usage = textOf(row.usage);
-    const line = `- alisikia "${row.heard}" → neno ni "${row.term}" = ${meaning}${
-      usage ? ` (${usage})` : ""
-    }\n`;
+    const term = plain(textOf(row.term));
+    const meaning = plain(textOf(row.meaning));
+    const usage = plain(textOf(row.usage));
+    const line = `- alisikia "${plain(textOf(row.heard))}" → neno ni "${term}"${
+      meaning ? ` = ${meaning}` : " — maana yake haijaandikwa bado"
+    }${usage ? ` · ${usage}` : ""}\n`;
     if (HEADS.like.length + body.length + line.length > LIKE_BUDGET) break;
     body += line;
   }
@@ -364,7 +407,8 @@ function passageNote(query: string, texts: any[]) {
 
   let body = "";
   for (const row of best) {
-    const item = `${row.title ? `[${row.title}]\n` : ""}${row.text}\n\n`;
+    const title = plain(row.title);
+    const item = `${title ? `${title} — ` : ""}${plain(row.text)}\n\n`;
     if (body.length + item.length > PASSAGE_BUDGET) break;
     body += item;
   }
@@ -385,9 +429,15 @@ export default async function (req: Request): Promise<Response> {
 
     // the words panel asks how much of the list the assistant is actually given
     if (payload?.stats) {
-      const tally = await wordTally(await wordsFor(base44), []);
+      const rows = await wordsFor(base44);
+      const tally = await wordTally(rows, []);
       return Response.json({
-        words: { total: tally.total, carried: tally.carried, whole: tally.whole },
+        words: {
+          total: tally.total,
+          carried: tally.carried,
+          whole: tally.whole,
+          guided: rows.filter((row: any) => textOf(row.guide)).length,
+        },
       });
     }
 
@@ -407,7 +457,8 @@ export default async function (req: Request): Promise<Response> {
     const wordRows = await wordsFor(base44);
     const like = likeSection(wordRows, query);
     const tally = await wordTally(wordRows, wanted);
-    let left = NOTE_BUDGET - tally.section.length - like.length;
+    const say = saySection(wordRows, SAY_BUDGET);
+    let left = NOTE_BUDGET - tally.section.length - like.length - say.length;
 
     const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
       { kind: { $in: ["qa", "note"] } },
@@ -424,7 +475,7 @@ export default async function (req: Request): Promise<Response> {
     left -= qa.text.length;
     const world = fill(HEADS.note, linesOfKind("note"), left);
 
-    const body = like + qa.text + world.text + tally.section;
+    const body = like + qa.text + world.text + tally.section + say;
     let note = body ? OPENING + GUIDE + body + FALLBACK : "";
 
     // a question is answered from the admin's long texts too, through the few

@@ -6,17 +6,16 @@ import {
   loadWordStats,
   parseWordList,
   readLine,
+  reviewNote,
   savePasteDocument,
   saveWordList,
   wordCount,
 } from "@/lib/wordList";
 
-// how many unreadable lines are named before the rest are counted
-const NAMED = 3;
-
 /**
- * A whole paste saved at once: the clear "word = meaning" lines saved as words, and
- * the plurals and rules kept whole as the document the assistant answers from.
+ * A whole paste saved at once: the lines that read like words saved as words, with
+ * their pronunciation guides kept privately beside them, and the plurals, rules and
+ * letters kept whole as the document the assistant answers from.
  */
 export default function WordListForm({ onSaved }) {
   const [raw, setRaw] = useState("");
@@ -27,9 +26,9 @@ export default function WordListForm({ onSaved }) {
   // the document this box is kept as, and whether the text in it is already kept
   const [doc, setDoc] = useState(null);
   const [stored, setStored] = useState(false);
-  const { entries, skipped, document, ruleCount } = useMemo(() => parseWordList(raw), [raw]);
-  const read = readLine({ entries, ruleCount });
-  const knows = knownLine(known, doc?.word_count);
+  const { entries, ruleCount, guideCount, document } = useMemo(() => parseWordList(raw), [raw]);
+  const read = readLine({ entries, ruleCount, guideCount });
+  const knows = knownLine(known, doc?.word_count, doc?.review_note);
 
   useEffect(() => {
     let alive = true;
@@ -59,7 +58,7 @@ export default function WordListForm({ onSaved }) {
     // the assistant however long the paste is and whatever it mixes
     if (!stored) {
       try {
-        setDoc(await savePasteDocument(document, doc?.id));
+        setDoc(await savePasteDocument(document, reviewNote({ entries, ruleCount, guideCount })));
         setStored(true);
       } catch (err) {
         setError("That paste didn't save — tap Save all to try again.");
@@ -82,14 +81,6 @@ export default function WordListForm({ onSaved }) {
     setBusy(false);
   };
 
-  const skippedNote = skipped.length
-    ? `Line${skipped.length === 1 ? "" : "s"} ${skipped.slice(0, NAMED).join(", ")}${
-        skipped.length > NAMED ? ` and ${skipped.length - NAMED} more` : ""
-      } ${skipped.length === 1 ? "has" : "have"} no Ebembe word before the separator, so ${
-        skipped.length === 1 ? "it was" : "they were"
-      } not read as a word.`
-    : "";
-
   return (
     <div className="knowledge-form">
       <label className="knowledge-field">
@@ -98,7 +89,7 @@ export default function WordListForm({ onSaved }) {
           value={raw}
           onChange={(event) => change(event.target.value)}
           placeholder={
-            "babondo = mtu mwenye hekima\nkubala = kupenda\nPlural: add -ba at the end for many"
+            "ole bile (oh-leg-bile) = salaam\nkubala = kupenda\nPlural: add -ba at the end for many"
           }
           className="account-area knowledge-area"
         />
@@ -111,7 +102,6 @@ export default function WordListForm({ onSaved }) {
         {knows ? <span className="knowledge-meter-text">{knows}</span> : null}
       </div>
 
-      {skippedNote ? <p className="knowledge-error">{skippedNote}</p> : null}
       {error ? <p className="knowledge-error">{error}</p> : null}
 
       <div className="knowledge-form-actions">
