@@ -164,7 +164,7 @@ export default function VoiceAssistant() {
       openGate();
       return;
     }
-    await start({ withMic: false, firstMessage: text, onAnswered: spend });
+    await start({ withMic: false, silent: true, firstMessage: text, onAnswered: spend });
   };
 
   const handleAccount = () => setAccountOpen(true);

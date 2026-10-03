@@ -12,6 +12,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const answeredRef = useRef(null);
   // whether the owner's face is available at all; the answer arrives once, on load
   const faceReadyRef = useRef(false);
+  // whether the session on air is a written one, which ends without call language
+  const quietRef = useRef(false);
 
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
@@ -68,6 +70,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onInterrupted: () => setSpeaking(false),
       onAgentAnswered: () => answeredRef.current?.(),
       onAutoEnd: ({ reason }) => {
+        // a written exchange is already answered on screen, so it ends without a note
+        if (quietRef.current) return;
         setNotice(
           reason === "silence"
             ? "Didn't hear anything — tap the orb to talk again."
@@ -79,12 +83,18 @@ export default function useVoiceAgent({ videoRef } = {}) {
   );
 
   const start = useCallback(
-    async ({ withMic = true, firstMessage = "", onAnswered } = {}) => {
+    async ({ withMic = true, firstMessage = "", onAnswered, silent = false } = {}) => {
       const existing = socketRef.current;
       if (onAnswered) answeredRef.current = onAnswered;
-      if (existing?.connected) {
+      // a call already listening through the microphone carries on; a written session
+      // gives way the moment the microphone is asked for
+      if (existing?.connected && (!withMic || existing.micOn)) {
         if (firstMessage) existing.sendText(firstMessage);
         return true;
+      }
+      if (existing?.connected) {
+        socketRef.current = null;
+        await existing.stop();
       }
 
       setError("");
@@ -93,10 +103,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
       const handlers = makeHandlers();
 
       // when the owner's face is in place the call runs through it, with the same
-      // ElevenLabs agent answering behind it
-      if (faceReadyRef.current && videoRef?.current) {
+      // ElevenLabs agent answering behind it. Typing is answered in writing, so it
+      // never opens the face or the speaker
+      if (!silent && faceReadyRef.current && videoRef?.current) {
         const call = new AvatarCall(handlers);
         socketRef.current = call;
+        quietRef.current = false;
         setMicActive(withMic);
         try {
           await call.open({ withMic, videoEl: videoRef.current });
@@ -112,10 +124,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
 
       const socket = new VoiceSocket(handlers);
       socketRef.current = socket;
+      quietRef.current = silent;
       setMicActive(withMic);
 
       try {
-        await socket.open({ withMic });
+        await socket.open({ withMic, silent });
         if (firstMessage) socket.sendText(firstMessage);
         return true;
       } catch (err) {

@@ -5,6 +5,10 @@ const OPEN_QUIET_MS = 3000;
 const CLOSE_QUIET_MS = 10000;
 const CALL_MAX_MS = 30000;
 const VOICE_LEVEL = 0.06;
+// a written session has no microphone to listen to: it hangs up a few seconds after
+// the written answer has landed, or once it has waited long enough for one to arrive
+const WRITTEN_CLOSE_MS = 5000;
+const WRITTEN_WAIT_MS = 25000;
 
 function b64ToBytes(b64) {
   const bin = atob(b64);
@@ -81,13 +85,24 @@ export default class VoiceSocket {
     this.watchStart = 0;
     this.watchId = 0;
     this.autoEnding = false;
+    this.silent = false;
+    this.silentWaitAt = 0;
+    this.muteGain = null;
   }
 
   get connected() {
     return this.ws !== null && this.ws.readyState === WebSocket.OPEN;
   }
 
-  async open({ withMic } = {}) {
+  // a written session never opened the microphone, so it can't carry a spoken call
+  get micOn() {
+    return !!this.stream;
+  }
+
+  async open({ withMic, silent } = {}) {
+    // a written message is answered in writing: no microphone, nothing on the speaker
+    this.silent = !withMic && !!silent;
+    this.silentWaitAt = performance.now();
     this.answered = false;
     this.userSpoke = false;
     this.autoEnding = false;
@@ -169,6 +184,7 @@ export default class VoiceSocket {
     });
 
     if (withMic) this.startMic();
+    if (this.silent) this.watchWritten();
     this.h.onStatus?.("live");
   }
 
@@ -184,6 +200,8 @@ export default class VoiceSocket {
 
   sendText(text) {
     this.stopPlayback();
+    // every written message starts its own wait for its answer
+    this.silentWaitAt = performance.now();
     this.userSpoke = true;
     // a fresh message is its own turn, so its answer is its own to spend
     this.answered = false;
@@ -376,7 +394,7 @@ export default class VoiceSocket {
 
     const node = this.ctx.createBufferSource();
     node.buffer = buffer;
-    node.connect(this.ctx.destination);
+    node.connect(this.silent ? this.silencer() : this.ctx.destination);
 
     const now = this.ctx.currentTime;
     if (this.playHead < now + 0.04) this.playHead = now + 0.04;
@@ -401,6 +419,36 @@ export default class VoiceSocket {
     }, remainingMs);
   }
 
+  // the answer to a written message is read, not heard: its audio is played into a
+  // silent sink, so the speaker stays quiet while the answer keeps its exact timing
+  silencer() {
+    if (!this.muteGain) {
+      this.muteGain = this.ctx.createGain();
+      this.muteGain.gain.value = 0;
+      this.muteGain.connect(this.ctx.destination);
+    }
+    return this.muteGain;
+  }
+
+  /**
+   * Written guard: with no microphone there is no voice to listen for, so the
+   * session waits for the written answer to arrive and finish, then hangs up a few
+   * seconds later. Waiting too long for an answer ends it as well.
+   */
+  watchWritten() {
+    const step = () => {
+      if (this.autoEnding || !this.connected) return;
+      const now = performance.now();
+      const idleSince = Math.max(this.silentWaitAt, this.answerEndAt || 0);
+      if (now - idleSince >= (this.answered ? WRITTEN_CLOSE_MS : WRITTEN_WAIT_MS)) {
+        this.autoEnd(this.answered ? "done" : "silence");
+        return;
+      }
+      this.watchId = requestAnimationFrame(step);
+    };
+    this.watchId = requestAnimationFrame(step);
+  }
+
   stopPlayback() {
     clearTimeout(this.endTimer);
     this.answerEndAt = performance.now();
@@ -423,7 +471,7 @@ export default class VoiceSocket {
     if (this.watchId) cancelAnimationFrame(this.watchId);
     this.watchId = 0;
     this.stopPlayback();
-    [this.processor, this.source, this.analyser, this.sink].forEach((node) => {
+    [this.processor, this.source, this.analyser, this.sink, this.muteGain].forEach((node) => {
       if (node) {
         try {
           node.disconnect();
@@ -437,6 +485,7 @@ export default class VoiceSocket {
     this.analyser = null;
     this.sink = null;
     this.levelBuf = null;
+    this.muteGain = null;
 
     if (this.stream) {
       this.stream.getTracks().forEach((track) => track.stop());
