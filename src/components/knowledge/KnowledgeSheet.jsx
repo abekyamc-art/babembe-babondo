@@ -6,6 +6,8 @@ import KnowledgeTabs from "@/components/knowledge/KnowledgeTabs";
 import KnowledgeForm from "@/components/knowledge/KnowledgeForm";
 import KnowledgeEntry from "@/components/knowledge/KnowledgeEntry";
 import TextsPanel from "@/components/knowledge/TextsPanel";
+import WordModeSwitch from "@/components/knowledge/WordModeSwitch";
+import WordListForm from "@/components/knowledge/WordListForm";
 
 export default function KnowledgeSheet({ open, onClose }) {
   const [kind, setKind] = useState(KINDS[0].id);
@@ -15,6 +17,8 @@ export default function KnowledgeSheet({ open, onClose }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  // words are added one at a time, or as a whole list pasted at once
+  const [wordMode, setWordMode] = useState("one");
 
   useEffect(() => {
     if (!open) return undefined;
@@ -43,6 +47,14 @@ export default function KnowledgeSheet({ open, onClose }) {
   };
 
   const change = (field, value) => setDraft((prev) => ({ ...prev, [field]: value }));
+
+  const pickWordMode = (next) => {
+    setWordMode(next);
+    setError("");
+  };
+
+  // every word read from a pasted list arrives saved already, as one group
+  const addWords = (saved) => setRows((prev) => [...saved, ...prev]);
 
   const cancelEdit = () => {
     setEditingId(null);
@@ -133,15 +145,23 @@ export default function KnowledgeSheet({ open, onClose }) {
             <TextsPanel />
           ) : (
             <>
-              <KnowledgeForm
-                kind={kind}
-                draft={draft}
-                editing={!!editingId}
-                busy={busy === "save"}
-                onChange={change}
-                onSave={save}
-                onCancel={cancelEdit}
-              />
+              {kind === "word" && !editingId ? (
+                <WordModeSwitch mode={wordMode} onPick={pickWordMode} />
+              ) : null}
+
+              {kind === "word" && wordMode === "list" && !editingId ? (
+                <WordListForm onSaved={addWords} />
+              ) : (
+                <KnowledgeForm
+                  kind={kind}
+                  draft={draft}
+                  editing={!!editingId}
+                  busy={busy === "save"}
+                  onChange={change}
+                  onSave={save}
+                  onCancel={cancelEdit}
+                />
+              )}
 
               {error ? <p className="knowledge-error">{error}</p> : null}
 

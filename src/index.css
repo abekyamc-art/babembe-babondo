@@ -732,6 +732,18 @@
     cursor: default;
   }
 
+  /* the paste-a-list switch sits above the word form, shorter than the kind tabs */
+  .knowledge-switch {
+    display: flex;
+    gap: 6px;
+  }
+
+  .knowledge-switch .knowledge-tab {
+    flex: 0 1 auto;
+    padding: 8px 14px;
+    border-radius: 999px;
+  }
+
   /* live rooms are portrait only — landscape gets the turn-back screen instead */
   .live-rotate-hint {
     display: none;
