@@ -1,8 +1,9 @@
 import { base44 } from "@/api/base44Client";
 
 const IN_RATE = 16000;
-const SILENCE_MS = 3000;
-const MAX_LISTEN_MS = 10000;
+const OPEN_QUIET_MS = 3000;
+const CLOSE_QUIET_MS = 10000;
+const CALL_MAX_MS = 30000;
 const VOICE_LEVEL = 0.06;
 
 function b64ToBytes(b64) {
@@ -76,6 +77,7 @@ export default class VoiceSocket {
     this.userSpoke = false;
     this.heardVoice = false;
     this.lastVoiceAt = 0;
+    this.answerEndAt = 0;
     this.watchStart = 0;
     this.watchId = 0;
     this.autoEnding = false;
@@ -277,13 +279,16 @@ export default class VoiceSocket {
 
     this.watchStart = performance.now();
     this.lastVoiceAt = 0;
+    this.answerEndAt = 0;
     this.heardVoice = false;
     this.watch();
   }
 
   /**
-   * The microphone never stays open for long: three seconds of quiet once you
-   * have said something, ten seconds of listening at the very most.
+   * Opening guard: three seconds of quiet before anything is said and the call
+   * hangs up. Closing guard: once something has been said the call waits for the
+   * answer to finish playing, then ten seconds of quiet. The ceiling is the only
+   * thing allowed to hang up while the assistant is still speaking.
    */
   watch() {
     const step = () => {
@@ -296,13 +301,21 @@ export default class VoiceSocket {
         this.lastVoiceAt = now;
       }
 
-      if (this.heardVoice && now - this.lastVoiceAt >= SILENCE_MS) {
-        this.autoEnd("silence");
-        return;
+      if (!this.heardVoice) {
+        if (now - this.watchStart >= OPEN_QUIET_MS) {
+          this.autoEnd("silence");
+          return;
+        }
+      } else if (!this.speaking) {
+        const quietSince = Math.max(this.lastVoiceAt, this.answerEndAt, this.watchStart);
+        if (now - quietSince >= CLOSE_QUIET_MS) {
+          this.autoEnd("done");
+          return;
+        }
       }
 
-      if (now - this.watchStart >= MAX_LISTEN_MS) {
-        this.autoEnd("timeout");
+      if (now - this.watchStart >= CALL_MAX_MS) {
+        this.autoEnd("limit");
         return;
       }
 
@@ -374,12 +387,14 @@ export default class VoiceSocket {
     const remainingMs = Math.max(0, (this.playHead - this.ctx.currentTime) * 1000) + 240;
     this.endTimer = setTimeout(() => {
       this.speaking = false;
+      this.answerEndAt = performance.now();
       this.h.onAgentAudioEnd?.();
     }, remainingMs);
   }
 
   stopPlayback() {
     clearTimeout(this.endTimer);
+    this.answerEndAt = performance.now();
     this.sources.forEach((node) => {
       try {
         node.stop();

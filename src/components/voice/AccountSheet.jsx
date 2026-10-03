@@ -45,7 +45,7 @@ export default function AccountSheet({
 
       <section role="dialog" aria-modal="true" aria-label="Account" className="account-sheet">
         <div className="account-top">
-          <span className="account-brand">Village Voice</span>
+          <span className="account-brand">Babembe Babondo GS</span>
           <div className="account-tools">
             <span className="account-usage">{usage}</span>
             <AccountIcon label="Close account" onClick={onClose} />

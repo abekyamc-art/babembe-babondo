@@ -51,10 +51,9 @@ export default function useVoiceAgent() {
         onAgentAudioEnd: () => setSpeaking(false),
         onInterrupted: () => setSpeaking(false),
         onAgentAnswered: () => onAnswered?.(),
-        onAutoEnd: ({ reason, answered }) => {
-          if (answered) return;
+        onAutoEnd: ({ reason }) => {
           setNotice(
-            reason === "timeout"
+            reason === "silence"
               ? "Didn't hear anything — tap the orb to talk again."
               : "Call ended — tap the orb to talk again."
           );

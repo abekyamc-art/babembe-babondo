@@ -137,6 +137,12 @@
     will-change: transform, opacity;
   }
 
+  /* the glow and the ring are decoration — they must never sit between a tap and a control */
+  .orb-halo,
+  .orb-ring {
+    pointer-events: none;
+  }
+
   .orb-face {
     position: relative;
     width: 100%;

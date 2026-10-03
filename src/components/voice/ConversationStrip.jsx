@@ -11,7 +11,7 @@ export default function ConversationStrip({ turns }) {
   if (!turns.length) return null;
 
   return (
-    <div ref={ref} className="w-full max-w-md max-h-[26vh] overflow-y-auto px-1">
+    <div ref={ref} className="h-full w-full overflow-y-auto overscroll-contain px-1">
       <div className="flex flex-col gap-2.5 pb-1">
         {turns.map((turn, index) => (
           <div

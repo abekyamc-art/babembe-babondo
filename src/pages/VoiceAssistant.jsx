@@ -155,7 +155,7 @@ export default function VoiceAssistant() {
           <span className="grid h-7 w-7 place-items-center rounded-full bg-foreground">
             <Sparkles className="h-3.5 w-3.5 text-background" />
           </span>
-          <span className="font-display text-[15px] tracking-tight">Village Voice</span>
+          <span className="font-display text-[15px] tracking-tight">Babembe Babondo GS</span>
         </div>
         <div className="flex items-center gap-2.5">
           <UsagePill remaining={remaining} signedIn={!!user} ready={ready} onClick={handleAccount} />
@@ -163,8 +163,8 @@ export default function VoiceAssistant() {
         </div>
       </header>
 
-      <main className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-5">
-        <div className="flex flex-col items-center gap-7">
+      <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-between gap-4 px-5">
+        <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7">
           <button
             type="button"
             onClick={handleCall}
@@ -197,13 +197,20 @@ export default function VoiceAssistant() {
           </div>
         </div>
 
-        <ConversationStrip turns={turns} />
-
-        {notice ? (
-          <p className="max-w-xs text-center text-[12px] text-muted-foreground">{notice}</p>
-        ) : null}
-
-        {error ? <p className="max-w-xs text-center text-[12px] text-destructive">{error}</p> : null}
+        {/* one fixed band holds the conversation and the status line, so nothing on screen moves */}
+        <div className="flex h-[104px] w-full max-w-md shrink-0 flex-col gap-1.5 overflow-hidden">
+          <div className="min-h-0 flex-1">
+            <ConversationStrip turns={turns} />
+          </div>
+          <p
+            aria-live="polite"
+            className={`min-h-4 shrink-0 text-center text-[12px] leading-4 ${
+              error ? "text-destructive" : "text-muted-foreground"
+            }`}
+          >
+            {error || notice}
+          </p>
+        </div>
       </main>
 
       <footer className="relative z-10 px-5 pb-6 pt-2">
