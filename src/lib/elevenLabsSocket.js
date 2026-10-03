@@ -85,14 +85,23 @@ export default class VoiceSocket {
     }
 
     if (withMic) {
-      this.stream = await navigator.mediaDevices.getUserMedia({
-        audio: {
-          echoCancellation: true,
-          noiseSuppression: true,
-          autoGainControl: true,
-          channelCount: 1,
-        },
-      });
+      if (!navigator.mediaDevices?.getUserMedia) {
+        throw new Error("This browser can't reach the microphone. Type a message instead.");
+      }
+      try {
+        this.stream = await navigator.mediaDevices.getUserMedia({
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+          },
+        });
+      } catch (err) {
+        throw new Error(
+          "Microphone access is blocked. Allow it in your browser, or type a message instead."
+        );
+      }
     }
 
     const res = await base44.functions.invoke("elevenLabsSession", {});
@@ -103,19 +112,40 @@ export default class VoiceSocket {
 
     await new Promise((resolve, reject) => {
       let opened = false;
+      let settled = false;
       const ws = new WebSocket(signedUrl);
       this.ws = ws;
+
+      // never leave the button stuck on "Connecting"
+      const timer = setTimeout(() => {
+        if (settled) return;
+        settled = true;
+        try {
+          ws.close();
+        } catch (err) {
+          // socket already gone
+        }
+        reject(new Error("Your agent didn't answer in time. Please try again."));
+      }, 20000);
+
+      const settle = (done, value) => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        done(value);
+      };
+
       ws.onmessage = (event) => this.handleMessage(event);
       ws.onopen = () => {
         opened = true;
-        resolve();
+        settle(resolve);
       };
       ws.onerror = () => {
-        if (!opened) reject(new Error("Could not connect to your agent."));
+        if (!opened) settle(reject, new Error("Could not connect to your agent."));
       };
       ws.onclose = () => {
         if (!opened) {
-          reject(new Error("Could not connect to your agent."));
+          settle(reject, new Error("Could not connect to your agent."));
           return;
         }
         this.teardown();

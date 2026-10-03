@@ -5,6 +5,10 @@ export const DAILY_LIMIT = 5;
 
 const GUEST_KEY = "vv_guest_messages";
 
+// Fallback for browsers that block storage (private mode, embedded previews):
+// counting keeps working for this session instead of breaking the tap.
+let memoryGuestUsed = 0;
+
 export function todayKey() {
   const now = new Date();
   const month = String(now.getMonth() + 1).padStart(2, "0");
@@ -13,13 +17,23 @@ export function todayKey() {
 }
 
 export function getGuestUsed() {
-  const value = parseInt(localStorage.getItem(GUEST_KEY) || "0", 10);
-  return Number.isFinite(value) && value > 0 ? value : 0;
+  try {
+    const stored = parseInt(localStorage.getItem(GUEST_KEY) || "0", 10);
+    if (Number.isFinite(stored) && stored > memoryGuestUsed) memoryGuestUsed = stored;
+  } catch (err) {
+    // storage unavailable — the count lives in memory for this session
+  }
+  return memoryGuestUsed;
 }
 
 export function bumpGuestUsed() {
   const next = getGuestUsed() + 1;
-  localStorage.setItem(GUEST_KEY, String(next));
+  memoryGuestUsed = next;
+  try {
+    localStorage.setItem(GUEST_KEY, String(next));
+  } catch (err) {
+    // storage unavailable — the count lives in memory for this session
+  }
   return next;
 }
 

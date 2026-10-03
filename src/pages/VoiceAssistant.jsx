@@ -64,15 +64,16 @@ export default function VoiceAssistant() {
     return () => clearTimeout(timer);
   }, [turns, speaking, micActive, status, user]);
 
+  // counting a message must never stop the call from starting
   const consume = useCallback(async () => {
-    if (user) {
-      try {
+    try {
+      if (user) {
         setUsed(await bumpDailyUsed(user.email));
-      } catch (err) {
-        setUsed((value) => value + 1);
+      } else {
+        setUsed(bumpGuestUsed());
       }
-    } else {
-      setUsed(bumpGuestUsed());
+    } catch (err) {
+      setUsed((value) => value + 1);
     }
   }, [user]);
 
@@ -132,15 +133,17 @@ export default function VoiceAssistant() {
   };
 
   const statusLabel =
-    status === "connecting"
-      ? "Connecting"
-      : speaking
-        ? "Speaking"
-        : micActive
-          ? "Listening"
-          : status === "live"
-            ? "Ready"
-            : "Tap to talk";
+    !ready
+      ? "Checking…"
+      : status === "connecting"
+        ? "Connecting"
+        : speaking
+          ? "Speaking"
+          : micActive
+            ? "Listening"
+            : status === "live"
+              ? "Ready"
+              : "Tap to talk";
 
   return (
     <div className="relative flex h-[100dvh] w-full flex-col overflow-hidden bg-background text-foreground">
