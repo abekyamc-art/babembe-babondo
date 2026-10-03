@@ -19,6 +19,7 @@ export default function GateDialog({
   signedIn,
   coins = 0,
   refillCost = 0,
+  refillMessages = 1,
   refillBusy,
   onRefill,
   busy,
@@ -40,7 +41,7 @@ export default function GateDialog({
     variant === "signin"
       ? "You've used your free messages. Sign in with Google to keep going — you get 5 messages, each one coming back 24 hours after you use it."
       : variant === "daily"
-        ? "You've used all 5 messages. They come back one at a time, 24 hours after each was used — the number at the top counts down to the next one. Or use coins for one more straight away."
+        ? `You've used all 5 messages. They come back one at a time, 24 hours after each was used — the number at the top counts down to the next one. Or use coins for ${refillMessages} more straight away.`
         : signedIn
           ? `You've used ${used} of ${limit}. Each message comes back 24 hours after it was used — the number at the top counts down to the next one.`
           : "You get 2 free messages, each coming back 24 hours after you use it. Sign in with Google for 5.";
@@ -102,7 +103,7 @@ export default function GateDialog({
                 ) : (
                   <Coins className="h-4 w-4" />
                 )}
-                One more message — {refillCost} coins
+                {refillMessages} more messages — {refillCost} {refillCost === 1 ? "coin" : "coins"}
               </Button>
               <p className="text-center text-[12px] text-muted-foreground">
                 You have {coins} coins.

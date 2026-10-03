@@ -3,7 +3,8 @@ import { base44 } from "@/api/base44Client";
 export const WELCOME_COINS = 30;
 export const BOOST_COST = 10;
 export const BOOST_HOURS = 24;
-export const MESSAGE_COST = 5;
+export const MESSAGE_COST = 1;
+export const MESSAGES_PER_COIN = 4;
 
 export const COIN_PACKAGES = [
   { id: "starter", coins: 15, price: "$0.99" },

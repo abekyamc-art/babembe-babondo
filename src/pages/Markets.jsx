@@ -2,7 +2,14 @@ import React, { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Coins, Loader2, MessageCircle, Rocket, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { BOOST_COST, COIN_PACKAGES, GIFTS, MESSAGE_COST, balanceOf } from "@/lib/coins";
+import {
+  BOOST_COST,
+  COIN_PACKAGES,
+  GIFTS,
+  MESSAGE_COST,
+  MESSAGES_PER_COIN,
+  balanceOf,
+} from "@/lib/coins";
 import { ensureProfile } from "@/lib/social";
 
 export default function Markets() {
@@ -102,7 +109,9 @@ export default function Markets() {
         </li>
         <li className="flex items-center gap-3 px-4 py-3.5">
           <MessageCircle className="h-4 w-4 shrink-0 text-accent" />
-          <span className="flex-1 text-[14px]">Get one more voice message right away</span>
+          <span className="flex-1 text-[14px]">
+            Get {MESSAGES_PER_COIN} more voice messages right away
+          </span>
           <span className="text-[13px] font-semibold text-muted-foreground">{MESSAGE_COST}</span>
         </li>
       </ul>

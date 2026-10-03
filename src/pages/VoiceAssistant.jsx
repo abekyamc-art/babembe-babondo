@@ -12,11 +12,11 @@ import {
   liveStamps,
   loadUserStamps,
   pruneUsage,
-  releaseOldestMessage,
+  releaseOldestMessages,
   spendCredit,
 } from "@/lib/usage";
 import { ensureProfile } from "@/lib/social";
-import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
+import { MESSAGE_COST, MESSAGES_PER_COIN, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
@@ -199,7 +199,7 @@ export default function VoiceAssistant() {
       const spent = await spendCoins(profile, MESSAGE_COST);
       if (!spent) return;
       setProfile(spent);
-      await releaseOldestMessage(user.email);
+      await releaseOldestMessages(user.email, MESSAGES_PER_COIN);
       setStamps(await loadUserStamps(user.email));
       setClock(Date.now());
       pendingGate.current = false;
@@ -329,6 +329,7 @@ export default function VoiceAssistant() {
         signedIn={!!user}
         coins={balanceOf(profile)}
         refillCost={MESSAGE_COST}
+        refillMessages={MESSAGES_PER_COIN}
         refillBusy={refilling}
         onRefill={handleRefill}
         onGoogle={handleGoogle}
