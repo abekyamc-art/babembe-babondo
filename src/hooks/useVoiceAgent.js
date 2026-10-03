@@ -136,9 +136,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
       quietRef.current = silent;
       setMicActive(withMic);
 
-      // a typed message is answered from the owner's own knowledge, when he has
-      // written any; a spoken call carries the conversation alone
-      const written = silent ? withKnowledge(memory, await loadKnowledgeNote()) : memory;
+      // a typed message is answered from the owner's own knowledge — the written
+      // entries, plus the passages of his long texts that match this message
+      const written = silent
+        ? withKnowledge(memory, await loadKnowledgeNote(firstMessage))
+        : memory;
 
       try {
         await socket.open({ withMic, silent, memory: written, laterTurn });

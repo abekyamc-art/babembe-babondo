@@ -18,6 +18,12 @@ export const KINDS = [
     tab: "Ebembe words",
     empty: "No words saved yet — add an Ebembe word with its meaning and how it should be used.",
   },
+  {
+    id: "text",
+    tab: "Long texts",
+    empty:
+      "No long texts saved yet — paste a whole document or upload one, and the assistant answers from the parts that matter.",
+  },
 ];
 
 /** The fields each kind is written in, in the order they are typed. */
@@ -90,9 +96,10 @@ export function entryBody(row) {
  * The admin's knowledge as the private note handed to the assistant before it
  * answers a typed message. The entries themselves never come down to a device.
  */
-export async function loadKnowledgeNote() {
+export async function loadKnowledgeNote(query = "") {
   try {
-    const res = await base44.functions.invoke("assistantKnowledge", {});
+    const asked = String(query || "").trim();
+    const res = await base44.functions.invoke("assistantKnowledge", asked ? { query: asked } : {});
     return res?.data?.note || "";
   } catch (err) {
     // the note is a help, never a reason to hold up a message

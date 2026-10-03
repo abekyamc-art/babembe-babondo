@@ -1,0 +1,55 @@
+{
+  "name": "KnowledgeText",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "Short name of the saved text, shown in the knowledge list."
+    },
+    "text": {
+      "type": "string",
+      "description": "The whole document as the admin saved it, up to ten thousand words."
+    },
+    "word_count": {
+      "type": "number",
+      "description": "How many words the text holds, shown beside its title."
+    },
+    "passages": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The same text cut into passages when it was saved, so a question is matched against the few parts that matter instead of the whole document."
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "Private storage reference for the document a text was lifted out of, when it was uploaded rather than pasted. It is never shared."
+    }
+  },
+  "required": [
+    "title",
+    "text"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

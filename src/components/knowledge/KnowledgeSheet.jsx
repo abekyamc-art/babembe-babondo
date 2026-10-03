@@ -5,6 +5,7 @@ import { KINDS, emptyEntry, entryFields, kindHint } from "@/lib/knowledge";
 import KnowledgeTabs from "@/components/knowledge/KnowledgeTabs";
 import KnowledgeForm from "@/components/knowledge/KnowledgeForm";
 import KnowledgeEntry from "@/components/knowledge/KnowledgeEntry";
+import TextsPanel from "@/components/knowledge/TextsPanel";
 
 export default function KnowledgeSheet({ open, onClose }) {
   const [kind, setKind] = useState(KINDS[0].id);
@@ -109,9 +110,11 @@ export default function KnowledgeSheet({ open, onClose }) {
         <div className="account-top">
           <span className="account-brand">Assistant knowledge</span>
           <div className="account-tools">
-            <span className="account-usage">
-              {rows.length} saved
-            </span>
+            {kind === "text" ? null : (
+              <span className="account-usage">
+                {rows.length} saved
+              </span>
+            )}
             <button type="button" onClick={onClose} aria-label="Close knowledge" className="account-icon">
               <X className="h-4 w-4" />
             </button>
@@ -126,35 +129,41 @@ export default function KnowledgeSheet({ open, onClose }) {
 
           <KnowledgeTabs kind={kind} onPick={pick} />
 
-          <KnowledgeForm
-            kind={kind}
-            draft={draft}
-            editing={!!editingId}
-            busy={busy === "save"}
-            onChange={change}
-            onSave={save}
-            onCancel={cancelEdit}
-          />
+          {kind === "text" ? (
+            <TextsPanel />
+          ) : (
+            <>
+              <KnowledgeForm
+                kind={kind}
+                draft={draft}
+                editing={!!editingId}
+                busy={busy === "save"}
+                onChange={change}
+                onSave={save}
+                onCancel={cancelEdit}
+              />
 
-          {error ? <p className="knowledge-error">{error}</p> : null}
+              {error ? <p className="knowledge-error">{error}</p> : null}
 
-          <div className="account-actions">
-            {!ready ? (
-              <p className="knowledge-empty">Loading what you have saved…</p>
-            ) : shown.length ? (
-              shown.map((row) => (
-                <KnowledgeEntry
-                  key={row.id}
-                  row={row}
-                  busy={busy === row.id}
-                  onEdit={edit}
-                  onDelete={remove}
-                />
-              ))
-            ) : (
-              <p className="knowledge-empty">{kindHint(kind)}</p>
-            )}
-          </div>
+              <div className="account-actions">
+                {!ready ? (
+                  <p className="knowledge-empty">Loading what you have saved…</p>
+                ) : shown.length ? (
+                  shown.map((row) => (
+                    <KnowledgeEntry
+                      key={row.id}
+                      row={row}
+                      busy={busy === row.id}
+                      onEdit={edit}
+                      onDelete={remove}
+                    />
+                  ))
+                ) : (
+                  <p className="knowledge-empty">{kindHint(kind)}</p>
+                )}
+              </div>
+            </>
+          )}
         </div>
       </section>
     </div>

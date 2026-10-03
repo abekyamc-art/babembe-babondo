@@ -525,11 +525,13 @@
   /* Admin knowledge — the account surface's own dark palette, in its own rows. */
   .knowledge-tabs {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
   }
 
+  /* four kinds now, so on a narrow screen the tabs pair up instead of squeezing */
   .knowledge-tab {
-    flex: 1;
+    flex: 1 1 calc(50% - 3px);
     padding: 9px 6px;
     color: #9ba9c6;
     background: #141c32;
@@ -674,6 +676,60 @@
   .knowledge-error {
     color: #ffb6bd;
     font-size: 12px;
+  }
+
+  /* a saved long text is written straight into the box, so the box is the room it needs */
+  .knowledge-area {
+    min-height: 210px;
+  }
+
+  .knowledge-meter {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    flex-wrap: wrap;
+  }
+
+  .knowledge-meter-text {
+    font: 600 11px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: 0.2px;
+    color: #9ba9c6;
+  }
+
+  .knowledge-meter-text.is-over {
+    color: #ffb6bd;
+  }
+
+  .knowledge-upload-wrap {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .knowledge-upload {
+    display: inline-flex;
+    align-items: center;
+    gap: 7px;
+    width: fit-content;
+    padding: 9px 13px;
+    color: #8ebaff;
+    background: #17223b;
+    border: 1px solid #354568;
+    border-radius: 11px;
+    font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+
+  .knowledge-upload:hover:not(:disabled) {
+    background: #233659;
+    color: #ffffff;
+  }
+
+  .knowledge-upload:disabled {
+    opacity: 0.5;
+    cursor: default;
   }
 
   /* live rooms are portrait only — landscape gets the turn-back screen instead */
