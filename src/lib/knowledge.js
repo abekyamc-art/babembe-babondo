@@ -122,3 +122,21 @@ export function withKnowledge(memory, note) {
   if (!note) return memory || "";
   return memory ? `${memory}\n\n${note}` : note;
 }
+
+/**
+ * Material looked up online for a request the saved knowledge does not cover — a
+ * story, news, a word or a fact. The lookup decides on the server whether anything is
+ * needed, saves what it finds into the knowledge, and hands back only the words this
+ * answer uses.
+ */
+export async function loadFreshMaterial(query = "") {
+  const asked = String(query || "").trim();
+  if (!asked) return "";
+  try {
+    const res = await base44.functions.invoke("freshKnowledge", { query: asked });
+    return res?.data?.material || "";
+  } catch (err) {
+    // the answer carries on from what is already saved
+    return "";
+  }
+}
