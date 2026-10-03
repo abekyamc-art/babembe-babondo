@@ -167,6 +167,11 @@ export default function VoiceAssistant() {
     navigate("/markets");
   };
 
+  const handleMessages = () => {
+    setAccountOpen(false);
+    navigate("/messages");
+  };
+
   // coins give one message back straight away instead of waiting out the 24 hours
   const handleRefill = async () => {
     if (!user || refilling) return;
@@ -312,6 +317,7 @@ export default function VoiceAssistant() {
         ready={ready}
         onSignIn={handleGoogle}
         onReels={handleReels}
+        onMessages={handleMessages}
         onGetCoins={handleMarkets}
         onSwitchAccount={handleSwitchAccount}
         onSignOut={handleSignOut}

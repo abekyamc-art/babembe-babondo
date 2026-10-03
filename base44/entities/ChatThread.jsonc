@@ -1,0 +1,68 @@
+{
+  "name": "ChatThread",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "The two members' emails sorted and joined, so a pair of people always shares one thread."
+    },
+    "members": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Emails of the two people in this conversation. Only they can read the thread."
+    },
+    "last_text": {
+      "type": "string",
+      "description": "Preview of the most recent line, shown in the inbox."
+    },
+    "last_kind": {
+      "type": "string",
+      "enum": [
+        "text",
+        "photo"
+      ],
+      "default": "text",
+      "description": "Photo threads preview as a photo."
+    },
+    "last_sender_email": {
+      "type": "string",
+      "description": "Email of whoever sent the most recent line."
+    },
+    "last_at": {
+      "type": "string",
+      "description": "ISO time of the most recent line, used to order the inbox."
+    }
+  },
+  "required": [
+    "key",
+    "members"
+  ],
+  "rls": {
+    "read": {
+      "data.members": "{{user.email}}"
+    },
+    "create": {
+      "data.members": {
+        "$in": [
+          "{{user.email}}"
+        ]
+      }
+    },
+    "update": {
+      "data.members": {
+        "$in": [
+          "{{user.email}}"
+        ]
+      }
+    },
+    "delete": {
+      "data.members": {
+        "$in": [
+          "{{user.email}}"
+        ]
+      }
+    }
+  }
+}

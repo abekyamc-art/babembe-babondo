@@ -1,0 +1,77 @@
+{
+  "name": "LiveSignal",
+  "type": "object",
+  "properties": {
+    "room_id": {
+      "type": "string",
+      "description": "The live room the two phones are joining up inside."
+    },
+    "from_email": {
+      "type": "string",
+      "description": "Email of the phone that sent this connection description."
+    },
+    "to_email": {
+      "type": "string",
+      "description": "Email of the phone this description is meant for."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "offer",
+        "answer"
+      ],
+      "default": "offer",
+      "description": "An offer starts a link, the answer accepts it."
+    },
+    "payload": {
+      "type": "string",
+      "description": "The connection description handed to the other phone."
+    },
+    "sent_at": {
+      "type": "string",
+      "description": "ISO time this description was written."
+    }
+  },
+  "required": [
+    "room_id",
+    "from_email",
+    "to_email",
+    "kind",
+    "payload"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.to_email": "{{user.email}}"
+        },
+        {
+          "data.from_email": "{{user.email}}"
+        }
+      ]
+    },
+    "create": {
+      "data.from_email": "{{user.email}}"
+    },
+    "update": {
+      "$or": [
+        {
+          "data.from_email": "{{user.email}}"
+        },
+        {
+          "data.to_email": "{{user.email}}"
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.from_email": "{{user.email}}"
+        },
+        {
+          "data.to_email": "{{user.email}}"
+        }
+      ]
+    }
+  }
+}

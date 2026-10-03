@@ -16,6 +16,9 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Profile from './pages/Profile';
+import Messages from './pages/Messages';
+import Chat from './pages/Chat';
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -53,6 +56,9 @@ const AuthenticatedApp = () => {
         <Route path="/reels" element={<Reels />} />
         <Route path="/markets" element={<Markets />} />
         <Route path="/live/:id" element={<LiveRoom />} />
+        <Route path="/u/:email" element={<Profile />} />
+        <Route path="/messages" element={<Messages />} />
+        <Route path="/messages/:threadId" element={<Chat />} />
       </Route>
       <Route path="*" element={<PageNotFound />} />
     </Routes>

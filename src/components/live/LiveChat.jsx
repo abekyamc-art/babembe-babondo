@@ -4,7 +4,16 @@ import { base44 } from "@/api/base44Client";
 import { Input } from "@/components/ui/input";
 import { GIFTS } from "@/lib/coins";
 
-export default function LiveChat({ room, me, username, canChat, canGift, onGift, gifting }) {
+export default function LiveChat({
+  room,
+  me,
+  username,
+  canChat,
+  canGift,
+  onGift,
+  gifting,
+  onOpenProfile,
+}) {
   const [messages, setMessages] = useState([]);
   const [text, setText] = useState("");
   const endRef = useRef(null);
@@ -63,8 +72,8 @@ export default function LiveChat({ room, me, username, canChat, canGift, onGift,
   };
 
   return (
-    <section className="flex min-h-0 flex-1 flex-col">
-      <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-4 py-3">
+    <section className="flex flex-col gap-2">
+      <div className="max-h-[30vh] min-h-[4.5rem] space-y-2 overflow-y-auto px-1">
         {messages.length ? (
           messages.map((line) =>
             line.kind === "gift" ? (
@@ -76,7 +85,13 @@ export default function LiveChat({ room, me, username, canChat, canGift, onGift,
               </p>
             ) : (
               <p key={line.id} className="text-[13px] leading-snug text-white">
-                <span className="font-semibold text-white/70">@{line.author_username || "friend"}</span>{" "}
+                <button
+                  type="button"
+                  onClick={() => onOpenProfile?.(line.author_email)}
+                  className="font-semibold text-white/70 underline-offset-2 hover:underline"
+                >
+                  @{line.author_username || "friend"}
+                </button>{" "}
                 {line.text}
               </p>
             )
@@ -88,7 +103,7 @@ export default function LiveChat({ room, me, username, canChat, canGift, onGift,
       </div>
 
       {canChat ? (
-        <div className="space-y-2 px-4 pb-4">
+        <div className="space-y-2">
           {canGift ? (
             <div className="flex gap-2">
               {GIFTS.map((gift) => (
@@ -124,8 +139,8 @@ export default function LiveChat({ room, me, username, canChat, canGift, onGift,
           </form>
         </div>
       ) : (
-        <p className="px-4 pb-4 text-center text-[12px] text-white/40">
-          Chat opens when the host lets you in.
+        <p className="px-1 text-center text-[12px] text-white/40">
+          This live has ended.
         </p>
       )}
     </section>

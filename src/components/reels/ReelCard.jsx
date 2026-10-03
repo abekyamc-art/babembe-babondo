@@ -20,6 +20,7 @@ export default function ReelCard({
   onFollow,
   onBoost,
   onToggleMute,
+  onAuthor,
 }) {
   const videoRef = useRef(null);
   const [visible, setVisible] = useState(false);
@@ -98,14 +99,21 @@ export default function ReelCard({
 
       <div className="pointer-events-none absolute inset-x-0 bottom-0 bg-gradient-to-t from-black/80 to-transparent px-4 pb-6 pt-16 text-white">
         <div className="flex items-center gap-2">
-          <div className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-white/15 text-[12px] font-semibold uppercase">
-            {authorAvatar ? (
-              <Image src={authorAvatar} alt="" className="h-8 w-8" />
-            ) : (
-              (reel.author_username || "?").slice(0, 1)
-            )}
-          </div>
-          <span className="truncate text-[14px] font-semibold">@{reel.author_username || "friend"}</span>
+          <button
+            type="button"
+            onClick={onAuthor}
+            aria-label={`Open @${reel.author_username || "friend"}'s profile`}
+            className="pointer-events-auto flex min-w-0 items-center gap-2"
+          >
+            <span className="grid h-8 w-8 shrink-0 place-items-center overflow-hidden rounded-full bg-white/15 text-[12px] font-semibold uppercase">
+              {authorAvatar ? (
+                <Image src={authorAvatar} alt="" className="h-8 w-8" />
+              ) : (
+                (reel.author_username || "?").slice(0, 1)
+              )}
+            </span>
+            <span className="truncate text-[14px] font-semibold">@{reel.author_username || "friend"}</span>
+          </button>
           {boosted ? (
             <span className="shrink-0 rounded-full bg-accent/25 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-accent">
               Boosted

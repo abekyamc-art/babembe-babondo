@@ -5,7 +5,17 @@ import { Input } from "@/components/ui/input";
 import { Image } from "@/components/ui/image";
 import { cn } from "@/lib/utils";
 
-export default function PeoplePanel({ open, onOpenChange, people, iFollow, followsMe, me, onFollow, onSearch }) {
+export default function PeoplePanel({
+  open,
+  onOpenChange,
+  people,
+  iFollow,
+  followsMe,
+  me,
+  onFollow,
+  onSearch,
+  onOpenPerson,
+}) {
   const [term, setTerm] = useState("");
   const [searching, setSearching] = useState(false);
 
@@ -59,23 +69,32 @@ export default function PeoplePanel({ open, onOpenChange, people, iFollow, follo
                 const friends = following && followsBack;
                 return (
                   <li key={person.id} className="flex items-center gap-3 py-2.5">
-                    <div className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary text-[13px] font-semibold uppercase text-muted-foreground">
-                      {person.avatar_url ? (
-                        <Image src={person.avatar_url} alt="" className="h-10 w-10" />
-                      ) : (
-                        (person.username || "?").slice(0, 1)
-                      )}
-                    </div>
-                    <div className="min-w-0 flex-1">
-                      <p className="truncate text-[14px] font-medium">@{person.username || "friend"}</p>
-                      {isMe ? (
-                        <p className="text-[12px] text-muted-foreground">You</p>
-                      ) : friends ? (
-                        <p className="text-[12px] text-muted-foreground">Friends</p>
-                      ) : followsBack ? (
-                        <p className="text-[12px] text-muted-foreground">Follows you</p>
-                      ) : null}
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => onOpenPerson?.(person)}
+                      aria-label={`Open @${person.username || "friend"}'s profile`}
+                      className="flex min-w-0 flex-1 items-center gap-3 text-left"
+                    >
+                      <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary text-[13px] font-semibold uppercase text-muted-foreground">
+                        {person.avatar_url ? (
+                          <Image src={person.avatar_url} alt="" className="h-10 w-10" />
+                        ) : (
+                          (person.username || "?").slice(0, 1)
+                        )}
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <span className="block truncate text-[14px] font-medium">
+                          @{person.username || "friend"}
+                        </span>
+                        {isMe ? (
+                          <span className="block text-[12px] text-muted-foreground">You</span>
+                        ) : friends ? (
+                          <span className="block text-[12px] text-muted-foreground">Friends</span>
+                        ) : followsBack ? (
+                          <span className="block text-[12px] text-muted-foreground">Follows you</span>
+                        ) : null}
+                      </span>
+                    </button>
                     {!isMe ? (
                       <button
                         type="button"

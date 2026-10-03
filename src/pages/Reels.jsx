@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, Plus, Radio, Search } from "lucide-react";
+import { ArrowLeft, Loader2, MessageCircle, Plus, Radio, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { BOOST_COST, BOOST_HOURS, balanceOf, spendCoins } from "@/lib/coins";
@@ -237,6 +237,14 @@ export default function Reels() {
         <h1 className="flex-1 font-display text-[16px] tracking-tight">Reels</h1>
         <button
           type="button"
+          onClick={() => navigate("/messages")}
+          aria-label="Messages"
+          className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card/70"
+        >
+          <MessageCircle className="h-4 w-4" />
+        </button>
+        <button
+          type="button"
           onClick={() => setLiveOpen(true)}
           aria-label="Go live"
           className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card/70"
@@ -280,6 +288,7 @@ export default function Reels() {
         onBoost={handleBoost}
         onToggleMute={() => setMuted((prev) => !prev)}
         onUpload={() => setUploadOpen(true)}
+        onAuthor={(email) => navigate(`/u/${email}`)}
       />
 
       <PeoplePanel
@@ -291,6 +300,10 @@ export default function Reels() {
         me={me}
         onFollow={(person) => followEmail(person.user_email)}
         onSearch={searchPeople}
+        onOpenPerson={(person) => {
+          setPeopleOpen(false);
+          navigate(`/u/${person.user_email}`);
+        }}
       />
 
       <ReelUpload

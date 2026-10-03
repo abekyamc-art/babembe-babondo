@@ -45,8 +45,8 @@ export default function GoLiveDialog({ open, onOpenChange, user, profile, onStar
             Go live
           </DialogTitle>
           <DialogDescription className="text-[14px] leading-relaxed">
-            Your room opens right away. People ask to join and you let them in — video starts the
-            moment a streaming service is connected.
+            Your room opens right away with your camera live. People ask to join, you let them in,
+            and everyone in the room hears them.
           </DialogDescription>
         </DialogHeader>
 

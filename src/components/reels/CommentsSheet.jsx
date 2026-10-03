@@ -9,9 +9,11 @@ import {
 } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
 
 export default function CommentsSheet({ open, onOpenChange, reel, me, username, onAdded }) {
+  const navigate = useNavigate();
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
   const [loading, setLoading] = useState(false);
@@ -76,7 +78,13 @@ export default function CommentsSheet({ open, onOpenChange, reel, me, username, 
           ) : comments.length ? (
             comments.map((comment) => (
               <div key={comment.id} className="flex gap-2.5">
-                <span className="text-[13px] font-semibold">@{comment.author_username || "friend"}</span>
+                <button
+                  type="button"
+                  onClick={() => navigate(`/u/${comment.author_email}`)}
+                  className="shrink-0 text-[13px] font-semibold"
+                >
+                  @{comment.author_username || "friend"}
+                </button>
                 <span className="min-w-0 flex-1 text-[13px] text-muted-foreground">{comment.text}</span>
               </div>
             ))

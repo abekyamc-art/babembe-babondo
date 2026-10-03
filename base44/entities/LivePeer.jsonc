@@ -1,0 +1,45 @@
+{
+  "name": "LivePeer",
+  "type": "object",
+  "properties": {
+    "room_id": {
+      "type": "string",
+      "description": "The live room this person is in."
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of the person in the room."
+    },
+    "username": {
+      "type": "string",
+      "description": "Public handle shown in the room."
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Public URL of the person's picture at the moment they entered."
+    },
+    "role": {
+      "type": "string",
+      "enum": [
+        "host",
+        "viewer",
+        "guest"
+      ],
+      "default": "viewer",
+      "description": "Hosts are on camera, guests send their voice, viewers only watch and comment."
+    },
+    "joined_at": {
+      "type": "string",
+      "description": "ISO time the person entered the room."
+    },
+    "last_seen": {
+      "type": "string",
+      "description": "ISO time this person was last known to be in the room. Rows older than a minute are treated as gone."
+    }
+  },
+  "required": [
+    "room_id",
+    "user_email",
+    "role"
+  ]
+}

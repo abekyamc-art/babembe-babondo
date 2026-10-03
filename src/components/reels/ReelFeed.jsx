@@ -18,6 +18,7 @@ export default function ReelFeed({
   onBoost,
   onToggleMute,
   onUpload,
+  onAuthor,
 }) {
   const avatars = {};
   (people || []).forEach((person) => {
@@ -60,6 +61,7 @@ export default function ReelFeed({
             onFollow={() => onFollow(reel.author_email)}
             onBoost={() => onBoost(reel)}
             onToggleMute={onToggleMute}
+            onAuthor={() => onAuthor(reel.author_email)}
           />
         </div>
       ))}
