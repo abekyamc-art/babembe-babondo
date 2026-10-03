@@ -99,7 +99,7 @@ export default class VoiceSocket {
         });
       } catch (err) {
         throw new Error(
-          "Microphone access is blocked. Allow it in your browser, or type a message instead."
+          "Microphone access is blocked. Allow the microphone for this site in your browser, then tap again — or type your message below."
         );
       }
     }

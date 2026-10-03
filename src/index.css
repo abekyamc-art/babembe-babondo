@@ -179,6 +179,231 @@
   .is-connecting .orb-sheen {
     animation-duration: 2.6s;
   }
+
+  /* Account surface — its palette and motion are scoped to this component only. */
+  .account-backdrop {
+    background: rgba(11, 16, 32, 0.55);
+    animation: account-dim 0.42s ease both;
+  }
+
+  .account-sheet {
+    position: absolute;
+    top: 12px;
+    right: 0;
+    bottom: 0;
+    left: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+    padding: 18px 20px 20px;
+    overflow-y: auto;
+    color: #f5f6ff;
+    background: #0b1020;
+    border: 1px solid #26304d;
+    border-bottom: 0;
+    border-radius: 22px 22px 0 0;
+    box-shadow: 0 18px 48px rgba(11, 16, 32, 0.24);
+    font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+    animation: account-slide 0.42s cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  }
+
+  .account-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .account-brand {
+    font-size: 15px;
+    font-weight: 650;
+    letter-spacing: -0.3px;
+    white-space: nowrap;
+  }
+
+  .account-tools {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+  }
+
+  .account-usage {
+    font-size: 11px;
+    font-weight: 600;
+    color: #c8d7f5;
+    white-space: nowrap;
+    padding: 7px 10px;
+    border: 1px solid #293654;
+    border-radius: 999px;
+    background: #141c32;
+  }
+
+  .account-icon {
+    width: 34px;
+    height: 34px;
+    display: grid;
+    place-items: center;
+    border: 1px solid #354568;
+    border-radius: 50%;
+    color: #8ebaff;
+    background: #17223b;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease, box-shadow 0.18s ease;
+  }
+
+  .account-icon:hover {
+    background: #233659;
+    color: #ffffff;
+    box-shadow: 0 0 0 3px rgba(107, 168, 255, 0.12);
+  }
+
+  .account-icon:active {
+    background: #304875;
+  }
+
+  .account-icon:focus-visible,
+  .account-action:focus-visible {
+    outline: 2px solid #6ba8ff;
+    outline-offset: 3px;
+  }
+
+  .account-icon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .account-panel {
+    display: flex;
+    flex-direction: column;
+    gap: 19px;
+    animation: rise 0.48s cubic-bezier(0.2, 0.75, 0.25, 1) both;
+  }
+
+  .account-identity {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    padding: 3px 0 5px;
+  }
+
+  .account-avatar {
+    width: 82px;
+    height: 82px;
+    border-radius: 50%;
+    display: grid;
+    place-items: center;
+    background: radial-gradient(circle at 35% 28%, #334a76, #1b2948 58%, #121a30);
+    border: 1px solid #40547b;
+    box-shadow: 0 0 0 6px rgba(107, 168, 255, 0.07), inset 0 1px 12px rgba(161, 198, 255, 0.12);
+    color: #8ebaff;
+  }
+
+  .account-avatar svg {
+    width: 36px;
+    height: 36px;
+  }
+
+  .account-label {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    color: #9ba9c6;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 1.65px;
+    text-transform: uppercase;
+  }
+
+  .account-label::before {
+    content: "";
+    width: 3px;
+    height: 14px;
+    border-radius: 4px;
+    background: #6ba8ff;
+    box-shadow: 0 0 12px rgba(107, 168, 255, 0.35);
+  }
+
+  .account-name {
+    font-size: 21px;
+    font-weight: 650;
+    letter-spacing: -0.4px;
+    color: #f5f6ff;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .account-email {
+    font-size: 14px;
+    font-weight: 600;
+    letter-spacing: 0.1px;
+    color: #f5f6ff;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+
+  .account-actions {
+    display: flex;
+    flex-direction: column;
+    border-top: 1px solid #1c2440;
+  }
+
+  .account-action {
+    width: 100%;
+    box-sizing: border-box;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 2px;
+    color: #f5f6ff;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid #1c2440;
+    text-align: left;
+    font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+    cursor: pointer;
+    transition: color 0.18s ease, background 0.18s ease;
+  }
+
+  .account-action:hover {
+    color: #8ebaff;
+    background: rgba(107, 168, 255, 0.055);
+  }
+
+  .account-action:active {
+    color: #6ba8ff;
+  }
+
+  .account-chevron {
+    width: 16px;
+    height: 16px;
+    color: #7183a8;
+    flex: none;
+  }
+
+  .account-action:last-child {
+    color: #ffb6bd;
+  }
+
+  .account-action:last-child:hover {
+    color: #ffd6da;
+    background: rgba(255, 126, 140, 0.06);
+  }
+
+  /* the signed-out row keeps the neutral tone even though it is the last row */
+  .account-action-neutral {
+    color: #f5f6ff;
+  }
+
+  .account-action-neutral:hover {
+    color: #8ebaff;
+    background: rgba(107, 168, 255, 0.055);
+  }
+
+  .account-action-neutral:active {
+    color: #6ba8ff;
+  }
 }
 
 @keyframes orb-breathe {
@@ -202,9 +427,41 @@
   }
 }
 
+@keyframes rise {
+  from {
+    opacity: 0.7;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes account-slide {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}
+
+@keyframes account-dim {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .orb-sheen,
-  .orb-halo {
+  .orb-halo,
+  .account-sheet,
+  .account-backdrop,
+  .account-panel {
     animation: none;
   }
 }

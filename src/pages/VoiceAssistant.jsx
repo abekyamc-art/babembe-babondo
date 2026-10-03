@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Loader2, Phone, PhoneOff, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import useVoiceAgent from "@/hooks/useVoiceAgent";
@@ -15,16 +16,18 @@ import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
 import UsagePill from "@/components/voice/UsagePill";
 import GateDialog from "@/components/voice/GateDialog";
+import AccountIcon from "@/components/voice/AccountIcon";
+import AccountSheet from "@/components/voice/AccountSheet";
 
 export default function VoiceAssistant() {
   const { status, speaking, micActive, turns, error, levelRef, start, stop } = useVoiceAgent();
+  const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
   const [used, setUsed] = useState(0);
   const [gate, setGate] = useState(null);
+  const [accountOpen, setAccountOpen] = useState(false);
   const [ready, setReady] = useState(false);
-  const [signinBusy, setSigninBusy] = useState(false);
-  const [signinError, setSigninError] = useState("");
   const pendingGate = useRef(false);
 
   const limit = user ? DAILY_LIMIT : GUEST_LIMIT;
@@ -64,21 +67,30 @@ export default function VoiceAssistant() {
     return () => clearTimeout(timer);
   }, [turns, speaking, micActive, status, user]);
 
-  // counting a message must never stop the call from starting
+  // a message is only spent once a call has actually connected
   const consume = useCallback(async () => {
     try {
       if (user) {
-        setUsed(await bumpDailyUsed(user.email));
-      } else {
-        setUsed(bumpGuestUsed());
+        const next = await bumpDailyUsed(user.email);
+        setUsed(next);
+        return next;
       }
+      const next = bumpGuestUsed();
+      setUsed(next);
+      return next;
     } catch (err) {
-      setUsed((value) => value + 1);
+      const next = used + 1;
+      setUsed(next);
+      return next;
     }
-  }, [user]);
+  }, [user, used]);
+
+  const spend = useCallback(async () => {
+    const next = await consume();
+    if (next >= limit) pendingGate.current = true;
+  }, [consume, limit]);
 
   const openGate = useCallback(() => {
-    setSigninError("");
     setGate(user ? "daily" : "signin");
   }, [user]);
 
@@ -92,11 +104,10 @@ export default function VoiceAssistant() {
       openGate();
       return;
     }
-    if (remaining - 1 <= 0) pendingGate.current = true;
-    const wasConnected = status === "live";
-    await consume();
-    if (wasConnected) await stop();
-    await start({ withMic: true });
+    const wasLive = status === "live";
+    if (wasLive) await stop();
+    const connected = await start({ withMic: true });
+    if (connected && !wasLive) await spend();
   };
 
   const handleSend = async (text) => {
@@ -105,31 +116,22 @@ export default function VoiceAssistant() {
       openGate();
       return;
     }
-    if (remaining - 1 <= 0) pendingGate.current = true;
-    await consume();
-    await start({ withMic: false, firstMessage: text });
+    const connected = await start({ withMic: false, firstMessage: text });
+    if (connected) await spend();
   };
 
-  const handlePill = () => {
-    if (!ready) return;
-    setSigninError("");
-    if (remaining > 0) setGate("account");
-    else openGate();
-  };
+  const handleAccount = () => setAccountOpen(true);
 
-  const handleGoogle = async () => {
-    setSigninBusy(true);
-    setSigninError("");
-    try {
-      await base44.auth.loginWithProvider("google", window.location.href);
-    } catch (err) {
-      setSigninError(err?.message || "Google sign-in is unavailable right now.");
-      setSigninBusy(false);
-    }
+  // signing in happens on the app's own login page, which handles Google and returns home
+  const handleGoogle = () => navigate("/login");
+
+  // switch account signs out first, so Google shows its account chooser
+  const handleSwitchAccount = async () => {
+    await base44.auth.logout("/login");
   };
 
   const handleSignOut = async () => {
-    await base44.auth.logout(window.location.href);
+    await base44.auth.logout("/");
   };
 
   const statusLabel =
@@ -156,12 +158,22 @@ export default function VoiceAssistant() {
           </span>
           <span className="font-display text-[15px] tracking-tight">Village Voice</span>
         </div>
-        <UsagePill remaining={remaining} signedIn={!!user} ready={ready} onClick={handlePill} />
+        <div className="flex items-center gap-2.5">
+          <UsagePill remaining={remaining} signedIn={!!user} ready={ready} onClick={handleAccount} />
+          <AccountIcon label="Account" onClick={handleAccount} />
+        </div>
       </header>
 
       <main className="relative z-10 flex flex-1 flex-col items-center justify-center gap-6 px-5">
         <div className="flex flex-col items-center gap-7">
-          <OrbVisualizer levelRef={levelRef} status={status} speaking={speaking} />
+          <button
+            type="button"
+            onClick={handleCall}
+            aria-label={micActive ? "End the call" : "Start a voice call"}
+            className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+          >
+            <OrbVisualizer levelRef={levelRef} status={status} speaking={speaking} />
+          </button>
 
           <div className="flex flex-col items-center gap-3">
             <button
@@ -172,7 +184,7 @@ export default function VoiceAssistant() {
                 micActive ? "bg-destructive text-destructive-foreground" : "bg-foreground text-background"
               }`}
             >
-              {status === "connecting" ? (
+              {!ready || status === "connecting" ? (
                 <Loader2 className="h-6 w-6 animate-spin" />
               ) : micActive ? (
                 <PhoneOff className="h-6 w-6" />
@@ -201,13 +213,22 @@ export default function VoiceAssistant() {
         used={used}
         limit={limit}
         signedIn={!!user}
-        busy={signinBusy}
-        message={signinError}
         onGoogle={handleGoogle}
         onSignOut={handleSignOut}
         onOpenChange={(next) => {
           if (!next) setGate(null);
         }}
+      />
+
+      <AccountSheet
+        open={accountOpen}
+        user={user}
+        remaining={remaining}
+        ready={ready}
+        onSignIn={handleGoogle}
+        onSwitchAccount={handleSwitchAccount}
+        onSignOut={handleSignOut}
+        onClose={() => setAccountOpen(false)}
       />
     </div>
   );
