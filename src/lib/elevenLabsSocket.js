@@ -1,10 +1,11 @@
 import { base44 } from "@/api/base44Client";
 import { isRepeatIntro } from "@/lib/agentMemory";
+import { contextBlocks } from "@/lib/contextBlocks";
 
 const IN_RATE = 16000;
-// one contextual update carries this much of the note; a longer note is handed
-// over as several of them
-const CONTEXT_BLOCK = 4000;
+// his first words after the person's turn wait this long, so the words he was just
+// handed have a moment to land before he answers
+const BEAT_MS = 2000;
 const OPEN_QUIET_MS = 10000;
 const CLOSE_QUIET_MS = 10000;
 const VOICE_LEVEL = 0.06;
@@ -102,6 +103,11 @@ export default class VoiceSocket {
     // carrying on: nothing is heard from him until the person takes their turn
     this.holdQuiet = false;
     this.holdTimer = null;
+    // the breath before his answer: when the person's turn ended, and whether the
+    // answer to it is still waiting to take it
+    this.turnAt = 0;
+    this.beatDue = false;
+    this.voiceTimer = null;
   }
 
   get connected() {
@@ -237,17 +243,8 @@ export default class VoiceSocket {
    * word list rides along without any single update being oversized.
    */
   sendMemory(text) {
-    const raw = String(text || "");
-    let at = 0;
-    while (at < raw.length) {
-      let end = Math.min(raw.length, at + CONTEXT_BLOCK);
-      if (end < raw.length) {
-        // break between entries where one is there, so a word is never cut in half
-        const cut = raw.lastIndexOf("\n", end);
-        if (cut > at + CONTEXT_BLOCK / 2) end = cut + 1;
-      }
-      if (!this.send({ type: "contextual_update", text: raw.slice(at, end) })) return false;
-      at = end;
+    for (const block of contextBlocks(text)) {
+      if (!this.send({ type: "contextual_update", text: block })) return false;
     }
     return true;
   }
@@ -322,6 +319,8 @@ export default class VoiceSocket {
       const text = msg.user_transcription_event?.user_transcript;
       if (text) {
         this.userSpoke = true;
+        this.turnAt = performance.now();
+        this.beatDue = true;
         this.releaseQuiet();
         this.h.onUserText?.(text);
       }
@@ -408,6 +407,8 @@ export default class VoiceSocket {
         this.heardVoice = true;
         this.userSpoke = true;
         this.lastVoiceAt = now;
+        this.turnAt = now;
+        this.beatDue = true;
       }
 
       // the wait starts when the assistant stops talking, so it always gets to finish
@@ -479,8 +480,19 @@ export default class VoiceSocket {
     // person takes their turn, so the introduction is never heard
     node.connect(this.silent || this.holdQuiet ? this.silencer() : this.ctx.destination);
 
+    // his first words after the person's turn wait a breath, so the words he was
+    // just handed have a moment to land; the orb shows him reviewing while they do
+    let lead = 0;
+    if (this.beatDue && !this.silent && !this.holdQuiet) {
+      this.beatDue = false;
+      lead = Math.max(0, (BEAT_MS - (performance.now() - this.turnAt)) / 1000);
+      if (lead <= 0.05) lead = 0;
+      if (lead) this.setAwaiting(true);
+    }
+
     const now = this.ctx.currentTime;
     if (this.playHead < now + 0.04) this.playHead = now + 0.04;
+    this.playHead += lead;
     node.start(this.playHead);
     this.playHead += buffer.duration;
     this.sources.push(node);
@@ -488,9 +500,19 @@ export default class VoiceSocket {
       this.sources = this.sources.filter((s) => s !== node);
     };
 
-    if (!this.speaking && !this.silent && !this.holdQuiet) {
+    // he is heard when his voice actually begins, not when the breath before it does
+    const begins = () => {
+      if (this.silent || this.holdQuiet || this.speaking) return;
+      this.setAwaiting(false);
       this.speaking = true;
       this.h.onAgentAudioStart?.();
+    };
+
+    if (lead) {
+      clearTimeout(this.voiceTimer);
+      this.voiceTimer = setTimeout(begins, lead * 1000);
+    } else {
+      begins();
     }
 
     clearTimeout(this.endTimer);
@@ -536,6 +558,9 @@ export default class VoiceSocket {
 
   stopPlayback() {
     clearTimeout(this.endTimer);
+    clearTimeout(this.voiceTimer);
+    this.voiceTimer = null;
+    this.beatDue = false;
     this.answerEndAt = performance.now();
     if (this.speaking) {
       this.speaking = false;

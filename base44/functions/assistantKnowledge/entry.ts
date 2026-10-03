@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { alikeTerms } from "../../shared/soundsAlike.ts";
 
 // The note rides along with a typed message as silent context. It is handed over
 // in blocks of the size one update carries, so the whole note can be larger than
@@ -29,6 +30,17 @@ const OPENING =
   "MAARIFA YA MWENYEJI (what the admin has written for you to know):\n" +
   "Majibu yako kuhusu ulimwengu wa Babembe, utamaduni wake, na lugha ya Ebembe yatokee kwenye maarifa haya kwanza.\n";
 
+// How he answers: the three languages he serves, the review he takes before
+// answering, and what to do with a word that only sounded like a saved one.
+const GUIDE =
+  "\nJINSI YA KUJIBU (how to answer):\n" +
+  "- Chukua muda wako: kabla ya kujibu, soma maarifa haya na orodha ya maneno kwanza, kisha jibu kwa utulivu na kwa ukamilifu.\n" +
+  "- Jibu kwa lugha aliyotumia mtu — Ebembe, Kiswahili au Kiingereza. Kwa kawaida anza kwa Ebembe, kisha ongeza ufafanuzi mfupi kwa Kiswahili au Kiingereza. Mtu akiomba lugha nyingine, fuata yeye, na akibadilisha lugha, badilisha nawe.\n" +
+  "- Mtu akiomba kitu — kuzungumza, hadithi, wimbo, kufundishwa neno, maelezo au mazoezi — fanya alichoomba, kwa lugha aliyoomba.\n" +
+  "- Neno ulilosikia likikaribia neno lililohifadhiwa (herufi moja au alama tofauti, au konsonanti zilezile kwa irabu tofauti), chukulia kuwa ni neno hilo hilo. Usimwambie mtu amekosea, wala usiseme neno halijulikani.\n" +
+  "- Kama hakuna linalokaribia, taja maneno mawili au matatu ya karibu zaidi na uulize ni lipi alimaanisha, kisha jibu.\n" +
+  "- Swali au ombi lisipoeleweka, rudia kwa maneno yako ulichoelewa na uulize uthibitisho kwanza, kisha jibu.\n";
+
 const FALLBACK =
   "\nKama swali halipo kwenye maarifa haya, jibu kwa ufahamu wako wa kawaida, lakini sema wazi katika jibu hilo kwamba jibu hilo halitoki kwenye maarifa ya admin.\n";
 
@@ -42,9 +54,16 @@ const HEADS = {
   word:
     "MANENO YA EBEMBE (kila neno alilohifadhi admin):\n" +
     "Tumia maneno haya na maana yake unapojibu. Neno lenye (maana haijaelezwa bado) halijaelezwa bado — litaje tu, usibuni maana yake.\n",
+  like:
+    "\nMANENO YANAYOKARIBIA ULILOSIKIA (words close to what was heard):\n" +
+    "Neno la kwanza ndilo linalokaribia zaidi. Likiingia kwenye mazungumzo, chukulia kuwa ni neno hilo mtu alimaanisha na jibu kutoka maana yake — usimwambie mtu amekosea. Kama hakuna linaloingia, puuza orodha hii.\n",
 };
 
-const NOTE_BUDGET = MAX_NOTE - OPENING.length - FALLBACK.length;
+// the section that rides with a question is set aside first, so it can never push
+// the vocabulary out of the note
+const LIKE_BUDGET = 900;
+const NOTE_BUDGET =
+  MAX_NOTE - OPENING.length - GUIDE.length - FALLBACK.length - LIKE_BUDGET;
 const WORDS_BUDGET = Math.min(WORDS_SHARE, NOTE_BUDGET);
 
 // short words that carry no meaning for matching, in both languages the admin writes in
@@ -203,8 +222,8 @@ async function loadWords(base44: any) {
  * The vocabulary the assistant is given, with how much of the saved list it holds
  * — the same numbers the admin's words panel states.
  */
-async function wordTally(base44: any, wanted: string[]) {
-  const words = packWords(await loadWords(base44));
+async function wordTally(rows: any[], wanted: string[]) {
+  const words = packWords(rows);
   // the section's own head is part of its share, so every line chosen is one that fits
   const room = WORDS_BUDGET - HEADS.word.length;
   const picked = carryLines(words.lines, wanted, room);
@@ -223,6 +242,49 @@ async function wordTally(base44: any, wanted: string[]) {
     carried,
     whole: words.total > 0 && carried === words.total,
   };
+}
+
+/**
+ * The saved words, read once and kept for a moment: a live call looks them up on
+ * every turn, and the whole list serves the note and the words panel alike.
+ */
+const CACHE_MS = 60000;
+let wordCache: { at: number; rows: any[] } = { at: 0, rows: [] };
+
+async function wordsFor(base44: any) {
+  if (wordCache.rows.length && Date.now() - wordCache.at < CACHE_MS) return wordCache.rows;
+  const rows = await loadWords(base44);
+  wordCache = { at: Date.now(), rows };
+  return rows;
+}
+
+/**
+ * The words that fit what was heard, nearest first. Only the few closest ride
+ * along, so a misheard word is looked up against the whole list without the whole
+ * list being handed over with it.
+ */
+function likeSection(rows: any[], heard: string) {
+  if (!heard) return "";
+  // the filler of both languages is dropped first, so only the words that carry
+  // meaning are matched
+  const said = heard
+    .split(/\s+/)
+    .filter((word) => word && !STOPWORDS.has(word.toLowerCase()))
+    .join(" ");
+  const near = alikeTerms(said || heard, rows, 3);
+  if (!near.length) return "";
+
+  let body = "";
+  for (const row of near) {
+    const meaning = textOf(row.meaning) || "(maana haijaelezwa bado)";
+    const usage = textOf(row.usage);
+    const line = `- alisikia "${row.heard}" → neno ni "${row.term}" = ${meaning}${
+      usage ? ` (${usage})` : ""
+    }\n`;
+    if (HEADS.like.length + body.length + line.length > LIKE_BUDGET) break;
+    body += line;
+  }
+  return body ? HEADS.like + body : "";
 }
 
 /**
@@ -323,7 +385,7 @@ export default async function (req: Request): Promise<Response> {
 
     // the words panel asks how much of the list the assistant is actually given
     if (payload?.stats) {
-      const tally = await wordTally(base44, []);
+      const tally = await wordTally(await wordsFor(base44), []);
       return Response.json({
         words: { total: tally.total, carried: tally.carried, whole: tally.whole },
       });
@@ -332,10 +394,20 @@ export default async function (req: Request): Promise<Response> {
     const query = typeof payload?.query === "string" ? payload.query.trim().slice(0, MAX_QUERY) : "";
     const wanted = query ? Array.from(new Set(tokensOf(query))) : [];
 
+    // a live call asks only about what was just heard: the saved words that fit it
+    // are looked up and handed over before his answer, so a word that only sounded
+    // like a saved one is answered from its meaning instead of being called unknown
+    if (typeof payload?.heard === "string" && payload.heard.trim()) {
+      const heard = payload.heard.trim().slice(0, MAX_QUERY);
+      return Response.json({ note: likeSection(await wordsFor(base44), heard) });
+    }
+
     // the entries themselves stay private to the admin: only this derived note
     // leaves the server, and it is the same text the assistant is given anyway
-    const tally = await wordTally(base44, wanted);
-    let left = NOTE_BUDGET - tally.section.length;
+    const wordRows = await wordsFor(base44);
+    const like = likeSection(wordRows, query);
+    const tally = await wordTally(wordRows, wanted);
+    let left = NOTE_BUDGET - tally.section.length - like.length;
 
     const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
       { kind: { $in: ["qa", "note"] } },
@@ -352,8 +424,8 @@ export default async function (req: Request): Promise<Response> {
     left -= qa.text.length;
     const world = fill(HEADS.note, linesOfKind("note"), left);
 
-    const body = qa.text + world.text + tally.section;
-    let note = body ? OPENING + body + FALLBACK : "";
+    const body = like + qa.text + world.text + tally.section;
+    let note = body ? OPENING + GUIDE + body + FALLBACK : "";
 
     // a question is answered from the admin's long texts too, through the few
     // passages that match it and nothing more

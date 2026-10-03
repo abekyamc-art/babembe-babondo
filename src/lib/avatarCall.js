@@ -8,6 +8,7 @@ import {
 } from "@heygen/liveavatar-web-sdk";
 import { base44 } from "@/api/base44Client";
 import { guardAvatarHousekeeping } from "@/lib/avatarSessionGuard";
+import { contextBlocks } from "@/lib/contextBlocks";
 
 const OPEN_QUIET_MS = 10000;
 const CLOSE_QUIET_MS = 10000;
@@ -87,7 +88,12 @@ export default class AvatarCall {
 
     session.on(SessionEvent.SESSION_STREAM_READY, () => this.showStream(videoEl));
     session.on(AgentEventsEnum.USER_SPEAK_STARTED, () => this.hearUser());
-    session.on(AgentEventsEnum.USER_SPEAK_ENDED, () => this.hearUser());
+    session.on(AgentEventsEnum.USER_SPEAK_ENDED, () => {
+      this.hearUser();
+      // their turn is over: he reviews what he was given before he answers, and the
+      // orb shows him at it
+      this.setAwaiting(true);
+    });
     session.on(AgentEventsEnum.USER_TRANSCRIPTION, (event) => {
       if (!event?.text) return;
       this.userSpoke = true;
@@ -130,15 +136,10 @@ export default class AvatarCall {
     }
 
     this.h.onStatus?.("live");
-    // a call that follows an earlier exchange carries the conversation's memory as
-    // silent context, so he picks it up instead of starting over
-    if (memory) {
-      try {
-        session.sendContextualUpdate?.(memory);
-      } catch (err) {
-        // the call carries on without the reminder
-      }
-    }
+    // every call carries the conversation's memory, the admin's knowledge and the
+    // guidance as silent context, so a word he only heard is answered from the
+    // saved vocabulary and he picks the talk up instead of starting over
+    if (memory) this.sendMemory(memory);
     this.watchStart = performance.now();
     this.watch();
   }
@@ -191,6 +192,8 @@ export default class AvatarCall {
 
   startSpeaking() {
     this.speaking = true;
+    // his voice has begun, so the review is over
+    this.setAwaiting(false);
     // the mic stays closed while the face answers, so its own voice coming out of
     // the phone can never be sent back as an interruption — except during the held
     // greeting, which is out of the room, so the person can take their turn over it
@@ -227,6 +230,20 @@ export default class AvatarCall {
     this.answered = true;
     this.setAwaiting(false);
     this.h.onAgentAnswered?.();
+  }
+
+  /**
+   * Silent context he reads before answering: the conversation so far, the words
+   * the admin saved, and the guidance that goes with them.
+   */
+  sendMemory(text) {
+    if (!this.connected) return false;
+    try {
+      contextBlocks(text).forEach((block) => this.session?.sendContextualUpdate?.(block));
+      return true;
+    } catch (err) {
+      return false;
+    }
   }
 
   sendText(text) {

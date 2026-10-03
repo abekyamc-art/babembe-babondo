@@ -6,8 +6,9 @@ import { buildMemory } from "@/lib/agentMemory";
 import { loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
 
 // the knowledge note travels in blocks and needs a beat to settle before the
-// question is put to him; the wait is shown as him working
-const TYPED_HOLD_MS = 5000;
+// question is put to him, so he reads it before he answers; the wait is shown as
+// him working
+const TYPED_HOLD_MS = 8000;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -26,6 +27,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const linesRef = useRef([]);
   // the typed line already on screen, so the agent's own echo of it is not shown twice
   const sentRef = useRef("");
+  // the spoken turn already looked up, so one turn is never read twice
+  const heardRef = useRef({ text: "", timer: 0 });
 
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
@@ -64,6 +67,31 @@ export default function useVoiceAgent({ videoRef } = {}) {
     });
   }, []);
 
+  /**
+   * A word he only heard is looked up as it lands — against the whole saved list,
+   * including the words too long to ride along with the note — and what turns up
+   * reaches the session before his answer, so a word that sounds close to a saved
+   * one is answered from its meaning instead of being corrected.
+   */
+  const reviewHeard = useCallback((text) => {
+    const said = String(text || "").trim();
+    const state = heardRef.current;
+    if (said.length < 3 || said === state.text) return;
+
+    clearTimeout(state.timer);
+    state.timer = setTimeout(async () => {
+      state.text = said;
+      try {
+        const res = await base44.functions.invoke("assistantKnowledge", { heard: said });
+        const note = res?.data?.note;
+        const engine = socketRef.current;
+        if (note && engine && !engine.silent) engine.sendMemory?.(note);
+      } catch (err) {
+        // the answer carries on without the extra words
+      }
+    }, 350);
+  }, []);
+
   // both kinds of call report back through the same set of handlers
   const makeHandlers = useCallback(
     () => ({
@@ -85,6 +113,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
           return;
         }
         pushTurn("user", text);
+        reviewHeard(text);
       },
       onAgentText: (text) => pushTurn("agent", text),
       onAgentAudioStart: () => setSpeaking(true),
@@ -102,7 +131,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         );
       },
     }),
-    [pushTurn]
+    [pushTurn, reviewHeard]
   );
 
   // a written question is held back while the knowledge he was handed settles, and
@@ -143,6 +172,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
       const said = linesRef.current;
       const laterTurn = said.length > 0;
       const memory = buildMemory(said);
+      // both kinds of call are handed the admin's knowledge: the words the question
+      // turns on, and the guidance that goes with them
+      const knowledge = withKnowledge(memory, await loadKnowledgeNote(firstMessage));
 
       // when the owner's face is in place the call runs through it, with the same
       // ElevenLabs agent answering behind it. Typing is answered in writing, so it
@@ -153,7 +185,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         quietRef.current = false;
         setMicActive(withMic);
         try {
-          await call.open({ withMic, videoEl: videoRef.current, memory, laterTurn });
+          await call.open({ withMic, videoEl: videoRef.current, memory: knowledge, laterTurn });
           setAvatarLive(true);
           if (firstMessage) call.sendText(firstMessage);
           return true;
@@ -169,14 +201,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
       quietRef.current = silent;
       setMicActive(withMic);
 
-      // a typed message is answered from the owner's own knowledge — the written
-      // entries, plus the passages of his long texts that match this message
-      const written = silent
-        ? withKnowledge(memory, await loadKnowledgeNote(firstMessage))
-        : memory;
-
       try {
-        await socket.open({ withMic, silent, memory: written, laterTurn });
+        await socket.open({ withMic, silent, memory: knowledge, laterTurn });
         if (firstMessage) {
           // the question goes in once the note has settled, not the moment the
           // session opens
