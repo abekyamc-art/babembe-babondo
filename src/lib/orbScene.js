@@ -1,11 +1,11 @@
 /**
  * The scene inside the voice orb.
  *
- * Before the assistant is on air the backdrop clip fills the orb on its own.
- * The moment his first frame lands the orb splits into two bubbles sitting close
- * together at one head height: the clip keeps the left bubble and his keyed face
- * takes the larger right one, green studio screen removed. Nothing outside the
- * orb is touched.
+ * Before the assistant is on air the backdrop clip fills the orb on its own, cut
+ * to a true circle so no square corner can ever show. The moment his first frame
+ * lands the orb splits into two bubbles sitting close together at one head
+ * height: the clip keeps the left bubble and his keyed face takes the larger
+ * right one, green studio screen removed. Nothing outside the orb is touched.
  */
 export const ORB_BACKDROP_URL =
   "https://media.base44.com/videos/public/6ac0821625ce2ff98ccb0871/77d6a00c5_ElevenLabs_video_creatify-aurora_Medium20close-up_2026-10-03T05_41_27.mov";
@@ -96,8 +96,9 @@ function paneGeometry(w, h) {
 }
 
 /**
- * Paints the loop: the clip alone until the assistant's first frame arrives,
- * then the split pair. Returns the stop function for the frame loop.
+ * Paints the loop the whole time the screen is open: the clip alone, round, until
+ * the assistant's first frame arrives, then the split pair. Returns the stop
+ * function for the frame loop.
  */
 export function startOrbScene({ avatarEl, backdropEl, canvas }) {
   if (!canvas) return () => {};
@@ -127,11 +128,17 @@ export function startOrbScene({ avatarEl, backdropEl, canvas }) {
     const hasBg = bg && bg.readyState >= 2 && bg.videoWidth;
     const hasFace = face && face.readyState >= 2 && face.videoWidth;
 
-    // nothing covers the clip until he is actually there
+    // while he is away the clip holds the orb alone, cut to a true circle by the
+    // painter itself rather than by the browser clipping a video layer
     if (!hasFace) {
       if (hasBg) {
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(w / 2, h / 2, Math.min(w, h) / 2, 0, Math.PI * 2);
+        ctx.clip();
         const box = cover(bg.videoWidth, bg.videoHeight, w, h);
         ctx.drawImage(bg, box.x, box.y, box.w, box.h);
+        ctx.restore();
       }
       return;
     }

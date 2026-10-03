@@ -41,9 +41,9 @@ export default function OrbVisualizer({ levelRef, status, speaking, videoRef, fa
     return undefined;
   }, []);
 
-  // while the face is on air, the backdrop and the keyed face are painted together
+  // the painter runs the whole time the screen is open: the clip alone cut to a
+  // true circle, then the split pair once his first frame lands
   useEffect(() => {
-    if (!faceOn) return undefined;
     const canvas = canvasRef.current;
     if (!canvas) return undefined;
     return startOrbScene({
@@ -51,14 +51,14 @@ export default function OrbVisualizer({ levelRef, status, speaking, videoRef, fa
       backdropEl: backdropRef.current,
       canvas,
     });
-  }, [faceOn, videoRef]);
+  }, [videoRef]);
 
   return (
     <div className={`orb-shell${status === "connecting" ? " is-connecting" : ""}`}>
       <div className="orb-halo" />
       <div className="orb-ring" ref={ringRef} />
       <div className="orb-face" ref={faceRef}>
-        {/* the clip holds the whole orb on its own until his face takes a bubble of its own */}
+        {/* the clip is read by the painter, which cuts it to a circle — never shown raw */}
         <video
           ref={backdropRef}
           src={ORB_BACKDROP_URL}
@@ -68,9 +68,7 @@ export default function OrbVisualizer({ levelRef, status, speaking, videoRef, fa
           playsInline
           preload="auto"
           aria-hidden="true"
-          className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-700 ${
-            faceOn ? "opacity-0" : "opacity-100"
-          }`}
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-0"
         />
         {videoRef ? (
           // the raw avatar stream is read by the painter, and stays the element the
@@ -88,9 +86,7 @@ export default function OrbVisualizer({ levelRef, status, speaking, videoRef, fa
           width={CANVAS}
           height={CANVAS}
           aria-hidden="true"
-          className={`pointer-events-none absolute inset-0 h-full w-full transition-opacity duration-700 ${
-            faceOn ? "opacity-100" : "opacity-0"
-          }`}
+          className="pointer-events-none absolute inset-0 h-full w-full"
         />
         {faceOn ? null : <div className="orb-sheen" />}
       </div>
