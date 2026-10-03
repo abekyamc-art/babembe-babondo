@@ -24,6 +24,7 @@ import UsagePill from "@/components/voice/UsagePill";
 import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountSheet from "@/components/voice/AccountSheet";
+import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 
 export default function VoiceAssistant() {
   const orbVideoRef = useRef(null);
@@ -47,6 +48,7 @@ export default function VoiceAssistant() {
   const [clock, setClock] = useState(() => Date.now());
   const [gate, setGate] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
+  const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState(null);
   const [refilling, setRefilling] = useState(false);
@@ -168,6 +170,11 @@ export default function VoiceAssistant() {
   };
 
   const handleAccount = () => setAccountOpen(true);
+
+  const handleKnowledge = () => {
+    setAccountOpen(false);
+    setKnowledgeOpen(true);
+  };
 
   const handleReels = () => {
     setAccountOpen(false);
@@ -339,11 +346,14 @@ export default function VoiceAssistant() {
         onSignIn={handleGoogle}
         onReels={handleReels}
         onMessages={handleMessages}
+        onKnowledge={handleKnowledge}
         onGetCoins={handleMarkets}
         onSwitchAccount={handleSwitchAccount}
         onSignOut={handleSignOut}
         onClose={() => setAccountOpen(false)}
       />
+
+      <KnowledgeSheet open={knowledgeOpen} onClose={() => setKnowledgeOpen(false)} />
     </div>
   );
 }

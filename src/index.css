@@ -522,6 +522,160 @@
     color: #8ebaff;
   }
 
+  /* Admin knowledge — the account surface's own dark palette, in its own rows. */
+  .knowledge-tabs {
+    display: flex;
+    gap: 6px;
+  }
+
+  .knowledge-tab {
+    flex: 1;
+    padding: 9px 6px;
+    color: #9ba9c6;
+    background: #141c32;
+    border: 1px solid #293654;
+    border-radius: 11px;
+    font: 600 11.5px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+    cursor: pointer;
+    transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  }
+
+  .knowledge-tab.is-active {
+    color: #ffffff;
+    background: #2f4a7d;
+    border-color: #3f5e97;
+  }
+
+  .knowledge-tab:focus-visible,
+  .knowledge-cancel:focus-visible,
+  .knowledge-tool:focus-visible {
+    outline: 2px solid #6ba8ff;
+    outline-offset: 3px;
+  }
+
+  .knowledge-form {
+    display: flex;
+    flex-direction: column;
+    gap: 11px;
+    padding: 15px;
+    background: #101728;
+    border: 1px solid #1c2440;
+    border-radius: 16px;
+  }
+
+  .knowledge-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+
+  .knowledge-label {
+    color: #9ba9c6;
+    font: 700 10px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+  }
+
+  .account-area {
+    width: 100%;
+    min-height: 92px;
+    box-sizing: border-box;
+    padding: 12px 14px;
+    color: #f5f6ff;
+    background: #141c32;
+    border: 1px solid #293654;
+    border-radius: 12px;
+    font: 600 14px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    resize: vertical;
+  }
+
+  .account-area:focus {
+    outline: 2px solid #6ba8ff;
+    outline-offset: 2px;
+  }
+
+  .knowledge-form-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .knowledge-cancel {
+    color: #9ba9c6;
+    background: transparent;
+    border: 0;
+    font: 600 13px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+    cursor: pointer;
+  }
+
+  .knowledge-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 13px 0;
+    border-bottom: 1px solid #1c2440;
+  }
+
+  .knowledge-body {
+    min-width: 0;
+  }
+
+  .knowledge-title {
+    color: #f5f6ff;
+    font-size: 14px;
+    font-weight: 650;
+    letter-spacing: -0.2px;
+    overflow-wrap: anywhere;
+  }
+
+  .knowledge-text {
+    margin-top: 3px;
+    color: #c3cde2;
+    font-size: 13px;
+    line-height: 1.5;
+    white-space: pre-wrap;
+    overflow-wrap: anywhere;
+  }
+
+  .knowledge-tools {
+    display: flex;
+    flex: none;
+    gap: 6px;
+  }
+
+  .knowledge-tool {
+    width: 32px;
+    height: 32px;
+    display: grid;
+    place-items: center;
+    color: #8ebaff;
+    background: #17223b;
+    border: 1px solid #354568;
+    border-radius: 10px;
+    cursor: pointer;
+  }
+
+  .knowledge-tool:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .knowledge-tool-danger {
+    color: #ffb6bd;
+  }
+
+  .knowledge-empty {
+    color: #9ba9c6;
+    font-size: 12.5px;
+    line-height: 1.55;
+  }
+
+  .knowledge-error {
+    color: #ffb6bd;
+    font-size: 12px;
+  }
+
   /* live rooms are portrait only — landscape gets the turn-back screen instead */
   .live-rotate-hint {
     display: none;

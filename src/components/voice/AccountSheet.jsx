@@ -1,5 +1,5 @@
 import React from "react";
-import { Clapperboard, MessageCircle } from "lucide-react";
+import { BookOpen, Clapperboard, MessageCircle } from "lucide-react";
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountProfile from "@/components/voice/AccountProfile";
 
@@ -24,6 +24,7 @@ export default function AccountSheet({
   ready,
   onReels,
   onMessages,
+  onKnowledge,
   onGetCoins,
   onClose,
   onSignIn,
@@ -63,6 +64,15 @@ export default function AccountSheet({
           <div className="account-actions">
             {signedIn ? (
               <>
+                {user?.role === "admin" ? (
+                  <button type="button" className="account-action" onClick={onKnowledge}>
+                    <span className="account-action-label">
+                      <BookOpen className="h-4 w-4" />
+                      Assistant knowledge
+                    </span>
+                    <Chevron />
+                  </button>
+                ) : null}
                 <button type="button" className="account-action" onClick={onMessages}>
                   <span className="account-action-label">
                     <MessageCircle className="h-4 w-4" />

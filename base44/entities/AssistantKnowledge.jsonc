@@ -1,0 +1,69 @@
+{
+  "name": "AssistantKnowledge",
+  "type": "object",
+  "properties": {
+    "kind": {
+      "type": "string",
+      "enum": [
+        "qa",
+        "note",
+        "word"
+      ],
+      "default": "qa",
+      "description": "Which part of the knowledge this entry is: a question and the answer to give, a note about the world, or an Ebembe word."
+    },
+    "question": {
+      "type": "string",
+      "description": "The question a person may ask, on question and answer entries."
+    },
+    "answer": {
+      "type": "string",
+      "description": "The exact answer the assistant should give, on question and answer entries."
+    },
+    "title": {
+      "type": "string",
+      "description": "Short heading of a world note."
+    },
+    "text": {
+      "type": "string",
+      "description": "What the assistant should know, on world note entries."
+    },
+    "term": {
+      "type": "string",
+      "description": "The Ebembe word or expression, on word entries."
+    },
+    "meaning": {
+      "type": "string",
+      "description": "What the Ebembe word means, on word entries."
+    },
+    "usage": {
+      "type": "string",
+      "description": "How the assistant should use the Ebembe word, on word entries."
+    }
+  },
+  "required": [
+    "kind"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

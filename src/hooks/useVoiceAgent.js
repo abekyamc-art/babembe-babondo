@@ -3,6 +3,7 @@ import VoiceSocket from "@/lib/elevenLabsSocket";
 import AvatarCall from "@/lib/avatarCall";
 import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
+import { loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
 
 export default function useVoiceAgent({ videoRef } = {}) {
   const socketRef = useRef(null);
@@ -135,8 +136,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
       quietRef.current = silent;
       setMicActive(withMic);
 
+      // a typed message is answered from the owner's own knowledge, when he has
+      // written any; a spoken call carries the conversation alone
+      const written = silent ? withKnowledge(memory, await loadKnowledgeNote()) : memory;
+
       try {
-        await socket.open({ withMic, silent, memory, laterTurn });
+        await socket.open({ withMic, silent, memory: written, laterTurn });
         if (firstMessage) socket.sendText(firstMessage);
         return true;
       } catch (err) {
