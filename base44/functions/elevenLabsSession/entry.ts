@@ -1,7 +1,35 @@
 import { secrets } from "base44:runtime";
 
+const unavailable = "The voice call couldn't start. Please try again in a moment.";
+
+/**
+ * His own agent holds the opening line and the switch that turns it off for a
+ * later session. Both are read here, and neither is ever guessed.
+ */
+async function readAgent(apiKey: string, agentId: string) {
+  try {
+    const res = await fetch(
+      "https://api.elevenlabs.io/v1/convai/agents/" + encodeURIComponent(agentId),
+      { headers: { "xi-api-key": apiKey } }
+    );
+    if (!res.ok) return { intro: "", allowIntroOverride: false };
+
+    const data = await res.json();
+    const agent = data?.conversation_config?.agent || {};
+    const overrides =
+      data?.platform_settings?.overrides?.conversation_config_override?.agent || {};
+
+    return {
+      intro: typeof agent.first_message === "string" ? agent.first_message : "",
+      allowIntroOverride: overrides.first_message === true,
+    };
+  } catch (error) {
+    console.error("Could not read the agent's opening line:", error.message);
+    return { intro: "", allowIntroOverride: false };
+  }
+}
+
 export default async function (req: Request): Promise<Response> {
-  const unavailable = "The voice call couldn't start. Please try again in a moment.";
   try {
     const apiKey = secrets.get("ELEVENLABS_API_KEY");
     const agentId = secrets.get("ELEVENLABS_AGENT_ID");
@@ -10,6 +38,8 @@ export default async function (req: Request): Promise<Response> {
       console.error("ElevenLabs key or agent id is missing.");
       return Response.json({ error: unavailable }, { status: 500 });
     }
+
+    const agent = await readAgent(apiKey, agentId);
 
     const res = await fetch(
       "https://api.elevenlabs.io/v1/convai/conversation/get-signed-url?agent_id=" +
@@ -35,7 +65,11 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({ error: unavailable }, { status: 502 });
     }
 
-    return Response.json({ signed_url: data.signed_url });
+    return Response.json({
+      signed_url: data.signed_url,
+      intro: agent.intro,
+      allow_intro_override: agent.allowIntroOverride,
+    });
   } catch (error) {
     console.error("Voice session failed:", error.message);
     return Response.json({ error: unavailable }, { status: 500 });

@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import VoiceSocket from "@/lib/elevenLabsSocket";
 import AvatarCall from "@/lib/avatarCall";
 import { base44 } from "@/api/base44Client";
+import { buildMemory } from "@/lib/agentMemory";
 
 export default function useVoiceAgent({ videoRef } = {}) {
   const socketRef = useRef(null);
@@ -14,6 +15,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const faceReadyRef = useRef(false);
   // whether the session on air is a written one, which ends without call language
   const quietRef = useRef(false);
+  // everything he has already said, in order, so a later session is never a blank one
+  const linesRef = useRef([]);
 
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
@@ -41,6 +44,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
   }, []);
 
   const pushTurn = useCallback((role, text) => {
+    if (role === "agent" && text) linesRef.current = [...linesRef.current, text];
     setTurns((prev) => {
       const last = prev[prev.length - 1];
       if (last && last.role === role) {
@@ -101,6 +105,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
       setNotice("");
       setStatus("connecting");
       const handlers = makeHandlers();
+      // a session opened after he has spoken is a continuation of the same talk
+      const said = linesRef.current;
+      const laterTurn = said.length > 0;
+      const memory = buildMemory(said);
 
       // when the owner's face is in place the call runs through it, with the same
       // ElevenLabs agent answering behind it. Typing is answered in writing, so it
@@ -111,7 +119,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         quietRef.current = false;
         setMicActive(withMic);
         try {
-          await call.open({ withMic, videoEl: videoRef.current });
+          await call.open({ withMic, videoEl: videoRef.current, memory });
           setAvatarLive(true);
           if (firstMessage) call.sendText(firstMessage);
           return true;
@@ -128,7 +136,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
       setMicActive(withMic);
 
       try {
-        await socket.open({ withMic, silent });
+        await socket.open({ withMic, silent, memory, laterTurn });
         if (firstMessage) socket.sendText(firstMessage);
         return true;
       } catch (err) {

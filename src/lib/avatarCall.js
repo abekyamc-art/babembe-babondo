@@ -44,7 +44,7 @@ export default class AvatarCall {
     return !!this.session && this.session.state === "CONNECTED";
   }
 
-  async open({ withMic = true, videoEl = null } = {}) {
+  async open({ withMic = true, videoEl = null, memory = "" } = {}) {
     this.answered = false;
     this.userSpoke = false;
     this.heardVoice = false;
@@ -103,6 +103,15 @@ export default class AvatarCall {
     }
 
     this.h.onStatus?.("live");
+    // a call that follows an earlier exchange carries the conversation's memory as
+    // silent context, so he picks it up instead of starting over
+    if (memory) {
+      try {
+        session.sendContextualUpdate?.(memory);
+      } catch (err) {
+        // the call carries on without the reminder
+      }
+    }
     this.watchStart = performance.now();
     this.watch();
   }

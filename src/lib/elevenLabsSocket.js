@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { isRepeatIntro } from "@/lib/agentMemory";
 
 const IN_RATE = 16000;
 const OPEN_QUIET_MS = 3000;
@@ -88,6 +89,9 @@ export default class VoiceSocket {
     this.silent = false;
     this.silentWaitAt = 0;
     this.muteGain = null;
+    // a session opened after he has already spoken is not a first meeting
+    this.laterTurn = false;
+    this.intro = "";
   }
 
   get connected() {
@@ -99,9 +103,10 @@ export default class VoiceSocket {
     return !!this.stream;
   }
 
-  async open({ withMic, silent } = {}) {
+  async open({ withMic, silent, memory, laterTurn } = {}) {
     // a written message is answered in writing: no microphone, nothing on the speaker
     this.silent = !withMic && !!silent;
+    this.laterTurn = !!laterTurn;
     this.silentWaitAt = performance.now();
     this.answered = false;
     this.userSpoke = false;
@@ -139,6 +144,8 @@ export default class VoiceSocket {
     if (!signedUrl) {
       throw new Error(res?.data?.error || "Your agent could not be reached.");
     }
+    this.intro = res.data.intro || "";
+    const canMuteIntro = !!res.data.allow_intro_override;
 
     await new Promise((resolve, reject) => {
       let opened = false;
@@ -168,6 +175,15 @@ export default class VoiceSocket {
       ws.onmessage = (event) => this.handleMessage(event);
       ws.onopen = () => {
         opened = true;
+        // the opening note goes first, before a word is sent into the session: his
+        // automatic greeting is switched off where his agent allows the switch, and
+        // what he has already said is handed over as context for the answer
+        const init = { type: "conversation_initiation_client_data" };
+        if (this.laterTurn && canMuteIntro) {
+          init.conversation_config_override = { agent: { first_message: "" } };
+        }
+        this.send(init);
+        if (memory) this.send({ type: "contextual_update", text: memory });
         settle(resolve);
       };
       ws.onerror = () => {
@@ -255,6 +271,9 @@ export default class VoiceSocket {
         msg.agent_response_correction_event?.corrected_agent_response;
       if (text) {
         this.noteAnswer();
+        // a written session that opened mid-conversation: his greeting coming round
+        // again is something he has already said, so it is not shown a second time
+        if (this.silent && this.laterTurn && isRepeatIntro(text, this.intro)) return;
         this.h.onAgentText?.(text);
       }
       return;
