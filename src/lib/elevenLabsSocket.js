@@ -264,7 +264,9 @@ export default class VoiceSocket {
 
     this.processor = this.ctx.createScriptProcessor(2048, 1, 1);
     this.processor.onaudioprocess = (event) => {
-      if (!this.connected) return;
+      // the mic stays closed while the assistant speaks, so its own voice coming out
+      // of the phone can never be sent back as an interruption of that answer
+      if (!this.connected || this.speaking) return;
       const chunk = event.inputBuffer.getChannelData(0);
       const pcm = floatToPcmBytes(resample(chunk, this.ctx.sampleRate, IN_RATE));
       if (pcm.length) this.send({ user_audio_chunk: bytesToB64(pcm) });
@@ -287,36 +289,43 @@ export default class VoiceSocket {
   /**
    * Opening guard: three seconds of quiet before anything is said and the call
    * hangs up. Closing guard: once something has been said the call waits for the
-   * answer to finish playing, then ten seconds of quiet. The ceiling is the only
-   * thing allowed to hang up while the assistant is still speaking.
+   * answer to finish playing, then ten seconds of quiet. Nothing at all hangs up,
+   * and no playback is cleared, while the assistant still has something to say.
    */
   watch() {
     const step = () => {
       if (!this.analyser || this.autoEnding) return;
       const now = performance.now();
+      // while the answer is playing, whatever the microphone picks up is the
+      // assistant's own voice coming back out of the speaker
+      const answering = this.speaking;
 
-      if (this.level() > VOICE_LEVEL) {
+      if (!answering && this.level() > VOICE_LEVEL) {
         this.heardVoice = true;
         this.userSpoke = true;
         this.lastVoiceAt = now;
       }
 
-      if (!this.heardVoice) {
-        if (now - this.watchStart >= OPEN_QUIET_MS) {
-          this.autoEnd("silence");
-          return;
+      // the wait starts when the assistant stops talking, so it always gets to finish
+      if (!answering) {
+        if (!this.heardVoice) {
+          const quietSince = Math.max(this.watchStart, this.answerEndAt);
+          if (now - quietSince >= OPEN_QUIET_MS) {
+            this.autoEnd("silence");
+            return;
+          }
+        } else {
+          const quietSince = Math.max(this.lastVoiceAt, this.answerEndAt, this.watchStart);
+          if (now - quietSince >= CLOSE_QUIET_MS) {
+            this.autoEnd("done");
+            return;
+          }
         }
-      } else if (!this.speaking) {
-        const quietSince = Math.max(this.lastVoiceAt, this.answerEndAt, this.watchStart);
-        if (now - quietSince >= CLOSE_QUIET_MS) {
-          this.autoEnd("done");
-          return;
-        }
-      }
 
-      if (now - this.watchStart >= CALL_MAX_MS) {
-        this.autoEnd("limit");
-        return;
+        if (now - this.watchStart >= CALL_MAX_MS) {
+          this.autoEnd("limit");
+          return;
+        }
       }
 
       this.watchId = requestAnimationFrame(step);
@@ -395,6 +404,10 @@ export default class VoiceSocket {
   stopPlayback() {
     clearTimeout(this.endTimer);
     this.answerEndAt = performance.now();
+    if (this.speaking) {
+      this.speaking = false;
+      this.h.onAgentAudioEnd?.();
+    }
     this.sources.forEach((node) => {
       try {
         node.stop();

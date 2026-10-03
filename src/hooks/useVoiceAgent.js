@@ -5,6 +5,9 @@ export default function useVoiceAgent() {
   const socketRef = useRef(null);
   const levelRef = useRef(0);
   const rafRef = useRef(0);
+  // the answer is always charged through the handler as the allowance stands right
+  // now, not the one captured when the conversation first opened
+  const answeredRef = useRef(null);
 
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
@@ -26,6 +29,7 @@ export default function useVoiceAgent() {
   const start = useCallback(
     async ({ withMic = true, firstMessage = "", onAnswered } = {}) => {
       const existing = socketRef.current;
+      if (onAnswered) answeredRef.current = onAnswered;
       if (existing?.connected) {
         if (firstMessage) existing.sendText(firstMessage);
         return true;
@@ -50,7 +54,7 @@ export default function useVoiceAgent() {
         onAgentAudioStart: () => setSpeaking(true),
         onAgentAudioEnd: () => setSpeaking(false),
         onInterrupted: () => setSpeaking(false),
-        onAgentAnswered: () => onAnswered?.(),
+        onAgentAnswered: () => answeredRef.current?.(),
         onAutoEnd: ({ reason }) => {
           setNotice(
             reason === "silence"
