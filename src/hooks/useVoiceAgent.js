@@ -250,9 +250,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
           if (opening) call.sendText(opening);
           return true;
         } catch (err) {
-          // the face is a bonus: the conversation carries on by voice alone
+          // Keep voice available, but explain why the face could not start.
+          await call.stop();
           socketRef.current = null;
           setAvatarLive(false);
+          setNotice(`${err?.response?.data?.error || err?.message || "Live avatar unavailable."} Continuing with voice only.`);
         }
       }
 

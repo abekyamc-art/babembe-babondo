@@ -72,7 +72,10 @@ export default async function (req: Request): Promise<Response> {
 
     if (!res.ok || !token) {
       console.error("LiveAvatar refused the session:", res.status, payload?.message || "");
-      return Response.json({ ready: false, error: unavailable }, { status: 502 });
+      const error = payload?.code === 4033
+        ? "LiveAvatar has no credits available. Add credits to your LiveAvatar account to enable the face."
+        : unavailable;
+      return Response.json({ ready: false, error }, { status: 502 });
     }
 
     return Response.json({ ready: true, session_token: token });

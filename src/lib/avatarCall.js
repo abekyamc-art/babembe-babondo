@@ -1,10 +1,7 @@
 import {
   AgentEventsEnum,
-  AgentType,
   ElevenLabsAgentSession,
-  LiveAvatarSession,
   SessionEvent,
-  parseAgentTypeFromToken,
 } from "@heygen/liveavatar-web-sdk";
 import { base44 } from "@/api/base44Client";
 import { guardAvatarHousekeeping } from "@/lib/avatarSessionGuard";
@@ -71,7 +68,6 @@ export default class AvatarCall {
   }
 
   async open({ withMic = true, videoEl = null, memory = "", laterTurn = false, resuming = false } = {}) {
-    guardAvatarHousekeeping();
     this.answered = false;
     this.spent = false;
     this.userSpoke = false;
@@ -97,17 +93,13 @@ export default class AvatarCall {
     const token = res?.data?.session_token;
     if (!token) throw new Error(res?.data?.error || "Your face isn't connected yet.");
 
-    // an ElevenLabs agent session carries the connector's transcripts and commands
-    const kind = parseAgentTypeFromToken(token);
-    const Session =
-      kind === AgentType.FULL || kind === AgentType.OPENAI_REALTIME || kind === AgentType.GEMINI_REALTIME
-        ? LiveAvatarSession
-        : ElevenLabsAgentSession;
-
-    const session = new Session(token, {
+    // This endpoint always configures ElevenLabs; token claims are not a
+    // reliable way to choose the SDK class across provider versions.
+    const session = new ElevenLabsAgentSession(token, {
       autoKeepAlive: true,
       voiceChat: { defaultMuted: !withMic },
     });
+    guardAvatarHousekeeping(session);
     this.session = session;
 
     session.on(SessionEvent.SESSION_STREAM_READY, () => this.showStream(videoEl));
