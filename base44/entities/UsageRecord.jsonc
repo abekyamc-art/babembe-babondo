@@ -1,0 +1,23 @@
+{
+  "name": "UsageRecord",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the signed-in user this counter belongs to."
+    },
+    "date": {
+      "type": "string",
+      "description": "Day the counter belongs to, as YYYY-MM-DD."
+    },
+    "count": {
+      "type": "number",
+      "default": 0,
+      "description": "Number of messages or calls used on that day."
+    }
+  },
+  "required": [
+    "user_email",
+    "date"
+  ]
+}
