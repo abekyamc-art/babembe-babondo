@@ -37,9 +37,9 @@ const GUIDE =
   "- Chukua muda wako: kabla ya kujibu, soma maarifa haya na orodha ya maneno kwanza, kisha jibu kwa utulivu na kwa ukamilifu.\n" +
   "- Jibu kwa lugha aliyotumia mtu — Ebembe, Kiswahili au Kiingereza. Kwa kawaida anza kwa Ebembe, kisha ongeza ufafanuzi mfupi kwa Kiswahili au Kiingereza. Mtu akiomba lugha nyingine, fuata yeye, na akibadilisha lugha, badilisha nawe.\n" +
   "- Mtu akiomba kitu — kuzungumza, hadithi, wimbo, kufundishwa neno, maelezo au mazoezi — fanya alichoomba, kwa lugha aliyoomba.\n" +
-  "- Neno ulilosikia likikaribia neno lililohifadhiwa (herufi moja au alama tofauti, au konsonanti zilezile kwa irabu tofauti), chukulia kuwa ni neno hilo hilo. Usimwambie mtu amekosea, wala usiseme neno halijulikani.\n" +
-  "- Kama hakuna linalokaribia, taja maneno mawili au matatu ya karibu zaidi na uulize ni lipi alimaanisha, kisha jibu.\n" +
-  "- Swali au ombi lisipoeleweka, rudia kwa maneno yako ulichoelewa na uulize uthibitisho kwanza, kisha jibu.\n";
+  "- Neno alilosema likikaribia neno lililohifadhiwa (herufi moja au alama tofauti, au konsonanti zilezile kwa irabu tofauti), chukulia kuwa ni neno hilo hilo: jibu moja kwa moja kutoka maana yake. (Never say the word was wrong, never say it is unknown, never ask whether they meant a similar word, and never repeat their words back as your answer.)\n" +
+  "- Neno la kwanza kwenye orodha ya maneno yanayokaribia ndilo linalokaribia zaidi; ndilo neno alilomaanisha, hata kama mengine yanafanana nalo — jibu kutoka maana ya lile la kwanza, bila kuuliza.\n" +
+  "- Swali au ombi lisipoeleweka, jibu ulichoelewa kwa maneno yako mwenyewe: usirudie maneno yake kama jibu, wala usiulize uthibitisho.\n";
 
 const FALLBACK =
   "\nKama swali halipo kwenye maarifa haya, jibu kwa ufahamu wako wa kawaida, lakini sema wazi katika jibu hilo kwamba jibu hilo halitoki kwenye maarifa ya admin.\n";
@@ -56,7 +56,7 @@ const HEADS = {
     "Tumia maneno haya na maana yake unapojibu. Neno lenye (maana haijaelezwa bado) halijaelezwa bado — litaje tu, usibuni maana yake.\n",
   like:
     "\nMANENO YANAYOKARIBIA ULILOSIKIA (words close to what was heard):\n" +
-    "Neno la kwanza ndilo linalokaribia zaidi. Likiingia kwenye mazungumzo, chukulia kuwa ni neno hilo mtu alimaanisha na jibu kutoka maana yake — usimwambie mtu amekosea. Kama hakuna linaloingia, puuza orodha hii.\n",
+    "Neno la kwanza ndilo linalokaribia zaidi — ndilo neno alilomaanisha. Jibu moja kwa moja kutoka maana yake: usimwambie mtu amekosea, usiulize kama alimaanisha neno lingine, na usirudie maneno yake kama jibu lako. Maneno mengine kwenye orodha ni ya karibu tu — usiyataje kama mbadala, na usiulize kama alimaanisha mojawapo. Puuza orodha hii tu kama neno alilosema halipo kabisa.\n",
 };
 
 // the section that rides with a question is set aside first, so it can never push

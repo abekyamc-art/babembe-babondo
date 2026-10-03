@@ -22,6 +22,7 @@ export default function AccountSheet({
   user,
   remaining,
   ready,
+  wallet,
   onReels,
   onMessages,
   onKnowledge,
@@ -59,7 +60,7 @@ export default function AccountSheet({
         </div>
 
         <div className="account-panel">
-          <AccountProfile user={user} onGetCoins={onGetCoins} />
+          <AccountProfile user={user} wallet={wallet} onGetCoins={onGetCoins} />
 
           <div className="account-actions">
             {signedIn ? (

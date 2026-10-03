@@ -28,6 +28,7 @@ import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
 import UsagePill from "@/components/voice/UsagePill";
+import CoinPill from "@/components/voice/CoinPill";
 import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountSheet from "@/components/voice/AccountSheet";
@@ -69,6 +70,18 @@ export default function VoiceAssistant() {
   const { remaining, nextReturnAt } = creditsFrom(stamps, limit, clock);
   const used = limit - remaining;
 
+  // the wallet is the one place the balance lives: it is read again whenever the
+  // screen comes back to the front, so the chip can never show a number the wallet
+  // has already moved past
+  const refreshWallet = useCallback(async () => {
+    if (!user) return;
+    try {
+      setProfile(await ensureProfile(user));
+    } catch (err) {
+      // the chip keeps the balance it last read
+    }
+  }, [user]);
+
   useEffect(() => {
     let alive = true;
     (async () => {
@@ -109,14 +122,17 @@ export default function VoiceAssistant() {
     const sync = () => setClock(Date.now());
     const id = setInterval(sync, 30000);
     const onVisible = () => {
-      if (document.visibilityState === "visible") sync();
+      if (document.visibilityState !== "visible") return;
+      sync();
+      // the wallet may have moved while the app was away, so its number is read again
+      refreshWallet();
     };
     document.addEventListener("visibilitychange", onVisible);
     return () => {
       clearInterval(id);
       document.removeEventListener("visibilitychange", onVisible);
     };
-  }, [ready]);
+  }, [ready, refreshWallet]);
 
   // once the last allowed turn is used, prompt when the answer has finished
   useEffect(() => {
@@ -130,16 +146,25 @@ export default function VoiceAssistant() {
     return () => clearTimeout(timer);
   }, [turns, speaking, micActive, status, user]);
 
+  // while the wallet holds coins, the messages come out of it — the free daily
+  // records are left alone until every coin is gone
+  const canPay = useCallback(
+    () => !!user && (balanceOf(profile) > 0 || owedRef.current > 0),
+    [user, profile]
+  );
+
   // a message is only spent once the assistant has actually answered
   const consume = useCallback(async () => {
     const now = Date.now();
     let next;
     try {
-      if (user) {
+      if (!user) {
+        next = addGuestStamp();
+      } else if (canPay()) {
+        next = liveStamps(stamps, now);
+      } else {
         const stamp = await spendCredit(user.email);
         next = [...liveStamps(stamps, now), stamp];
-      } else {
-        next = addGuestStamp();
       }
     } catch (err) {
       next = [...liveStamps(stamps, now), now];
@@ -147,28 +172,44 @@ export default function VoiceAssistant() {
     setStamps(next);
     setClock(now);
     return next.length;
-  }, [user, stamps]);
+  }, [user, stamps, canPay]);
 
-  // the coin leaves the wallet only once the fourth of the messages it bought is answered
+  // the wallet pays first: one coin covers four messages and leaves only once the
+  // fourth of them has been answered. While any coin is left, the free daily messages
+  // are never touched.
   const settle = useCallback(async () => {
-    if (owedRef.current <= 0) return;
+    if (!user) return;
+    // no block open: a coin opens one, as long as the wallet holds any
+    if (owedRef.current <= 0) {
+      if (balanceOf(profile) <= 0) return;
+      owedRef.current = MESSAGES_PER_COIN;
+    }
     const left = owedRef.current - 1;
     owedRef.current = left;
-    writeOwedMessages(user?.email, left);
+    writeOwedMessages(user.email, left);
     if (left > 0) return;
     try {
       const spent = await spendCoins(await ensureProfile(user), MESSAGE_COST);
-      if (spent) setProfile(spent);
+      if (!spent) return;
+      setProfile(spent);
+      // the wallet still holds coins, so the next four messages are already bought
+      if (balanceOf(spent) > 0) {
+        owedRef.current = MESSAGES_PER_COIN;
+        writeOwedMessages(user.email, MESSAGES_PER_COIN);
+      }
     } catch (err) {
       // the four messages stay given rather than the answer being lost
     }
-  }, [user]);
+  }, [user, profile]);
 
   const spend = useCallback(async () => {
     const live = await consume();
-    if (live >= limit) pendingGate.current = true;
+    // only a person with no coins left and no daily messages left is asked for more
+    if (live >= limit && !(user && (balanceOf(profile) > 0 || owedRef.current > 0))) {
+      pendingGate.current = true;
+    }
     await settle();
-  }, [consume, limit, settle]);
+  }, [consume, limit, settle, user, profile]);
 
   const openGate = useCallback(() => {
     setGate(user ? "daily" : "signin");
@@ -180,7 +221,7 @@ export default function VoiceAssistant() {
       await stop();
       return;
     }
-    if (remaining <= 0) {
+    if (remaining <= 0 && !canPay()) {
       openGate();
       return;
     }
@@ -191,7 +232,7 @@ export default function VoiceAssistant() {
 
   const handleSend = async (text) => {
     if (!ready) return;
-    if (remaining <= 0) {
+    if (remaining <= 0 && !canPay()) {
       openGate();
       return;
     }
@@ -214,6 +255,9 @@ export default function VoiceAssistant() {
     setAccountOpen(false);
     navigate("/markets");
   };
+
+  // the header chip opens the wallet straight away
+  const handleCoins = () => navigate("/markets");
 
   const handleMessages = () => {
     setAccountOpen(false);
@@ -298,6 +342,9 @@ export default function VoiceAssistant() {
             nowMs={clock}
             onClick={handleAccount}
           />
+          {user && profile ? (
+            <CoinPill coins={balanceOf(profile)} onClick={handleCoins} />
+          ) : null}
           <AccountIcon label="Account" onClick={handleAccount} size="lg" />
         </div>
       </header>
@@ -389,6 +436,7 @@ export default function VoiceAssistant() {
         user={user}
         remaining={remaining}
         ready={ready}
+        wallet={profile}
         onSignIn={handleGoogle}
         onReels={handleReels}
         onMessages={handleMessages}

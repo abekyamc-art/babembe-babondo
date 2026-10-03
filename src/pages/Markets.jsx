@@ -8,6 +8,7 @@ import {
   GIFTS,
   MESSAGE_COST,
   MESSAGES_PER_COIN,
+  WELCOME_COINS,
   balanceOf,
 } from "@/lib/coins";
 import { ensureProfile } from "@/lib/social";
@@ -117,7 +118,8 @@ export default function Markets() {
       </ul>
 
       <p className="mt-4 text-[12px] leading-relaxed text-muted-foreground">
-        Every account starts with 30 welcome coins.
+        Every account starts with {WELCOME_COINS} welcome coins, and they are used on
+        messages before your free daily ones.
       </p>
     </div>
   );

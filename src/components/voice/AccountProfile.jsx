@@ -17,7 +17,7 @@ function PersonIcon() {
   );
 }
 
-export default function AccountProfile({ user, onGetCoins }) {
+export default function AccountProfile({ user, wallet, onGetCoins }) {
   const fileRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [username, setUsername] = useState("");
@@ -133,7 +133,8 @@ export default function AccountProfile({ user, onGetCoins }) {
           <Coins className="h-4 w-4" />
           Coins
         </span>
-        <span className="account-coins">{balanceOf(profile)} coins</span>
+        {/* the home screen's live balance wins, so this row and the header chip always agree */}
+        <span className="account-coins">{balanceOf(wallet || profile)} coins</span>
       </button>
     </>
   );

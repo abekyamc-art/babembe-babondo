@@ -1,6 +1,6 @@
 import { base44 } from "@/api/base44Client";
 
-export const WELCOME_COINS = 30;
+export const WELCOME_COINS = 5;
 export const BOOST_COST = 10;
 export const BOOST_HOURS = 24;
 export const MESSAGE_COST = 1;

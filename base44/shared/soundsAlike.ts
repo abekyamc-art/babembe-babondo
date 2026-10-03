@@ -137,6 +137,10 @@ export function alikeTerms(heard: string, rows: any[], limit = 3) {
         heard: best.heard,
         tier: best.tier,
         edits: best.edits,
+        // how far apart the two spellings are for their length, and how much of what
+        // was said this entry accounts for
+        ratio: best.edits / Math.max(tight(term).length, tight(best.heard).length, 1),
+        span: tight(best.heard).length,
       });
     }
   }
@@ -165,11 +169,23 @@ export function alikeTerms(heard: string, rows: any[], limit = 3) {
           heard: best.heard,
           tier: 3,
           edits: best.edits,
+          ratio: best.edits / Math.max(word.length, tight(best.heard).length, 1),
+          span: tight(best.heard).length,
         });
       }
     }
   }
 
-  found.sort((a, b) => a.tier - b.tier || a.edits - b.edits || a.term.length - b.term.length);
+  // nearest first: the same word, then the closest spelling for its length, and
+  // between two equally close entries the one that accounts for more of what was
+  // said — so a saved two-word greeting beats a single word that merely sounds like it
+  found.sort(
+    (a, b) =>
+      a.tier - b.tier ||
+      a.ratio - b.ratio ||
+      b.span - a.span ||
+      a.edits - b.edits ||
+      a.term.length - b.term.length
+  );
   return found.slice(0, limit);
 }
