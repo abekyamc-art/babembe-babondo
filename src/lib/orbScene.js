@@ -2,9 +2,9 @@
  * The scene inside the voice orb.
  *
  * Before the assistant is on air the backdrop clip fills the orb on its own.
- * The moment his first frame lands the orb splits into two even bubbles sitting
- * close together at one head height: the clip keeps the left bubble and his
- * keyed face takes the right, green studio screen removed. Nothing outside the
+ * The moment his first frame lands the orb splits into two bubbles sitting close
+ * together at one head height: the clip keeps the left bubble and his keyed face
+ * takes the larger right one, green studio screen removed. Nothing outside the
  * orb is touched.
  */
 export const ORB_BACKDROP_URL =
@@ -13,8 +13,9 @@ export const ORB_BACKDROP_URL =
 // green studio screen: hue window, minimum saturation, and the green-dominance test
 const KEY = { minHue: 60, maxHue: 180, minSaturation: 0.1, threshold: 1 };
 
-// the two bubbles, as a share of the orb so the canvas size may change freely
-const PANE = { size: 0.452, gap: 0.105, radius: 0.242 };
+// the two bubbles, as a share of the orb so the canvas size may change freely:
+// his face a little larger than the clip, a small gap, both at one head height
+const PANE = { clip: 0.4, face: 0.4524, gap: 0.0429, radius: 0.242 };
 const WASH = "rgba(9, 14, 28, 0.62)";
 const RIM = "rgba(255, 255, 255, 0.18)";
 
@@ -74,17 +75,23 @@ function stripGreen(data) {
   }
 }
 
-/** The two bubbles: even size, a small gap between them, one head height. */
+/** The two bubbles: his face a little larger, a small gap, both at one head height. */
 function paneGeometry(w, h) {
-  const size = Math.min(w, h) * PANE.size;
-  const gap = size * PANE.gap;
+  const unit = Math.min(w, h);
+  const clip = unit * PANE.clip;
+  const face = unit * PANE.face;
+  const gap = unit * PANE.gap;
+  const left = w / 2 - (clip + gap + face) / 2;
   const cy = h / 2;
-  return {
+  const box = (size, cx) => ({
+    x: cx - size / 2,
+    y: cy - size / 2,
     size,
     radius: size * PANE.radius,
-    cy,
-    cx1: w / 2 - (size + gap) / 2,
-    cx2: w / 2 + (size + gap) / 2,
+  });
+  return {
+    clip: box(clip, left + clip / 2),
+    face: box(face, left + clip + gap + face / 2),
   };
 }
 
@@ -129,26 +136,24 @@ export function startOrbScene({ avatarEl, backdropEl, canvas }) {
       return;
     }
 
-    const { size, radius, cy, cx1, cx2 } = paneGeometry(w, h);
-    const left = { x: cx1 - size / 2, y: cy - size / 2 };
-    const right = { x: cx2 - size / 2, y: cy - size / 2 };
+    const { clip: mine, face: his } = paneGeometry(w, h);
 
     ctx.fillStyle = WASH;
     ctx.fillRect(0, 0, w, h);
 
     if (hasBg) {
       ctx.save();
-      roundRect(ctx, left.x, left.y, size, size, radius);
+      roundRect(ctx, mine.x, mine.y, mine.size, mine.size, mine.radius);
       ctx.clip();
-      fillPane(ctx, bg, left.x, left.y, size);
+      fillPane(ctx, bg, mine.x, mine.y, mine.size);
       ctx.restore();
     }
 
     keyCtx.clearRect(0, 0, w, h);
     keyCtx.save();
-    roundRect(keyCtx, right.x, right.y, size, size, radius);
+    roundRect(keyCtx, his.x, his.y, his.size, his.size, his.radius);
     keyCtx.clip();
-    fillPane(keyCtx, face, right.x, right.y, size);
+    fillPane(keyCtx, face, his.x, his.y, his.size);
     keyCtx.restore();
 
     const frame = keyCtx.getImageData(0, 0, w, h);
@@ -161,8 +166,15 @@ export function startOrbScene({ avatarEl, backdropEl, canvas }) {
     const inset = 0.8;
     ctx.strokeStyle = RIM;
     ctx.lineWidth = 1.5;
-    [left, right].forEach((pane) => {
-      roundRect(ctx, pane.x + inset, pane.y + inset, size - inset * 2, size - inset * 2, radius);
+    [mine, his].forEach((pane) => {
+      roundRect(
+        ctx,
+        pane.x + inset,
+        pane.y + inset,
+        pane.size - inset * 2,
+        pane.size - inset * 2,
+        pane.radius
+      );
       ctx.stroke();
     });
   };
