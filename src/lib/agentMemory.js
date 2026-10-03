@@ -26,7 +26,7 @@ export function buildMemory(lines) {
     "Kumbuka: umekwisha jitambulisha katika mazungumzo haya, hivyo usijitambulishe tena. " +
     `Pia umekwisha sema maneno haya: ${quoted}. ` +
     "Usirudie maneno hayo wala jambo lile lile ulilokwisha lisema — sema jambo jipya tu. " +
-    "Fuata mpangilio wa lugha: Ebembe kwanza, kisha ufafanuzi mfupi kwa Kiswahili; Kiingereza kidogo tu ikiwa mtu amekwisha kusema Kiingereza."
+    "Fuata lugha aliyotumia mtu, kuanzia neno lako la kwanza: Kiswahili akisema, jibu kwa Kiswahili, neno la Ebembe linalofaa likiwa ndani ya sentensi; Ebembe akisema, neno la Ebembe kwanza kisha ufafanuzi mfupi kwa Kiswahili; Kiingereza kidogo tu ikiwa mtu amekwisha kusema Kiingereza. Usimwombe arudie."
   );
 }
 

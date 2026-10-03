@@ -3,9 +3,9 @@ import { isRepeatIntro } from "@/lib/agentMemory";
 import { contextBlocks } from "@/lib/contextBlocks";
 
 const IN_RATE = 16000;
-// his first words after the person's turn wait this long, so the words he was just
-// handed have a moment to land before he answers
-const BEAT_MS = 2000;
+// his first words after the person's turn wait only this long, so his answer begins
+// as soon as the words he was just handed have landed
+const BEAT_MS = 500;
 const OPEN_QUIET_MS = 10000;
 // once his answer has finished, this much quiet ends the call, so the person can
 // start it again whenever they are ready

@@ -4,6 +4,7 @@ import AvatarCall from "@/lib/avatarCall";
 import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
 import { loadFreshMaterial, loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
+import { emptyStory, nextStory, withStory } from "@/lib/storyState";
 
 // the knowledge note travels in blocks and needs a beat to settle before the
 // question is put to him, so he reads it before he answers; the wait is shown as
@@ -34,6 +35,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
   // the last turn the person took that no answer followed: the next call opens by
   // answering it
   const pendingRef = useRef("");
+  // the story being told in parts, so a call that opens later continues it instead
+  // of starting it over
+  const storyRef = useRef(emptyStory());
 
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
@@ -67,6 +71,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
     if (role === "user") pendingRef.current = text;
     if (role === "agent") pendingRef.current = "";
     if (role === "agent" && text) linesRef.current = [...linesRef.current, text];
+    storyRef.current = nextStory(storyRef.current, role, text);
     setTurns((prev) => {
       const last = prev[prev.length - 1];
       if (last && last.role === role) {
@@ -217,7 +222,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // a session opened after he has spoken is a continuation of the same talk
       const said = linesRef.current;
       const laterTurn = said.length > 0;
-      const memory = buildMemory(said);
+      const memory = withStory(buildMemory(said), storyRef.current);
       // a request for a story, news, a word or a fact is looked up online before the
       // session opens, so the material is already in hand when he answers it, and a
       // fresh session starts with no lookup behind it
