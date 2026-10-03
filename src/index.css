@@ -108,17 +108,30 @@
       radial-gradient(55% 38% at 8% 106%, hsl(var(--accent) / 0.08), transparent 72%);
   }
 
+  /* The shell is the orb's whole footprint: the face plus the room its halo and ring need.
+     It is measured from the height left between the header and the conversation band, so on a
+     short screen the orb shrinks instead of being squeezed up under the title. The clip on the
+     shell guarantees nothing it draws can ever reach the text above or below. */
   .orb-shell {
+    --orb-size: clamp(
+      150px,
+      calc(100dvh - 384px - env(safe-area-inset-top, 0px) - env(safe-area-inset-bottom, 0px)),
+      min(84vmin, 420px)
+    );
     position: relative;
     display: grid;
     place-items: center;
-    width: min(56vmin, 282px);
-    height: min(56vmin, 282px);
+    width: min(70vmin, 340px);
+    height: min(70vmin, 340px);
+    width: var(--orb-size);
+    height: var(--orb-size);
+    border-radius: 9999px;
+    overflow: hidden;
   }
 
   .orb-halo {
     position: absolute;
-    inset: -44%;
+    inset: -14%;
     border-radius: 9999px;
     background: radial-gradient(
       circle,
@@ -131,7 +144,7 @@
 
   .orb-ring {
     position: absolute;
-    inset: -13%;
+    inset: 8%;
     border-radius: 9999px;
     border: 1px solid hsl(215 80% 55% / 0.28);
     will-change: transform, opacity;
@@ -145,8 +158,8 @@
 
   .orb-face {
     position: relative;
-    width: 100%;
-    height: 100%;
+    width: 68%;
+    height: 68%;
     border-radius: 9999px;
     overflow: hidden;
     background: radial-gradient(
@@ -159,7 +172,7 @@
       #141f5c 100%
     );
     box-shadow:
-      0 24px 60px -18px rgba(43, 92, 214, 0.45),
+      0 14px 30px -14px rgba(43, 92, 214, 0.42),
       0 2px 10px rgba(20, 31, 92, 0.16);
     will-change: transform;
   }

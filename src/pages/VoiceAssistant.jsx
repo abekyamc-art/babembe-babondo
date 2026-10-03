@@ -240,7 +240,7 @@ export default function VoiceAssistant() {
             type="button"
             onClick={handleCall}
             aria-label={micActive ? "End the call" : "Start a voice call"}
-            className="rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
+            className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
           >
             <OrbVisualizer levelRef={levelRef} status={status} speaking={speaking} />
           </button>
