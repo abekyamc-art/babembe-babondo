@@ -6,8 +6,10 @@
  * window has run out. What comes back is the turn alone, or nothing when the wait passed
  * without a word.
  */
-// the loudness that counts as someone speaking, against the mic meter the orb already uses
-const SPEECH_LEVEL = 0.06;
+// the loudness that counts as someone speaking, against the mic meter the orb already uses.
+// It is the same soft gate the outside agent listens with, so a voice at arm's length — and
+// not only a voice close to the phone — opens a turn.
+const SPEECH_LEVEL = 0.03;
 // quiet after speech that closes the turn, and the longest one turn may run
 const QUIET_MS = 1500;
 const MAX_TURN_MS = 15000;

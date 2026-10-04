@@ -18,7 +18,23 @@ const MAX_MEMORY = 12000;
 const MAX_HISTORY = 6;
 const MAX_LINE = 240;
 
+// The capture is lifted the way the outside agent lifts it, so ordinary speech at arm's
+// length reaches the hearing service as loud as speech held close to the phone. tanh rounds
+// off the loudest peaks instead of letting them clip.
+const MIC_GAIN = 2.5;
+const SHAPER_POINTS = 1024;
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+
+/** The lifting curve: every sample raised, the peaks rounded off rather than clipped. */
+function liftCurve() {
+  const curve = new Float32Array(SHAPER_POINTS);
+  for (let i = 0; i < SHAPER_POINTS; i += 1) {
+    const x = (i / (SHAPER_POINTS - 1)) * 2 - 1;
+    curve[i] = Math.tanh(x * MIC_GAIN);
+  }
+  return curve;
+}
 
 export default class Base44Call {
   constructor(handlers = {}) {
@@ -33,6 +49,9 @@ export default class Base44Call {
     this.memory = "";
     this.log = [];
     this.stream = null;
+    // the lifted capture the recording reads, and the nodes that make it
+    this.capture = null;
+    this.liftNodes = [];
     this.ctx = null;
     this.analyser = null;
     this.levelBuf = null;
@@ -56,7 +75,7 @@ export default class Base44Call {
     return true;
   }
 
-  /** The microphone, and the meter the orb pulses with while the person talks. */
+  /** The microphone, lifted for the recording, and the meter the orb pulses with. */
   async openMic() {
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
@@ -66,11 +85,34 @@ export default class Base44Call {
       this.analyser = this.ctx.createAnalyser();
       this.analyser.fftSize = 1024;
       this.levelBuf = new Uint8Array(this.analyser.fftSize);
+      // the meter reads the microphone as it stands, so the orb keeps its own quiet pulse
       this.tap = this.ctx.createMediaStreamSource(this.stream);
       this.tap.connect(this.analyser);
+      // the recording reads the lifted capture, so a turn said at arm's length arrives
+      // loud enough for the hearing service to make words of it
+      this.capture = this.lift(this.stream);
       if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
     } catch (err) {
-      // the orb falls back to its resting pulse
+      // the orb falls back to its resting pulse, and the plain microphone is recorded
+    }
+  }
+
+  /** The microphone through a gain that lifts it; the plain stream when one cannot be built. */
+  lift(stream) {
+    try {
+      const source = this.ctx.createMediaStreamSource(stream);
+      const gain = this.ctx.createGain();
+      gain.gain.value = MIC_GAIN;
+      const shaper = this.ctx.createWaveShaper();
+      shaper.curve = liftCurve();
+      const sink = this.ctx.createMediaStreamDestination();
+      source.connect(gain);
+      gain.connect(shaper);
+      shaper.connect(sink);
+      this.liftNodes = [source, gain, shaper, sink];
+      return sink.stream;
+    } catch (err) {
+      return null;
     }
   }
 
@@ -93,7 +135,7 @@ export default class Base44Call {
       if (!this.connected || this.stopped) return;
 
       const heard = await recordTurn({
-        stream: this.stream,
+        stream: this.capture || this.stream,
         level: () => this.level(),
         openMs: this.answers ? CLOSE_QUIET_MS : OPEN_QUIET_MS,
       }).catch(() => ({ blob: null, broken: true }));
@@ -122,6 +164,12 @@ export default class Base44Call {
         history: this.history(),
       });
       const data = res?.data || {};
+      // a turn nothing was made of: he asks again, quietly, and the call listens on — no
+      // words are put on screen as the person's own, and nothing is charged for it
+      if (data.reask) {
+        this.h.onReask?.(data.reask);
+        return true;
+      }
       if (!data.answer) throw new Error(data.error || "Jibu halikukamilika. Jaribu tena.");
 
       if (data.transcript) {
@@ -292,6 +340,15 @@ export default class Base44Call {
       this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
+    this.liftNodes.forEach((node) => {
+      try {
+        node.disconnect();
+      } catch (err) {
+        // the node had already let go
+      }
+    });
+    this.liftNodes = [];
+    this.capture = null;
     try {
       this.ctx?.close();
     } catch (err) {

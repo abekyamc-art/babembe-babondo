@@ -163,6 +163,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onAgentAnswered: () => answeredRef.current?.(),
       // a call answered by the app's own AI says plainly when an answer did not come
       onError: (message) => setError(message),
+      // a turn he could make nothing of is asked again in the status line, and the call
+      // keeps listening instead of closing
+      onReask: (message) => setNotice(message),
       onAutoEnd: ({ reason }) => {
         // a written exchange is already answered on screen, so it ends without a note
         if (quietRef.current) return;
