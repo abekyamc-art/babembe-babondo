@@ -88,15 +88,13 @@ export default function Rap() {
         </button>
       ) : null}
 
-      {!studio.ideas.length && !lines.length ? (
-        <p className="rap-hint">
-          Chagua mipangilio, kisha omba mawazo — Base44 AI hupanga maneno kwa lugha uliyochagua
-          kwanza, kisha hutoa mawazo matatu ya rap; chagua moja, mistari yake ichukuliwe na
-          ElevenLabs.
-        </p>
-      ) : null}
-
-      <RapPlan plan={studio.plan} />
+      <RapPlan
+        plan={studio.plan}
+        busy={busy}
+        ready={ready}
+        blocked={usesStore(settings.language) && !studio.words?.length}
+        onGenerate={studio.planIdeas}
+      />
 
       {studio.ideas.length ? (
         <RapIdeas
@@ -106,15 +104,6 @@ export default function Rap() {
           onPick={studio.writeIdea}
         />
       ) : null}
-
-      <button
-        type="button"
-        className="rap-cta rap-cta-ghost"
-        onClick={studio.planIdeas}
-        disabled={!!busy || !ready || (usesStore(settings.language) && !studio.words?.length)}
-      >
-        {studio.ideas.length ? "Tunga mawazo mapya" : "Tunga mawazo"}
-      </button>
 
       {lines.length ? (
         <RapLyrics

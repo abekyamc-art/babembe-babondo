@@ -370,6 +370,13 @@
   display: none;
 }
 
+/* the plan panel's own header: its count, then the one control that plans the words */
+.rap-plan-tools {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
 /* the words Base44 AI planned for this rap, above the angles it offers */
 .rap-plan-words {
   display: flex;

@@ -4,10 +4,6 @@ import React from "react";
 export default function RapIdeas({ ideas, picked, busy, onPick }) {
   return (
     <section className="rap-card">
-      <div className="rap-card-head">
-        <span className="rap-label">Chagua wazo</span>
-        <span className="rap-hint">{ideas.length} mawazo</span>
-      </div>
       <div className="rap-ideas">
         {ideas.map((idea, index) => (
           <button
