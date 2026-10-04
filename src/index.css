@@ -147,6 +147,10 @@
     --accent: 32 88% 42%;
   }
 
+  .mode-sadiki {
+    --accent: 152 64% 34%;
+  }
+
   .dark .mode-agent {
     --accent: 190 74% 52%;
   }
@@ -157,6 +161,10 @@
 
   .dark .mode-mbondo {
     --accent: 36 92% 58%;
+  }
+
+  .dark .mode-sadiki {
+    --accent: 152 62% 50%;
   }
 
   /* the home screen's own line naming who answers */

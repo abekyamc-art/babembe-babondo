@@ -336,14 +336,17 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // The admin's own switch decides who answers, and each mode with an account of its own
       // answers on that account and nowhere else: Base44 mode's spoken voice on the admin's
       // second, separate account — its own key and its own agent, so Base44 is left to text and
-      // chat alone — and Mbondo on his own third account, for everything he is asked, written or
-      // spoken. Every other call keeps the original outside voice's standing account.
+      // chat alone — and Mbondo on his own third account, and Sadiki on his own fourth, each for
+      // everything they are asked, written or spoken. Every other call keeps the original outside
+      // voice's standing account.
       const account =
         openingMode === "base44" && withMic
           ? "second"
           : openingMode === "mbondo"
             ? "third"
-            : "";
+            : openingMode === "sadiki"
+              ? "fourth"
+              : "";
       const ownVoice = account !== "";
       if (openingMode === "base44" && !ownVoice) {
         const call = new Base44Call(handlers);
@@ -371,8 +374,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // when the owner's face is in place the call runs through it, with the same
       // ElevenLabs agent answering behind it. Typing is answered in writing, so it
       // never opens the face or the speaker — and neither does a call answered on an
-      // account of its own: the face belongs to the original outside voice, so Base44
-      // mode's spoken call and every Mbondo call run without it
+      // account of its own: the face belongs to the original outside voice, so every call
+      // answered on another account runs without it
       if (!silent && !ownVoice && faceReadyRef.current && videoRef?.current) {
         const call = new AvatarCall(handlers);
         call.mode = openingMode;
@@ -413,7 +416,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
           laterTurn,
           resuming,
           // the account this mode answers on: the second for Base44's spoken call, the third
-          // for Mbondo, and the standing one otherwise
+          // for Mbondo, the fourth for Sadiki, and the standing one otherwise
           account,
         });
         if (opening) {

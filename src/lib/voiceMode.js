@@ -3,17 +3,18 @@ import { base44 } from "@/api/base44Client";
 
 /**
  * Who answers in this app, as one app-level setting: the original outside voice, the second
- * outside voice that speaks for Base44 mode, or Mbondo AI. Only the admin writes it, every
- * session reads it, and the choice is held here between calls so a call that opens reads the
- * mode the admin last set.
+ * outside voice that speaks for Base44 mode, Mbondo AI, or Sadiki AI. Only the admin writes it,
+ * every session reads it, and the choice is held here between calls so a call that opens reads
+ * the mode the admin last set.
  */
 const KEY = "voice";
 const AGENT = "agent";
 const BASE44 = "base44";
 const MBONDO = "mbondo";
+const SADIKI = "sadiki";
 
 /** Every mode the switch can hold, in the order one tap moves through them. */
-export const VOICE_MODES = [AGENT, BASE44, MBONDO];
+export const VOICE_MODES = [AGENT, BASE44, MBONDO, SADIKI];
 
 let current = AGENT;
 const listeners = new Set();

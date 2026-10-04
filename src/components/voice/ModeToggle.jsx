@@ -4,9 +4,10 @@ import { nextVoiceMode, saveVoiceMode, useVoiceMode } from "@/lib/voiceMode";
 import { providerName } from "@/lib/providerNames";
 
 /**
- * The admin's own switch: who answers — the original outside voice, Mbembe's, or Mbondo's. One
- * pill holds all three, each tap moves to the next provider, and the whole screen follows the
- * choice. The pill is named for whoever answers now, so the mode on screen is never in doubt.
+ * The admin's own switch: who answers — the original outside voice, Mbembe's, Mbondo's, or
+ * Sadiki's. One pill holds all four, each tap moves to the next provider, and the whole screen
+ * follows the choice. The pill is named for whoever answers now, so the mode on screen is never
+ * in doubt.
  */
 export default function ModeToggle() {
   const mode = useVoiceMode();

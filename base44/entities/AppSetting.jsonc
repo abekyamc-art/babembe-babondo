@@ -11,10 +11,11 @@
       "enum": [
         "agent",
         "base44",
-        "mbondo"
+        "mbondo",
+        "sadiki"
       ],
       "default": "agent",
-      "description": "Who answers in the app: the original outside voice, the second outside voice that speaks for Base44 mode, or Mbondo AI, who answers both written and spoken questions himself."
+      "description": "Who answers in the app: the original outside voice, the second outside voice that speaks for Base44 mode, Mbondo AI, or Sadiki AI. The last two answer both written and spoken questions themselves."
     }
   },
   "required": [

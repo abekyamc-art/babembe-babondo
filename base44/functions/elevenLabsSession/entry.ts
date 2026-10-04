@@ -7,9 +7,9 @@ const unavailable = "The voice call couldn't start. Please try again in a moment
 
 // The accounts a call can open on. Each one keeps its own key and its own agent, and a call opens
 // on the account it asked for and nowhere else: the standing account for the original outside
-// voice, the second one for Base44 mode's spoken voice, and Mbondo's own for everything he
-// answers, written or spoken. Nothing here ever falls back from one account to another, so
-// whatever is missing is said plainly instead of being answered by someone else.
+// voice, the second one for Base44 mode's spoken voice, and Mbondo's own and Sadiki's own for
+// everything they answer, written or spoken. Nothing here ever falls back from one account to
+// another, so whatever is missing is said plainly instead of being answered by someone else.
 const ACCOUNTS = [
   { id: "", name: "", key: "ELEVENLABS_API_KEY", agent: "ELEVENLABS_AGENT_ID" },
   {
@@ -23,6 +23,12 @@ const ACCOUNTS = [
     name: "Mbondo AI",
     key: "ELEVENLABS_ACCOUNT3_API_KEY",
     agent: "ELEVENLABS_ACCOUNT3_AGENT_ID",
+  },
+  {
+    id: "fourth",
+    name: "Sadiki AI",
+    key: "ELEVENLABS_ACCOUNT4_API_KEY",
+    agent: "ELEVENLABS_ACCOUNT4_AGENT_ID",
   },
 ];
 

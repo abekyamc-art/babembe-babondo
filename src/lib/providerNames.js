@@ -1,15 +1,21 @@
 /**
  * The voices the app answers with, exactly as they are named on screen: the original account
  * standing behind the outside agent, the second, separate account that speaks for Base44 mode,
- * and Mbondo's own. Every screen that names a voice — and every screen whose colour follows it —
- * reads from here, so a provider is always called and coloured the same thing.
+ * Mbondo's own, and Sadiki's own. Every screen that names a voice — and every screen whose colour
+ * follows it — reads from here, so a provider is always called and coloured the same thing.
  */
 export const GLOIRE_AI = "GLOIRE AI";
 export const MBEMBE_AI = "Mbembe AI";
 export const MBONDO_AI = "Mbondo AI";
+export const SADIKI_AI = "Sadiki AI";
 
-const NAMES = { agent: GLOIRE_AI, base44: MBEMBE_AI, mbondo: MBONDO_AI };
-const CLASSES = { agent: "mode-agent", base44: "mode-base44", mbondo: "mode-mbondo" };
+const NAMES = { agent: GLOIRE_AI, base44: MBEMBE_AI, mbondo: MBONDO_AI, sadiki: SADIKI_AI };
+const CLASSES = {
+  agent: "mode-agent",
+  base44: "mode-base44",
+  mbondo: "mode-mbondo",
+  sadiki: "mode-sadiki",
+};
 
 /** What the provider behind a mode is called on screen. */
 export function providerName(mode) {
