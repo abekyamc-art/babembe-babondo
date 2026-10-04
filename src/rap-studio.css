@@ -376,3 +376,66 @@
   flex-direction: column;
   gap: 8px;
 }
+
+/* the steps one run goes through, and the clock they are read against */
+.rap-clock {
+  color: #c3cde2;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+.rap-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rap-step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #7183a8;
+  font-size: 12.5px;
+  font-weight: 600;
+}
+
+.rap-step-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.rap-step-mark svg {
+  width: 15px;
+  height: 15px;
+}
+
+.rap-step.is-running {
+  color: #f5f6ff;
+}
+
+.rap-step.is-running .rap-step-mark {
+  color: #8ebaff;
+}
+
+.rap-step.is-done {
+  color: #9ba9c6;
+}
+
+.rap-step.is-done .rap-step-mark {
+  color: #6ee7c8;
+}
+
+.rap-step.is-failed {
+  color: #ffb6bd;
+}
+
+.rap-step.is-failed .rap-step-mark {
+  color: #ffb6bd;
+}

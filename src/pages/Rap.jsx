@@ -5,6 +5,7 @@ import useRapStudio from "@/hooks/useRapStudio";
 import TypingDots from "@/components/voice/TypingDots";
 import RapControls from "@/components/rap/RapControls";
 import RapGenerate from "@/components/rap/RapGenerate";
+import RapSteps from "@/components/rap/RapSteps";
 import RapLyrics from "@/components/rap/RapLyrics";
 import RapPlayer from "@/components/rap/RapPlayer";
 import RapDownloads from "@/components/rap/RapDownloads";
@@ -30,6 +31,8 @@ export default function Rap() {
   const studio = useRapStudio();
   const { settings, lines, take, busy, error, beat } = studio;
   const ready = !!studio.user;
+  // a generation run brings its own steps; every other job keeps the studio's running line
+  const running = studio.steps.some((step) => step.state === "running");
   // the running line names the step the one tap is on: the words, the bars, then the voice
   const busyLabel =
     busy === "voice"
@@ -76,7 +79,7 @@ export default function Rap() {
         onBuild={studio.makeSimilarBeat}
       />
 
-      {busy ? (
+      {busy && !running ? (
         <div className="rap-busy">
           <TypingDots />
           <span>{busyLabel || "Inafanya kazi…"}</span>
@@ -99,6 +102,13 @@ export default function Rap() {
         busy={busy}
         ready={ready}
         onGenerate={studio.generateRap}
+      />
+
+      <RapSteps
+        steps={studio.steps}
+        startedAt={studio.runStartedAt}
+        endedAt={studio.runEndedAt}
+        wordCount={studio.words?.length || 0}
       />
 
       {lines.length ? (

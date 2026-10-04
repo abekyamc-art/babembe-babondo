@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { RAP_COST, balanceOf, creditCoins, spendCoins } from "@/lib/coins";
 import { DEFAULT_LANGUAGE } from "@/lib/rapLanguage";
+import { freshSteps } from "@/lib/rapSteps";
 import { ensureProfile } from "@/lib/social";
 import {
   APP_BEAT_KEY,
@@ -43,6 +44,22 @@ export default function useRapStudio() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [shortOnCoins, setShortOnCoins] = useState(false);
+  // one run's own steps, and the clock they are read against
+  const [steps, setSteps] = useState([]);
+  const [runStartedAt, setRunStartedAt] = useState(0);
+  const [runEndedAt, setRunEndedAt] = useState(0);
+
+  /** What one step of the run is doing right now. */
+  const markStep = useCallback((id, state) => {
+    setSteps((prev) => prev.map((step) => (step.id === id ? { ...step, state } : step)));
+  }, []);
+
+  /** A run begins: every step is laid out, none of them done yet. */
+  const startSteps = useCallback(() => {
+    setSteps(freshSteps());
+    setRunStartedAt(Date.now());
+    setRunEndedAt(0);
+  }, []);
 
   useEffect(() => {
     let alive = true;
@@ -273,7 +290,8 @@ export default function useRapStudio() {
   }, []);
 
   const keep = useCallback(
-    async (next, currentLines, usedWords) => {
+    async (next, currentLines, usedWords, onStep) => {
+      onStep?.("keep", "running");
       try {
         const created = await base44.entities.RapTake.create({
           title: titleOf(currentLines, settings.topic),
@@ -290,8 +308,10 @@ export default function useRapStudio() {
         });
         setTake((prev) => (prev ? { ...prev, id: created?.id } : prev));
         setTakes((prev) => [created, ...prev]);
+        onStep?.("keep", "done");
       } catch (err) {
         // the take stays on screen even when keeping it fails
+        onStep?.("keep", "failed");
       }
     },
     [beat, settings, titleOf]
@@ -304,7 +324,7 @@ export default function useRapStudio() {
    *  one is no better the coins go back to the wallet and the person is told. Returns whether a
    *  take came through. */
   const takeVoice = useCallback(
-    async (current, usedWords) => {
+    async (current, usedWords, onStep) => {
       if (!user || !current?.length) return false;
       setError("");
       setShortOnCoins(false);
@@ -313,11 +333,13 @@ export default function useRapStudio() {
       setProfile(wallet);
       if (balanceOf(wallet) < RAP_COST) {
         setShortOnCoins(true);
+        onStep?.("voice", "failed");
         setError(`Take moja inagharimu coins ${RAP_COST}, lakini wallet yako haina kiasi hicho.`);
         return false;
       }
 
       setBusy("voice");
+      onStep?.("voice", "running");
       try {
         const spent = await spendCoins(wallet, RAP_COST);
         if (spent) setProfile(spent);
@@ -356,6 +378,7 @@ export default function useRapStudio() {
         if (!data) {
           const back = await creditCoins(user.email, RAP_COST);
           if (back) setProfile(back);
+          onStep?.("voice", "failed");
           setError(
             `Take haikuweza kutengenezwa kwa mara mbili — coins ${RAP_COST} zimerudi kwenye wallet yako. Jaribu tena.`
           );
@@ -381,9 +404,11 @@ export default function useRapStudio() {
           video_url: "",
         };
         setTake(next);
-        await keep(next, current, usedWords);
+        onStep?.("voice", "done");
+        await keep(next, current, usedWords, onStep);
         return true;
       } catch (err) {
+        onStep?.("voice", "failed");
         setError(err?.response?.data?.error || err?.message || "Sauti haikuweza kutengenezwa.");
         return false;
       } finally {
@@ -397,16 +422,18 @@ export default function useRapStudio() {
    *  re-take from the player. */
   const makeVoice = useCallback(async () => {
     if (busy) return;
-    await takeVoice(lines, wordsUsed);
+    await takeVoice(lines, wordsUsed, null);
   }, [busy, lines, takeVoice, wordsUsed]);
 
   /** Base44 AI does the whole thinking in one tap: it plans the words for the theme, settles its
    *  own angle on it, then writes that angle out in full and has the voice at Sauti perform it. */
   const generateRap = useCallback(async () => {
     if (busy || !user) return;
+    startSteps();
     setBusy("plan");
     setError("");
     try {
+      markStep("words", "running");
       const planned = await base44.functions.invoke("rapLyrics", {
         action: "plan",
         language: settings.language,
@@ -418,8 +445,11 @@ export default function useRapStudio() {
       const draft = planned?.data || {};
       const idea = draft.ideas?.[0];
       if (!idea) throw new Error(draft.error || "Mawazo hayakuja. Jaribu tena.");
+      markStep("words", "done");
+      markStep("angle", "done");
 
       setBusy("write");
+      markStep("bars", "running");
       const written = await base44.functions.invoke("rapLyrics", {
         action: "write",
         idea: {
@@ -437,20 +467,44 @@ export default function useRapStudio() {
       const data = written?.data || {};
       if (!data.lines?.length) throw new Error(data.error || "Mistari haikuja. Jaribu tena.");
 
-      const bars = data.lines.map((line) => ({ ...line, locked: false }));
-      const used = data.words_used?.length ? data.words_used : idea.words_used || [];
+      let bars = data.lines.map((line) => ({ ...line, locked: false }));
+      let used = data.words_used?.length ? data.words_used : idea.words_used || [];
+      markStep("bars", "done");
+
+      // every bar is checked against the saved words once more, so nothing the store does not
+      // hold ever reaches the screen; a bar that still carries one is left out
+      markStep("check", "running");
+      try {
+        const checked = await base44.functions.invoke("rapLyrics", {
+          action: "check",
+          lines: bars,
+          flow: settings.flow,
+        });
+        const clean = checked?.data || {};
+        if (!clean.lines?.length) throw new Error(clean.error || "Ukaguzi haukukamilika.");
+        bars = clean.lines.map((line) => ({ ...line, locked: false }));
+        if (clean.words_used?.length) used = clean.words_used;
+        markStep("check", "done");
+      } catch (err) {
+        // the bars that were written are kept and the take carries on
+        markStep("check", "failed");
+      }
+
       setLines(bars);
       setWordsUsed(used);
       setTake(null);
 
       // the same tap carries the take on to its sound: the voice at Sauti performs the bars, and
       // the coins for the take go without a second tap
-      await takeVoice(bars, used);
+      await takeVoice(bars, used, markStep);
     } catch (err) {
+      // the step the run stopped on is the one that failed
+      setSteps((prev) => prev.map((step) => (step.state === "running" ? { ...step, state: "failed" } : step)));
       setError(err?.response?.data?.error || err?.message || "Rap haikuweza kutungwa. Jaribu tena.");
     }
+    setRunEndedAt(Date.now());
     setBusy("");
-  }, [busy, settings, takeVoice, user]);
+  }, [busy, markStep, settings, startSteps, takeVoice, user]);
 
   const downloadAudio = useCallback(() => {
     if (!take?.buffer) return;
@@ -543,6 +597,9 @@ export default function useRapStudio() {
     busy,
     error,
     shortOnCoins,
+    steps,
+    runStartedAt,
+    runEndedAt,
     setBeatFile,
     sendSong,
     makeBeatOnly,

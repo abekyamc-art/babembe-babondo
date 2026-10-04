@@ -1,24 +1,27 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { flowOf, flowStyle } from "../../shared/rapFlows.ts";
 import { LANG_NAME, rapLang, usesStore, type RapLang } from "../../shared/rapLangs.ts";
+import {
+  MAX_MEANING,
+  MAX_TERM,
+  MAX_USAGE,
+  PREFIXES,
+  clean,
+  knownMap,
+  savedWords,
+  tokensOf,
+  unverified,
+} from "../../shared/knowledgeWords.ts";
 
 const UNAVAILABLE = "Mawazo hayakuweza kutengenezwa. Jaribu tena baada ya sekunde chache.";
 const EMPTY_LIST =
   "Hakuna maneno ya Kibembe yaliyohifadhiwa bado. Ongeza maneno kwenye Assistant knowledge kwanza.";
 const MIN_BARS = 4;
-const PAGE = 400;
-const MAX_POOL = 1200;
 // the words handed to the model in one plan: a fresh window of the pool, so the same handful
 // of words stops coming back take after take
-const MAX_WINDOW = 140;
+const MAX_WINDOW = 200;
 const MIN_SPARE = 6;
-const MAX_TERM = 40;
-const MAX_MEANING = 110;
-const MAX_USAGE = 90;
 const MAX_LINES = 80;
-// the plan's own words carry a take, but a plan of only a handful is too thin to rap on, so the
-// whole saved list stands behind the writer instead
-const MIN_CHOSEN = 8;
 const MAX_IDEAS = 3;
 const MAX_PLAN = 40;
 
@@ -82,251 +85,6 @@ const VERIFY_SCHEMA = {
   required: ["keep"],
 };
 
-function clean(value: any, max: number): string {
-  const text = typeof value === "string" ? value.replace(/\s+/g, " ").trim() : "";
-  return text.slice(0, max);
-}
-
-// a rule mark in the term itself — a slash, a semicolon, an equals sign, a spaced dash —
-// belongs to a rule, and a rule is never rapped
-const NOT_A_TERM = /[\/;=]|\s[-–—]\s|\d|[.!?]/;
-// A meaning is a short translation and nothing else. A full stop, a comma, a semicolon, a
-// slash or an equals sign means the line was a note or a list of variants, not a meaning;
-// so does a run of a- / ba- / o- / bo- conjugations.
-// a hyphen inside a word is a syllable run or a conjugation dump, never a translation
-const NOT_A_MEANING = /[\d!?.,:;\/=]|\s[-–—]\s|\b(?:a|ba|o|bo|na|ni|tu)-|\S+-\S+/;
-const MAX_MEANING_WORDS = 4;
-
-// the words that only ever sit inside a sentence or a note about a word: a translation
-// carrying one of these is a phrase, not the short gloss a rapped word needs
-const MEANING_STOP = new Set([
-  "a",
-  "an",
-  "the",
-  "of",
-  "to",
-  "for",
-  "is",
-  "are",
-  "was",
-  "were",
-  "with",
-  "this",
-  "that",
-  "it",
-  "in",
-  "on",
-  "at",
-  "by",
-  "as",
-  "from",
-  "and",
-  "or",
-  "but",
-  "if",
-  "then",
-  "than",
-  "when",
-  "which",
-  "who",
-  "you",
-  "your",
-  "we",
-  "our",
-  "they",
-  "their",
-  "he",
-  "she",
-  "his",
-  "her",
-  "my",
-  "us",
-  "not",
-  "no",
-  "yes",
-  "ready",
-  "instruction",
-  "instructions",
-  "user",
-  "users",
-  "story",
-  "recording",
-  "taught",
-  "brought",
-  "copy",
-  "example",
-  "note",
-  "page",
-  "part",
-  "section",
-  "meaning",
-  "word",
-  "words",
-  "rule",
-  "rules",
-  "sentence",
-  "these",
-  "those",
-  "them",
-  "have",
-  "has",
-  "had",
-  "will",
-  "would",
-  "can",
-  "could",
-  "should",
-  "must",
-  "never",
-  "always",
-  "every",
-  "each",
-  "all",
-  "both",
-  "some",
-  "any",
-  "more",
-  "most",
-  "other",
-  "another",
-  "such",
-  "same",
-  "too",
-  "very",
-  "just",
-  "also",
-  "complete",
-  "forms",
-  "form",
-  "list",
-  "lists",
-  "order",
-  "system",
-  "through",
-  "letter",
-  "letters",
-  "sound",
-  "sounds",
-  "spelling",
-  "written",
-  "speak",
-  "spoken",
-  "called",
-  "means",
-  "name",
-  "names",
-  "title",
-  // the words a note about the language itself is written in
-  "kibembe",
-  "ebembe",
-  "kiswahili",
-  "mfumo",
-  "kamili",
-  "lugha",
-  "neno",
-  "maneno",
-  "sentensi",
-  "kanuni",
-  "sheria",
-  "jina",
-  "majina",
-  "msemo",
-  "misemo",
-  "kitenzi",
-  "mfano",
-  "nyakati",
-  "umoja",
-  "wingi",
-  "kama",
-  "hii",
-  "hiyo",
-  "hivi",
-  "pia",
-  "katika",
-  "baada",
-  "cha",
-  "kwa",
-]);
-
-// words that are only ever written *about* words: a heading, a rule, a note or a page label.
-// An entry spelled only in these is not a word to rap.
-const ABOUT_WORDS = new Set([
-  "english",
-  "american",
-  "swahili",
-  "kiswahili",
-  "kibembe",
-  "ebembe",
-  "kitenzi",
-  "mfano",
-  "pronunciation",
-  "reading",
-  "rules",
-  "rule",
-  "word",
-  "words",
-  "example",
-  "note",
-  "notes",
-  "page",
-  "part",
-  "section",
-  "lesson",
-  "vocabulary",
-  "meaning",
-  "plural",
-  "singular",
-  "wingi",
-  "umoja",
-  "nyakati",
-  "sana",
-  "na",
-  "no",
-  "verb",
-  "tense",
-  "the",
-  "and",
-  "only",
-  "not",
-  "does",
-  "sasa",
-  "zamani",
-  "baadaye",
-  "zaidi",
-  "husomwa",
-]);
-
-/**
- * A rapped word has to be a word: a whole spelling of at least three letters, with a short
- * translation beside it. A rule, a heading, a syllable fragment, a page marker or a note
- * about grammar that was saved as an entry is not one, and it never reaches the rapper.
- */
-function isWordEntry(term: string, meaning: string): boolean {
-  if (!term || !meaning) return false;
-  if (term.length > MAX_TERM || meaning.length > MAX_MEANING) return false;
-  // one word, one translation: an entry whose term is a phrase was lifted out of a document,
-  // not saved as a word to rap
-  if (term.split(/\s+/).length > 1 || meaning.split(/\s+/).length > MAX_MEANING_WORDS) return false;
-  // an entry that translates itself is a transliteration, not a meaning
-  if (meaning.toLowerCase() === term.toLowerCase()) return false;
-  if (term.replace(/[^\p{L}]/gu, "").length < 3) return false;
-  if (!/^[\p{L}\p{N}'’&.\- ]+$/u.test(term)) return false;
-  if (/^\d+\s*[.)]/.test(term)) return false;
-  // a heading stands in capitals: no real Ebembe word is written that way
-  if (term.length > 1 && !/[a-zà-ÿ]/.test(term)) return false;
-  if (NOT_A_TERM.test(term) || NOT_A_MEANING.test(meaning)) return false;
-  // a translation made of sentence words is a note, not the short gloss a word needs
-  const gloss = meaning.toLowerCase().split(/\s+/);
-  if (gloss.some((word) => MEANING_STOP.has(word.replace(/[^a-z]/g, "")))) return false;
-  // a gloss that ends in h is a transliterated sound rather than a translation: Kiswahili and
-  // English glosses do not end that way, while a written-out pronunciation does
-  if (gloss.some((word) => word.length > 1 && /h$/.test(word.replace(/[^a-z]/g, "")))) return false;
-  // an entry spelled only in words about words is a heading or a rule, not a word
-  const tokens = term.toLowerCase().split(/\s+/);
-  if (tokens.every((token) => ABOUT_WORDS.has(token))) return false;
-  return true;
-}
-
 /** A pronunciation guide is the assistant's own: it never reaches the screen. */
 function plainLine(value: any): string {
   const text = typeof value === "string" ? value : "";
@@ -335,86 +93,6 @@ function plainLine(value: any): string {
     .replace(/\([^)]*\)/g, " ")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-/** Every saved word entry, a page at a time: the whole store is in play, not a slice of it. */
-async function wordEntries(base44: any): Promise<any[]> {
-  const rows: any[] = [];
-  let cursor: any = undefined;
-  for (let page = 0; page < Math.ceil(MAX_POOL / PAGE); page += 1) {
-    const found = await base44.asServiceRole.entities.AssistantKnowledge.filter(
-      { kind: "word" },
-      { limit: PAGE, cursor } as any
-    );
-    rows.push(...(found?.items || []));
-    if (!found?.has_more || !found?.next_cursor || rows.length >= MAX_POOL) break;
-    cursor = found.next_cursor;
-  }
-  return rows;
-}
-
-/** A word a saved document spells out itself, written as term = meaning. */
-function minedLines(text: any): any[] {
-  const out: any[] = [];
-  const body = typeof text === "string" ? text : "";
-  body.split(/\r?\n/).forEach((line) => {
-    const pair = line.match(/^\s*([^=]{2,40}?)\s*=\s*([^=]{2,80}?)\s*$/);
-    if (!pair) return;
-    out.push({ term: clean(pair[1], MAX_TERM), meaning: clean(pair[2], MAX_MEANING) });
-  });
-  return out;
-}
-
-/** A saved entry whose translation turned into a run of conjugated forms still carries its
- *  real gloss first, so that is taken and the run after it is dropped. An entry that is nothing
- *  but forms — the word conjugated and no translation — has no gloss at all. */
-function glossOf(term: string, raw: any): string {
-  let text = clean(raw, MAX_MEANING);
-  // a leading letter and a dash mark a form of the word, not its meaning
-  const after = text.match(/^[^\s—–-]{0,4}\s*[—–]\s*(.*)$/);
-  if (after) text = after[1].trim();
-
-  if (/\S+-\S+/.test(text)) {
-    const parts: string[] = [];
-    for (const token of text.split(/\s+/)) {
-      if (/\S+-\S+/.test(token)) break;
-      if (token.toLowerCase() === term.toLowerCase()) break;
-      parts.push(token);
-    }
-    text = parts.join(" ");
-  }
-
-  return clean(text, MAX_MEANING).replace(/[\s\/;,]+$/, "");
-}
-
-/** The words the admin has confirmed, exactly as they are saved: every word entry, plus any
- *  word the saved documents spell out themselves. Each one has to be a real word, and the
- *  same spelling is only ever taken once. */
-async function savedWords(base44: any) {
-  const rows = await wordEntries(base44);
-  const texts = await base44.asServiceRole.entities.KnowledgeText.list({ limit: 20 });
-  (texts?.items || []).forEach((doc: any) => {
-    rows.push(...minedLines(doc?.text));
-    (doc?.passages || []).forEach((passage: any) => rows.push(...minedLines(passage)));
-  });
-
-  const seen = new Set<string>();
-  return rows
-    .map((row: any) => {
-      const term = clean(row.term, MAX_TERM);
-      return {
-        term,
-        meaning: glossOf(term, row.meaning),
-        usage: clean(row.usage, MAX_USAGE),
-      };
-    })
-    .filter((word: any) => {
-      if (!isWordEntry(word.term, word.meaning)) return false;
-      const key = word.term.toLowerCase();
-      if (seen.has(key)) return false;
-      seen.add(key);
-      return true;
-    });
 }
 
 /** The words of the person's own most recent takes, and what those takes were about. */
@@ -453,43 +131,6 @@ function freshWindow(words: any[], recent: Set<string>, taken: number) {
       .slice(0, 40)
       .map((word: any) => word.term),
   };
-}
-
-// the prefixes the list allows a listed verb to wear, joined exactly as the list joins them
-const PREFIXES = ["na", "a", "ba"];
-
-/** Whether a word a line uses is one the store really holds, joined prefix and all. */
-function knownToken(token: string, known: Map<string, string>): boolean {
-  if (known.has(token)) return true;
-  return PREFIXES.some((prefix) => {
-    if (!token.startsWith(prefix) || token.length <= prefix.length + 2) return false;
-    const bare = token.startsWith(prefix + "-") ? token.slice(prefix.length + 1) : token.slice(prefix.length);
-    return known.has(bare);
-  });
-}
-
-function tokensOf(line: any): string[] {
-  return String(line?.ebembe || "")
-    .split(/\s+/)
-    .map((token) => token.replace(/[^\p{L}'’-]/gu, "").toLowerCase())
-    .filter(Boolean);
-}
-
-/** The bars that lean on a word the store does not hold, with the words that were not found. */
-function unverified(lines: any[], known: Map<string, string>) {
-  return lines
-    .map((line: any, index: number) => ({
-      index,
-      unknown: tokensOf(line).filter((token) => !knownToken(token, known)),
-    }))
-    .filter((row: any) => row.unknown.length);
-}
-
-/** Every confirmed spelling, so what the model hands back is kept as the list writes it. */
-function knownMap(words: any[]): Map<string, string> {
-  const map = new Map<string, string>();
-  words.forEach((word: any) => map.set(word.term.toLowerCase(), word.term));
-  return map;
 }
 
 function meaningOf(term: string, words: any[]): string {
@@ -705,7 +346,7 @@ function writePrompt(
     "Rules, all of them strict:",
     ...languageRules(language, store),
     "- Each line is one bar of the beat. The hook itself comes back, and call-and-answer with the voice behind the lead is welcome, but the body never repeats a line: every body bar carries its own words and its own thought.",
-    "- Never let the same word come back bar after bar: once a word has carried two bars, the bars after it take other words from the list and say the same thing another way.",
+    "- Across the bars use as many different words from the list as you can, and never let one word carry more than two bars: once a word has carried two bars, the bars after it take other words from the list and say the same thing another way.",
     "- Every bar says something a listener understands, and no bar leans on the same word again and again — say the thing a different way instead.",
     flowStyle(flow),
     meaningRule(language),
@@ -722,7 +363,7 @@ function writePrompt(
 const MAX_WORD_BARS = 2;
 // a list this small cannot say the same thing another way — the bars would only come back
 // reworded in the same few words — so there the take stands as it is written
-const MIN_VARY_WORDS = 18;
+const MIN_VARY_WORDS = 10;
 
 /** The bars of the body that lean on a word the take has already leaned on twice, with the word
  *  itself. The hook is left alone: a hook comes back by design. */
@@ -759,15 +400,148 @@ function duplicateBars(lines: any[]) {
   return rows;
 }
 
-/** The words of the list the take really stands on: the ones its own bars say, wearing their
- *  prefix or not. */
-function wordsInTake(used: string[], lines: any[]): string[] {
-  const said = new Set<string>();
-  lines.forEach((line: any) => tokensOf(line).forEach((token) => said.add(token)));
-  return used.filter((term) => {
+/** The saved words the take really says, in the store's own spelling, each one once. */
+function usedWords(lines: any[], known: Map<string, string>): string[] {
+  const out: string[] = [];
+  const seen = new Set<string>();
+
+  const keep = (term: string) => {
     const key = term.toLowerCase();
-    return said.has(key) || PREFIXES.some((prefix) => said.has(prefix + key));
+    if (seen.has(key)) return;
+    seen.add(key);
+    out.push(term);
+  };
+
+  lines.forEach((line: any) => {
+    tokensOf(line).forEach((token) => {
+      const held = known.get(token);
+      if (held) return keep(held);
+      PREFIXES.forEach((prefix) => {
+        if (!token.startsWith(prefix) || token.length <= prefix.length + 2) return;
+        const bare = token.startsWith(prefix + "-")
+          ? token.slice(prefix.length + 1)
+          : token.slice(prefix.length);
+        const term = known.get(bare);
+        if (term) keep(term);
+      });
+    });
   });
+
+  return out;
+}
+
+// how many times a bar carrying a word the store does not hold is written again before it is
+// left out of the take altogether
+const MAX_FIX_PASSES = 3;
+
+/** A take of bars with the copies of earlier bars left out, as long as a take is left. */
+function dropCopies(lines: any[]) {
+  const seen = new Set<string>();
+  const kept = lines.filter((line: any) => {
+    const key = tokensOf(line).join(" ");
+    if (!key) return true;
+    if (seen.has(key)) return false;
+    seen.add(key);
+    return true;
+  });
+  return kept.length >= 2 ? kept : lines;
+}
+
+/** Every bar checked against the confirmed list: a bar leaning on a word the store does not
+ *  hold is written again until it stands on saved words only, a bar that copies an earlier bar
+ *  or leans on the same word again and again is written again too, and a bar still carrying a
+ *  word the store does not hold at the end is left out rather than shown. */
+async function checkBars(
+  base44: any,
+  list: any[],
+  lines: any[],
+  flow: any,
+  known: Map<string, string>
+) {
+  let current = lines;
+  let passes = 0;
+
+  while (passes < MAX_FIX_PASSES) {
+    const missed = unverified(current, known);
+    if (!missed.length) break;
+    const repaired = await rewriteBars(
+      base44,
+      list,
+      current,
+      "You are correcting bars of an Ebembe rap. Some of them use words that are not in the confirmed list, and that list is the whole of the Ebembe allowed.",
+      "Rewrite each bar listed below so that every word in it is in that list, keeping its meaning and its place in the rap. Change nothing else about the rap.",
+      missed.map((row: any) => ({
+        index: row.index,
+        note:
+          "Bar " +
+          (row.index + 1) +
+          ": " +
+          current[row.index]?.ebembe +
+          "  (not in the list: " +
+          row.unknown.join(", ") +
+          ")",
+      })),
+      flow
+    );
+    passes += 1;
+    if (!repaired) break;
+    current = repaired;
+  }
+
+  const clean = current.filter((line: any) => !unverified([line], known).length);
+  const dropped = current.length - clean.length;
+  let kept = clean.length >= 2 ? clean : current;
+
+  // a bar that copies an earlier bar, or a word leaned on bar after bar, is written again once
+  const notes = new Map<number, string>();
+  duplicateBars(kept).forEach((row: any) => {
+    notes.set(
+      row.index,
+      "Bar " +
+        (row.index + 1) +
+        ": " +
+        kept[row.index]?.ebembe +
+        "  (says what bar " +
+        row.from +
+        " already says)"
+    );
+  });
+  if (list.length >= MIN_VARY_WORDS) {
+    overusedBars(kept).forEach((row: any) => {
+      if (notes.has(row.index)) return;
+      notes.set(
+        row.index,
+        "Bar " +
+          (row.index + 1) +
+          ": " +
+          kept[row.index]?.ebembe +
+          "  (used again: " +
+          row.again.join(", ") +
+          ")"
+      );
+    });
+  }
+
+  const targets = Array.from(notes, ([index, note]) => ({ index, note })).sort(
+    (a, b) => a.index - b.index
+  );
+  if (targets.length) {
+    const varied = await rewriteBars(
+      base44,
+      list,
+      kept,
+      "You are correcting bars of an Ebembe rap. Some of them say exactly what another bar already says, and some lean on a word the take has already used in its other bars.",
+      "Rewrite each bar listed below so that it says something new, on words the take has not used yet, staying on the same theme and keeping its place in the rap. Leave every other bar of the rap as it is.",
+      targets,
+      flow
+    );
+    if (varied) {
+      const sound = varied.filter((line: any) => !unverified([line], known).length);
+      kept = sound.length >= 2 ? dropCopies(sound) : kept;
+    }
+  }
+
+  return { lines: kept, passes, dropped };
 }
 
 /** One more pass over the bars that have to change, so what reaches the person is written only
@@ -954,6 +728,23 @@ export default async function (req: Request): Promise<Response> {
     const action = typeof payload?.action === "string" ? payload.action : "";
     const language = rapLang(payload?.language);
 
+    // the studio's own step over a written take: every bar is checked against the saved words
+    // once more, so nothing the store does not hold ever reaches the person
+    if (action === "check") {
+      const incoming = readLines(payload?.lines);
+      if (!incoming.length) {
+        return Response.json({ error: "Hakuna mistari ya kuchunguza." }, { status: 400 });
+      }
+      if (!words.length) return Response.json({ lines: incoming, words_used: [], dropped: 0 });
+      const saved = knownMap(words);
+      const checked = await checkBars(base44, words, incoming, flowOf(payload?.flow), saved);
+      return Response.json({
+        lines: checked.lines,
+        words_used: usedWords(checked.lines, saved).slice(0, 60),
+        dropped: checked.dropped,
+      });
+    }
+
     // without an action the studio simply reads the same confirmed list the composer uses
     if (action !== "plan" && action !== "write") {
       return Response.json({ words, count: words.length });
@@ -1026,18 +817,12 @@ export default async function (req: Request): Promise<Response> {
     const idea = payload?.idea || {};
     const store = usesStore(language) && words.length > 0;
     const plannedTerms = store ? confirmedList(idea?.words_used, known) : plainList(idea?.words_used);
-    const planned = new Set(plannedTerms.map((term) => term.toLowerCase()));
-    // the chosen angle's own words carry the rap, and the whole saved list stands behind the
-    // writer when the angle came with only a handful of them
-    const narrow =
-      planned.size >= MIN_CHOSEN
-        ? words.filter((word: any) => planned.has(word.term.toLowerCase()))
-        : words;
-    const chosen = store ? narrow : [];
+    // the whole saved list is handed to the writer, so a take draws on as much of the vocabulary
+    // as its bars need instead of the handful of words one angle happened to name
 
     const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: writePrompt(
-        chosen,
+        words,
         {
           name: clean(idea?.name, 60),
           hook: plainLine(idea?.hook),
@@ -1072,7 +857,7 @@ export default async function (req: Request): Promise<Response> {
     const before = await lastWords(base44);
     const shared = used.filter((term) => before.has(term.toLowerCase())).length;
     if (used.length >= 5 && before.size >= 5 && shared / used.length >= 0.75) {
-      const again = await freshTake(base44, chosen, flow, language, store, Array.from(before).slice(0, 40));
+      const again = await freshTake(base44, words, flow, language, store, Array.from(before).slice(0, 40));
       if (again) {
         lines = again.lines;
         const next = store ? confirmedList(again.words, known) : plainList(again.words);
@@ -1080,88 +865,15 @@ export default async function (req: Request): Promise<Response> {
       }
     }
 
-    // nothing reaches the person that leans on a word the store does not hold, and no bar keeps
-    // coming back to a word the take has already used: those bars are written once more against
-    // the confirmed list before the take is handed over
+    // every bar is checked against the confirmed list before the take is handed over: a bar that
+    // leans on a word the store does not hold is written again, and one that still does is left out
     if (store) {
-      const list = chosen.length ? chosen : words;
-
-      const missed = unverified(lines, known);
-      if (missed.length) {
-        const repaired = await rewriteBars(
-          base44,
-          list,
-          lines,
-          "You are correcting bars of an Ebembe rap. Some of them use words that are not in the confirmed list, and that list is the whole of the Ebembe allowed.",
-          "Rewrite each bar listed below so that every word in it is in that list, keeping its meaning and its place in the rap. Change nothing else about the rap.",
-          missed.map((row: any) => ({
-            index: row.index,
-            note:
-              "Bar " +
-              (row.index + 1) +
-              ": " +
-              lines[row.index]?.ebembe +
-              "  (not in the list: " +
-              row.unknown.join(", ") +
-              ")",
-          })),
-          flow
-        );
-        if (repaired) lines = repaired;
-      }
-
-      // A bar that says exactly what an earlier bar already says is always written again. A word
-      // leaned on again and again is only worth rewriting when the list is wide enough to say the
-      // same thing another way; on a list too small for that the take stands as it is written.
-      const notes = new Map<number, string>();
-      duplicateBars(lines).forEach((row: any) => {
-        notes.set(
-          row.index,
-          "Bar " +
-            (row.index + 1) +
-            ": " +
-            lines[row.index]?.ebembe +
-            "  (says what bar " +
-            row.from +
-            " already says)"
-        );
-      });
-      if (list.length >= MIN_VARY_WORDS) {
-        overusedBars(lines).forEach((row: any) => {
-          if (notes.has(row.index)) return;
-          notes.set(
-            row.index,
-            "Bar " +
-              (row.index + 1) +
-              ": " +
-              lines[row.index]?.ebembe +
-              "  (used again: " +
-              row.again.join(", ") +
-              ")"
-          );
-        });
-      }
-
-      const targets = Array.from(notes, ([index, note]) => ({ index, note })).sort(
-        (a, b) => a.index - b.index
-      );
-      if (targets.length) {
-        const varied = await rewriteBars(
-          base44,
-          list,
-          lines,
-          "You are correcting bars of an Ebembe rap. Some of them say exactly what another bar already says, and some lean on a word the take has already used in its other bars.",
-          "Rewrite each bar listed below so that it says something new, on words the take has not used yet, staying on the same theme and keeping its place in the rap. Leave every other bar of the rap as it is.",
-          targets,
-          flow
-        );
-        if (varied) lines = varied;
-      }
+      const checked = await checkBars(base44, words, lines, flow, known);
+      lines = checked.lines;
     }
 
-    // the words line and the words panel carry only the words the take really stands on
-    const shown = wordsInTake(used, lines);
-    if (shown.length) used = shown;
+    // the words line and the words panel carry the saved words the take really says, each once
+    if (store) used = usedWords(lines, known);
 
     return Response.json({
       lines,

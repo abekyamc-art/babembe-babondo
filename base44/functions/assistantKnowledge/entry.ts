@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { alikeTerms } from "../../shared/soundsAlike.ts";
+import { knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 
 // The note rides along with a typed message as silent context. It is handed over
 // in blocks of the size one update carries, so the whole note can be larger than
@@ -9,10 +10,6 @@ const MAX_NOTE = 32000;
 // The vocabulary keeps its own share of the note, so a long list of questions and
 // world notes can never crowd the words out.
 const WORDS_SHARE = 24000;
-
-// A list in the thousands is read page by page, so all of it is taken in.
-const WORDS_PER_PAGE = 500;
-const MAX_WORDS_READ = 20000;
 
 // Eight words to a line: a vocabulary costs the fewest characters that way.
 const WORDS_PER_LINE = 8;
@@ -239,33 +236,6 @@ function carryLines(lines: string[], wanted: string[], budget: number) {
   return { indexes, whole: indexes.length === lines.length };
 }
 
-/** Every saved word, read page by page so nothing is left behind. */
-async function loadWords(base44: any) {
-  const rows: any[] = [];
-  const seen = new Set<string>();
-  let cursor: string | undefined;
-
-  while (rows.length < MAX_WORDS_READ) {
-    const options: any = { sort: "created_date", limit: WORDS_PER_PAGE };
-    if (cursor) options.cursor = cursor;
-    const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
-      { kind: "word" },
-      options
-    );
-
-    // a page that brings nothing new ends the walk
-    const fresh = rowsOf(page).filter((row: any) => row?.id && !seen.has(row.id));
-    if (!fresh.length) break;
-    fresh.forEach((row: any) => seen.add(row.id));
-    rows.push(...fresh);
-
-    const next = page?.has_more ? page?.next_cursor : "";
-    if (!next) break;
-    cursor = next;
-  }
-  return rows;
-}
-
 /**
  * The vocabulary the assistant is given, with how much of the saved list it holds
  * — the same numbers the admin's words panel states.
@@ -301,7 +271,9 @@ let wordCache: { at: number; rows: any[] } = { at: 0, rows: [] };
 
 async function wordsFor(base44: any) {
   if (wordCache.rows.length && Date.now() - wordCache.at < CACHE_MS) return wordCache.rows;
-  const rows = await loadWords(base44);
+  // the same saved words the Rap Studio raps on: the admin's word entries, plus the words the
+  // saved documents spell out themselves
+  const rows = await knowledgeWordRows(base44);
   wordCache = { at: Date.now(), rows };
   return rows;
 }
