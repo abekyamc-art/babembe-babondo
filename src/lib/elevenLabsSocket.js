@@ -203,6 +203,15 @@ export default class VoiceSocket {
     return !!this.stream;
   }
 
+  /**
+   * Whether the person has taken their turn in this call. Nothing he says counts before then: the
+   * talk is the person's to open, so a greeting — or any other turn nobody asked for — is neither
+   * heard nor shown, and it is never counted as an answer.
+   */
+  get engaged() {
+    return this.userSpoke || this.resuming;
+  }
+
   async open({ withMic, silent, memory, laterTurn, resuming, account, ears, keepOpen } = {}) {
     // a written message is answered in writing: no microphone, nothing on the speaker
     this.silent = !withMic && !!silent;
@@ -215,10 +224,11 @@ export default class VoiceSocket {
     // which ElevenLabs account answers: "second" is the account Base44 mode's spoken call runs on,
     // "third" is Mbondo's own, "fourth" is Sadiki's own; every other call keeps the standing account
     this.account = account || "";
-    // he has already introduced himself, so this session is held quiet until the
-    // person takes their turn: the introduction never reaches their ears. A question
-    // carried over is answered aloud straight away, so it is never held.
-    this.holdQuiet = this.laterTurn && !this.resuming;
+    // Nothing he says before the person has taken their turn is heard or shown: the session is
+    // held quiet from the moment it opens, so a greeting nobody asked for never reaches their ears
+    // or their screen. A question carried over from the last call is answered aloud straight away,
+    // since that one was asked; it is never held.
+    this.holdQuiet = !this.resuming;
     clearTimeout(this.holdTimer);
     this.holdTimer = null;
     if (this.holdQuiet) {
@@ -418,7 +428,10 @@ export default class VoiceSocket {
 
     if (msg.type === "audio") {
       const chunk = msg.audio_event?.audio_base_64;
-      if (chunk) {
+      // a voice that has not been asked for stays out of the room altogether: until the person has
+      // taken their turn nothing he says is played — not even silently — so an unasked greeting is
+      // never heard, never shown, and never counted as an answer
+      if (chunk && this.engaged) {
         // a written answer's audio is silent and only carries its timing: the wait
         // ends when the written line lands, not when the first silent chunk arrives
         if (!this.silent) this.noteAnswer();
@@ -450,6 +463,9 @@ export default class VoiceSocket {
         msg.agent_response_event?.agent_response ||
         msg.agent_response_correction_event?.corrected_agent_response;
       if (text) {
+        // nothing he writes before the person has taken their turn is shown: an unasked greeting
+        // is not a reply to anything, and the first turn of the talk is the person's own
+        if (!this.engaged) return;
         this.noteAnswer();
         // a session that opened mid-conversation: his greeting coming round again is
         // something he has already said, so it is not shown a second time

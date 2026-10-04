@@ -308,7 +308,15 @@ export default function useVoiceAgent({ videoRef } = {}) {
         // the language the ears marked, the words they wrote down and the material just looked up
         // travel together, so the answer leads with the language the person actually used
         const spoken = heardLanguage(language);
-        const memory = [spoken ? `The person just spoke in ${spoken}.` : "", note, material]
+        // The language the ears marked is the language of the answer: the line says so on every
+        // turn, so the answer follows whoever is speaking and never drifts to another language.
+        const memory = [
+          spoken
+            ? `The person just spoke in ${spoken}. Answer in ${spoken} only, from your first word to your last.`
+            : "",
+          note,
+          material,
+        ]
           .filter(Boolean)
           .join("\n\n");
         if (memory) engine.sendMemory(memory);
@@ -417,7 +425,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // a request for a story, news, a word or a fact is looked up as the session opens, with the
       // knowledge note, so the material is already in hand when he answers it
       const [note, fresh] = await Promise.all([
-        loadKnowledgeNote(opening),
+        // a typed opening is told to the knowledge reader as written, so the language the person
+        // wrote in is read from their own words and named at the head of the note
+        loadKnowledgeNote(opening, !withMic),
         wantsLookup && opening ? materialFor(opening) : Promise.resolve(""),
       ]);
       // a question put to the original outside voice in writing is asked of the words helper as

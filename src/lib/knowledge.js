@@ -107,10 +107,15 @@ export function entryBody(row) {
  * The admin's knowledge as the private note handed to the assistant before it
  * answers a typed message. The entries themselves never come down to a device.
  */
-export async function loadKnowledgeNote(query = "") {
+export async function loadKnowledgeNote(query = "", typed = false) {
   try {
     const asked = String(query || "").trim();
-    const res = await base44.functions.invoke("assistantKnowledge", asked ? { query: asked } : {});
+    // A typed message carries no ears, so the function is told it was written: the language the
+    // person wrote in is then read from their own words and named at the head of the note.
+    const res = await base44.functions.invoke(
+      "assistantKnowledge",
+      asked ? { query: asked, typed: !!typed } : {}
+    );
     return res?.data?.note || "";
   } catch (err) {
     // the note is a help, never a reason to hold up a message

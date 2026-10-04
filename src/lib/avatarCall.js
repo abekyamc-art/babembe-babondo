@@ -42,6 +42,8 @@ export default class AvatarCall {
     this.tap = null;
     this.sink = null;
     this.speaking = false;
+    // whether the turn he is on right now is a greeting being held out of the room
+    this.held = false;
     this.closing = false;
     this.answered = false;
     // whether the answer being given right now has already been charged for
@@ -87,11 +89,12 @@ export default class AvatarCall {
     this.lastUserText = "";
     this.turnAt = 0;
     this.recovered = false;
-    // he has already introduced himself: this call is held quiet until the person
-    // takes their turn, so the introduction never reaches their ears. A question
-    // carried over is answered aloud straight away, so it is never held.
+    // Nothing his face says before the person has taken their turn is heard or shown: the call is
+    // held quiet from the moment it opens, so a greeting nobody asked for never reaches their ears
+    // or their screen. A question carried over from the last call is answered straight away, since
+    // that one was asked; it is never held.
     this.laterTurn = !!laterTurn;
-    this.holdQuiet = this.laterTurn && !this.resuming;
+    this.holdQuiet = !this.resuming;
     clearTimeout(this.holdTimer);
     this.holdTimer = null;
     if (this.holdQuiet) this.holdTimer = setTimeout(() => this.releaseQuiet(), HOLD_MAX_MS);
@@ -135,9 +138,9 @@ export default class AvatarCall {
     session.on(AgentEventsEnum.AVATAR_TRANSCRIPTION, (event) => {
       if (!event?.text) return;
       this.noteAnswer();
-      // the greeting of a call that carries on is held out of the room, so its
-      // words are not shown either
-      if (this.holdQuiet) return;
+      // nothing his face says counts before the person has taken their turn: an unasked greeting
+      // is not a reply to anything, so its words are not shown either
+      if (!this.userSpoke && !this.resuming) return;
       this.h.onAgentText?.(event.text);
     });
     session.on(AgentEventsEnum.AVATAR_SPEAK_STARTED, () => this.startSpeaking());
@@ -234,18 +237,25 @@ export default class AvatarCall {
     this.loudAt = 0;
     // his voice has begun, so the review is over
     this.setAwaiting(false);
+    // a greeting held out of the room is not a turn of his: nothing is reported on screen, and the
+    // microphone stays open so the person can take their turn over it
+    this.held = !this.userSpoke && !this.resuming;
+    if (this.held) return;
     // the mic stays closed while the face answers, so its own voice coming out of
-    // the phone can never be sent back as an interruption — except during the held
-    // greeting, which is out of the room, so the person can take their turn over it
-    if (this.withMic && !this.holdQuiet) this.session?.voiceChat?.mute?.().catch(() => {});
+    // the phone can never be sent back as an interruption of that answer
+    if (this.withMic) this.session?.voiceChat?.mute?.().catch(() => {});
     this.h.onAgentAudioStart?.();
   }
 
   stopSpeaking() {
+    const wasHeld = this.held;
     this.speaking = false;
+    this.held = false;
     this.answerEndAt = performance.now();
     // the microphone always comes back when his voice ends, whatever the hold was
     if (this.withMic) this.session?.voiceChat?.unmute?.().catch(() => {});
+    // a held greeting was never reported as his voice, so its end is not reported either
+    if (wasHeld) return;
     this.h.onAgentAudioEnd?.();
   }
 

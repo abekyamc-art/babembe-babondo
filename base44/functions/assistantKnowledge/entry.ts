@@ -13,6 +13,9 @@ const MAX_NOTE = 32000;
 // world notes can never crowd the words out.
 const WORDS_SHARE = 24000;
 
+// A typed message's own language line rides at the head of the note, ahead of every other part.
+const LANGUAGE_ROOM = 400;
+
 // Eight words to a line: a vocabulary costs the fewest characters that way.
 const WORDS_PER_LINE = 8;
 
@@ -35,8 +38,8 @@ const OPENING =
 const GUIDE =
   "\nJINSI YA KUJIBU — how to answer:\n" +
   "- Chukua muda wako: kabla ya kujibu, soma maarifa haya na orodha ya maneno kwanza, kisha jibu kwa utulivu na kwa ukamilifu.\n" +
-  "- LUGHA: fuata lugha aliyotumia mtu, kuanzia neno lako la kwanza. Akisema KISWAHILI: jibu kwa Kiswahili, na neno la Ebembe linalofaa liwe NDANI ya sentensi, si mwanzo wa jibu. Akisema EBEMBE: anza kwa neno au kishazi cha Ebembe, kisha ufafanuzi mfupi kwa Kiswahili. Akisema lugha nyingine yoyote: Ebembe kwanza, kisha Kiswahili.\n" +
-  "- Kiingereza huja baada ya mtu kuanza kusema Kiingereza: hadi wakati huo usiseme Kiingereza kabisa. Akisha sema Kiingereza, unaweza kuongeza Kiingereza kidogo baada ya lugha yake.\n" +
+  "- LUGHA: jibu kwa lugha ALIYOTUMIA mtu, na kwa lugha hiyo PEKEE — kutoka neno lako la kwanza hadi la mwisho. Akisema KISWAHILI: Kiswahili tupu, bila Ebembe na bila Kiingereza. Akisema EBEMBE: Ebembe, kwa maneno yaliyohifadhiwa, bila Kiswahili na bila Kiingereza. Akisema KIINGEREZA: Kiingereza tupu. Akisema lugha nyingine yoyote: jibu kwa lugha hiyo hiyo. Mtu akibadilisha lugha mwenyewe, fuata lugha yake mpya, na usirudi kwenye lugha ya awali.\n" +
+  "- Maandishi uliyopewa kwa lugha nyingine — kutoka mtandaoni au kutoka kwenye maarifa: yatafsiri kwa lugha ya mtu, na jibu lako lote libaki kwa lugha hiyo. Usimwonyeshe wala kumsomea lugha nyingine.\n" +
   "- USIMWOMBE MTU ARUDIE, usiulize alimaanisha lugha gani au neno gani, na usiseme hukusikia wala hukuelewa. Chukua lugha na maana kutoka maneno yake ya kwanza, kisha jibu moja kwa moja.\n" +
   "- Sehemu ya kishazi isiyokuwa na neno la Ebembe: weka neno la Kiswahili linalofaa mahali hapo, kisha endeleza kishazi hadi kikamilike, ili kishazi kisikose kitu. Usiseme kwamba neno la Ebembe halipo, wala usionyeshe kwamba kuna pengo — toa kishazi kikamilifu tu.\n" +
   "- Mtu akiomba kitu — kuzungumza, hadithi, wimbo, kufundishwa neno, maelezo au mazoezi — fanya alichoomba, kwa lugha yake na kwa mpangilio huu.\n" +
@@ -124,7 +127,14 @@ const SAY_BUDGET = 1500;
 // the answer key takes its room before the vocabulary, so the saved answer is never trimmed away
 const KEY_ROOM = KEY_BUDGET + LEAD.length + BRIEF.length;
 const NOTE_BUDGET =
-  MAX_NOTE - OPENING.length - GUIDE.length - FALLBACK.length - LIKE_BUDGET - SAY_BUDGET - KEY_ROOM;
+  MAX_NOTE -
+  OPENING.length -
+  GUIDE.length -
+  FALLBACK.length -
+  LIKE_BUDGET -
+  SAY_BUDGET -
+  KEY_ROOM -
+  LANGUAGE_ROOM;
 
 // Anything between brackets, and any syllable-by-syllable run, is a note for the ear
 // rather than a word to show: it is taken out of every line he is given.
@@ -138,6 +148,63 @@ function plain(value: any) {
     .replace(/\s{2,}/g, " ")
     .replace(/\s+([.,;:!?])/g, "$1")
     .trim();
+}
+
+// The everyday words each language is written with, whatever a message is about. A typed message
+// carries no ears, so these are what its language is read from when no saved Ebembe word stands in it.
+const SWAHILI_WORDS = new Set([
+  "habari", "asante", "tafadhali", "jambo", "karibu", "sawa", "ndiyo", "hapana", "nini", "nani",
+  "wapi", "vipi", "gani", "na", "ni", "wa", "ya", "za", "la", "cha", "vya", "kwa", "hii", "hiyo",
+  "huyu", "hawa", "wale", "mimi", "wewe", "yeye", "sisi", "nyinyi", "wao", "wangu", "wako", "wake",
+  "wetu", "nina", "una", "ana", "tuna", "mna", "wana", "nataka", "ninataka", "unataka", "naomba",
+  "najua", "unajua", "naweza", "unaweza", "kama", "lakini", "sana", "nzuri", "kubwa", "ndogo", "moja",
+  "mbili", "tatu", "leo", "kesho", "jana", "jina", "lako", "kuhusu", "kwenye", "katika", "sasa",
+  "bado", "tena", "pia", "hapa", "pale", "kila", "wote", "maneno", "lugha", "maana", "sema", "kwaheri",
+]);
+
+const ENGLISH_WORDS = new Set([
+  "the", "a", "an", "is", "are", "was", "were", "be", "am", "you", "he", "she", "we", "they",
+  "it", "my", "your", "his", "her", "our", "their", "me", "him", "us", "them", "and", "or", "but",
+  "not", "no", "yes", "do", "does", "did", "what", "who", "where", "when", "why", "how", "which",
+  "can", "could", "will", "would", "should", "tell", "give", "please", "thanks", "thank", "hello",
+  "hi", "good", "name", "want", "wants", "know", "like", "about", "with", "from", "this", "that",
+  "these", "those", "there", "here", "have", "has", "had", "say", "said", "speak", "language",
+  "mean", "means", "meaning", "word", "words", "story", "much", "many", "very", "help", "today",
+  "tomorrow", "welcome", "sorry", "friend",
+]);
+
+/**
+ * The language a typed message is written in, read from the words themselves: the admin's saved
+ * Ebembe words first, then the everyday words of Kiswahili and of English. Nothing at all is claimed
+ * when the words do not say clearly, so a language is never invented for a message.
+ */
+function saidLanguage(text: string, rows: any[]) {
+  const said = textOf(text);
+  if (!said) return "";
+  // a saved Ebembe word, written as it is saved or a letter apart, is Kibembe being written
+  if (alikeTerms(said, rows, 3).some((row: any) => row.tier <= 1)) return "Ebembe";
+
+  const words = (said.toLowerCase().match(/[\p{L}\p{N}']+/gu) || []).filter((word) => word.length > 1);
+  if (!words.length) return "";
+  const count = (list: Set<string>) => words.filter((word) => list.has(word)).length;
+  const swahili = count(SWAHILI_WORDS);
+  const english = count(ENGLISH_WORDS);
+  const enough = Math.max(1, Math.ceil(words.length * 0.15));
+  if (swahili >= enough && swahili > english) return "Kiswahili";
+  if (english >= enough && english > swahili) return "English";
+  return "";
+}
+
+// The line that opens the note for a written message: the language it was written in, and the one
+// language the answer may be given in.
+function languageLine(text: string, rows: any[]) {
+  const lang = saidLanguage(text, rows);
+  if (!lang) return "";
+  return (
+    "\nLUGHA YA MTU — the language the person wrote in:\n" +
+    `Maneno ya mtu yameandikwa kwa ${lang}. Jibu kwa ${lang} PEKEE — kutoka neno lako la kwanza hadi ` +
+    `la mwisho, bila kuchanganya lugha nyingine yoyote.\n`
+  );
 }
 const WORDS_BUDGET = Math.min(WORDS_SHARE, NOTE_BUDGET);
 
@@ -528,6 +595,10 @@ export default async function (req: Request): Promise<Response> {
 
     const query = typeof payload?.query === "string" ? payload.query.trim().slice(0, MAX_QUERY) : "";
     const wanted = query ? Array.from(new Set(tokensOf(query))) : [];
+    // A written message is named as such by the phone that sends it: the language it was written in
+    // is then read from its own words, and the answer is held to that language alone.
+    const written =
+      payload?.typed === true && query ? languageLine(query, await wordsFor(base44)) : "";
 
     // a live call asks only about what was just heard: the saved words that fit it
     // are looked up and handed over before his answer, so a word that only sounded
@@ -576,7 +647,10 @@ export default async function (req: Request): Promise<Response> {
     const world = fill(HEADS.note, linesOfKind("note"), left);
 
     const body = like + qa.text + world.text + tally.section + say;
-    let note = body || key || rulesSection ? OPENING + GUIDE + key + rulesSection + body + FALLBACK : "";
+    let note =
+      body || key || rulesSection || written
+        ? OPENING + written + GUIDE + key + rulesSection + body + FALLBACK
+        : "";
 
     // a question is answered from the admin's long texts too, through the few
     // passages that match it and nothing more
