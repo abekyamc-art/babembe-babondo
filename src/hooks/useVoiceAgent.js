@@ -239,6 +239,31 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // turns on, the guidance that goes with them, and anything just looked up
       const knowledge = withKnowledge(memory, withKnowledge(note, fresh));
 
+      // the admin's own switch decides who answers. With Base44 AI in force the voice call
+      // and the written replies are answered by the app itself, in the platform's own voice,
+      // so no face opens over it; when the outside agent is the mode in force the face runs
+      // exactly as it always has
+      if (voiceMode() === "base44") {
+        const call = new Base44Call(handlers);
+        socketRef.current = call;
+        quietRef.current = silent;
+        setMicActive(withMic);
+        try {
+          await call.open({ withMic, silent, memory: knowledge });
+          if (opening) call.sendText(opening, { speak: withMic });
+          return true;
+        } catch (err) {
+          setError(
+            err?.response?.data?.error || err?.message || "Could not start the conversation."
+          );
+          setStatus("idle");
+          setMicActive(false);
+          socketRef.current = null;
+          await call.stop();
+          return false;
+        }
+      }
+
       // when the owner's face is in place the call runs through it, with the same
       // ElevenLabs agent answering behind it. Typing is answered in writing, so it
       // never opens the face or the speaker
@@ -264,30 +289,6 @@ export default function useVoiceAgent({ videoRef } = {}) {
           socketRef.current = null;
           setAvatarLive(false);
           setNotice(`${err?.response?.data?.error || err?.message || "Live avatar unavailable."} Continuing with voice only.`);
-        }
-      }
-
-      // the admin's own switch decides who answers: with Base44 AI in force the voice call
-      // and the written replies are answered by the app itself, in the platform's own voice.
-      // The face keeps the outside agent, exactly as it has always been.
-      if (voiceMode() === "base44") {
-        const call = new Base44Call(handlers);
-        socketRef.current = call;
-        quietRef.current = silent;
-        setMicActive(withMic);
-        try {
-          await call.open({ withMic, silent, memory: knowledge });
-          if (opening) call.sendText(opening, { speak: withMic });
-          return true;
-        } catch (err) {
-          setError(
-            err?.response?.data?.error || err?.message || "Could not start the conversation."
-          );
-          setStatus("idle");
-          setMicActive(false);
-          socketRef.current = null;
-          await call.stop();
-          return false;
         }
       }
 
