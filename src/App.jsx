@@ -26,6 +26,7 @@ const Markets = lazy(() => import('./pages/Markets'));
 const Profile = lazy(() => import('./pages/Profile'));
 const Messages = lazy(() => import('./pages/Messages'));
 const Chat = lazy(() => import('./pages/Chat'));
+const Rap = lazy(() => import('./pages/Rap'));
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -78,6 +79,7 @@ const AuthenticatedApp = () => {
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+                  <Route path="/rap" element={<Rap />} />
                   <Route path="/reels" element={<Reels />} />
                   <Route path="/markets" element={<Markets />} />
                   <Route path="/live/:id" element={<LiveRoom />} />

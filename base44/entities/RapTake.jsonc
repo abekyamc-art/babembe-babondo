@@ -1,0 +1,84 @@
+{
+  "name": "RapTake",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "What the take is about, as it was typed or drawn from its first line."
+    },
+    "voice": {
+      "type": "string",
+      "enum": [
+        "sing",
+        "agent"
+      ],
+      "default": "sing",
+      "description": "Which voice sang the take: the singing voice or the assistant's own voice."
+    },
+    "beat": {
+      "type": "string",
+      "enum": [
+        "app",
+        "mine",
+        "none"
+      ],
+      "default": "app",
+      "description": "The beat the take was rapped over: the app's own beat, the person's uploaded one, or none."
+    },
+    "bpm": {
+      "type": "number",
+      "default": 112,
+      "description": "How fast the take runs, in beats per minute."
+    },
+    "ebembe_lines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The rap line by line in plain Ebembe spelling, one line per bar."
+    },
+    "swahili_lines": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Each Ebembe line's meaning in Kiswahili, in the same order."
+    },
+    "words_used": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The confirmed Ebembe words the take was built from, exactly as they are saved."
+    },
+    "audio_url": {
+      "type": "string",
+      "description": "Public URL of the sung take, so it can be played and downloaded again later."
+    },
+    "video_url": {
+      "type": "string",
+      "description": "Public URL of the vertical video made from the take, when one was made."
+    },
+    "beat_file_uri": {
+      "type": "string",
+      "description": "Private storage reference for the person's own beat, when the take was rapped over it. It is never shared."
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

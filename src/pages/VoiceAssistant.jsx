@@ -217,6 +217,11 @@ export default function VoiceAssistant() {
     navigate("/reels");
   };
 
+  const handleRap = () => {
+    setAccountOpen(false);
+    navigate("/rap");
+  };
+
   const handleMarkets = () => {
     setAccountOpen(false);
     navigate("/markets");
@@ -381,6 +386,7 @@ export default function VoiceAssistant() {
         onSignIn={handleGoogle}
         onReels={handleReels}
         onMessages={handleMessages}
+        onRap={handleRap}
         onKnowledge={handleKnowledge}
         onGetCoins={handleMarkets}
         onSwitchAccount={handleSwitchAccount}

@@ -5,6 +5,8 @@ export const BOOST_COST = 10;
 export const BOOST_HOURS = 24;
 // every answer past the free daily questions takes one coin, and the coin is gone
 export const MESSAGE_COST = 1;
+// one sung rap take in the Rap Studio
+export const RAP_COST = 2;
 
 export const COIN_PACKAGES = [
   { id: "starter", coins: 15, price: "$0.99" },
