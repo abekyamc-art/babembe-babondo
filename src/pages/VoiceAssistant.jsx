@@ -16,6 +16,7 @@ import {
 import { ensureProfile } from "@/lib/social";
 import { loadVoiceMode, useVoiceMode } from "@/lib/voiceMode";
 import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
+import { primeMic } from "@/lib/micAccess";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
@@ -202,6 +203,9 @@ export default function VoiceAssistant() {
       openGate();
       return;
     }
+    // the microphone and the sound are asked for inside the tap itself — the one moment a phone
+    // accepts that ask — and the call opening a moment later listens through what the tap opened
+    primeMic();
     const wasLive = status === "live";
     if (wasLive) await stop();
     await start({ withMic: true, onAnswered: spend });

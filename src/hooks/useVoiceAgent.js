@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import VoiceSocket from "@/lib/elevenLabsSocket";
 import Base44Call from "@/lib/base44Call";
 import AvatarCall from "@/lib/avatarCall";
+import { dropMic } from "@/lib/micAccess";
 import { useVoiceMode, voiceMode } from "@/lib/voiceMode";
 import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
@@ -518,8 +519,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
       );
 
       // the mode changed while the knowledge was being read: this call is not the one the
-      // admin asked for, so it is left unopened and nothing of it reaches the room
-      if (gen !== sessionRef.current || voiceMode() !== openingMode) return false;
+      // admin asked for, so it is left unopened and nothing of it reaches the room — and a
+      // microphone the tap opened is closed with it rather than left listening
+      if (gen !== sessionRef.current || voiceMode() !== openingMode) {
+        dropMic();
+        return false;
+      }
 
       // The admin's own switch decides who answers, and each mode with an account of its own
       // answers on that account and nowhere else: Base44 mode's spoken voice on the admin's
@@ -641,6 +646,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
         setMicActive(false);
         socketRef.current = null;
         await socket.stop();
+        // a microphone the tap opened but this call never took is closed with it
+        dropMic();
         return false;
       }
     },

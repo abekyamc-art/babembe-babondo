@@ -2,6 +2,8 @@ import { base44 } from "@/api/base44Client";
 import { isRepeatIntro } from "@/lib/agentMemory";
 import { contextBlocks } from "@/lib/contextBlocks";
 import { VOICE_RATE } from "@/lib/voicePace";
+import { primedAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
+import { claimMic, micMessage } from "@/lib/micAccess";
 
 const IN_RATE = 16000;
 // The capture is lifted before it is sent, so ordinary speech at arm's length arrives as loud
@@ -37,6 +39,10 @@ const WRITTEN_WAIT_MS = 25000;
 // much quiet has passed, and is never kept longer than one turn is allowed to run.
 const TURN_END_MS = 1000;
 const TURN_MAX_MS = 30000;
+// how long the sound is given to start before the person is asked to touch the screen for it
+const START_WAIT_MS = 1500;
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 function b64ToBytes(b64) {
   const bin = atob(b64);
@@ -194,6 +200,8 @@ export default class VoiceSocket {
     this.cleanupNoted = false;
     // a helper session is asked again on the next turn, so it is never hung up on its own
     this.keepOpen = false;
+    // while the phone is holding the sound back, this waits for the touch that starts it
+    this.offTouch = null;
   }
 
   get connected() {
@@ -250,29 +258,22 @@ export default class VoiceSocket {
     this.recovered = false;
     this.h.onStatus?.("connecting");
 
-    this.ctx = new (window.AudioContext || window.webkitAudioContext)();
+    // The call runs on the sound the tap that began it already started: a context the phone is
+    // still holding runs nothing at all — not his voice, and not the microphone's own capture — so
+    // the one the tap started is the one used here.
+    this.ctx = primedAudio() || new (window.AudioContext || window.webkitAudioContext)();
     if (this.ctx.state === "suspended") {
       // never block the connection on this — the tap that started it resumes playback
       this.ctx.resume().catch(() => {});
     }
 
     if (withMic) {
-      if (!navigator.mediaDevices?.getUserMedia) {
-        throw new Error("This browser can't reach the microphone. Type a message instead.");
-      }
+      // the microphone the tap opened is the one this call listens through; where the tap could
+      // not open one it is opened here, and what went wrong is said for what it actually was
       try {
-        this.stream = await navigator.mediaDevices.getUserMedia({
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-          },
-        });
+        this.stream = await claimMic();
       } catch (err) {
-        throw new Error(
-          "Microphone access is blocked. Allow the microphone for this site in your browser, then tap again — or type your message below."
-        );
+        throw new Error(micMessage(err));
       }
     }
 
@@ -340,7 +341,9 @@ export default class VoiceSocket {
       };
     });
 
-    if (withMic) this.startMic();
+    // the microphone is listening before the call is called live, so a phone that cannot start it
+    // says so plainly instead of leaving a call that hears nothing
+    if (withMic) await this.startMic();
     if (this.silent) this.watchWritten();
     this.h.onStatus?.("live");
   }
@@ -496,8 +499,21 @@ export default class VoiceSocket {
     }
   }
 
-  startMic() {
-    if (!this.ctx || !this.stream) return;
+  /**
+   * The microphone starts here. The capture below runs only on a sound context the phone has
+   * actually started, so the sound is given its moment to start first; where the phone still holds
+   * it back, the call says so and starts listening on the person's next touch, which is the one
+   * thing that starts it.
+   */
+  async startMic() {
+    if (!this.stream) throw new Error(micMessage(null));
+    if (!this.ctx) {
+      this.ctx = primedAudio() || new (window.AudioContext || window.webkitAudioContext)();
+    }
+    if (this.ctx.state === "suspended") {
+      await Promise.race([this.ctx.resume().catch(() => {}), wait(START_WAIT_MS)]);
+    }
+
     this.source = this.ctx.createMediaStreamSource(this.stream);
 
     this.analyser = this.ctx.createAnalyser();
@@ -536,6 +552,13 @@ export default class VoiceSocket {
     this.captureOn = false;
     this.captureFrames = [];
     this.watch();
+
+    // the phone's hold on the sound: nothing above is heard until it is started, and a touch is
+    // what starts it
+    if (this.ctx.state !== "running") {
+      this.h.onReask?.("Touch the screen and he'll start listening.");
+      this.offTouch = resumeAudioOnTouch(() => this.h.onReask?.(""));
+    }
   }
 
   /**
@@ -857,6 +880,10 @@ export default class VoiceSocket {
     this.captureFrames = [];
     clearTimeout(this.holdTimer);
     this.holdTimer = null;
+    if (this.offTouch) {
+      this.offTouch();
+      this.offTouch = null;
+    }
     this.holdQuiet = false;
     if (this.watchId) cancelAnimationFrame(this.watchId);
     this.watchId = 0;
