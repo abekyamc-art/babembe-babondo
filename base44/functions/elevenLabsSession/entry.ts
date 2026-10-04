@@ -153,10 +153,35 @@ async function readAgent(apiKey: string, agentId: string) {
   }
 }
 
+/** A secret's value, or nothing at all when it has not been saved yet. */
+function secretOr(name: string): string {
+  try {
+    return secrets.get(name) || "";
+  } catch (err) {
+    return "";
+  }
+}
+
 export default async function (req: Request): Promise<Response> {
   try {
-    const apiKey = secrets.get("ELEVENLABS_API_KEY");
-    const agentId = secrets.get("ELEVENLABS_AGENT_ID");
+    let payload: any = {};
+    try {
+      payload = await req.json();
+    } catch (err) {
+      payload = {};
+    }
+
+    // The app's own Base44 call is spoken on the admin's second, separate ElevenLabs account:
+    // its own key and its own agent, so the outside agent's account is never touched by it.
+    // Both of that account's values have to be there before it is used — half of one account
+    // and half of another would ask for an agent the account does not hold — and until they
+    // are saved, the standing account answers, so a call still opens.
+    const second = String(payload?.account || "") === "second";
+    const secondKey = secretOr("ELEVENLABS_ACCOUNT2_API_KEY");
+    const secondAgent = secretOr("ELEVENLABS_ACCOUNT2_AGENT_ID");
+    const onSecond = second && !!secondKey && !!secondAgent;
+    const apiKey = onSecond ? secondKey : secrets.get("ELEVENLABS_API_KEY");
+    const agentId = onSecond ? secondAgent : secrets.get("ELEVENLABS_AGENT_ID");
 
     if (!apiKey || !agentId) {
       console.error("ElevenLabs key or agent id is missing.");

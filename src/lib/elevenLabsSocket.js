@@ -165,11 +165,14 @@ export default class VoiceSocket {
     return !!this.stream;
   }
 
-  async open({ withMic, silent, memory, laterTurn, resuming } = {}) {
+  async open({ withMic, silent, memory, laterTurn, resuming, account } = {}) {
     // a written message is answered in writing: no microphone, nothing on the speaker
     this.silent = !withMic && !!silent;
     this.laterTurn = !!laterTurn;
     this.resuming = !!resuming;
+    // which ElevenLabs account answers: "second" is the admin's own separate account, the one
+    // the app's Base44 call is spoken on; every other call keeps the standing account
+    this.account = account || "";
     // he has already introduced himself, so this session is held quiet until the
     // person takes their turn: the introduction never reaches their ears. A question
     // carried over is answered aloud straight away, so it is never held.
@@ -218,7 +221,7 @@ export default class VoiceSocket {
       }
     }
 
-    const res = await base44.functions.invoke("elevenLabsSession", {});
+    const res = await base44.functions.invoke("elevenLabsSession", { account: this.account });
     const signedUrl = res?.data?.signed_url;
     if (!signedUrl) {
       throw new Error(res?.data?.error || "Your agent could not be reached.");

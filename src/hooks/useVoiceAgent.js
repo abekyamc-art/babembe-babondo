@@ -278,11 +278,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // turns on, the guidance that goes with them, and anything just looked up
       const knowledge = withKnowledge(memory, withKnowledge(note, fresh));
 
-      // the admin's own switch decides who answers. With Base44 AI in force the voice call
-      // and the written replies are answered by the app itself, in the platform's own voice,
-      // so no face opens over it; when the outside agent is the mode in force the face runs
-      // exactly as it always has
-      if (voiceMode() === "base44") {
+      // The admin's own switch decides who answers. With Base44 AI in force the app's own AI
+      // writes the written answers, and the voice of a spoken call is given to the admin's
+      // second, separate ElevenLabs account — its own key and its own agent — so the outside
+      // agent's account is never touched by it and Base44 is left to text and chat alone.
+      const secondVoice = voiceMode() === "base44" && withMic;
+      if (voiceMode() === "base44" && !secondVoice) {
         const call = new Base44Call(handlers);
         socketRef.current = call;
         quietRef.current = silent;
@@ -305,8 +306,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
 
       // when the owner's face is in place the call runs through it, with the same
       // ElevenLabs agent answering behind it. Typing is answered in writing, so it
-      // never opens the face or the speaker
-      if (!silent && faceReadyRef.current && videoRef?.current) {
+      // never opens the face or the speaker — and a spoken Base44 call never opens it
+      // either: the face belongs to the outside agent's own account, and this call is
+      // spoken on the admin's second one
+      if (!silent && !secondVoice && faceReadyRef.current && videoRef?.current) {
         const call = new AvatarCall(handlers);
         socketRef.current = call;
         quietRef.current = false;
@@ -337,7 +340,15 @@ export default function useVoiceAgent({ videoRef } = {}) {
       setMicActive(withMic);
 
       try {
-        await socket.open({ withMic, silent, memory: knowledge, laterTurn, resuming });
+        await socket.open({
+          withMic,
+          silent,
+          memory: knowledge,
+          laterTurn,
+          resuming,
+          // the spoken Base44 call is answered on the admin's second account
+          account: secondVoice ? "second" : "",
+        });
         if (opening) {
           // a typed question goes in once the note has settled, not the moment the
           // session opens; a question carried over from the last call is answered
