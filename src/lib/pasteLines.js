@@ -84,10 +84,9 @@ export function readPasteLine(line) {
     .trim();
 
   if (!isWord(term)) return { kind: "other", line: raw, guide };
-  if (!meaning) {
-    // a colon or a dashed separator with nothing after it is not an entry
-    return strong ? { kind: "word", term, meaning: "", guide } : { kind: "other", line: raw, guide };
-  }
+  // a word with nothing beside it is not an entry yet: it is kept as a line of the rules
+  // document until its meaning is written with it
+  if (!meaning) return { kind: "other", line: raw, guide };
 
   // a colon or a dashed separator is trusted only when the meaning is short enough
   // to be a meaning rather than the next rule of the document

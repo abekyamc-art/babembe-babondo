@@ -117,6 +117,11 @@ export default function TextsPanel() {
 
   return (
     <>
+      <p className="account-hint">
+        Both AIs read what you save here and follow it. A text whose title mentions rules — a
+        rule book saved as &quot;Rules&quot; — is obeyed on every answer and every rap take.
+      </p>
+
       <TextForm
         draft={draft}
         editing={!!editingId}

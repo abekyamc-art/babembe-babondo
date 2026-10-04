@@ -9,6 +9,7 @@ import KnowledgeEntry from "@/components/knowledge/KnowledgeEntry";
 import TextsPanel from "@/components/knowledge/TextsPanel";
 import WordModeSwitch from "@/components/knowledge/WordModeSwitch";
 import WordListForm from "@/components/knowledge/WordListForm";
+import CleanWords from "@/components/knowledge/CleanWords";
 
 export default function KnowledgeSheet({ open, onClose }) {
   const [kind, setKind] = useState(KINDS[0].id);
@@ -20,6 +21,11 @@ export default function KnowledgeSheet({ open, onClose }) {
   const [ready, setReady] = useState(false);
   // words are added one at a time, or as a whole list pasted at once
   const [wordMode, setWordMode] = useState("one");
+  // what the server says this tab holds, and a nudge to read the list again once it changes
+  const [total, setTotal] = useState(null);
+  const [again, setAgain] = useState(0);
+
+  const reload = () => setAgain((count) => count + 1);
 
   useEffect(() => {
     if (!open) return undefined;
@@ -38,7 +44,26 @@ export default function KnowledgeSheet({ open, onClose }) {
     return () => {
       alive = false;
     };
-  }, [open]);
+  }, [open, again]);
+
+  // the badge states what the server counts, not what one page happened to hold
+  useEffect(() => {
+    if (!open || kind === "text") {
+      setTotal(null);
+      return undefined;
+    }
+    let alive = true;
+    base44.entities.AssistantKnowledge.count({ kind })
+      .then((count) => {
+        if (alive) setTotal(Number(count));
+      })
+      .catch(() => {
+        if (alive) setTotal(null);
+      });
+    return () => {
+      alive = false;
+    };
+  }, [open, kind, again]);
 
   const pick = (next) => {
     setKind(next);
@@ -126,7 +151,7 @@ export default function KnowledgeSheet({ open, onClose }) {
           <div className="account-tools">
             {kind === "text" ? null : (
               <span className="account-usage">
-                {rows.length} saved
+                {(total ?? rows.length).toLocaleString()} saved
               </span>
             )}
             <button type="button" onClick={onClose} aria-label="Close knowledge" className="account-icon">
@@ -184,6 +209,8 @@ export default function KnowledgeSheet({ open, onClose }) {
                   <p className="knowledge-empty">{kindHint(kind)}</p>
                 )}
               </div>
+
+              {kind === "word" && !editingId ? <CleanWords onDone={reload} /> : null}
             </>
           )}
         </div>

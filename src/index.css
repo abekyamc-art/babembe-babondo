@@ -734,6 +734,17 @@
     font-size: 12px;
   }
 
+  /* the one destructive action in the panel: cleaning the saved word list */
+  .knowledge-clean-confirm {
+    color: #ffe1e5;
+    background: #6d2030;
+    border-color: #8f3548;
+  }
+
+  .knowledge-clean-confirm:hover:not(:disabled) {
+    background: #83283b;
+  }
+
   /* a saved long text is written straight into the box, so the box is the room it needs */
   .knowledge-area {
     min-height: 210px;

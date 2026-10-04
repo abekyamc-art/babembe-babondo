@@ -12,6 +12,11 @@ import {
   tokensOf,
   unverified,
 } from "../../shared/knowledgeWords.ts";
+import { rulesText } from "../../shared/knowledgeRules.ts";
+
+// the admin's own rules, saved in the knowledge panel: every take obeys them
+const RULES_INTRO =
+  "The admin's own rules for this language, saved in the knowledge panel. Every one of them stands, and every bar obeys them — where a rule and your own habit disagree, the rule wins:";
 
 const UNAVAILABLE = "Mawazo hayakuweza kutengenezwa. Jaribu tena baada ya sekunde chache.";
 const EMPTY_LIST =
@@ -250,7 +255,8 @@ function planPrompt(
   recentTitles: string[],
   avoid: string[],
   language: RapLang,
-  store: boolean
+  store: boolean,
+  rules: string
 ) {
   return [
     "You are preparing a rap in " +
@@ -267,6 +273,7 @@ function planPrompt(
     store
       ? "Some saved entries are not words at all: a pronunciation fragment, a spelling guide, a rule, a heading or a note about grammar. Never plan or rap one — every word you plan has to be a real Ebembe word whose meaning is a short translation."
       : "",
+    rules ? RULES_INTRO + "\n" + rules : "",
     avoid.length
       ? "These words were used in this person's recent takes — leave them for another time and build on the others: " +
         avoid.join(", ")
@@ -315,7 +322,8 @@ function writePrompt(
   topic: string,
   flow: any,
   language: RapLang,
-  store: boolean
+  store: boolean,
+  rules: string
 ) {
   // a short take is a hook and a short body; a longer one is hook, body, hook
   const structure =
@@ -343,6 +351,7 @@ function writePrompt(
       ? "The list below is the whole of the Ebembe you may use, one word per line as term = meaning:"
       : "",
     store ? wordList(words) : "",
+    rules ? RULES_INTRO + "\n" + rules : "",
     "Rules, all of them strict:",
     ...languageRules(language, store),
     "- Each line is one bar of the beat. The hook itself comes back, and call-and-answer with the voice behind the lead is welcome, but the body never repeats a line: every body bar carries its own words and its own thought.",
@@ -774,8 +783,9 @@ export default async function (req: Request): Promise<Response> {
         ? freshWindow(words, recent.used, Number(taken) || 0)
         : { list: [] as any[], avoid: Array.from(recent.used).slice(0, 40) };
 
+      const rules = await rulesText(base44);
       const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
-        prompt: planPrompt(window.list, bpm, topic, flow, recent.titles, window.avoid, language, store),
+        prompt: planPrompt(window.list, bpm, topic, flow, recent.titles, window.avoid, language, store, rules),
         response_json_schema: IDEAS_SCHEMA,
       });
 
@@ -820,6 +830,7 @@ export default async function (req: Request): Promise<Response> {
     // the whole saved list is handed to the writer, so a take draws on as much of the vocabulary
     // as its bars need instead of the handful of words one angle happened to name
 
+    const rules = await rulesText(base44);
     const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: writePrompt(
         words,
@@ -833,7 +844,8 @@ export default async function (req: Request): Promise<Response> {
         topic,
         flow,
         language,
-        store
+        store,
+        rules
       ),
       response_json_schema: LINES_SCHEMA,
     });

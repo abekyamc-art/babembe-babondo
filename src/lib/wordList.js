@@ -5,8 +5,8 @@ import { readPasteLine } from "@/lib/pasteLines";
 // the paste kept whole as a document is named this, so the words tab finds it again
 const PASTE_TITLE = "Words, plurals and rules";
 
-// a list goes to the server in these batches, so a whole vocabulary lands in one go
-const BATCH = 500;
+// a paste goes to the server in these batches, so a whole vocabulary lands in one go
+const BATCH = 400;
 
 /**
  * A paste read line by line. A line that reads like an entry becomes a word with
@@ -40,10 +40,6 @@ export function parseWordList(raw) {
   };
 }
 
-export function listLine(word) {
-  return word.meaning ? `${word.term} = ${word.meaning}` : word.term;
-}
-
 export function wordCount(words) {
   const count = words.length;
   return `${count.toLocaleString()} ${count === 1 ? "word" : "words"}`;
@@ -65,9 +61,10 @@ export async function loadWordStats() {
 }
 
 /** What one paste brought in, in one plain line. */
-export function readLine({ entries, ruleCount, guideCount }) {
+export function readLine({ entries, ruleCount, guideCount, already }) {
   const said = [];
   if (entries.length) said.push(`${wordCount(entries)} read`);
+  if (already) said.push(`${already.toLocaleString()} already saved and skipped`);
   if (ruleCount) {
     said.push(
       `${ruleCount.toLocaleString()} line${ruleCount === 1 ? "" : "s"} of plurals, rules and letters kept as a document`
@@ -107,8 +104,8 @@ export function knownLine(stats, docWords, review) {
     const total = stats.total.toLocaleString();
     said.push(
       stats.whole
-        ? `The assistant knows all ${total} words.`
-        : `The assistant knows ${stats.carried.toLocaleString()} of ${total} words — the list is longer than one session can carry.`
+        ? `Both AIs know all ${total} words.`
+        : `Both AIs know ${stats.carried.toLocaleString()} of ${total} words — the list is longer than one session can carry.`
     );
   }
   if (stats && stats.guided) {
@@ -239,28 +236,61 @@ function pasteTitle() {
   return `${PASTE_TITLE} — pasted ${when}`;
 }
 
+/** Every spelling already saved, so a list pasted again is not written twice. */
+export async function loadSavedTerms() {
+  const terms = new Set();
+  try {
+    const page = await base44.entities.AssistantKnowledge.list({ distinct: "term", limit: 1000 });
+    const values = Array.isArray(page) ? page : page?.items || [];
+    values.forEach((value) => {
+      const key = String(value || "").trim().toLowerCase();
+      if (key) terms.add(key);
+    });
+  } catch (err) {
+    // with no list the paste still goes: the server skips what is already saved
+  }
+  return terms;
+}
+
 /**
- * The whole list written as word entries. What did land comes back with what is
- * still to write, so a list is never half lost or written twice.
+ * The whole list handed to the server, which holds the one rule about what a word is: a word
+ * with a short meaning is saved, a pair that is not one is left with the rules, and a term
+ * already saved is skipped. What did not save comes back so the box can be tried again.
  */
-export async function saveWordList(words) {
-  const saved = [];
-  for (let i = 0; i < words.length; i += BATCH) {
-    const group = words.slice(i, i + BATCH);
+export async function saveWordList(entries) {
+  const out = { ok: true, saved: [], notWord: 0, already: 0 };
+
+  for (let i = 0; i < entries.length; i += BATCH) {
+    const group = entries.slice(i, i + BATCH);
     try {
-      const created = await base44.entities.AssistantKnowledge.bulkCreate(
-        group.map((word) => ({
-          kind: "word",
-          term: word.term,
-          meaning: word.meaning,
-          usage: "",
-          guide: word.guide || "",
-        }))
-      );
-      if (Array.isArray(created)) saved.push(...created);
+      const res = await base44.functions.invoke("knowledgeWords", {
+        action: "save",
+        entries: group,
+      });
+      const data = res?.data || {};
+      if (!Array.isArray(data.saved)) throw new Error(data.error || "save");
+      out.saved.push(...data.saved);
+      out.notWord += Number(data.notWord) || 0;
+      out.already += Number(data.already) || 0;
     } catch (err) {
-      return { saved, remaining: words.slice(i) };
+      return { ...out, ok: false };
     }
   }
-  return { saved, remaining: [] };
+
+  return out;
+}
+
+/** What one save brought in, in one plain line. */
+export function writeNote({ saved, notWord, already }) {
+  const said = [];
+  if (saved.length) said.push(`${wordCount(saved)} saved`);
+  if (already) said.push(`${already.toLocaleString()} were already saved`);
+  if (notWord) {
+    said.push(
+      `${wordCount(notWord)} read as a pair but ${
+        notWord === 1 ? "is" : "are"
+      } not a word with a short meaning — they stay with the rules`
+    );
+  }
+  return said.length ? `${said.join(" · ")}.` : "Nothing new in that paste.";
 }
