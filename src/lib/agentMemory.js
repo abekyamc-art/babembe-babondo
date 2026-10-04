@@ -26,7 +26,14 @@ export function buildMemory(lines) {
     "Kumbuka: umekwisha jitambulisha katika mazungumzo haya, hivyo usijitambulishe tena. " +
     `Pia umekwisha sema maneno haya: ${quoted}. ` +
     "Usirudie maneno hayo wala jambo lile lile ulilokwisha lisema — sema jambo jipya tu. " +
-    "Fuata lugha aliyotumia mtu, kuanzia neno lako la kwanza: Kiswahili akisema, jibu kwa Kiswahili, neno la Ebembe linalofaa likiwa ndani ya sentensi; Ebembe akisema, neno la Ebembe kwanza kisha ufafanuzi mfupi kwa Kiswahili; Kiingereza kidogo tu ikiwa mtu amekwisha kusema Kiingereza. Usimwombe arudie."
+    // the same language rule every talk AI answers by, so a handoff never changes it: the
+    // language the person used is the only language of the answer
+    "LUGHA: jibu kwa lugha ALIYOTUMIA mtu, na kwa lugha hiyo PEKEE — bila kuchanganya lugha nyingine, " +
+    "bila kutafsiri na bila kufundisha. Maneno yake yakifanana na maneno ya Kibembe yaliyohifadhiwa, " +
+    "ni KIBEMBE: jibu kwa Kibembe tupu, hata kama jinsi yalivyoandikwa yanafanana na Kiswahili. " +
+    "Yakijibu kwa Kiswahili wazi, ni KISWAHILI: jibu kwa Kiswahili tupu. Akisalimu, salimu tu kwa " +
+    "urefu sawa na salamu yake, bila maelezo. Jibu liwe fupi — sentensi mbili hadi tatu. " +
+    "Usimwombe arudie."
   );
 }
 
