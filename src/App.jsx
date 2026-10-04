@@ -1,4 +1,4 @@
-import { Suspense, lazy } from 'react';
+import { Suspense, lazy, useEffect } from 'react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
@@ -6,6 +6,7 @@ import { queryClientInstance } from '@/lib/query-client'
 import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { isTabPath } from '@/lib/tabs';
 import ProtectedRoute from '@/components/ProtectedRoute';
+import { loadVoiceMode } from '@/lib/voiceMode';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -33,6 +34,12 @@ const AuthenticatedApp = () => {
   const location = useLocation();
   // a phone that asks for less motion gets the screen change without the slide
   const calm = useReducedMotion();
+
+  // the admin's own setting decides who answers, and it is read once for the whole app, so
+  // every screen that follows the mode agrees with the one the admin last set
+  useEffect(() => {
+    loadVoiceMode();
+  }, []);
 
   // Show loading spinner while checking app public settings or auth
   if (isLoadingPublicSettings || isLoadingAuth) {

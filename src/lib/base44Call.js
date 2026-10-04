@@ -164,6 +164,9 @@ export default class Base44Call {
         history: this.history(),
       });
       const data = res?.data || {};
+      // the admin may have switched the mode away from this AI while the answer was being
+      // written: a call that has been stopped says nothing, on screen or out loud
+      if (this.stopped || !this.connected) return false;
       // a turn nothing was made of: he asks again, quietly, and the call listens on — no
       // words are put on screen as the person's own, and nothing is charged for it
       if (data.reask) {
@@ -198,6 +201,9 @@ export default class Base44Call {
 
   /** His answer read out loud, at the phone's own quicker pace and in the voice's own pitch. */
   async speak(url) {
+    // a stopped call has no voice: the answer of a provider that has been switched away
+    // from is never read out
+    if (this.stopped || !this.connected) return;
     this.speaking = true;
     this.h.onAgentAudioStart?.();
     try {
@@ -268,6 +274,9 @@ export default class Base44Call {
         history: this.history(),
       });
       const data = res?.data || {};
+      // the admin may have switched the mode away from this AI while the answer was being
+      // written: a call that has been stopped says nothing, on screen or out loud
+      if (this.stopped || !this.connected) return false;
       if (!data.answer) throw new Error(data.error || "Jibu halikukamilika. Jaribu tena.");
 
       this.log.push({ role: "agent", text: data.answer });

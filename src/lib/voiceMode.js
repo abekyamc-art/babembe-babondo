@@ -27,16 +27,28 @@ async function setting() {
   return page?.items?.[0] || null;
 }
 
+// a reading already on its way is shared: the app shell and the home screen both ask as they
+// open, and one read of the setting answers them both
+let reading = null;
+
 /** Read the mode the admin last set; the outside agent stands when it cannot be read. */
 export async function loadVoiceMode() {
+  if (reading) return reading;
+  reading = (async () => {
+    try {
+      const found = await setting();
+      current = found?.mode === BASE44 ? BASE44 : AGENT;
+    } catch (err) {
+      current = AGENT;
+    }
+    tell();
+    return current;
+  })();
   try {
-    const found = await setting();
-    current = found?.mode === BASE44 ? BASE44 : AGENT;
-  } catch (err) {
-    current = AGENT;
+    return await reading;
+  } finally {
+    reading = null;
   }
-  tell();
-  return current;
 }
 
 /** The admin's own switch: the mode is written for the app, so every session follows it. */

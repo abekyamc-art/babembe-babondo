@@ -14,7 +14,7 @@ import {
   spendCredit,
 } from "@/lib/usage";
 import { ensureProfile } from "@/lib/social";
-import { loadVoiceMode } from "@/lib/voiceMode";
+import { loadVoiceMode, useVoiceMode } from "@/lib/voiceMode";
 import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
@@ -25,6 +25,7 @@ import CoinPill from "@/components/voice/CoinPill";
 import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
 import ModeToggle from "@/components/voice/ModeToggle";
+import ModeBadge from "@/components/voice/ModeBadge";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 
@@ -45,6 +46,9 @@ export default function VoiceAssistant() {
     stop,
   } = useVoiceAgent({ videoRef: orbVideoRef });
   const navigate = useNavigate();
+  // the experience on screen follows the admin's switch, and every page the app shows
+  // follows the same saved mode
+  const mode = useVoiceMode();
 
   const [user, setUser] = useState(null);
   const [stamps, setStamps] = useState([]);
@@ -98,16 +102,14 @@ export default function VoiceAssistant() {
       } catch (err) {
         setStamps([]);
       }
+      // the admin's own setting decides who answers every call: the screen is not ready to
+      // start one under a mode it has not read yet
+      await loadVoiceMode();
       if (alive) setReady(true);
     })();
     return () => {
       alive = false;
     };
-  }, []);
-
-  // the admin's own setting decides who answers every call; it is read as the screen opens
-  useEffect(() => {
-    loadVoiceMode();
   }, []);
 
   // the allowance keeps itself current, so a returning message appears without a reload
@@ -276,7 +278,11 @@ export default function VoiceAssistant() {
                 : "Tap to talk";
 
   return (
-    <div className="relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground">
+    <div
+      className={`relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground ${
+        mode === "base44" ? "mode-base44" : "mode-agent"
+      }`}
+    >
       <div aria-hidden className="ambient-wash" />
 
       <header className="relative z-10 flex items-start justify-between gap-3 px-5 pt-[max(0.6rem,env(safe-area-inset-top))]">
@@ -305,6 +311,8 @@ export default function VoiceAssistant() {
 
       <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-between gap-4 px-5">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7">
+          {/* who answers is written on the screen itself: the whole page changes with the switch */}
+          <ModeBadge mode={mode} />
           <button
             type="button"
             onClick={handleCall}
@@ -355,7 +363,12 @@ export default function VoiceAssistant() {
               error ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {error || notice || faceNote}
+            {error ||
+              notice ||
+              faceNote ||
+              (mode === "base44"
+                ? "Base44 AI answers each turn."
+                : "The outside agent answers each turn.")}
           </p>
         </div>
       </main>

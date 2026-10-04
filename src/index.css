@@ -132,6 +132,41 @@
 }
 
 @layer components {
+  /* Who answers is written on the page itself: each experience owns the screen's own
+     colour, so the whole home screen changes with the switch and not only the pill.
+     Everything the page draws through the accent follows it. */
+  .mode-agent {
+    --accent: 190 74% 40%;
+  }
+
+  .mode-base44 {
+    --accent: 262 72% 54%;
+  }
+
+  .dark .mode-agent {
+    --accent: 190 74% 52%;
+  }
+
+  .dark .mode-base44 {
+    --accent: 262 74% 66%;
+  }
+
+  /* the home screen's own line naming who answers */
+  .mode-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 12px;
+    border: 1px solid hsl(var(--accent) / 0.45);
+    border-radius: 999px;
+    background: hsl(var(--accent) / 0.1);
+    color: hsl(var(--accent));
+    font: 700 10px/1 var(--font-body);
+    letter-spacing: 0.16em;
+    text-transform: uppercase;
+    white-space: nowrap;
+  }
+
   .ambient-wash {
     position: absolute;
     inset: 0;
@@ -148,7 +183,7 @@
   .orb-shell {
     --orb-size: clamp(
       150px,
-      calc(100dvh - var(--tabbar-space) - 384px - env(safe-area-inset-top, 0px)),
+      calc(100dvh - var(--tabbar-space) - 422px - env(safe-area-inset-top, 0px)),
       min(84vmin, 420px)
     );
     position: relative;

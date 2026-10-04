@@ -19,6 +19,23 @@ const HELD_LIMIT = 4000;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/**
+ * One session's handlers. Every report they carry is checked against the number the session
+ * was opened under, so a session the admin has already switched away from — including one
+ * still finishing an answer it began before the switch — says nothing on screen and is never
+ * charged for.
+ */
+function forSession(handlers, gen, live) {
+  const wrapped = {};
+  Object.keys(handlers).forEach((key) => {
+    wrapped[key] = (...args) => {
+      if (gen !== live.current) return;
+      handlers[key](...args);
+    };
+  });
+  return wrapped;
+}
+
 export default function useVoiceAgent({ videoRef } = {}) {
   const socketRef = useRef(null);
   const levelRef = useRef(0);
@@ -46,6 +63,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
   // the story being told in parts, so a call that opens later continues it instead
   // of starting it over
   const storyRef = useRef(emptyStory());
+  // which session is the one on air. Every engine reports through handlers stamped with the
+  // number they were opened under, and anything arriving under an older number is dropped, so
+  // a provider the admin has switched away from cannot answer, charge, or speak again.
+  const sessionRef = useRef(0);
 
   // the mode in force, kept in step with the admin's switch: a switch ends whatever
   // session is on air, so the mode that was chosen is the only one left answering
@@ -81,8 +102,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
   // nothing said before the switch is answered by the provider that was just turned off,
   // and every turn after it is answered by the mode that was chosen.
   useEffect(() => {
+    // Everything from before the switch belongs to the mode that is no longer in force: the
+    // session on air is orphaned first, so none of its reports can land any more, and ended
+    // straight after, so the provider just turned off stops talking — including one still
+    // writing or speaking an answer it began before the switch.
+    sessionRef.current += 1;
     const engine = socketRef.current;
-    if (!engine || engine.mode === mode) return;
     socketRef.current = null;
     heldRef.current = "";
     setSpeaking(false);
@@ -90,7 +115,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
     setMicActive(false);
     setAvatarLive(false);
     setStatus("idle");
-    Promise.resolve(engine.stop?.()).catch(() => {});
+    if (engine) Promise.resolve(engine.stop?.()).catch(() => {});
   }, [mode]);
 
   const pushTurn = useCallback((role, text) => {
@@ -280,7 +305,12 @@ export default function useVoiceAgent({ videoRef } = {}) {
       setError("");
       setNotice("");
       setStatus("connecting");
-      const handlers = makeHandlers();
+      // this attempt's own number, and the mode it is being made under: a switch taken while
+      // the knowledge is still being read orphans the attempt here, so nothing opens under a
+      // mode that is no longer the one in force
+      const gen = ++sessionRef.current;
+      const openingMode = voiceMode();
+      const handlers = forSession(makeHandlers(), gen, sessionRef);
       // a session opened after he has spoken is a continuation of the same talk
       const said = linesRef.current;
       const laterTurn = said.length > 0;
@@ -299,15 +329,19 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // turns on, the guidance that goes with them, and anything just looked up
       const knowledge = withKnowledge(memory, withKnowledge(note, fresh));
 
+      // the mode changed while the knowledge was being read: this call is not the one the
+      // admin asked for, so it is left unopened and nothing of it reaches the room
+      if (gen !== sessionRef.current || voiceMode() !== openingMode) return false;
+
       // The admin's own switch decides who answers. With Base44 AI in force the app's own AI
       // writes the written answers, and the voice of a spoken call is given to the admin's
       // second, separate ElevenLabs account — its own key and its own agent — so the outside
       // agent's account is never touched by it and Base44 is left to text and chat alone.
-      const secondVoice = voiceMode() === "base44" && withMic;
-      if (voiceMode() === "base44" && !secondVoice) {
+      const secondVoice = openingMode === "base44" && withMic;
+      if (openingMode === "base44" && !secondVoice) {
         const call = new Base44Call(handlers);
         // the mode this session answers under, so a later switch knows to end it
-        call.mode = voiceMode();
+        call.mode = openingMode;
         socketRef.current = call;
         quietRef.current = silent;
         setMicActive(withMic);
@@ -334,7 +368,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // spoken on the admin's second one
       if (!silent && !secondVoice && faceReadyRef.current && videoRef?.current) {
         const call = new AvatarCall(handlers);
-        call.mode = voiceMode();
+        call.mode = openingMode;
         socketRef.current = call;
         quietRef.current = false;
         setMicActive(withMic);
@@ -359,7 +393,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
       }
 
       const socket = new VoiceSocket(handlers);
-      socket.mode = voiceMode();
+      socket.mode = openingMode;
       socketRef.current = socket;
       quietRef.current = silent;
       setMicActive(withMic);
@@ -397,6 +431,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
   );
 
   const stop = useCallback(async () => {
+    // the session being ended is orphaned, so a reply already on its way is dropped rather
+    // than put on screen and charged for after the person has stopped the call
+    sessionRef.current += 1;
     const socket = socketRef.current;
     socketRef.current = null;
     setSpeaking(false);
