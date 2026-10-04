@@ -4,8 +4,7 @@ import { ArrowLeft, Coins } from "lucide-react";
 import useRapStudio from "@/hooks/useRapStudio";
 import TypingDots from "@/components/voice/TypingDots";
 import RapControls from "@/components/rap/RapControls";
-import RapPlan from "@/components/rap/RapPlan";
-import RapIdeas from "@/components/rap/RapIdeas";
+import RapGenerate from "@/components/rap/RapGenerate";
 import RapLyrics from "@/components/rap/RapLyrics";
 import RapPlayer from "@/components/rap/RapPlayer";
 import RapDownloads from "@/components/rap/RapDownloads";
@@ -14,12 +13,11 @@ import RapSong from "@/components/rap/RapSong";
 import RapSimilar from "@/components/rap/RapSimilar";
 import SavedBeats from "@/components/rap/SavedBeats";
 import { RAP_COST } from "@/lib/coins";
-import { usesStore } from "@/lib/rapLanguage";
 import "@/rap-studio.css";
 
 const BUSY_LABEL = {
-  plan: "Base44 AI inapanga maneno na mawazo…",
-  write: "Base44 AI inaandika wazo lako mistari kwa mistari…",
+  plan: "Base44 AI inapanga maneno…",
+  write: "Base44 AI inaandika mistari…",
   voice: "ElevenLabs inaimba mistari yako…",
   video: "Video inatengenezwa…",
   read: "Wimbo wako unapimwa…",
@@ -88,22 +86,14 @@ export default function Rap() {
         </button>
       ) : null}
 
-      <RapPlan
-        plan={studio.plan}
+      <RapGenerate
+        language={settings.language}
+        hasWords={!!studio.words?.length}
+        hasLines={!!lines.length}
         busy={busy}
         ready={ready}
-        blocked={usesStore(settings.language) && !studio.words?.length}
-        onGenerate={studio.planIdeas}
+        onGenerate={studio.generateRap}
       />
-
-      {studio.ideas.length ? (
-        <RapIdeas
-          ideas={studio.ideas}
-          picked={studio.picked}
-          busy={!!busy}
-          onPick={studio.writeIdea}
-        />
-      ) : null}
 
       {lines.length ? (
         <RapLyrics

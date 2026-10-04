@@ -33,9 +33,6 @@ export default function useRapStudio() {
     topic: "",
   });
   const [lines, setLines] = useState([]);
-  const [plan, setPlan] = useState([]);
-  const [ideas, setIdeas] = useState([]);
-  const [picked, setPicked] = useState(-1);
   const [take, setTake] = useState(null);
   const [takes, setTakes] = useState([]);
   const [beat, setBeat] = useState(null);
@@ -265,13 +262,14 @@ export default function useRapStudio() {
     }
   }, []);
 
-  /** Base44 AI plans the words first, then offers a few different angles on the theme. */
-  const planIdeas = useCallback(async () => {
+  /** Base44 AI does the whole thinking in one tap: it plans the words for the theme, settles its
+   *  own angle on it, then writes that angle out in full. */
+  const generateRap = useCallback(async () => {
     if (busy || !user) return;
     setBusy("plan");
     setError("");
     try {
-      const res = await base44.functions.invoke("rapLyrics", {
+      const planned = await base44.functions.invoke("rapLyrics", {
         action: "plan",
         language: settings.language,
         topic: settings.topic,
@@ -279,55 +277,35 @@ export default function useRapStudio() {
         bpm: settings.bpm,
         flow: settings.flow,
       });
-      const data = res?.data || {};
-      if (!data.ideas?.length) throw new Error(data.error || "Mawazo hayakuja. Jaribu tena.");
-      setPlan(data.plan || []);
-      setIdeas(data.ideas);
-      setPicked(-1);
-      setLines([]);
-      setWordsUsed([]);
+      const draft = planned?.data || {};
+      const idea = draft.ideas?.[0];
+      if (!idea) throw new Error(draft.error || "Mawazo hayakuja. Jaribu tena.");
+
+      setBusy("write");
+      const written = await base44.functions.invoke("rapLyrics", {
+        action: "write",
+        idea: {
+          name: idea.name,
+          hook: idea.hook,
+          swahili: idea.swahili,
+          words_used: idea.words_used,
+        },
+        language: settings.language,
+        topic: settings.topic,
+        bars: barsFor(settings.seconds, settings.bpm),
+        bpm: settings.bpm,
+        flow: settings.flow,
+      });
+      const data = written?.data || {};
+      if (!data.lines?.length) throw new Error(data.error || "Mistari haikuja. Jaribu tena.");
+      setLines(data.lines.map((line) => ({ ...line, locked: false })));
+      setWordsUsed(data.words_used?.length ? data.words_used : idea.words_used || []);
       setTake(null);
     } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Mawazo hayakuweza kutengenezwa.");
+      setError(err?.response?.data?.error || err?.message || "Rap haikuweza kutungwa. Jaribu tena.");
     }
     setBusy("");
   }, [busy, settings, user]);
-
-  /** The chosen angle written out in full, against the very words its own plan named. */
-  const writeIdea = useCallback(
-    async (index) => {
-      const idea = ideas[index];
-      if (busy || !idea) return;
-      setBusy("write");
-      setError("");
-      try {
-        const res = await base44.functions.invoke("rapLyrics", {
-          action: "write",
-          idea: {
-            name: idea.name,
-            hook: idea.hook,
-            swahili: idea.swahili,
-            words_used: idea.words_used,
-          },
-          language: settings.language,
-          topic: settings.topic,
-          bars: barsFor(settings.seconds, settings.bpm),
-          bpm: settings.bpm,
-          flow: settings.flow,
-        });
-        const data = res?.data || {};
-        if (!data.lines?.length) throw new Error(data.error || "Mistari haikuja. Jaribu tena.");
-        setLines(data.lines.map((line) => ({ ...line, locked: false })));
-        setWordsUsed(data.words_used?.length ? data.words_used : idea.words_used || []);
-        setPicked(index);
-        setTake(null);
-      } catch (err) {
-        setError(err?.response?.data?.error || err?.message || "Wazo hili halikuweza kuandikwa.");
-      }
-      setBusy("");
-    },
-    [busy, ideas, settings]
-  );
 
   const editLine = useCallback((index, patch) => {
     setLines((prev) => prev.map((line, at) => (at === index ? { ...line, ...patch } : line)));
@@ -520,9 +498,6 @@ export default function useRapStudio() {
       language: saved.language || prev.language,
       topic: saved.title || prev.topic,
     }));
-    setPlan([]);
-    setIdeas([]);
-    setPicked(-1);
     setTake(null);
     setError("");
   }, []);
@@ -535,9 +510,6 @@ export default function useRapStudio() {
     settings,
     setSettings,
     lines,
-    plan,
-    ideas,
-    picked,
     take,
     takes,
     beat,
@@ -556,8 +528,7 @@ export default function useRapStudio() {
     beatBytesOf,
     useSavedBeat,
     removeSavedBeat,
-    planIdeas,
-    writeIdea,
+    generateRap,
     editLine,
     toggleLock,
     makeVoice,
