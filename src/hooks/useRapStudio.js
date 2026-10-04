@@ -262,8 +262,146 @@ export default function useRapStudio() {
     }
   }, []);
 
+
+
+  const editLine = useCallback((index, patch) => {
+    setLines((prev) => prev.map((line, at) => (at === index ? { ...line, ...patch } : line)));
+  }, []);
+
+  const toggleLock = useCallback((index) => {
+    setLines((prev) => prev.map((line, at) => (at === index ? { ...line, locked: !line.locked } : line)));
+  }, []);
+
+  const keep = useCallback(
+    async (next, currentLines, usedWords) => {
+      try {
+        const created = await base44.entities.RapTake.create({
+          title: titleOf(currentLines, settings.topic),
+          language: settings.language,
+          voice: settings.voice,
+          beat: settings.beat,
+          bpm: settings.bpm,
+          seconds: settings.seconds,
+          ebembe_lines: currentLines.map((line) => line.ebembe),
+          swahili_lines: currentLines.map((line) => line.swahili),
+          words_used: usedWords || [],
+          audio_url: next.audio_url,
+          beat_file_uri: beat?.file_uri || "",
+        });
+        setTake((prev) => (prev ? { ...prev, id: created?.id } : prev));
+        setTakes((prev) => [created, ...prev]);
+      } catch (err) {
+        // the take stays on screen even when keeping it fails
+      }
+    },
+    [beat, settings, titleOf]
+  );
+
+  /** The sound of a take, made in one path whichever voice is set: the coins go, the key the voice
+   *  sings in is found, the voice performs the bars, and the take is mixed on the phone and kept.
+   *  What comes back from the singing voice has to carry a beat where the tempo says it falls: a
+   *  take that was read out instead of sung is thrown away and made once more, and if the second
+   *  one is no better the coins go back to the wallet and the person is told. Returns whether a
+   *  take came through. */
+  const takeVoice = useCallback(
+    async (current, usedWords) => {
+      if (!user || !current?.length) return false;
+      setError("");
+      setShortOnCoins(false);
+
+      const wallet = await ensureProfile(user);
+      setProfile(wallet);
+      if (balanceOf(wallet) < RAP_COST) {
+        setShortOnCoins(true);
+        setError(`Take moja inagharimu coins ${RAP_COST}, lakini wallet yako haina kiasi hicho.`);
+        return false;
+      }
+
+      setBusy("voice");
+      try {
+        const spent = await spendCoins(wallet, RAP_COST);
+        if (spent) setProfile(spent);
+
+        // the key the voice sings in: the person's own beat gives it, the studio's own beat has its own
+        const key =
+          settings.beat === "mine" && beat?.bytes ? await keyBytes(beat.bytes) : APP_BEAT_KEY;
+
+        // A sung take has to carry a beat where the tempo says the beat falls: a reading of the
+        // lines never does, so it is no take at all. The assistant's own voice is a spoken take
+        // by choice, so that one is taken as it comes.
+        const sing = async () => {
+          try {
+            const res = await base44.functions.invoke("rapVoice", {
+              lines: current.map((line) => line.ebembe),
+              bpm: settings.bpm,
+              beat: settings.beat,
+              voice: settings.voice,
+              language: settings.language,
+              flow: settings.flow,
+              key,
+            });
+            const data = res?.data || {};
+            if (!data.audio_url) return null;
+            if (settings.voice !== "sing") return data;
+
+            const heard = await decodeBytes(await fetchAudio(data.song_url || data.audio_url));
+            return hasBeat(heard, settings.bpm) ? data : null;
+          } catch (err) {
+            return null;
+          }
+        };
+
+        let data = await sing();
+        if (!data) data = await sing();
+        if (!data) {
+          const back = await creditCoins(user.email, RAP_COST);
+          if (back) setProfile(back);
+          setError(
+            `Take haikuweza kutengenezwa kwa mara mbili — coins ${RAP_COST} zimerudi kwenye wallet yako. Jaribu tena.`
+          );
+          return false;
+        }
+
+        const seconds = Number(data.seconds) || beatSeconds(current.length, settings.bpm);
+        const vocalBytes = await fetchAudio(data.audio_url);
+        const buffer = await mixTake({
+          vocalBytes,
+          vocalKind: data.kind,
+          beatKind: settings.beat,
+          beatBytes: beat?.bytes || null,
+          bpm: settings.bpm,
+          seconds,
+        });
+
+        const next = {
+          audio_url: data.audio_url,
+          kind: data.kind,
+          buffer,
+          mp3Url: data.kind === "song" ? data.audio_url : "",
+          video_url: "",
+        };
+        setTake(next);
+        await keep(next, current, usedWords);
+        return true;
+      } catch (err) {
+        setError(err?.response?.data?.error || err?.message || "Sauti haikuweza kutengenezwa.");
+        return false;
+      } finally {
+        setBusy("");
+      }
+    },
+    [beat, keep, settings, user]
+  );
+
+  /** The studio's own sound control: the retry after a run that did not come through, and a
+   *  re-take from the player. */
+  const makeVoice = useCallback(async () => {
+    if (busy) return;
+    await takeVoice(lines, wordsUsed);
+  }, [busy, lines, takeVoice, wordsUsed]);
+
   /** Base44 AI does the whole thinking in one tap: it plans the words for the theme, settles its
-   *  own angle on it, then writes that angle out in full. */
+   *  own angle on it, then writes that angle out in full and has the voice at Sauti perform it. */
   const generateRap = useCallback(async () => {
     if (busy || !user) return;
     setBusy("plan");
@@ -298,137 +436,21 @@ export default function useRapStudio() {
       });
       const data = written?.data || {};
       if (!data.lines?.length) throw new Error(data.error || "Mistari haikuja. Jaribu tena.");
-      setLines(data.lines.map((line) => ({ ...line, locked: false })));
-      setWordsUsed(data.words_used?.length ? data.words_used : idea.words_used || []);
+
+      const bars = data.lines.map((line) => ({ ...line, locked: false }));
+      const used = data.words_used?.length ? data.words_used : idea.words_used || [];
+      setLines(bars);
+      setWordsUsed(used);
       setTake(null);
+
+      // the same tap carries the take on to its sound: the voice at Sauti performs the bars, and
+      // the coins for the take go without a second tap
+      await takeVoice(bars, used);
     } catch (err) {
       setError(err?.response?.data?.error || err?.message || "Rap haikuweza kutungwa. Jaribu tena.");
     }
     setBusy("");
-  }, [busy, settings, user]);
-
-  const editLine = useCallback((index, patch) => {
-    setLines((prev) => prev.map((line, at) => (at === index ? { ...line, ...patch } : line)));
-  }, []);
-
-  const toggleLock = useCallback((index) => {
-    setLines((prev) => prev.map((line, at) => (at === index ? { ...line, locked: !line.locked } : line)));
-  }, []);
-
-  const keep = useCallback(
-    async (next, currentLines) => {
-      try {
-        const created = await base44.entities.RapTake.create({
-          title: titleOf(currentLines, settings.topic),
-          language: settings.language,
-          voice: settings.voice,
-          beat: settings.beat,
-          bpm: settings.bpm,
-          seconds: settings.seconds,
-          ebembe_lines: currentLines.map((line) => line.ebembe),
-          swahili_lines: currentLines.map((line) => line.swahili),
-          words_used: wordsUsed,
-          audio_url: next.audio_url,
-          beat_file_uri: beat?.file_uri || "",
-        });
-        setTake((prev) => (prev ? { ...prev, id: created?.id } : prev));
-        setTakes((prev) => [created, ...prev]);
-      } catch (err) {
-        // the take stays on screen even when keeping it fails
-      }
-    },
-    [beat, settings, titleOf, wordsUsed]
-  );
-
-  /** The singing voice takes the lines, then the take is mixed on the phone. What comes back
-   *  has to carry a beat where the tempo says it falls: a take that was read out instead of
-   *  sung is thrown away and made once more, and if the second one is no better the coins go
-   *  back to the wallet and the person is told. */
-  const makeVoice = useCallback(async () => {
-    if (busy || !user || !lines.length) return;
-    setError("");
-    setShortOnCoins(false);
-
-    const wallet = await ensureProfile(user);
-    setProfile(wallet);
-    if (balanceOf(wallet) < RAP_COST) {
-      setShortOnCoins(true);
-      setError(`Take moja inagharimu coins ${RAP_COST}, lakini wallet yako haina kiasi hicho.`);
-      return;
-    }
-
-    setBusy("voice");
-    const current = lines;
-    try {
-      const spent = await spendCoins(wallet, RAP_COST);
-      if (spent) setProfile(spent);
-
-      // the key the voice sings in: the person's own beat gives it, the studio's own beat has its own
-      const key =
-        settings.beat === "mine" && beat?.bytes ? await keyBytes(beat.bytes) : APP_BEAT_KEY;
-
-      // A sung take has to carry a beat where the tempo says the beat falls: a reading of the
-      // lines never does, so it is no take at all. The assistant's own voice is a spoken take
-      // by choice, so that one is taken as it comes.
-      const sing = async () => {
-        try {
-          const res = await base44.functions.invoke("rapVoice", {
-            lines: current.map((line) => line.ebembe),
-            bpm: settings.bpm,
-            beat: settings.beat,
-            voice: settings.voice,
-            language: settings.language,
-            flow: settings.flow,
-            key,
-          });
-          const data = res?.data || {};
-          if (!data.audio_url) return null;
-          if (settings.voice !== "sing") return data;
-
-          const heard = await decodeBytes(await fetchAudio(data.song_url || data.audio_url));
-          return hasBeat(heard, settings.bpm) ? data : null;
-        } catch (err) {
-          return null;
-        }
-      };
-
-      let data = await sing();
-      if (!data) data = await sing();
-      if (!data) {
-        const back = await creditCoins(user.email, RAP_COST);
-        if (back) setProfile(back);
-        setError(
-          `Take haikuweza kutengenezwa kwa mara mbili — coins ${RAP_COST} zimerudi kwenye wallet yako. Jaribu tena.`
-        );
-        setBusy("");
-        return;
-      }
-
-      const seconds = Number(data.seconds) || beatSeconds(current.length, settings.bpm);
-      const vocalBytes = await fetchAudio(data.audio_url);
-      const buffer = await mixTake({
-        vocalBytes,
-        vocalKind: data.kind,
-        beatKind: settings.beat,
-        beatBytes: beat?.bytes || null,
-        bpm: settings.bpm,
-        seconds,
-      });
-
-      const next = {
-        audio_url: data.audio_url,
-        kind: data.kind,
-        buffer,
-        mp3Url: data.kind === "song" ? data.audio_url : "",
-        video_url: "",
-      };
-      setTake(next);
-      await keep(next, current);
-    } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Sauti haikuweza kutengenezwa.");
-    }
-    setBusy("");
-  }, [beat, busy, keep, lines, settings, user]);
+  }, [busy, settings, takeVoice, user]);
 
   const downloadAudio = useCallback(() => {
     if (!take?.buffer) return;

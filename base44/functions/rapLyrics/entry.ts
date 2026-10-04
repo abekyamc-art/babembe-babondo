@@ -705,6 +705,7 @@ function writePrompt(
     "Rules, all of them strict:",
     ...languageRules(language, store),
     "- Each line is one bar of the beat. The hook itself comes back, and call-and-answer with the voice behind the lead is welcome, but the body never repeats a line: every body bar carries its own words and its own thought.",
+    "- Never let the same word come back bar after bar: once a word has carried two bars, the bars after it take other words from the list and say the same thing another way.",
     "- Every bar says something a listener understands, and no bar leans on the same word again and again — say the thing a different way instead.",
     flowStyle(flow),
     meaningRule(language),
@@ -717,24 +718,76 @@ function writePrompt(
     .join("\n");
 }
 
-/** One more pass over the bars that leaned on a word the store does not hold, so what reaches
- *  the person is written only from the words the store really keeps. */
-async function repairLines(
+// how many bars a word may carry before the take is leaning on it again and again
+const MAX_WORD_BARS = 2;
+// a list this small cannot say the same thing another way — the bars would only come back
+// reworded in the same few words — so there the take stands as it is written
+const MIN_VARY_WORDS = 18;
+
+/** The bars of the body that lean on a word the take has already leaned on twice, with the word
+ *  itself. The hook is left alone: a hook comes back by design. */
+function overusedBars(lines: any[]) {
+  const carried = new Map<string, number>();
+  const rows: { index: number; again: string[] }[] = [];
+
+  lines.forEach((line: any, index: number) => {
+    if (line?.section === "HOOK") return;
+    const tokens = Array.from(new Set(tokensOf(line)));
+    const again = tokens.filter((token) => (carried.get(token) || 0) >= MAX_WORD_BARS);
+    tokens.forEach((token) => carried.set(token, (carried.get(token) || 0) + 1));
+    if (again.length) rows.push({ index, again });
+  });
+
+  return rows;
+}
+
+/** The bars that say exactly what an earlier bar of the take already says, with the bar they
+ *  copy. The hook is left alone: a hook comes back by design. */
+function duplicateBars(lines: any[]) {
+  const written = new Map<string, number>();
+  const rows: { index: number; from: number }[] = [];
+
+  lines.forEach((line: any, index: number) => {
+    if (line?.section === "HOOK") return;
+    const key = tokensOf(line).join(" ");
+    if (!key) return;
+    const from = written.get(key);
+    if (from === undefined) written.set(key, index + 1);
+    else rows.push({ index, from });
+  });
+
+  return rows;
+}
+
+/** The words of the list the take really stands on: the ones its own bars say, wearing their
+ *  prefix or not. */
+function wordsInTake(used: string[], lines: any[]): string[] {
+  const said = new Set<string>();
+  lines.forEach((line: any) => tokensOf(line).forEach((token) => said.add(token)));
+  return used.filter((term) => {
+    const key = term.toLowerCase();
+    return said.has(key) || PREFIXES.some((prefix) => said.has(prefix + key));
+  });
+}
+
+/** One more pass over the bars that have to change, so what reaches the person is written only
+ *  from the words the store keeps and never leans on the same word again and again. Each note
+ *  carries the reason its bar has to be written once more; nothing else about the rap moves. */
+async function rewriteBars(
   base44: any,
   words: any[],
   lines: any[],
-  missed: any[],
+  intro: string,
+  ask: string,
+  targets: { index: number; note: string }[],
   flow: any
 ): Promise<any[] | null> {
   const prompt = [
-    "You are correcting bars of an Ebembe rap. Some of them use words that are not in the confirmed list, and that list is the whole of the Ebembe allowed.",
+    intro,
     "The list below is the whole of the Ebembe you may use, one word per line as term = meaning:",
     wordList(words),
-    "Rewrite each bar listed below so that every word in it is in that list, keeping its meaning and its place in the rap. Change nothing else about the rap.",
-    ...missed.map(
-      (row: any) =>
-        "Bar " + (row.index + 1) + ": " + lines[row.index]?.ebembe + "  (not in the list: " + row.unknown.join(", ") + ")"
-    ),
+    ask,
+    ...targets.map((row) => row.note),
     "Return only the rewritten bars in lines, in the same order, each with its section and its swahili meaning.",
     flowStyle(flow),
     ...SPELLING,
@@ -746,9 +799,9 @@ async function repairLines(
       response_json_schema: FIX_SCHEMA,
     });
     const fixed = readLines(out?.lines);
-    if (fixed.length !== missed.length) return null;
+    if (fixed.length !== targets.length) return null;
     const next = lines.slice();
-    missed.forEach((row: any, at: number) => {
+    targets.forEach((row, at) => {
       next[row.index] = fixed[at];
     });
     return next;
@@ -1027,15 +1080,88 @@ export default async function (req: Request): Promise<Response> {
       }
     }
 
-    // nothing reaches the person that leans on a word the store does not hold: those bars are
-    // written once more against the confirmed list before the take is handed over
+    // nothing reaches the person that leans on a word the store does not hold, and no bar keeps
+    // coming back to a word the take has already used: those bars are written once more against
+    // the confirmed list before the take is handed over
     if (store) {
+      const list = chosen.length ? chosen : words;
+
       const missed = unverified(lines, known);
       if (missed.length) {
-        const repaired = await repairLines(base44, chosen.length ? chosen : words, lines, missed, flow);
+        const repaired = await rewriteBars(
+          base44,
+          list,
+          lines,
+          "You are correcting bars of an Ebembe rap. Some of them use words that are not in the confirmed list, and that list is the whole of the Ebembe allowed.",
+          "Rewrite each bar listed below so that every word in it is in that list, keeping its meaning and its place in the rap. Change nothing else about the rap.",
+          missed.map((row: any) => ({
+            index: row.index,
+            note:
+              "Bar " +
+              (row.index + 1) +
+              ": " +
+              lines[row.index]?.ebembe +
+              "  (not in the list: " +
+              row.unknown.join(", ") +
+              ")",
+          })),
+          flow
+        );
         if (repaired) lines = repaired;
       }
+
+      // A bar that says exactly what an earlier bar already says is always written again. A word
+      // leaned on again and again is only worth rewriting when the list is wide enough to say the
+      // same thing another way; on a list too small for that the take stands as it is written.
+      const notes = new Map<number, string>();
+      duplicateBars(lines).forEach((row: any) => {
+        notes.set(
+          row.index,
+          "Bar " +
+            (row.index + 1) +
+            ": " +
+            lines[row.index]?.ebembe +
+            "  (says what bar " +
+            row.from +
+            " already says)"
+        );
+      });
+      if (list.length >= MIN_VARY_WORDS) {
+        overusedBars(lines).forEach((row: any) => {
+          if (notes.has(row.index)) return;
+          notes.set(
+            row.index,
+            "Bar " +
+              (row.index + 1) +
+              ": " +
+              lines[row.index]?.ebembe +
+              "  (used again: " +
+              row.again.join(", ") +
+              ")"
+          );
+        });
+      }
+
+      const targets = Array.from(notes, ([index, note]) => ({ index, note })).sort(
+        (a, b) => a.index - b.index
+      );
+      if (targets.length) {
+        const varied = await rewriteBars(
+          base44,
+          list,
+          lines,
+          "You are correcting bars of an Ebembe rap. Some of them say exactly what another bar already says, and some lean on a word the take has already used in its other bars.",
+          "Rewrite each bar listed below so that it says something new, on words the take has not used yet, staying on the same theme and keeping its place in the rap. Leave every other bar of the rap as it is.",
+          targets,
+          flow
+        );
+        if (varied) lines = varied;
+      }
     }
+
+    // the words line and the words panel carry only the words the take really stands on
+    const shown = wordsInTake(used, lines);
+    if (shown.length) used = shown;
 
     return Response.json({
       lines,

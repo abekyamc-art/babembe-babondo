@@ -18,7 +18,6 @@ import "@/rap-studio.css";
 const BUSY_LABEL = {
   plan: "Base44 AI inapanga maneno…",
   write: "Base44 AI inaandika mistari…",
-  voice: "ElevenLabs inaimba mistari yako…",
   video: "Video inatengenezwa…",
   read: "Wimbo wako unapimwa…",
   stems: "ElevenLabs inatenganisha sauti na beat…",
@@ -31,6 +30,13 @@ export default function Rap() {
   const studio = useRapStudio();
   const { settings, lines, take, busy, error, beat } = studio;
   const ready = !!studio.user;
+  // the running line names the step the one tap is on: the words, the bars, then the voice
+  const busyLabel =
+    busy === "voice"
+      ? settings.voice === "sing"
+        ? "ElevenLabs inaimba mistari yako…"
+        : "Sauti yake mwenyewe inasoma mistari yako…"
+      : BUSY_LABEL[busy];
 
   return (
     <div className="rap-screen">
@@ -73,7 +79,7 @@ export default function Rap() {
       {busy ? (
         <div className="rap-busy">
           <TypingDots />
-          <span>{BUSY_LABEL[busy] || "Inafanya kazi…"}</span>
+          <span>{busyLabel || "Inafanya kazi…"}</span>
         </div>
       ) : null}
 
@@ -105,9 +111,9 @@ export default function Rap() {
         />
       ) : null}
 
-      {lines.length ? (
+      {lines.length && !take ? (
         <button type="button" className="rap-cta" onClick={studio.makeVoice} disabled={!!busy}>
-          Tengeneza sauti · coins {RAP_COST}
+          Jaribu sauti tena · coins {RAP_COST}
         </button>
       ) : null}
 
