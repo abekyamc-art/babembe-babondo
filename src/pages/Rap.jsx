@@ -9,6 +9,7 @@ import RapPlayer from "@/components/rap/RapPlayer";
 import RapDownloads from "@/components/rap/RapDownloads";
 import RapHistory from "@/components/rap/RapHistory";
 import { RAP_COST } from "@/lib/coins";
+import "@/rap-studio.css";
 
 const BUSY_LABEL = {
   compose: "Base44 AI inatunga mistari…",

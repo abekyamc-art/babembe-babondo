@@ -34,6 +34,27 @@ function clean(value: any, max: number): string {
   return text.slice(0, max);
 }
 
+// a meaning that lists variants, quotes a rule or carries a number is not a meaning
+const NOT_A_MEANING = /[\/;=]|\s[-–—]\s|\d|[.!?]/;
+
+/**
+ * A rapped word has to be a word: a whole spelling of at least three letters, with a
+ * short meaning beside it. A rule, a heading, a syllable fragment or a page marker that
+ * was saved as an entry is not one, and it never reaches the rapper.
+ */
+function isWordEntry(term: string, meaning: string): boolean {
+  if (!term || !meaning) return false;
+  if (term.length > 40 || meaning.length > 60) return false;
+  if (term.split(/\s+/).length > 3 || meaning.split(/\s+/).length > 5) return false;
+  if (term.replace(/[^\p{L}]/gu, "").length < 3) return false;
+  if (!/^[\p{L}\p{N}'’&.\- ]+$/u.test(term)) return false;
+  if (/^\d+\s*[.)]/.test(term)) return false;
+  // a heading stands in capitals: no real Ebembe word is written that way
+  if (term.length > 1 && !/[a-zà-ÿ]/.test(term)) return false;
+  if (NOT_A_MEANING.test(term) || NOT_A_MEANING.test(meaning)) return false;
+  return true;
+}
+
 /** A pronunciation guide is the assistant's own: it never reaches the screen. */
 function plainLine(value: any): string {
   const text = typeof value === "string" ? value : "";
@@ -50,13 +71,20 @@ async function savedWords(base44: any) {
     { kind: "word" },
     { limit: MAX_WORDS }
   );
+  const seen = new Set<string>();
   return (page?.items || [])
     .map((row: any) => ({
       term: clean(row.term, MAX_TERM),
       meaning: clean(row.meaning, MAX_MEANING),
       usage: clean(row.usage, MAX_USAGE),
     }))
-    .filter((word: any) => word.term);
+    .filter((word: any) => {
+      if (!isWordEntry(word.term, word.meaning)) return false;
+      const key = word.term.toLowerCase();
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    });
 }
 
 function buildPrompt(words: any[], bars: number, bpm: number, topic: string) {
@@ -75,6 +103,9 @@ function buildPrompt(words: any[], bars: number, bpm: number, topic: string) {
     "- A word's meaning tells you where it fits: build each line so it says something that makes sense in Ebembe word order.",
     "- Each line is one bar of the beat: short, punchy and rhythmic, at most 8 Ebembe words. Repetition, chant and call-and-answer are welcome, and a hook repeats.",
     "- The verb prefixes na- (I), a- (he or she) and ba- (they) may be joined to a listed verb, exactly as the list shows.",
+    "- Write every Ebembe word as the list spells it. A verb prefix that the list itself writes with a dash keeps its dash and joins a listed verb (a-lola, na-tenda, ba-onda). Never split one word into syllables with dashes, and never join two unrelated words with one.",
+    "- Never use a Kiswahili or an English word inside ebembe: Kiswahili belongs only in swahili, and no English at all.",
+    "- The list may be short. Repeat its words, change their order, and build each line from the words you are allowed rather than reaching for a word you do not have.",
     "- Give swahili: the same line in Kiswahili so a listener learns the meaning. Keep it short.",
     "- Never write a pronunciation guide, a syllable breakdown, or any text in brackets, dashes or slashes.",
     "- Never write the section name inside ebembe or swahili.",
