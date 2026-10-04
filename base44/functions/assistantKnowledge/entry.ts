@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import { alikeTerms, skeleton } from "../../shared/soundsAlike.ts";
+import { alikeTerms, skeleton, tight } from "../../shared/soundsAlike.ts";
 import { knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { keyLine, keyMatches } from "../../shared/answerKey.ts";
@@ -13,8 +13,16 @@ const MAX_NOTE = 32000;
 // world notes can never crowd the words out.
 const WORDS_SHARE = 24000;
 
-// A typed message's own language line rides at the head of the note, ahead of every other part.
+// A turn's own language line, and the line a greeting is answered from, ride at the head of the
+// note, ahead of every other part.
 const LANGUAGE_ROOM = 400;
+
+// What a greeting is written as in a saved word's meaning: a short turn made only of saved words
+// whose meanings read like one of these is a greeting being made, not a question being asked.
+const GREETING_GLOSS = [
+  "hello", "hi ", "hey", "greet", "welcome", "morning", "afternoon", "evening", "how are you",
+  "salamu", "salama", "habari", "jambo", "mambo", "shikamoo", "marahaba", "karibu",
+];
 
 // Eight words to a line: a vocabulary costs the fewest characters that way.
 const WORDS_PER_LINE = 8;
@@ -38,7 +46,8 @@ const OPENING =
 const GUIDE =
   "\nJINSI YA KUJIBU — how to answer:\n" +
   "- Chukua muda wako: kabla ya kujibu, soma maarifa haya na orodha ya maneno kwanza, kisha jibu kwa utulivu na kwa ukamilifu.\n" +
-  "- LUGHA: jibu kwa lugha ALIYOTUMIA mtu, na kwa lugha hiyo PEKEE — kutoka neno lako la kwanza hadi la mwisho. Akisema KISWAHILI: Kiswahili tupu, bila Ebembe na bila Kiingereza. Akisema EBEMBE: Ebembe, kwa maneno yaliyohifadhiwa, bila Kiswahili na bila Kiingereza. Akisema KIINGEREZA: Kiingereza tupu. Akisema lugha nyingine yoyote: jibu kwa lugha hiyo hiyo. Mtu akibadilisha lugha mwenyewe, fuata lugha yake mpya, na usirudi kwenye lugha ya awali.\n" +
+  "- LUGHA: jibu kwa lugha ALIYOTUMIA mtu, na kwa lugha hiyo PEKEE — bila kuchanganya lugha nyingine, bila kutafsiri, na bila kufundisha. Sikiliza maneno YAKE mwenyewe: yakifanana na maneno ya Kibembe yaliyohifadhiwa hapa, au na jinsi sheria za lugha zinaandika maneno, basi ni KIBEMBE — jibu kwa Kibembe tupu, hata kama jinsi yalivyoandikwa yanafanana na Kiswahili. Yakijibu kwa maneno ya Kiswahili wazi, ni KISWAHILI — jibu kwa Kiswahili tupu. Yakijibu kwa Kiingereza wazi, ni KIINGEREZA — jibu kwa Kiingereza tupu. Akisema lugha nyingine yoyote, jibu kwa lugha hiyo hiyo. Mtu akibadilisha lugha mwenyewe, fuata lugha yake mpya, na usirudi kwenye lugha ya awali.\n" +
+  "- SALAMU: mtu akisalimu kwa maneno machache — kwa mfano \"ole bile\" — salimu tu: mwitikie kwa salamu ya Kibembe, kwa urefu sawa na salamu yake, maneno machache, bila maelezo, bila kufundisha, bila kutafsiri na bila kuuliza swali refu. Mfano: mtu: \"ole bile\" → wewe: \"ole sawa ole makala\". Mtu akisema zaidi ya salamu — swali, ombi au habari — jibu hilo kama kawaida.\n" +
   "- Maandishi uliyopewa kwa lugha nyingine — kutoka mtandaoni au kutoka kwenye maarifa: yatafsiri kwa lugha ya mtu, na jibu lako lote libaki kwa lugha hiyo. Usimwonyeshe wala kumsomea lugha nyingine.\n" +
   "- USIMWOMBE MTU ARUDIE, usiulize alimaanisha lugha gani au neno gani, na usiseme hukusikia wala hukuelewa. Chukua lugha na maana kutoka maneno yake ya kwanza, kisha jibu moja kwa moja.\n" +
   "- Sehemu ya kishazi isiyokuwa na neno la Ebembe: weka neno la Kiswahili linalofaa mahali hapo, kisha endeleza kishazi hadi kikamilike, ili kishazi kisikose kitu. Usiseme kwamba neno la Ebembe halipo, wala usionyeshe kwamba kuna pengo — toa kishazi kikamilifu tu.\n" +
@@ -173,18 +182,70 @@ const ENGLISH_WORDS = new Set([
   "tomorrow", "welcome", "sorry", "friend",
 ]);
 
-/**
- * The language a typed message is written in, read from the words themselves: the admin's saved
- * Ebembe words first, then the everyday words of Kiswahili and of English. Nothing at all is claimed
- * when the words do not say clearly, so a language is never invented for a message.
- */
-function saidLanguage(text: string, rows: any[]) {
-  const said = textOf(text);
-  if (!said) return "";
-  // a saved Ebembe word, written as it is saved or a letter apart, is Kibembe being written
-  if (alikeTerms(said, rows, 3).some((row: any) => row.tier <= 1)) return "Ebembe";
+/** The meaningful words of a turn, as the saved list spells them: letters and digits only — case
+ *  and accents dropped, the filler of both languages left out. They are the form a word is
+ *  matched in, and the number every share below is counted against. */
+function saidWords(text: string) {
+  return (String(text ?? "").toLowerCase().match(/[\p{L}\p{N}']+/gu) || [])
+    .map((word) => tight(word))
+    .filter((word) => word.length > 2 && !STOPWORDS.has(word));
+}
 
-  const words = (said.toLowerCase().match(/[\p{L}\p{N}']+/gu) || []).filter((word) => word.length > 1);
+/** The words of a turn the saved list accounts for, and the places it leaves open. */
+function saidPlaces(said: string, near: any[]) {
+  const covered = new Set<string>();
+  near
+    .filter((row: any) => row.tier <= 2)
+    .forEach((row: any) =>
+      saidWords(row.heard).forEach((word: string) => covered.add(word))
+    );
+  const spoken = saidWords(said);
+  return { covered, open: spoken.filter((word) => !covered.has(word)) };
+}
+
+/**
+ * Whether the person is speaking Kibembe. The ears do not know Kibembe and write it down like a
+ * Kiswahili turn, so the person's own words are what the language is read from here: a turn the
+ * admin's saved words account for, with no more Kiswahili or English in it than in them, is
+ * Kibembe being spoken — even when it is written down like a Kiswahili one.
+ */
+function spokeEbembe(said: string, near: any[]) {
+  const spoken = saidWords(said);
+  if (!spoken.length) return false;
+  const { covered, open } = saidPlaces(said, near);
+  const mine = spoken.filter((word) => covered.has(word)).length;
+  if (!mine) return false;
+  const loose = open.filter((word) => SWAHILI_WORDS.has(word) || ENGLISH_WORDS.has(word)).length;
+  if (loose > mine) return false;
+  return mine / spoken.length >= 0.6 || (spoken.length <= 3 && loose === 0);
+}
+
+/** Whether the turn is a greeting: a few words, every one of them saved, and what they mean is a
+ *  greeting. Anything longer, or anything the saved list does not hold, is a real request. */
+function isGreeting(said: string, near: any[]) {
+  const spoken = saidWords(said);
+  if (!spoken.length || spoken.length > 5) return false;
+  if (saidPlaces(said, near).open.length) return false;
+  return near.some(
+    (row: any) =>
+      row.tier <= 2 &&
+      GREETING_GLOSS.some((gloss) => plain(textOf(row.meaning)).toLowerCase().includes(gloss))
+  );
+}
+
+/** The language one turn is spoken or written in: Kibembe when the person's own words are the
+ *  admin's, and otherwise — for a written turn, which carries no ears — the everyday words of
+ *  Kiswahili and of English. Nothing at all is claimed when the words do not say, so a language is
+ *  never invented for a turn. */
+function turnLanguage(said: string, near: any[], typed: boolean) {
+  if (spokeEbembe(said, near)) return "Ebembe";
+  // a spoken turn is never claimed for Kiswahili or English from the words alone: the ears know
+  // those two languages, and it is only Kibembe they cannot hear
+  if (!typed) return "";
+
+  const words = (textOf(said).toLowerCase().match(/[\p{L}\p{N}']+/gu) || []).filter(
+    (word) => word.length > 1
+  );
   if (!words.length) return "";
   const count = (list: Set<string>) => words.filter((word) => list.has(word)).length;
   const swahili = count(SWAHILI_WORDS);
@@ -195,16 +256,28 @@ function saidLanguage(text: string, rows: any[]) {
   return "";
 }
 
-// The line that opens the note for a written message: the language it was written in, and the one
-// language the answer may be given in.
-function languageLine(text: string, rows: any[]) {
-  const lang = saidLanguage(text, rows);
+// The line that opens the note for a turn: the language the person is using, and the one language
+// the answer may be given in.
+function languageLine(lang: string) {
   if (!lang) return "";
   return (
-    "\nLUGHA YA MTU — the language the person wrote in:\n" +
-    `Maneno ya mtu yameandikwa kwa ${lang}. Jibu kwa ${lang} PEKEE — kutoka neno lako la kwanza hadi ` +
-    `la mwisho, bila kuchanganya lugha nyingine yoyote.\n`
+    "\nLUGHA YA MTU — the language the person is speaking or writing:\n" +
+    `Maneno ya mtu ni kwa ${lang}. Jibu kwa ${lang} PEKEE — kutoka neno lako la kwanza hadi la ` +
+    `mwisho, bila kuchanganya lugha nyingine yoyote, bila kutafsiri na bila kufundisha.\n`
   );
+}
+
+// The line a greeting is answered from: a greeting is met with a greeting of the same size, and
+// with nothing else — no explanation, no teaching and no translation.
+const GREET_LINE =
+  "\nSALAMU — the person is greeting you, not asking for anything:\n" +
+  "Jibu kwa salamu tu: mwitikie kwa salamu ya Kibembe, kwa urefu sawa na salamu yake (maneno " +
+  "machache), bila maelezo, bila kufundisha, bila kutafsiri, na bila kuuliza swali refu. " +
+  "Mfano: mtu: \"ole bile\" → wewe: \"ole sawa ole makala\".\n";
+
+/** What rides at the head of the note for this turn: its language, and whether it is a greeting. */
+function turnHead(lang: string, greeting: boolean) {
+  return languageLine(lang) + (greeting ? GREET_LINE : "");
 }
 const WORDS_BUDGET = Math.min(WORDS_SHARE, NOTE_BUDGET);
 
@@ -438,7 +511,7 @@ function keySection(rows: any[], query: string) {
  * list being handed over with it.
  */
 function likeSection(rows: any[], heard: string) {
-  if (!heard) return "";
+  if (!heard) return { text: "", near: [] };
   // the filler of both languages is dropped first, so only the words that carry
   // meaning are matched
   const said = heard
@@ -446,7 +519,7 @@ function likeSection(rows: any[], heard: string) {
     .filter((word) => word && !STOPWORDS.has(word.toLowerCase()))
     .join(" ");
   const near = alikeTerms(said || heard, rows, 3);
-  if (!near.length) return "";
+  if (!near.length) return { text: "", near: [] };
 
   let body = "";
   for (const row of near) {
@@ -473,7 +546,7 @@ function likeSection(rows: any[], heard: string) {
     if (long < 3) return false;
     return Math.min(saved.length, spoken.length) / long >= 0.6;
   });
-  return body ? HEADS.like + (sure ? SURE_LINE : "") + body : "";
+  return { text: body ? HEADS.like + (sure ? SURE_LINE : "") + body : "", near };
 }
 
 /**
@@ -595,10 +668,6 @@ export default async function (req: Request): Promise<Response> {
 
     const query = typeof payload?.query === "string" ? payload.query.trim().slice(0, MAX_QUERY) : "";
     const wanted = query ? Array.from(new Set(tokensOf(query))) : [];
-    // A written message is named as such by the phone that sends it: the language it was written in
-    // is then read from its own words, and the answer is held to that language alone.
-    const written =
-      payload?.typed === true && query ? languageLine(query, await wordsFor(base44)) : "";
 
     // a live call asks only about what was just heard: the saved words that fit it
     // are looked up and handed over before his answer, so a word that only sounded
@@ -608,8 +677,16 @@ export default async function (req: Request): Promise<Response> {
       // the answer key comes first in the note, so the saved answer is what the turn opens with,
       // and the words closest to what was heard follow it
       const [words, keys] = await Promise.all([wordsFor(base44), keyRowsFor(base44)]);
+      const liked = likeSection(words, heard);
+      const lang = turnLanguage(heard, liked.near, false);
+      const greeting = isGreeting(heard, liked.near);
       return Response.json({
-        note: keySection([...keys, ...words], heard) + likeSection(words, heard),
+        note: turnHead(lang, greeting) + keySection([...keys, ...words], heard) + liked.text,
+        lang,
+        greeting,
+        // a turn spoken in Kibembe that still left a place the saved words do not hold: the words
+        // helper is asked to review its own candidates once more for that place
+        missing: lang === "Ebembe" && saidPlaces(heard, liked.near).open.length > 0,
       });
     }
 
@@ -622,7 +699,13 @@ export default async function (req: Request): Promise<Response> {
     const wordsBudget = Math.max(0, Math.min(WORDS_SHARE, NOTE_BUDGET - rulesSection.length));
 
     const wordRows = await wordsFor(base44);
-    const like = likeSection(wordRows, query);
+    const liked = likeSection(wordRows, query);
+    const like = liked.text;
+    // the language this turn is being spoken or written in, read from the person's own words, and
+    // whether they are greeting rather than asking: both ride at the head of the note
+    const lang = query ? turnLanguage(query, liked.near, payload?.typed === true) : "";
+    const greeting = query ? isGreeting(query, liked.near) : false;
+    const head = turnHead(lang, greeting);
     const tally = await wordTally(wordRows, wanted, wordsBudget);
     const say = saySection(wordRows, SAY_BUDGET);
     let left = wordsBudget - tally.section.length - like.length - say.length;
@@ -648,8 +731,8 @@ export default async function (req: Request): Promise<Response> {
 
     const body = like + qa.text + world.text + tally.section + say;
     let note =
-      body || key || rulesSection || written
-        ? OPENING + written + GUIDE + key + rulesSection + body + FALLBACK
+      body || key || rulesSection || head
+        ? OPENING + head + GUIDE + key + rulesSection + body + FALLBACK
         : "";
 
     // a question is answered from the admin's long texts too, through the few
@@ -662,7 +745,14 @@ export default async function (req: Request): Promise<Response> {
       note += passageNote(query, rowsOf(textPage));
     }
 
-    return Response.json({ note });
+    return Response.json({
+      note,
+      lang,
+      greeting,
+      // a turn written in Kibembe that still left a place the saved words do not hold: the words
+      // helper is asked to review its own candidates once more for that place
+      missing: lang === "Ebembe" && saidPlaces(query, liked.near).open.length > 0,
+    });
   } catch (error: any) {
     console.error("Could not build the knowledge note:", error.message);
     return Response.json({ error: "Knowledge is unavailable right now." }, { status: 500 });

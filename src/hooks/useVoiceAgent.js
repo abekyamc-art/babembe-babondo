@@ -22,6 +22,9 @@ const TYPED_HOLD_MS = 8000;
 // ends can never let what is waiting grow without bound
 const HELD_LIMIT = 4000;
 
+// a turn nothing could be read from: no note, no language said, no greeting, nothing left open
+const EMPTY_READ = { note: "", lang: "", greeting: false, missing: false };
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
@@ -160,32 +163,66 @@ export default function useVoiceAgent({ videoRef } = {}) {
    * reaches the session before his answer, so a word that sounds close to a saved
    * one is answered from its meaning instead of being corrected.
    */
-  const reviewHeard = useCallback((text) => {
+  /**
+   * What the app itself makes of a turn, read on the server where the saved words are: the language
+   * the person's own words are in — never guessed, and nothing claimed when the words do not say —
+   * whether the turn is a greeting rather than a question, whether it left a place no saved word
+   * accounts for, and the note of the words closest to what was heard. A turn is read once, however
+   * many times it arrives.
+   */
+  const readTurn = useCallback(async (text) => {
     const said = String(text || "").trim();
     const state = heardRef.current;
-    if (said.length < 3 || said === state.text) return;
+    if (said.length < 3) return EMPTY_READ;
+    if (said === state.text && state.read) return state.read;
 
-    clearTimeout(state.timer);
-    state.timer = setTimeout(async () => {
+    try {
+      const res = await base44.functions.invoke("assistantKnowledge", { heard: said });
+      const data = res?.data || {};
+      const read = {
+        note: String(data.note || ""),
+        lang: String(data.lang || ""),
+        greeting: !!data.greeting,
+        missing: !!data.missing,
+      };
       state.text = said;
-      try {
-        const res = await base44.functions.invoke("assistantKnowledge", { heard: said });
-        const note = res?.data?.note;
+      state.read = read;
+      return read;
+    } catch (err) {
+      // the answer carries on without the extra words
+      return EMPTY_READ;
+    }
+  }, []);
+
+  /**
+   * A turn that reached the session without the phone reading it first — a provider doing its own
+   * listening — is read as soon as it lands, and what turns up reaches the session before his
+   * answer, so a word that sounds close to a saved one is answered from its meaning instead of
+   * being corrected.
+   */
+  const reviewHeard = useCallback(
+    (text) => {
+      const said = String(text || "").trim();
+      const state = heardRef.current;
+      if (said.length < 3 || said === state.text) return;
+
+      clearTimeout(state.timer);
+      state.timer = setTimeout(async () => {
+        const read = await readTurn(said);
         const engine = socketRef.current;
-        if (!note || !engine || engine.silent) return;
+        if (!read.note || !engine || engine.silent) return;
         // He is answering right now: the note is held instead of being lost, and handed
         // over the moment his voice stops, so it shapes the turn that follows — the one
         // that would otherwise be answered without the words he just said.
         if (engine.speaking) {
-          heldRef.current = `${heldRef.current}\n${note}`.slice(-HELD_LIMIT);
+          heldRef.current = `${heldRef.current}\n${read.note}`.slice(-HELD_LIMIT);
           return;
         }
-        engine.sendMemory?.(note);
-      } catch (err) {
-        // the answer carries on without the extra words
-      }
-    }, 350);
-  }, []);
+        engine.sendMemory?.(read.note);
+      }, 350);
+    },
+    [readTurn]
+  );
 
   /**
    * The material one turn needs from outside the saved knowledge — a story, news, a word, who
@@ -301,24 +338,30 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // — is put to him, so his answer comes back out loud as it always has
       onHeard: async (text, language, engine) => {
         pushTurn("user", text);
-        reviewHeard(text);
-        // the search this turn needs runs before the turn is put to him, so nothing is answered
-        // while the lookup for the question is still running
-        const [note, material] = await Promise.all([wordsNote(text), materialFor(text)]);
-        // the language the ears marked, the words they wrote down and the material just looked up
-        // travel together, so the answer leads with the language the person actually used
-        const spoken = heardLanguage(language);
-        // The language the ears marked is the language of the answer: the line says so on every
-        // turn, so the answer follows whoever is speaking and never drifts to another language.
-        const memory = [
-          spoken
-            ? `The person just spoke in ${spoken}. Answer in ${spoken} only, from your first word to your last.`
-            : "",
-          note,
-          material,
-        ]
-          .filter(Boolean)
-          .join("\n\n");
+        // The app's own reading of the turn runs while the words helper reads it too: the language
+        // the person's own words are in — the ears do not know Kibembe, and write a Kibembe turn
+        // down like a Kiswahili one — whether it is a greeting, and whether it left a place open.
+        const [read, first, material] = await Promise.all([
+          readTurn(text),
+          wordsNote(text),
+          materialFor(text),
+        ]);
+        // A turn in Kibembe whose words left a place no saved word accounts for is reviewed a second
+        // time: the words helper reads its own first answer once more and says which saved Ebembe
+        // word fits that place, so the phrase comes out whole before the answer is written.
+        const words = first && read.missing ? await wordsNote(text, { first }) : first;
+        const earsLang = heardLanguage(language);
+        // The person's own words decide the language of the answer. Where the app's own knowledge
+        // proves the turn is Kibembe that is said outright, and where it does not, the ears' name is
+        // handed over as what the ears wrote — never as a command — so a Kibembe turn is never
+        // answered in Kiswahili because of how the ears spelled it.
+        const spoken = read.lang
+          ? `The person just spoke in ${read.lang}. Answer in ${read.lang} only — from your first word to your last, and in no other language.`
+          : earsLang
+            ? `The ears wrote the person's turn down as ${earsLang}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${earsLang}, answer in ${earsLang} only — never in a mix.`
+            : "";
+        // the language, the words just heard and the material just looked up travel together
+        const memory = [spoken, read.note, words, material].filter(Boolean).join("\n\n");
         if (memory) engine.sendMemory(memory);
         // his own echo of these words is not a second turn on screen
         sentRef.current = text;
@@ -424,7 +467,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
       heldRef.current = "";
       // a request for a story, news, a word or a fact is looked up as the session opens, with the
       // knowledge note, so the material is already in hand when he answers it
-      const [note, fresh] = await Promise.all([
+      const [read, fresh] = await Promise.all([
         // a typed opening is told to the knowledge reader as written, so the language the person
         // wrote in is read from their own words and named at the head of the note
         loadKnowledgeNote(opening, !withMic),
@@ -433,11 +476,15 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // a question put to the original outside voice in writing is asked of the words helper as
       // well, so the words its answer should stand on are in hand before it answers
       const wordNote = openingMode === "agent" ? await wordsNote(opening) : "";
+      // a typed turn in Kibembe whose words left a place no saved word accounts for is reviewed a
+      // second time, so the word that fits that place is found before the question is put to him
+      const reviewed =
+        wordNote && read.missing ? await wordsNote(opening, { first: wordNote }) : wordNote;
       // both kinds of call are handed the admin's knowledge: the words the question
       // turns on, the guidance that goes with them, and anything just looked up
       const knowledge = withKnowledge(
         memory,
-        withKnowledge(note, withKnowledge(fresh, wordNote))
+        withKnowledge(read.note, withKnowledge(fresh, reviewed))
       );
 
       // the mode changed while the knowledge was being read: this call is not the one the

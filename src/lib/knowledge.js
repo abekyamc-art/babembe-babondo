@@ -106,8 +106,13 @@ export function entryBody(row) {
 /**
  * The admin's knowledge as the private note handed to the assistant before it
  * answers a typed message. The entries themselves never come down to a device.
+ *
+ * What comes back is the note, the language the person's own words are in — read on the server,
+ * where the saved words are — whether that turn is a greeting rather than a question, and whether
+ * it left a place the saved words do not hold, which is the place the words helper reviews twice.
  */
 export async function loadKnowledgeNote(query = "", typed = false) {
+  const none = { note: "", lang: "", greeting: false, missing: false };
   try {
     const asked = String(query || "").trim();
     // A typed message carries no ears, so the function is told it was written: the language the
@@ -116,10 +121,16 @@ export async function loadKnowledgeNote(query = "", typed = false) {
       "assistantKnowledge",
       asked ? { query: asked, typed: !!typed } : {}
     );
-    return res?.data?.note || "";
+    const data = res?.data || {};
+    return {
+      note: String(data.note || ""),
+      lang: String(data.lang || ""),
+      greeting: !!data.greeting,
+      missing: !!data.missing,
+    };
   } catch (err) {
     // the note is a help, never a reason to hold up a message
-    return "";
+    return none;
   }
 }
 
