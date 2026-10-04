@@ -16,8 +16,14 @@ import { rulesText } from "../../shared/knowledgeRules.ts";
  * note that may have been trimmed on its way to the phone.
  */
 
-// the platform voice the Kibembe is read in, and the ceilings one answer is kept inside
+// The platform voice the Kibembe is read in, and the nearest voice language to Ebembe. The
+// voice service holds no Bantu language at all, so Malay stands in for it: Malay sounds every
+// letter the Bantu way — five pure vowels with no English letter-names, w and y voiced, ny and
+// ng as the language reads them — and that is what carries an Ebembe accent. The spelling
+// handed to it is still the rule book's, so a sound the voice cannot make is written right
+// even when it cannot be said right.
 const SPEECH_VOICE = "river";
+const SPEECH_LANG = "ms";
 // the model the Admin's Base44 AI mode answers on, pinned so every answer is written by it
 const ANSWER_MODEL = "gpt_6_sol";
 // The hearing service knows no Kibembe at all. Swahili is the nearest language it does know,
@@ -59,13 +65,16 @@ const KNOWLEDGE_HEAD =
 
 const HOW = [
   "Write every answer in exactly these parts, in this order:",
-  "ebembe: the answer itself in Kibembe (Ebembe), the words a Babembe speaker really uses, spelled plainly with no hyphens between syllables.",
+  "ebembe: the answer itself in Kibembe (Ebembe), the words a Babembe speaker really uses, written exactly as the rule book's reading key spells them, every letter sounded the Ebembe way rather than the English letter-name, with no hyphens between syllables.",
   "guide: how that same Kibembe sounds to an American ear, syllable by syllable joined with dashes.",
   "swahili: the same thing in everyday Kiswahili. english: the same thing in plain English.",
-  "say: only the Kibembe part, written exactly as a voice should read it out — no brackets, no dashes, no pronunciation notes, no language names. One or two short sentences.",
+  "say: only the Kibembe part, written the way the rule book spells it — the same letters as the ebembe line, changed only where the voice would otherwise read a letter wrongly (ch for the c sound, and so on), and never an English sound-spelling such as ay, ee or oh. Plain running words with spaces between them: no brackets, no dashes, no hyphens, no pronunciation notes, no language names, and never the listening line. One or two short sentences.",
   "Keep the whole answer short: this is talk, not an essay, and never more than three sentences of Kibembe.",
   "Build the Kibembe from the words saved in the knowledge, and write every one of them exactly as it is saved. Never invent a word, a plural, a tense or a meaning that the rules and the saved words do not confirm.",
+  "Copy each saved word letter for letter, a b, h or w inside it included: a word that looks like a Kiswahili one is still written the way the list spells it (mabwe, never mawe). Never drop a letter from a saved word and never add one.",
   "The rule book below decides how Kibembe is read, pronounced, written and used. Where one of its rules and your own habit disagree, the rule wins, and where it and a word on the list disagree, the list wins.",
+  "Read, write and say every Ebembe word by the rule book's reading key, with the accent of a Babembe speaker from the village: Bantu vowels, every syllable sounded, no English letter-names.",
+  "The pronunciation noted beside a saved word is for you alone: it shapes how you say that word, and is never written out and never spoken. What goes to the screen is the listening line; what goes to the voice is the say line.",
   "A word that only sounded like a saved word is that saved word — one letter apart, the same consonants with other vowels, or a saved word the hearing broke into two. Answer straight from its meaning, and never say the word was wrong or that you do not know it.",
   "Never ask the person whether they meant another word, and never repeat their own words back to them as your answer.",
   "Never say that you did not hear them or did not understand them, and never ask them to say it again.",
@@ -106,6 +115,17 @@ async function knowledgeFor(base44: any) {
 function textOf(value: any, max = MAX_ANSWER): string {
   const text = typeof value === "string" ? value : "";
   return text.replace(/\s+/g, " ").trim().slice(0, max);
+}
+
+/**
+ * The line the voice reads: the Kibembe alone, with every dash, bracket and note taken out, so
+ * only the words are ever spoken and never a pronunciation guide.
+ */
+function voiceLine(value: any): string {
+  return textOf(value, MAX_SPOKEN)
+    .replace(/[-–—()\[\]{}]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 }
 
 /** One line, its runs of space flattened, as the writer reads it. */
@@ -264,7 +284,7 @@ export default async function (req: Request): Promise<Response> {
     const answer = shown(out);
     // the voice reads the Kibembe itself; when the writer gave no separate spoken line the
     // Kibembe it wrote is read as it stands
-    const say = (textOf(out?.say, MAX_SPOKEN) || textOf(out?.ebembe, MAX_SPOKEN)).trim();
+    const say = voiceLine(out?.say) || voiceLine(out?.ebembe);
     if (!answer || !say) {
       return Response.json({ error: "Jibu halikukamilika. Jaribu tena." }, { status: 502 });
     }
@@ -274,6 +294,7 @@ export default async function (req: Request): Promise<Response> {
       const made: any = await base44.asServiceRole.integrations.Core.GenerateSpeech({
         text: say,
         voice: SPEECH_VOICE,
+        language_code: SPEECH_LANG,
       });
       audio_url = made?.url || "";
     } catch (error: any) {
