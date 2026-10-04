@@ -4,6 +4,7 @@ import { alikeTerms } from "../../shared/soundsAlike.ts";
 import { glossOf, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
+import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
 
 /**
@@ -329,6 +330,11 @@ export default async function (req: Request): Promise<Response> {
 
     const asked = typed || transcript;
 
+    // The turn is looked up before the answer is written: a question about a person, a place, a
+    // piece of news or a story waits for the search, so nothing is answered without what was
+    // asked for — and a search that found nothing says so plainly instead of being invented over.
+    const lookup = await lookupForTurn(base44, asked);
+
     // The knowledge the writer answers from is read here, whole: the rule book in force and
     // every word the admin saved, so an answer never rests on a note that was trimmed on its
     // way to the phone.
@@ -350,6 +356,7 @@ export default async function (req: Request): Promise<Response> {
       key,
       words,
       like,
+      lookup.material,
       memory ? KNOWLEDGE_HEAD + "\n" + memory : "",
       history ? "The talk so far, oldest first:\n" + history : "",
       "What they just said: " + asked,

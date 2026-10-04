@@ -1,121 +1,14 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import { keyMatches } from '../../shared/answerKey.ts';
-
-// A request for material the saved knowledge does not hold — a story, a piece of news, a
-// word, or who and where someone is — is looked up on the internet once and saved for next
-// time. These words are the door to the lookup; the saved answer to a question the admin has
-// already written is the one thing that keeps it closed, so a question the app knows is never
-// searched for and a question it does not know never comes back as "I don't know".
-const WANTS =
-  /(hadithi|habari|historia|story|stories|news|simulia|nieleze|niambie|maelezo|eleza|describe|description|maneno|neno|misemo|msemo|tena|nyingine|nyingi|zaidi|fundisha|nifundishe|google|tafuta|search|legend|dunia|ulimwengu|matukio|kilitokea|linatokea|happening|more about|tell me more|ninani|nani|nini|wapi|vipi|gani|lini|kwa nini|msanii|msani|mwimbaji|mwanamuziki|mchezaji|mwandishi|jina|anaitwa|alizaliwa|alikufa|umri|wasifu|asili|nchi|mji|kijiji|familia|timu|who|what|where|when|why|which|whose|how|biography|born|died|singer|artist|musician|player|coach|team|club|country|origin|city|village|family)/i;
-
-// an explicit call for more is never held back by a saved answer: "another story" asks for
-// material the note it already has cannot give
-const MORE =
-  /(hadithi|story|stories|habari|news|nyingine|nyingi|zaidi|tena|simulia|endelea|more|another)/i;
-
-// the saved questions are read once, on the turns that might need a lookup, to see whether the
-// admin has already answered this one
-const KEY_ROWS = 200;
-// a saved question that shares its own words with what was asked is the answer to this turn
-const COVER_SCORE = 2;
-
-const MAX_QUERY = 600;
-const MAX_TEXT = 8000;
-const MAX_MATERIAL = 4000;
-
-const HEAD =
-  "\nMAARIFA MAPYA YA MTANDAONI — material that was just looked up for this request:\n" +
-  "Tumia sehemu hii kwa ombi ambalo halina jibu kwenye maarifa ya admin: mtu ni nani, anatoka wapi, anafanya nini, habari zake, hadithi, tukio au jambo. " +
-  "Toa alichoomba kikamilifu — usifanye muhtasari, na usiishie hapo: ongeza maneno mapya kadri anavyotaka. " +
-  "Lugha: Ebembe kwanza, kisha Kiswahili. " +
-  "Sema wazi kwamba jibu hili limetafutwa mtandaoni, na taja chanzo chake kama kilivyoandikwa. " +
-  "Ikiwa taarifa haijathibitishwa au vyanzo vinapingana, sema wazi kwamba hujui kwa uhakika. " +
-  "USISEME kwamba jibu halipo kwenye maarifa yako, wala kwamba hukijui: sema ulichokuta.\n";
-
-const SCHEMA = {
-  type: "object",
-  properties: {
-    needed: {
-      type: "boolean",
-      description: "true only when the request needs material from the internet",
-    },
-    kind: {
-      type: "string",
-      enum: ["none", "story", "news", "word", "fact"],
-      description: "which kind of material this is, or none",
-    },
-    title: {
-      type: "string",
-      description: "a short heading for a story, a piece of news or a fact",
-    },
-    text: {
-      type: "string",
-      description: "the material written out in full, in Swahili",
-    },
-    source: {
-      type: "string",
-      description: "where the material came from, named plainly (the site or organisation), or empty",
-    },
-    term: { type: "string", description: "the Ebembe word, on a word request" },
-    meaning: { type: "string", description: "what the Ebembe word means" },
-    guide: {
-      type: "string",
-      description: "how the Ebembe word is said, syllables joined by dashes, for the ear only",
-    },
-  },
-  required: ["needed", "kind"],
-};
-
-const PROMPT = (query: string) =>
-  "You help an Ebembe village assistant in the Democratic Republic of Congo. A person has just said:\n" +
-  `"""${query}"""\n\n` +
-  "Decide whether this needs material from the internet:\n" +
-  "- A request for a story, a folk tale or a legend → kind \"story\".\n" +
-  "- A request for news, or what is happening somewhere → kind \"news\".\n" +
-  "- A request to be taught an Ebembe or Swahili word, or for more words → kind \"word\".\n" +
-  "- A question about who someone is, where they come from, what they do or what happened to them, and any other question about the world → kind \"fact\".\n" +
-  "- A greeting, small talk, a question about the person themselves, thanks, or anything ordinary conversation covers → needed=false, kind=\"none\".\n" +
-  "- One or two words alone, or a question asking what a word means → needed=false, kind=\"none\": the words the admin saved are the assistant's own list, and he answers from it.\n" +
-  "- Only teach a word (kind \"word\") when the person plainly asks to be taught an Ebembe word that is not on the admin's list.\n\n" +
-  "If it does need material: search the internet, then write that material yourself and write it out in full.\n" +
-  "- story: the whole story, told properly, ten to twenty sentences — never a summary, and never a description of the story.\n" +
-  "- news: the real, recent news, with the place, the date and where it comes from.\n" +
-  "- word: the Ebembe word in `term`, its meaning in `meaning`, how it is said in `guide` (syllables joined by dashes, like oh-leg-bile), and the explanation in `text`. If you cannot confirm the Ebembe word, set needed=false instead of inventing one.\n" +
-  "- fact: what you actually found about the person, the place, the group or the thing — who they are, where they are from, what they do, and what is known about them.\n\n" +
-  "Take it from sources that can be trusted: established news organisations, official organisations, universities, encyclopaedias. Ignore rumours, gossip and unconfirmed social posts.\n" +
-  "Write the material in Swahili, adding Ebembe words wherever you know them, and put the source you took it from in `source`, named plainly — the site or the organisation.\n" +
-  "Never invent anything: when the search gives you nothing at all, set needed=false. When what you found is thin, or the sources disagree, write the material anyway and say plainly inside `text` that it is not confirmed.\n" +
-  "Fill every field of the answer, using an empty string where a field does not apply.";
-
-function textOf(value: any) {
-  return typeof value === "string" ? value.trim() : "";
-}
-
-function rowsOf(page: any) {
-  return Array.isArray(page) ? page : page?.items || [];
-}
+import { lookupForTurn } from "../../shared/freshLookup.ts";
 
 /**
- * Whether the admin has already saved the answer to this very question. Where they have, the
- * saved answer is the one to give and nothing is looked up for it; where they have not, the
- * question is one the app cannot answer by itself, so it is searched for.
+ * The material one turn needs from outside the admin's saved knowledge — a story, the news, who
+ * someone is, a word — asked for by the phone before that turn is put to whoever answers it.
+ *
+ * The lookup itself lives in one place, so every provider is handed the same material, and a
+ * turn that needs a search is never answered while the search is still running. What comes back
+ * is the material for this answer alone: the entry it was saved as stays on the server.
  */
-async function savedAnswer(base44: any, query: string) {
-  try {
-    const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
-      { kind: "qa" },
-      { sort: "created_date", limit: KEY_ROWS, fields: ["kind", "question", "answer"] }
-    );
-    const best = keyMatches(rowsOf(page), query, 1)[0];
-    return !!best && best.score >= COVER_SCORE;
-  } catch (error: any) {
-    // a knowledge read that fails never stops the lookup
-    console.error("Could not read the saved answers:", error?.message);
-    return false;
-  }
-}
-
 export default async function (req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -129,77 +22,7 @@ export default async function (req: Request): Promise<Response> {
       payload = {};
     }
 
-    const query =
-      typeof payload?.query === "string" ? payload.query.trim().slice(0, MAX_QUERY) : "";
-    // the cheapest gate first: a line that asks for nothing new never reaches a search
-    if (query.length < 4 || !WANTS.test(query)) return Response.json({ material: "" });
-    // the admin's own answer stands first: where they have already saved this question, its
-    // answer is the one to give, so nothing is looked up — unless more was asked for outright
-    if (!MORE.test(query) && (await savedAnswer(base44, query))) {
-      return Response.json({ material: "" });
-    }
-
-    const found = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: PROMPT(query),
-      add_context_from_internet: true,
-      model: "gemini_3_flash",
-      response_json_schema: SCHEMA,
-    });
-
-    const out: any = found && typeof found === "object" ? found : {};
-    const kind = textOf(out.kind);
-    if (!out.needed || !kind || kind === "none") return Response.json({ material: "" });
-
-    const title = textOf(out.title).slice(0, 120);
-    const text = textOf(out.text).slice(0, MAX_TEXT);
-    const term = textOf(out.term).slice(0, 80);
-    const meaning = textOf(out.meaning).slice(0, 400);
-    const guide = textOf(out.guide).slice(0, 120);
-    const source = textOf(out.source).slice(0, 160);
-
-    let material = "";
-
-    if (kind === "word" && term) {
-      // a word he was taught is saved as a word, so he may say it from here on
-      const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
-        { kind: "word", term },
-        { limit: 1 }
-      );
-      if (!rowsOf(page).length) {
-        await base44.asServiceRole.entities.AssistantKnowledge.create({
-          kind: "word",
-          term,
-          guide,
-          meaning,
-          usage: "",
-        });
-      }
-      material =
-        `${HEAD}\nNeno jipya: ${term}` +
-        (meaning ? ` = ${meaning}` : "") +
-        (guide ? `\nMatamshi (kwa sikio lako pekee): ${guide}` : "") +
-        (text ? `\n${text}` : "");
-    } else if (text) {
-      // a story, a piece of news or a fact is saved as a world note for next time, with where
-      // it came from written beside it, so a later answer can name its source too
-      const headline = title || text.slice(0, 60);
-      const saved = source ? `${text}\n(Chanzo: ${source})` : text;
-      const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
-        { kind: "note", title: headline },
-        { limit: 1 }
-      );
-      if (!rowsOf(page).length) {
-        await base44.asServiceRole.entities.AssistantKnowledge.create({
-          kind: "note",
-          title: headline,
-          text: saved,
-        });
-      }
-      material = `${HEAD}\n${headline} — ${saved}`;
-    }
-
-    // only the material for this answer goes back; the entry itself stays on the server
-    return Response.json({ material: material.slice(0, MAX_MATERIAL) });
+    return Response.json(await lookupForTurn(base44, payload?.query));
   } catch (error: any) {
     console.error("Could not look anything up:", error.message);
     return Response.json({ error: "The lookup is unavailable right now." }, { status: 500 });

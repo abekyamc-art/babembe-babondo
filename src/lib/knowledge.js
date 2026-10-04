@@ -124,19 +124,27 @@ export function withKnowledge(memory, note) {
 }
 
 /**
- * Material looked up online for a request the saved knowledge does not cover — a
- * story, news, a word or a fact. The lookup decides on the server whether anything is
- * needed, saves what it finds into the knowledge, and hands back only the words this
- * answer uses.
+ * Material looked up online for a request the saved knowledge does not cover — a story, news, a
+ * word, who someone is. The lookup decides on the server whether anything is needed, saves what
+ * it finds into the knowledge, and hands back only the words this answer uses: the material
+ * itself, or — when the turn needed a search and nothing was found — the line telling the answer
+ * to say plainly that nothing could be confirmed. Whoever asks for it waits for it, so the turn
+ * it belongs to is never answered before it arrives.
  */
 export async function loadFreshMaterial(query = "") {
   const asked = String(query || "").trim();
-  if (!asked) return "";
+  const none = { material: "", needed: false, found: false };
+  if (!asked) return none;
   try {
     const res = await base44.functions.invoke("freshKnowledge", { query: asked });
-    return res?.data?.material || "";
+    const data = res?.data || {};
+    return {
+      material: String(data.material || ""),
+      needed: !!data.needed,
+      found: !!data.found,
+    };
   } catch (err) {
     // the answer carries on from what is already saved
-    return "";
+    return none;
   }
 }

@@ -56,8 +56,6 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const sentRef = useRef("");
   // the spoken turn already looked up, so one turn is never read twice
   const heardRef = useRef({ text: "", timer: 0 });
-  // the request for fresh material already looked up, so one turn is never searched for twice
-  const wantedRef = useRef({ text: "", timer: 0 });
   // knowledge that landed while he was answering, waiting for his voice to stop
   const heldRef = useRef("");
   // the last turn the person took that no answer followed: the next call opens by
@@ -173,26 +171,39 @@ export default function useVoiceAgent({ videoRef } = {}) {
   }, []);
 
   /**
-   * A request that needs material from outside the saved knowledge — a story, news, a
-   * word, a fact — is looked up as it lands, once, and what comes back reaches the
-   * session before the answer. The lookup itself decides whether anything is needed,
-   * saves what it finds for next time, and hands back only the material.
+   * The material one turn needs from outside the saved knowledge — a story, news, a word, who
+   * someone is. It is fetched by the turn itself and handed over with it, so an answer never
+   * begins while the search for its question is still running. The lookup decides on the server
+   * whether anything is needed, saves what it finds for next time, and hands back only the words
+   * this answer uses: the material itself, or the line telling it to say plainly that nothing
+   * could be confirmed.
    */
-  const reviewWanted = useCallback((text) => {
+  const materialFor = useCallback(async (text) => {
     const said = String(text || "").trim();
-    const state = wantedRef.current;
-    if (said.length < 3 || said === state.text) return;
+    if (said.length < 3) return "";
+    const { material } = await loadFreshMaterial(said);
+    return material;
+  }, []);
 
-    clearTimeout(state.timer);
-    state.timer = setTimeout(async () => {
-      state.text = said;
-      const material = await loadFreshMaterial(said);
+  /**
+   * A turn that reached the session without the phone handing it over — a provider doing its own
+   * listening — is looked up as soon as it lands, so the material still reaches the answer it
+   * belongs to. A turn the phone handed over was looked up before it was sent, and the app's own
+   * AI looks its own turns up while it writes them.
+   */
+  const reviewWanted = useCallback(
+    async (text) => {
       const engine = socketRef.current;
+      if (!engine || engine.selfLookup) return;
+      const material = await materialFor(text);
       // material that arrives once he has started goes no further: it is saved for the
       // answers that follow instead of being pushed over the one being given
-      if (material && engine && !engine.silent && !engine.speaking) engine.sendMemory?.(material);
-    }, 350);
-  }, []);
+      if (material && socketRef.current === engine && !engine.silent && !engine.speaking) {
+        engine.sendMemory?.(material);
+      }
+    },
+    [materialFor]
+  );
 
   /**
    * Knowledge that landed while he was answering is handed over the moment his voice
@@ -254,18 +265,19 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onHeard: async (text, language, engine) => {
         pushTurn("user", text);
         reviewHeard(text);
-        reviewWanted(text);
-        const note = await wordsNote(text);
-        // the language the ears marked and the words they wrote down travel together, so the
-        // answer leads with the language the person actually used
+        // the search this turn needs runs before the turn is put to him, so nothing is answered
+        // while the lookup for the question is still running
+        const [note, material] = await Promise.all([wordsNote(text), materialFor(text)]);
+        // the language the ears marked, the words they wrote down and the material just looked up
+        // travel together, so the answer leads with the language the person actually used
         const spoken = heardLanguage(language);
-        const memory = [spoken ? `The person just spoke in ${spoken}.` : "", note]
+        const memory = [spoken ? `The person just spoke in ${spoken}.` : "", note, material]
           .filter(Boolean)
           .join("\n\n");
         if (memory) engine.sendMemory(memory);
         // his own echo of these words is not a second turn on screen
         sentRef.current = text;
-        engine.sendText(text);
+        if (engine.connected) engine.sendText(text);
       },
       onAgentAnswered: () => answeredRef.current?.(),
       // a call answered by the app's own AI says plainly when an answer did not come
@@ -288,7 +300,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         );
       },
     }),
-    [pushTurn, reviewHeard, reviewWanted, flushHeld]
+    [pushTurn, reviewHeard, reviewWanted, flushHeld, materialFor]
   );
 
   // a written question is held back while the knowledge he was handed settles, and
@@ -315,15 +327,32 @@ export default function useVoiceAgent({ videoRef } = {}) {
       } else if (resuming) {
         sentRef.current = opening;
       }
+      // A turn that needs something from outside the saved knowledge is looked up before it is put
+      // to whoever answers, so the answer never begins while the search for it is still running.
+      // The app's own AI looks its own written turns up on the server while it writes the answer,
+      // so the phone leaves those to it.
+      const wantsLookup = !(voiceMode() === "base44" && !withMic);
+
       // a call already listening through the microphone carries on — so long as it is the
       // session of the mode in force; a session left over from the other mode is never
       // spoken into, it is ended first so the turn goes to the chosen mode
       if (existing?.connected && (!withMic || existing.micOn) && existing.mode === voiceMode()) {
-        if (firstMessage) {
+        if (!firstMessage) return true;
+        if (existing.selfLookup) {
           if (silent) await holdForKnowledge(existing);
           existing.sendText(firstMessage);
+          return true;
         }
-        return true;
+        // while the search runs, the orb shows him working
+        existing.setAwaiting?.(true);
+        const material = wantsLookup ? await materialFor(firstMessage) : "";
+        // the call ended while the search ran: the turn is put to a fresh call below
+        if (socketRef.current === existing && existing.connected) {
+          if (material) existing.sendMemory?.(material);
+          if (silent) await holdForKnowledge(existing);
+          if (socketRef.current === existing) existing.sendText(firstMessage);
+          return true;
+        }
       }
       if (existing?.connected) {
         socketRef.current = null;
@@ -343,15 +372,13 @@ export default function useVoiceAgent({ videoRef } = {}) {
       const said = linesRef.current;
       const laterTurn = said.length > 0;
       const memory = withStory(buildMemory(said), storyRef.current);
-      // a request for a story, news, a word or a fact is looked up online before the
-      // session opens, so the material is already in hand when he answers it, and a
-      // fresh session starts with no lookup behind it
-      wantedRef.current.text = opening;
       // a note held back belonged to the session being left behind
       heldRef.current = "";
+      // a request for a story, news, a word or a fact is looked up as the session opens, with the
+      // knowledge note, so the material is already in hand when he answers it
       const [note, fresh] = await Promise.all([
         loadKnowledgeNote(opening),
-        loadFreshMaterial(opening),
+        wantsLookup && opening ? materialFor(opening) : Promise.resolve(""),
       ]);
       // a question put to the original outside voice in writing is asked of the words helper as
       // well, so the words its answer should stand on are in hand before it answers
@@ -377,9 +404,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // — the helper account kept for exactly that — so he stays the voice of the conversation
       // and never has to write. Every other mode keeps answering in both ways as it always has.
       const writer = !withMic && openingMode === "agent";
-      // ...and with the microphone open he speaks only: the app's own ears hear the person, and
-      // the words they come back with are what he answers
-      const ears = withMic && openingMode === "agent";
+      // ...and with the microphone open he speaks only, whoever answers: the app's own ears hear
+      // the person, and the words they come back with — with the material looked up for them —
+      // are what he answers. That is what keeps the turn the phone's to hand over, so no provider
+      // answers a question before the search for it has finished
+      const ears = withMic;
       const account = writer
         ? "helper-write"
         : openingMode === "base44" && withMic
@@ -394,6 +423,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
         const call = new Base44Call(handlers);
         // the mode this session answers under, so a later switch knows to end it
         call.mode = openingMode;
+        // the app's own AI looks its own turn up on the server while it writes the answer, so
+        // the phone does not fetch the same material twice
+        call.selfLookup = true;
         socketRef.current = call;
         quietRef.current = silent;
         setMicActive(withMic);
@@ -481,7 +513,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         return false;
       }
     },
-    [holdForKnowledge, makeHandlers, pushTurn, videoRef]
+    [holdForKnowledge, makeHandlers, pushTurn, videoRef, materialFor]
   );
 
   const stop = useCallback(async () => {
