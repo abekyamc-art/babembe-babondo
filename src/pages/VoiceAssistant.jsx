@@ -14,6 +14,7 @@ import {
   spendCredit,
 } from "@/lib/usage";
 import { ensureProfile } from "@/lib/social";
+import { loadVoiceMode } from "@/lib/voiceMode";
 import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
@@ -23,6 +24,7 @@ import UsagePill from "@/components/voice/UsagePill";
 import CoinPill from "@/components/voice/CoinPill";
 import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
+import ModeToggle from "@/components/voice/ModeToggle";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 
@@ -101,6 +103,11 @@ export default function VoiceAssistant() {
     return () => {
       alive = false;
     };
+  }, []);
+
+  // the admin's own setting decides who answers every call; it is read as the screen opens
+  useEffect(() => {
+    loadVoiceMode();
   }, []);
 
   // the allowance keeps itself current, so a returning message appears without a reload
@@ -280,6 +287,7 @@ export default function VoiceAssistant() {
           <span className="truncate font-display text-[15px] tracking-tight">Babembe Babondo GS</span>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
+          {user?.role === "admin" ? <ModeToggle /> : null}
           <UsagePill
             remaining={remaining}
             signedIn={!!user}

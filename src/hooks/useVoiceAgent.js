@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import VoiceSocket from "@/lib/elevenLabsSocket";
+import Base44Call from "@/lib/base44Call";
 import AvatarCall from "@/lib/avatarCall";
+import { voiceMode } from "@/lib/voiceMode";
 import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
 import { loadFreshMaterial, loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
@@ -159,6 +161,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onAgentAudioEnd: () => setSpeaking(false),
       onInterrupted: () => setSpeaking(false),
       onAgentAnswered: () => answeredRef.current?.(),
+      // a call answered by the app's own AI says plainly when an answer did not come
+      onError: (message) => setError(message),
       onAutoEnd: ({ reason }) => {
         // a written exchange is already answered on screen, so it ends without a note
         if (quietRef.current) return;
@@ -260,6 +264,30 @@ export default function useVoiceAgent({ videoRef } = {}) {
           socketRef.current = null;
           setAvatarLive(false);
           setNotice(`${err?.response?.data?.error || err?.message || "Live avatar unavailable."} Continuing with voice only.`);
+        }
+      }
+
+      // the admin's own switch decides who answers: with Base44 AI in force the voice call
+      // and the written replies are answered by the app itself, in the platform's own voice.
+      // The face keeps the outside agent, exactly as it has always been.
+      if (voiceMode() === "base44") {
+        const call = new Base44Call(handlers);
+        socketRef.current = call;
+        quietRef.current = silent;
+        setMicActive(withMic);
+        try {
+          await call.open({ withMic, silent, memory: knowledge });
+          if (opening) call.sendText(opening, { speak: withMic });
+          return true;
+        } catch (err) {
+          setError(
+            err?.response?.data?.error || err?.message || "Could not start the conversation."
+          );
+          setStatus("idle");
+          setMicActive(false);
+          socketRef.current = null;
+          await call.stop();
+          return false;
         }
       }
 

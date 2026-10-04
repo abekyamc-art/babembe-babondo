@@ -6,6 +6,7 @@ import {
 import { base44 } from "@/api/base44Client";
 import { guardAvatarHousekeeping } from "@/lib/avatarSessionGuard";
 import { contextBlocks } from "@/lib/contextBlocks";
+import { VOICE_RATE } from "@/lib/voicePace";
 
 const OPEN_QUIET_MS = 20000;
 // once his answer has finished, this much quiet ends the call, so the person can
@@ -185,6 +186,8 @@ export default class AvatarCall {
     this.el = el;
     // held quiet: the greeting plays out of the room until the person takes their turn
     el.muted = this.holdQuiet;
+    // the face runs at the phone's own quicker pace, wherever the browser allows it
+    el.playbackRate = VOICE_RATE;
     try {
       this.session?.attach(el);
     } catch (err) {

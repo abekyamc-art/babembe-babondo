@@ -1,6 +1,7 @@
 import { base44 } from "@/api/base44Client";
 import { isRepeatIntro } from "@/lib/agentMemory";
 import { contextBlocks } from "@/lib/contextBlocks";
+import { VOICE_RATE } from "@/lib/voicePace";
 
 const IN_RATE = 16000;
 // the capture is lifted before it is sent, so ordinary speech at arm's length arrives
@@ -566,6 +567,9 @@ export default class VoiceSocket {
 
     const node = this.ctx.createBufferSource();
     node.buffer = buffer;
+    // the answer runs quicker than the service's own top speed allows: the rest of the
+    // pace is taken here, on the phone, and the voice rides up a little in pitch
+    node.playbackRate.value = VOICE_RATE;
     // on a session that carries on, his voice stays in the silent sink until the
     // person takes their turn, so the introduction is never heard
     node.connect(this.silent || this.holdQuiet ? this.silencer() : this.ctx.destination);
@@ -584,7 +588,8 @@ export default class VoiceSocket {
     if (this.playHead < now + 0.04) this.playHead = now + 0.04;
     this.playHead += lead;
     node.start(this.playHead);
-    this.playHead += buffer.duration;
+    // the quicker voice drains the same audio sooner, so the next chunk follows it
+    this.playHead += buffer.duration / VOICE_RATE;
     this.sources.push(node);
     node.onended = () => {
       this.sources = this.sources.filter((s) => s !== node);

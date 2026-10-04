@@ -1,0 +1,40 @@
+{
+  "name": "AppSetting",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "Which app-level setting this row holds. The voice setting is kept under the key \"voice\"."
+    },
+    "mode": {
+      "type": "string",
+      "enum": [
+        "agent",
+        "base44"
+      ],
+      "default": "agent",
+      "description": "Who answers in the app: the outside voice agent, or the app's own Base44 AI."
+    }
+  },
+  "required": [
+    "key"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
