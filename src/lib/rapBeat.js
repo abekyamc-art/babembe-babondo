@@ -30,9 +30,44 @@ export function styleLabel(id) {
   return BEAT_STYLES.find((style) => style.id === id)?.label || "Beat";
 }
 
-export const TEMPOS = [96, 112, 124];
+export const TEMPOS = [96, 112, 124, 144];
 export const LENGTHS = [8, 16, 32];
 export const DEFAULT_BPM = 112;
+
+/** The kinds of rap the studio can lay down: from laid-back to rapid-fire. */
+export const FLOW_OPTIONS = [
+  {
+    id: "polepole",
+    label: "Polepole",
+    hint: "Polepole — mapumziko mengi, maneno machache kila bar.",
+    bpm: 96,
+  },
+  {
+    id: "kawaida",
+    label: "Kawaida",
+    hint: "Kawaida — mwendo wa studio kama ulivyo.",
+    bpm: DEFAULT_BPM,
+  },
+  {
+    id: "haraka",
+    label: "Haraka",
+    hint: "Haraka — mfuatano wa haraka, kama Nicki Minaj.",
+    bpm: 124,
+  },
+  {
+    id: "sana",
+    label: "Haraka sana",
+    hint: "Haraka sana — rapid-fire kama 6ix9ine.",
+    bpm: 144,
+  },
+];
+
+export const DEFAULT_FLOW = "kawaida";
+
+/** The kind of rap that was chosen; anything unrecognised is the usual one. */
+export function flowOf(id) {
+  return FLOW_OPTIONS.find((flow) => flow.id === id) || FLOW_OPTIONS[1];
+}
 
 /** How long a rap of this many bars runs at this tempo, in seconds. */
 export function beatSeconds(bars, bpm) {

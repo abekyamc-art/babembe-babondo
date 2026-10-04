@@ -1,5 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { secrets } from "base44:runtime";
+import { flowOf } from "../../shared/rapFlows.ts";
 
 const UNAVAILABLE = "Sauti haikuweza kutengenezwa. Jaribu tena baada ya sekunde chache.";
 const MAX_LINES = 32;
@@ -28,11 +29,24 @@ async function agentVoice(apiKey: string, agentId: string): Promise<string> {
   }
 }
 
+/** The voice settings a kind of rap asks for: the usual ones, and a pace when the flow calls for one. */
+function flowSettings(flow: any): any {
+  const settings: any = {
+    stability: 0.4,
+    similarity_boost: 0.8,
+    style: 0.45,
+    use_speaker_boost: true,
+  };
+  // the provider takes a speed between 0.7 and 1.2; the usual flow keeps its own pace
+  if (flow?.speed) settings.speed = Math.min(1.2, Math.max(0.7, flow.speed));
+  return settings;
+}
+
 /** A sung take: the singing voice comes back with its own Afro-Zaga beat already under it. */
-async function singSong(apiKey: string, bpm: number, lyrics: string, lengthMs: number) {
+async function singSong(apiKey: string, bpm: number, lyrics: string, lengthMs: number, flow: any) {
   const prompt = [
     "An Afro-Zaga / Bongo Flava rap track at " + bpm + " BPM: a driving kick and clap, bongo tom rolls, a shaker on every sixteenth, a deep one-note bass, no long intro.",
-    "One singer raps and sings the whole song on the beat, fast and clear, with a sung hook.",
+    "One singer raps and sings the whole song on the beat, " + flow.delivery + ", with a sung hook.",
     "Use exactly these lines as the lyrics, one line per bar, and add nothing else:",
     lyrics,
   ].join("\n");
@@ -55,7 +69,7 @@ async function singSong(apiKey: string, bpm: number, lyrics: string, lengthMs: n
 }
 
 /** The plain voice track: the same lines, rapped at speed, for the beat chosen on the phone. */
-async function rapVoice(apiKey: string, voiceId: string, lyrics: string) {
+async function rapVoice(apiKey: string, voiceId: string, lyrics: string, flow: any) {
   try {
     const res = await fetch(
       "https://api.elevenlabs.io/v1/text-to-speech/" + encodeURIComponent(voiceId),
@@ -69,12 +83,7 @@ async function rapVoice(apiKey: string, voiceId: string, lyrics: string) {
         body: JSON.stringify({
           text: lyrics,
           model_id: "eleven_multilingual_v2",
-          voice_settings: {
-            stability: 0.4,
-            similarity_boost: 0.8,
-            style: 0.45,
-            use_speaker_boost: true,
-          },
+          voice_settings: flowSettings(flow),
         }),
       }
     );
@@ -120,6 +129,7 @@ export default async function (req: Request): Promise<Response> {
     const bpm = Math.min(160, Math.max(60, Number(payload?.bpm) || 112));
     const beat = ["app", "mine", "none"].includes(payload?.beat) ? payload.beat : "app";
     const voice = payload?.voice === "agent" ? "agent" : "sing";
+    const flow = flowOf(payload?.flow);
 
     const seconds = (lines.length * 4 * 60) / bpm + 3;
     const lengthMs = Math.min(MAX_MS, Math.max(MIN_MS, Math.round(seconds * 1000)));
@@ -131,7 +141,7 @@ export default async function (req: Request): Promise<Response> {
     // a song carries its own beat, so it is only asked for when no other beat is laid
     // under it on the phone afterwards
     if (voice === "sing" && beat === "app") {
-      bytes = await singSong(apiKey, bpm, lyrics, lengthMs);
+      bytes = await singSong(apiKey, bpm, lyrics, lengthMs, flow);
       if (bytes) kind = "song";
     }
 
@@ -141,7 +151,7 @@ export default async function (req: Request): Promise<Response> {
         console.error("The agent has no voice configured.");
         return Response.json({ error: UNAVAILABLE }, { status: 502 });
       }
-      bytes = await rapVoice(apiKey, voiceId, lyrics);
+      bytes = await rapVoice(apiKey, voiceId, lyrics, flow);
       if (!bytes) return Response.json({ error: UNAVAILABLE }, { status: 502 });
     }
 

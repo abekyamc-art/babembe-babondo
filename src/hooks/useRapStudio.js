@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { RAP_COST, balanceOf, spendCoins } from "@/lib/coins";
 import { ensureProfile } from "@/lib/social";
-import { DEFAULT_BPM, beatSeconds, styleLabel } from "@/lib/rapBeat";
+import { DEFAULT_BPM, DEFAULT_FLOW, beatSeconds, styleLabel } from "@/lib/rapBeat";
 import { readSong, renderBeat, stripVoice, tempoOf } from "@/lib/beatExtract";
 import { fetchAudio, mixTake, wavBlob } from "@/lib/rapAudio";
 import { saveBlob, saveRemote, slug, takeText, videoName } from "@/lib/rapLines";
@@ -16,6 +16,7 @@ export default function useRapStudio() {
   const [wordsUsed, setWordsUsed] = useState([]);
   const [settings, setSettings] = useState({
     voice: "sing",
+    flow: DEFAULT_FLOW,
     beat: "app",
     bpm: DEFAULT_BPM,
     bars: 16,
@@ -227,6 +228,7 @@ export default function useRapStudio() {
         topic: settings.topic,
         bars: settings.bars,
         bpm: settings.bpm,
+        flow: settings.flow,
       });
       const data = res?.data || {};
       if (!data.ideas?.length) throw new Error(data.error || "Mawazo hayakuja. Jaribu tena.");
@@ -261,6 +263,7 @@ export default function useRapStudio() {
           topic: settings.topic,
           bars: settings.bars,
           bpm: settings.bpm,
+          flow: settings.flow,
         });
         const data = res?.data || {};
         if (!data.lines?.length) throw new Error(data.error || "Mistari haikuja. Jaribu tena.");
@@ -332,6 +335,7 @@ export default function useRapStudio() {
         bpm: settings.bpm,
         beat: settings.beat,
         voice: settings.voice,
+        flow: settings.flow,
       });
       const data = res?.data || {};
       if (!data.audio_url) throw new Error(data.error || "Sauti haikuja. Jaribu tena.");

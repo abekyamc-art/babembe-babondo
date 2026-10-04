@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { Upload } from "lucide-react";
-import { BEAT_OPTIONS, LENGTHS, TEMPOS, VOICE_OPTIONS } from "@/lib/rapBeat";
+import { BEAT_OPTIONS, FLOW_OPTIONS, LENGTHS, TEMPOS, VOICE_OPTIONS, flowOf } from "@/lib/rapBeat";
 
 function Pills({ options, value, onPick, busy }) {
   return (
@@ -24,6 +24,9 @@ export default function RapControls({ settings, words, beatName, onChange, onBea
   const fileRef = useRef(null);
   const pick = (key, value) => onChange({ ...settings, [key]: value });
 
+  // the kind of rap carries its own tempo, so the beat and the take follow it
+  const pickFlow = (id) => onChange({ ...settings, flow: id, bpm: flowOf(id).bpm });
+
   const pickBeat = (id) => {
     if (id === "mine") {
       fileRef.current?.click();
@@ -37,6 +40,12 @@ export default function RapControls({ settings, words, beatName, onChange, onBea
       <div className="rap-group">
         <span className="rap-label">Sauti</span>
         <Pills options={VOICE_OPTIONS} value={settings.voice} busy={busy} onPick={(id) => pick("voice", id)} />
+      </div>
+
+      <div className="rap-group">
+        <span className="rap-label">Mtindo wa rap</span>
+        <Pills options={FLOW_OPTIONS} value={settings.flow} busy={busy} onPick={pickFlow} />
+        <p className="rap-hint">{flowOf(settings.flow).hint}</p>
       </div>
 
       <div className="rap-group">

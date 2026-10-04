@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+import { flowOf, flowStyle } from "../../shared/rapFlows.ts";
 
 const UNAVAILABLE = "Mawazo hayakuweza kutengenezwa. Jaribu tena baada ya sekunde chache.";
 const EMPTY_LIST =
@@ -166,7 +167,7 @@ function wordList(words: any[]): string {
 }
 
 /** The words chosen for the theme, then three different ways into it. */
-function planPrompt(words: any[], bpm: number, topic: string) {
+function planPrompt(words: any[], bpm: number, topic: string, flow: any) {
   return [
     "You are preparing a rap in Ebembe, the Babembe language, for a voice that sings it over a fast Afro-Zaga / Bongo Flava beat at " +
       bpm +
@@ -181,18 +182,21 @@ function planPrompt(words: any[], bpm: number, topic: string) {
       " different angles on that theme, three if you can: a different way into it, a different mood or a different scene, never three versions of one idea.",
     "For each idea give:",
     "- name: its angle in at most 5 words, in Kiswahili, so the person can tell the ideas apart at a glance.",
-    '- hook: the idea\'s hook as one or two short Ebembe lines (section "HOOK"), at most 8 Ebembe words each, plain spelling.',
+    '- hook: the idea\'s hook as one or two short Ebembe lines (section "HOOK"), at most ' +
+      flow.maxWords +
+      " Ebembe words each, plain spelling.",
     "- hook_swahili: the same hook in Kiswahili.",
     "- words_used: the Ebembe words from plan that this idea really builds on, spelled exactly as the list spells them.",
     "- lines: the hook written out line by line, each line a bar with its section and its swahili meaning.",
     "Rules, all of them strict:",
+    flowStyle(flow),
     ...SPELLING,
     "The theme, when one is given, is: " + (topic || "everyday Babembe life"),
   ].join("\n");
 }
 
 /** The chosen angle written out in full, against the very words its plan named. */
-function writePrompt(words: any[], idea: any, bars: number, bpm: number, topic: string) {
+function writePrompt(words: any[], idea: any, bars: number, bpm: number, topic: string, flow: any) {
   return [
     "You write one rap in Ebembe, the Babembe language, for a voice that sings it over a fast Afro-Zaga / Bongo Flava beat at " +
       bpm +
@@ -209,7 +213,8 @@ function writePrompt(words: any[], idea: any, bars: number, bpm: number, topic: 
     wordList(words),
     "Rules, all of them strict:",
     ...SPELLING,
-    "- Each line is one bar of the beat: short, punchy and rhythmic, at most 8 Ebembe words. Repetition, chant and call-and-answer are welcome, and a hook repeats.",
+    "- Each line is one bar of the beat. Repetition, chant and call-and-answer are welcome, and a hook repeats.",
+    flowStyle(flow),
     "- Give swahili: the same line in Kiswahili so a listener learns the meaning. Keep it short.",
     "- In words_used list the Ebembe terms you actually used, exactly as spelled in the list.",
     "The theme, when one is given, is: " + (topic || "everyday Babembe life"),
@@ -246,11 +251,12 @@ export default async function (req: Request): Promise<Response> {
     const bars = Math.min(MAX_LINES, Math.max(8, Number(payload?.bars) || 16));
     const bpm = Math.min(160, Math.max(60, Number(payload?.bpm) || 112));
     const topic = clean(payload?.topic, 140);
+    const flow = flowOf(payload?.flow);
     const known = knownMap(words);
 
     if (action === "plan") {
       const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
-        prompt: planPrompt(words, bpm, topic),
+        prompt: planPrompt(words, bpm, topic, flow),
         response_json_schema: IDEAS_SCHEMA,
       });
 
@@ -299,7 +305,8 @@ export default async function (req: Request): Promise<Response> {
         },
         bars,
         bpm,
-        topic
+        topic,
+        flow
       ),
       response_json_schema: LINES_SCHEMA,
     });
