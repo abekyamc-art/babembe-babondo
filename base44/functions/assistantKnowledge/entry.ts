@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { alikeTerms, skeleton } from "../../shared/soundsAlike.ts";
 import { knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
+import { keyLine, keyMatches } from "../../shared/answerKey.ts";
 
 // The note rides along with a typed message as silent context. It is handed over
 // in blocks of the size one update carries, so the whole note can be larger than
@@ -39,15 +40,40 @@ const GUIDE =
   "- USIMWOMBE MTU ARUDIE, usiulize alimaanisha lugha gani au neno gani, na usiseme hukusikia wala hukuelewa. Chukua lugha na maana kutoka maneno yake ya kwanza, kisha jibu moja kwa moja.\n" +
   "- Sehemu ya kishazi isiyokuwa na neno la Ebembe: weka neno la Kiswahili linalofaa mahali hapo, kisha endeleza kishazi hadi kikamilike, ili kishazi kisikose kitu. Usiseme kwamba neno la Ebembe halipo, wala usionyeshe kwamba kuna pengo — toa kishazi kikamilifu tu.\n" +
   "- Mtu akiomba kitu — kuzungumza, hadithi, wimbo, kufundishwa neno, maelezo au mazoezi — fanya alichoomba, kwa lugha yake na kwa mpangilio huu.\n" +
-  "- HADITHI, habari, maelezo au salamu akiomba: simulia kwa ukamilifu — si muhtasari — na kwa SEHEMU. Ombi jipya la \"endelea\" huendeleza hadithi ile ile mahali ilipoishia: usianze hadithi nyingine, usirudie sehemu iliyokwisha simuliwa, na usianze upya. Kila sehemu iwe na maneno mapya yanayotokea humo, na uyaeleze. Ombi la wazi la hadithi nyingine ndilo linaloanza hadithi mpya. Akiomba zaidi, endelea mpaka yeye mwenyewe aache.\n" +
+  "- HADITHI, habari, maelezo au salamu akiomba: simulia kwa SEHEMU — kila sehemu fupi, sentensi mbili hadi tatu, sekunde thelathini kwa kusema — na sehemu iwe na maneno mapya yanayotokea humo, na uyaeleze. Ombi jipya la \"endelea\" huendeleza hadithi ile ile mahali ilipoishia: usianze hadithi nyingine, usirudie sehemu iliyokwisha simuliwa, na usianze upya. Ombi la wazi la hadithi nyingine ndilo linaloanza hadithi mpya. Akiomba zaidi, endelea mpaka yeye mwenyewe aache.\n" +
   "- Maandishi mapya yaliyoongezwa kwenye maarifa haya kwa ajili ya ombi hili yatumike kwa sehemu inayofuata ya hadithi, na maneno mapya yake yachukuliwe kutoka humo.\n" +
   "- Neno alilosema likikaribia neno lililohifadhiwa — herufi moja au alama tofauti, au konsonanti zilezile kwa irabu tofauti — chukulia kuwa ni neno hilo hilo: jibu moja kwa moja kutoka maana yake. Kumbuka: never say the word was wrong, never say it is unknown, never ask whether they meant a similar word, and never repeat their words back as your answer.\n" +
   "- Neno la kwanza kwenye orodha ya maneno yanayokaribia ndilo linalokaribia zaidi; ndilo neno alilomaanisha, hata kama mengine yanafanana nalo — jibu kutoka maana ya lile la kwanza, bila kuuliza.\n" +
   "- Swali au ombi lisipoeleweka, jibu ulichoelewa kwa maneno yako mwenyewe: usirudie maneno yake kama jibu, wala usiulize uthibitisho.\n" +
-  "- Mwongozo wa matamshi ni wa sikio lako pekee: chukua neno jinsi linasikika, lakini usiandike wala kusema kwa mtu chochote kilichowekwa ndani ya mabano, wala silabi zilizoandikwa zimetenganishwa kwa vistari. Onyesha na kutamka herufi za neno tu kama linavyoandikwa — mfano: \"ole bile\".\n";
+  "- Mwongozo wa matamshi ni wa sikio lako pekee: chukua neno jinsi linasikika, lakini usiandike wala kusema kwa mtu chochote kilichowekwa ndani ya mabano, wala silabi zilizoandikwa zimetenganishwa kwa vistari. Onyesha na kutamka herufi za neno tu kama linavyoandikwa — mfano: \"ole bile\".\n" +
+  LEAD +
+  BRIEF;
 
 const FALLBACK =
   "\nKama swali halipo kwenye maarifa haya, jibu kwa ufahamu wako wa kawaida, lakini sema wazi katika jibu hilo kwamba jibu hilo halitoki kwenye maarifa ya admin.\n";
+
+// The answer key decides what the answer says: a question that matches one the admin saved is
+// answered with that saved answer itself, and the answer stays inside it instead of wandering.
+const LEAD =
+  "\nJIBU LA FUNGUA — lead with the saved answer:\n" +
+  "Alichosema au aliuliza kinalingana na kitu kilichohifadhiwa hapa chini: jibu lako LIFUNGUE kwa jibu " +
+  "lililohifadhiwa hilo, neno kwa neno, bila kulibadilisha na bila kuweka jibu lingine mbele yake. Kisha " +
+  "endelea kwa jibu hilo tu: usihamie maarifa mengine yasiyohusiana na alichosema, na usiongeze maelezo " +
+  "ambayo hayakuulizwa.\n";
+
+// Every answer is spoken out loud, so it is kept to what fits in about half a minute: two or three
+// short sentences at a time, and a story is told in parts of that length rather than in one long
+// telling.
+const BRIEF =
+  "\nUREFU WA JIBU — how long an answer may be:\n" +
+  "Jibu lote linasemwa kwa sauti, hivyo liwe fupi: sentensi mbili hadi tatu, takriban sekunde thelathini " +
+  "kwa kusema (maneno arobaini hadi themanini). Usizidi sekunde thelathini kwa jibu moja. " +
+  "Hadithi au maelezo marefu: kwa SEHEMU, kila sehemu si zaidi ya sekunde thelathini; ombi la \"endelea\" " +
+  "linaendeleza sehemu inayofuata mahali ilipoishia.\n";
+
+// The nearest saved answers ride at the head of the note, so the answer opens with the key itself.
+const KEY_BUDGET = 1400;
+const KEY_ROWS = 200;
 
 const PASSAGE_HEAD =
   "\nSEHEMU ZA MAANDISHI YA MWENYEJI — parts of the admin's own texts that match this question:\n" +
@@ -67,7 +93,8 @@ const HEADS = {
     "Tumia maneno haya na maana yake unapojibu. Neno lenye alama ya ? halijaandikwa maana yake: litaje tu, usibuni maana yake, wala usiseme alama hiyo kwa mtu.\n",
   like:
     "\nMANENO YANAYOKARIBIA ULILOSIKIA — words close to what was heard:\n" +
-    "Neno la kwanza ndilo linalokaribia zaidi — ndilo neno alilomaanisha. Jibu moja kwa moja kutoka maana yake: usimwambie mtu amekosea, usiulize kama alimaanisha neno lingine, na usirudie maneno yake kama jibu lako. Maneno mengine kwenye orodha ni ya karibu tu — usiyataje kama mbadala, na usiulize kama alimaanisha mojawapo. Puuza orodha hii tu kama neno alilosema halipo kabisa.\n",
+    "Neno la kwanza ndilo linalokaribia zaidi — ndilo neno alilomaanisha. Jibu moja kwa moja kutoka maana yake: usimwambie mtu amekosea, usiulize kama alimaanisha neno lingine, na usirudie maneno yake kama jibu lako. Maneno mengine kwenye orodha ni ya karibu tu — usiyataje kama mbadala, na usiulize kama alimaanisha mojawapo. Puuza orodha hii tu kama neno alilosema halipo kabisa.\n" +
+    BRIEF,
 
   say:
     "\nMATAMSHI YA SIRI — how to say the words above, for your ear only:\n" +
@@ -92,8 +119,10 @@ const SURE_LINE =
 const LIKE_BUDGET = 900;
 // the private pronunciation hints have their own small share, and are never spoken
 const SAY_BUDGET = 1500;
+// the answer key takes its room before the vocabulary, so the saved answer is never trimmed away
+const KEY_ROOM = KEY_BUDGET + LEAD.length + BRIEF.length;
 const NOTE_BUDGET =
-  MAX_NOTE - OPENING.length - GUIDE.length - FALLBACK.length - LIKE_BUDGET - SAY_BUDGET;
+  MAX_NOTE - OPENING.length - GUIDE.length - FALLBACK.length - LIKE_BUDGET - SAY_BUDGET - KEY_ROOM;
 
 // Anything between brackets, and any syllable-by-syllable run, is a note for the ear
 // rather than a word to show: it is taken out of every line he is given.
@@ -299,6 +328,41 @@ async function wordsFor(base44: any) {
   return rows;
 }
 
+// the saved answers, read once and kept for the same moment: a live call asks on every turn, so
+// the answer key is not fetched again and again mid-conversation
+let keyCache: { at: number; rows: any[] } = { at: 0, rows: [] };
+
+async function keyRowsFor(base44: any) {
+  if (keyCache.rows.length && Date.now() - keyCache.at < CACHE_MS) return keyCache.rows;
+  const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
+    { kind: "qa" },
+    { sort: "created_date", limit: KEY_ROWS, fields: ["kind", "question", "answer"] }
+  );
+  keyCache = { at: Date.now(), rows: rowsOf(page) };
+  return keyCache.rows;
+}
+
+// The key rides at the head of the note, so the answer opens with the saved answer itself.
+const KEY_HEAD =
+  "\nJIBU LA FUNGUA LILILOHIFADHIWA — the answer key for this turn, as the admin saved it:\n";
+
+/**
+ * The saved answers that match this question, nearest first: the answer key. The matching itself
+ * lives in one place, so a question finds the same answer in every provider.
+ */
+function keySection(rows: any[], query: string) {
+  const matches = keyMatches(rows, query);
+  if (!matches.length) return "";
+
+  let body = "";
+  for (const match of matches) {
+    const line = keyLine(match);
+    if (KEY_BUDGET + body.length + line.length > KEY_ROOM) break;
+    body += line;
+  }
+  return body ? KEY_HEAD + LEAD + BRIEF + body : "";
+}
+
 /**
  * The words that fit what was heard, nearest first. Only the few closest ride
  * along, so a misheard word is looked up against the whole list without the whole
@@ -468,7 +532,12 @@ export default async function (req: Request): Promise<Response> {
     // like a saved one is answered from its meaning instead of being called unknown
     if (typeof payload?.heard === "string" && payload.heard.trim()) {
       const heard = payload.heard.trim().slice(0, MAX_QUERY);
-      return Response.json({ note: likeSection(await wordsFor(base44), heard) });
+      // the answer key comes first in the note, so the saved answer is what the turn opens with,
+      // and the words closest to what was heard follow it
+      const [words, keys] = await Promise.all([wordsFor(base44), keyRowsFor(base44)]);
+      return Response.json({
+        note: keySection([...keys, ...words], heard) + likeSection(words, heard),
+      });
     }
 
     // the entries themselves stay private to the admin: only this derived note
@@ -490,6 +559,10 @@ export default async function (req: Request): Promise<Response> {
       { sort: "created_date", limit: NOTES_LIMIT }
     );
     const rows = rowsOf(page);
+    // the answer key for this question is read from the same saved entries and takes its room
+    // before the questions and the world notes, so a matching answer is never trimmed away
+    const key = keySection([...rows, ...wordRows], query);
+    left -= key.length;
     const linesOfKind = (kind: string) =>
       rows
         .filter((row: any) => row.kind === kind)
@@ -501,7 +574,7 @@ export default async function (req: Request): Promise<Response> {
     const world = fill(HEADS.note, linesOfKind("note"), left);
 
     const body = like + qa.text + world.text + tally.section + say;
-    let note = body || rulesSection ? OPENING + GUIDE + rulesSection + body + FALLBACK : "";
+    let note = body || key || rulesSection ? OPENING + GUIDE + key + rulesSection + body + FALLBACK : "";
 
     // a question is answered from the admin's long texts too, through the few
     // passages that match it and nothing more

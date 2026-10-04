@@ -3,6 +3,7 @@ import { secrets } from "base44:runtime";
 import { alikeTerms } from "../../shared/soundsAlike.ts";
 import { glossOf, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
+import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
 
 /**
  * The Base44 AI call. What the person said is heard, the answer is written by the app's own
@@ -34,7 +35,11 @@ const ANSWER_MODEL = "gpt_6_sol";
 // from guessing at random.
 const HEARING_LANG = "swa";
 const MAX_ANSWER = 900;
+// about half a minute of speech: the voice line is closed at the last sentence that fits here
 const MAX_SPOKEN = 320;
+// the answer key rides ahead of the word list, so the saved answer is read before anything else
+const KEY_ROWS = 200;
+const KEY_BUDGET = 1200;
 const MAX_QUESTION = 400;
 const MAX_MEMORY = 12000;
 const MAX_HISTORY = 1200;
@@ -73,7 +78,8 @@ const HOW = [
   "guide: how that same Kibembe sounds to an American ear, syllable by syllable joined with dashes.",
   "swahili: the same thing in everyday Kiswahili. english: the same thing in plain English. Every part says the same thing, and the one in the person's own language is the answer they are waiting for.",
   "say: only the part in the language the person just used, written exactly as that part is written on screen, apart from a letter the voice would otherwise read wrongly (ch for the c sound, and so on) — and on Kibembe, never an English sound-spelling such as ay, ee or oh. Plain running words with spaces between them: no brackets, no dashes, no hyphens, no pronunciation notes, no language names, and never the listening line. One or two short sentences.",
-  "Keep the whole answer short: this is talk, not an essay, and never more than three sentences of Kibembe.",
+  "When the admin's saved questions hold one that matches what they said, the saved answer for it is what they must hear: your answer opens with that answer word for word, and the rest of the answer stays inside what it says — never wander into other knowledge, and never add what they were not asked.",
+  "Keep the whole answer short: this is talk, not an essay, and only about thirty seconds of it is ever spoken — two or three short sentences in every part, and never more than three sentences of Kibembe. A story or a long telling is given in parts of that length, and the next part follows only when they ask for more.",
   "Build the Kibembe from the words saved in the knowledge, and write every one of them exactly as it is saved. Never invent a word, a plural, a tense or a meaning that the rules and the saved words do not confirm.",
   "Copy each saved word letter for letter, a b, h or w inside it included: a word that looks like a Kiswahili one is still written the way the list spells it (mabwe, never mawe). Never drop a letter from a saved word and never add one.",
   "The rule book below decides how Kibembe is read, pronounced, written and used. Where one of its rules and your own habit disagree, the rule wins, and where it and a word on the list disagree, the list wins.",
@@ -96,6 +102,11 @@ const WORDS_HEAD =
   "\nMANENO YA EBEMBE — every word the admin saved for you to know:\n" +
   "Build your Kibembe from these words and nothing else, written exactly as they are here. Their meanings are what the person means when they say them. A word written with a \"?\" has no meaning saved yet: say the word, but never invent a meaning for it.\n";
 
+// The answer key for the turn: the saved questions that match what was just said, nearest first.
+const KEY_HEAD =
+  "\nTHE ANSWER KEY for what they just said — the questions the admin saved that match it, nearest first:\n" +
+  "One of these answers what they just said. Its saved answer is what the person must hear: open your answer with that answer, word for word, without changing it and without putting anything before it. Then go on with that answer alone — never wander into other knowledge, and never add what they did not ask. Where none of these matches, ignore this section.\n";
+
 // What was heard, matched against the whole saved list before the answer is written.
 const LIKE_HEAD =
   "\nMANENO YANAYOKARIBIA ULILOSIKIA — the saved words closest to what was just heard:\n" +
@@ -107,13 +118,45 @@ const LIKE_HEAD =
  * admin makes still lands within the minute.
  */
 const CACHE_MS = 60000;
-let cache: { at: number; rules: string; rows: any[] } = { at: 0, rules: "", rows: [] };
+let cache: { at: number; rules: string; rows: any[]; keys: any[] } = {
+  at: 0,
+  rules: "",
+  rows: [],
+  keys: [],
+};
+
+/** The saved questions, read once with the rest of the knowledge: they are the answer key. */
+async function answerRows(base44: any) {
+  const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
+    { kind: "qa" },
+    { sort: "created_date", limit: KEY_ROWS, fields: ["kind", "question", "answer"] }
+  );
+  return Array.isArray(page) ? page : page?.items || [];
+}
 
 async function knowledgeFor(base44: any) {
   if (cache.rows.length && Date.now() - cache.at < CACHE_MS) return cache;
-  const loaded = await Promise.all([rulesText(base44), knowledgeWordRows(base44)]);
-  cache = { at: Date.now(), rules: loaded[0], rows: loaded[1] };
+  const loaded = await Promise.all([
+    rulesText(base44),
+    knowledgeWordRows(base44),
+    answerRows(base44),
+  ]);
+  cache = { at: Date.now(), rules: loaded[0], rows: loaded[1], keys: loaded[2] };
   return cache;
+}
+
+/** The answer key for the turn, nearest first, as the writer reads it. */
+function keySection(rows: any[], query: string): string {
+  const matches = keyMatches(rows, query);
+  if (!matches.length) return "";
+
+  let body = "";
+  for (const match of matches) {
+    const line = keyLineEn(match);
+    if (body.length + line.length > KEY_BUDGET) break;
+    body += line;
+  }
+  return body ? KEY_HEAD + body : "";
 }
 
 function textOf(value: any, max = MAX_ANSWER): string {
@@ -125,17 +168,28 @@ function textOf(value: any, max = MAX_ANSWER): string {
  * The line the voice reads: the words alone, with every dash, bracket and symbol that would be
  * read out as a word taken away, the sentences left standing with their own punctuation so the
  * voice's intonation follows them instead of running flat, and a full stop at the end so it
- * never trails off.
+ * never trails off. It is held to about half a minute of speech.
  */
 function voiceLine(value: any): string {
-  const line = textOf(value, MAX_SPOKEN)
+  const line = textOf(value, MAX_SPOKEN * 2)
     .replace(/[=·•*|_/\\<>{}[\]()"“”]/g, " ")
     .replace(/[-–—]+/g, " ")
     .replace(/\s*([,.!?;])\s*/g, "$1 ")
     .replace(/\s+/g, " ")
     .trim();
   if (!line) return "";
-  return /[.!?]$/.test(line) ? line : line + ".";
+  const short = closeAtSentence(line, MAX_SPOKEN);
+  return /[.!?]$/.test(short) ? short : short + ".";
+}
+
+/** A line closed at the last sentence that fits the room given, never mid-sentence. */
+function closeAtSentence(line: string, room: number) {
+  if (line.length <= room) return line;
+  const cut = line.slice(0, room);
+  const at = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("!"), cut.lastIndexOf("?"));
+  if (at > room * 0.4) return cut.slice(0, at + 1).trim();
+  const space = cut.lastIndexOf(" ");
+  return (space > 0 ? cut.slice(0, space) : cut).trim();
 }
 
 /** One line, its runs of space flattened, as the writer reads it. */
@@ -278,6 +332,9 @@ export default async function (req: Request): Promise<Response> {
     const rulesSection = loaded.rules ? RULES_HEAD + loaded.rules + "\n" : "";
     const words = wordsSection(loaded.rows);
     const like = likeSection(loaded.rows, asked);
+    // the answer key stands between the rules and the word list, so the saved answer is read
+    // before the whole vocabulary is
+    const key = keySection([...loaded.keys, ...loaded.rows], asked);
 
     const memory = textOf(payload?.memory, MAX_MEMORY);
     const history = textOf(payload?.history, MAX_HISTORY);
@@ -286,6 +343,7 @@ export default async function (req: Request): Promise<Response> {
       ROLE,
       HOW,
       rulesSection,
+      key,
       words,
       like,
       memory ? KNOWLEDGE_HEAD + "\n" + memory : "",
