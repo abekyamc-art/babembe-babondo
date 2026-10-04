@@ -13,7 +13,7 @@ import "@/rap-studio.css";
 
 const BUSY_LABEL = {
   compose: "Base44 AI inatunga mistari…",
-  voice: "Sauti ya kuimba inarusha mistari…",
+  voice: "ElevenLabs inaimba mistari yako…",
   video: "Video inatengenezwa…",
 };
 

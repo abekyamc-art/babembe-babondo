@@ -5,8 +5,10 @@
  * same beat.
  */
 
+// Sauti ya ElevenLabs (kuimba na kurap) ndiyo ya kwanza na ya msingi: studio hufunguka
+// ikiwa imechaguliwa, na sauti yake mwenyewe inabaki kama akiba tu.
 export const VOICE_OPTIONS = [
-  { id: "sing", label: "Sauti ya kuimba" },
+  { id: "sing", label: "ElevenLabs · msingi" },
   { id: "agent", label: "Sauti yake mwenyewe" },
 ];
 
