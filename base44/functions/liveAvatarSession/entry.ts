@@ -1,4 +1,5 @@
 import { secrets } from "base44:runtime";
+import { ensureFastPace } from "../../shared/agentPace.ts";
 
 const API = "https://api.liveavatar.com";
 const SECRET_NAME = "Babembe Babondo GS voice";
@@ -50,6 +51,10 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({ ready: false, reason: "not_configured" });
     }
     if (body?.probe) return Response.json({ ready: true });
+
+    // the face speaks with the same agent the voice call uses, so the pace is made sure of
+    // here too, before the session opens; a pace that cannot be set never blocks the call
+    await ensureFastPace(elevenKey, agentId);
 
     const secretId = await elevenLabsSecretId(apiKey, elevenKey);
 

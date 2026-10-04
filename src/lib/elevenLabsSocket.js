@@ -3,23 +3,27 @@ import { isRepeatIntro } from "@/lib/agentMemory";
 import { contextBlocks } from "@/lib/contextBlocks";
 
 const IN_RATE = 16000;
+// the capture is lifted before it is sent, so ordinary speech at arm's length arrives
+// as loud as speech close to the phone
+const MIC_GAIN = 2.5;
 // his first words after the person's turn wait only this long, so his answer begins
 // as soon as the words he was just handed have landed
-const BEAT_MS = 500;
+const BEAT_MS = 300;
 // once his voice has drained, this much quiet ends his turn: a breath between two
 // chunks of the same answer is not the end of it, so the microphone stays closed
 // instead of opening onto his own voice
 const ANSWER_GAP_MS = 700;
-const OPEN_QUIET_MS = 10000;
+const OPEN_QUIET_MS = 20000;
 // once his answer has finished, this much quiet ends the call, so the person can
 // start it again whenever they are ready
-const CLOSE_QUIET_MS = 4000;
+const CLOSE_QUIET_MS = 15000;
 // a turn that gets no answer is put to him once more after this long, and if it is
 // still unanswered this much later, the call closes as it always has — the question
 // is kept for the next call
-const RECOVER_MS = 12000;
-const GIVE_UP_MS = 30000;
-const VOICE_LEVEL = 0.06;
+const RECOVER_MS = 15000;
+const GIVE_UP_MS = 45000;
+// a soft voice at arm's length is a turn as much as a loud one
+const VOICE_LEVEL = 0.03;
 // a session that carries on is held from speaking until the person takes their
 // turn; this is the longest that hold can last if nothing releases it
 const HOLD_MAX_MS = 15000;
@@ -58,6 +62,17 @@ function floatToPcmBytes(samples) {
     out[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
   }
   return new Uint8Array(out.buffer);
+}
+
+/**
+ * The captured signal, lifted: quiet speech at arm's length comes up to the loudness of
+ * speech at the phone, while tanh rounds off the loudest peaks instead of clipping them,
+ * so a shout is still understood.
+ */
+function lift(samples) {
+  const out = new Float32Array(samples.length);
+  for (let i = 0; i < samples.length; i += 1) out[i] = Math.tanh(samples[i] * MIC_GAIN);
+  return out;
 }
 
 function resample(input, fromRate, toRate) {
@@ -416,7 +431,7 @@ export default class VoiceSocket {
       // of the phone can never be sent back as an interruption of that answer
       if (!this.connected || this.speaking) return;
       const chunk = event.inputBuffer.getChannelData(0);
-      const pcm = floatToPcmBytes(resample(chunk, this.ctx.sampleRate, IN_RATE));
+      const pcm = floatToPcmBytes(lift(resample(chunk, this.ctx.sampleRate, IN_RATE)));
       if (pcm.length) this.send({ user_audio_chunk: bytesToB64(pcm) });
     };
 
@@ -435,10 +450,11 @@ export default class VoiceSocket {
   }
 
   /**
-   * Opening guard: ten seconds of quiet before anything is said and the call hangs
+   * Opening guard: twenty seconds of quiet before anything is said and the call hangs
    * up — a session that carries on greets nobody, so the person needs that long to
    * take their turn. Closing guard: once something has been said the call waits for
-   * the answer to finish playing, then four seconds of quiet. Nothing at all hangs
+   * the answer to finish playing, then fifteen seconds of quiet, long enough to think
+   * over a follow-up question. Nothing at all hangs
    * up, and no playback is cleared, while the assistant still has something to say.
    */
   watch() {

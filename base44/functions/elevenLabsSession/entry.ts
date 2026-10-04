@@ -1,42 +1,16 @@
 import { secrets } from "base44:runtime";
+import { ensureFastPace } from "../../shared/agentPace.ts";
 
 const unavailable = "The voice call couldn't start. Please try again in a moment.";
-
-// The pace he speaks at: a fifth brisker than the normal pace, and the fastest this
-// voice accepts. The agent allows no per-call pace, so it is kept on the agent itself.
-const PACE = 1.2;
-const MIN_PACE = 0.7;
-const MAX_PACE = 1.2;
 
 /**
  * Makes sure his agent speaks at the brisker pace. It is checked first and written
  * only when it has drifted back, so an ordinary call costs nothing, and a pace that
  * cannot be set is never a reason the call fails to open.
  */
-async function raisePace(apiKey: string, agentId: string, speed: any) {
-  const target = Math.min(MAX_PACE, Math.max(MIN_PACE, PACE));
-  if (typeof speed === "number" && speed >= target) return;
-
-  try {
-    const res = await fetch(
-      "https://api.elevenlabs.io/v1/convai/agents/" + encodeURIComponent(agentId),
-      {
-        method: "PATCH",
-        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ conversation_config: { tts: { speed: target } } }),
-      }
-    );
-    if (!res.ok) {
-      console.error("Could not raise the agent's pace:", res.status, (await res.text()).slice(0, 300));
-    }
-  } catch (error) {
-    console.error("Could not raise the agent's pace:", error.message);
-  }
-}
-
 /**
- * His own agent holds the opening line, the switch that turns it off for a later
- * session, and the pace he speaks at. All three are read here, and none is guessed.
+ * His own agent holds the opening line and the switch that turns it off for a later
+ * session. Both are read here, and neither is guessed.
  */
 async function readAgent(apiKey: string, agentId: string) {
   try {
@@ -47,8 +21,9 @@ async function readAgent(apiKey: string, agentId: string) {
     if (!res.ok) return { intro: "", allowIntroOverride: false };
 
     const data = await res.json();
-    // the pace lives on the agent, so it is made sure of before this call opens
-    await raisePace(apiKey, agentId, data?.conversation_config?.tts?.speed);
+    // the pace lives on the agent, so it is made sure of before this call opens: read,
+    // written, and read back to confirm the write took
+    await ensureFastPace(apiKey, agentId);
     const agent = data?.conversation_config?.agent || {};
     const overrides =
       data?.platform_settings?.overrides?.conversation_config_override?.agent || {};

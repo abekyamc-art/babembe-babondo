@@ -7,22 +7,23 @@ import { base44 } from "@/api/base44Client";
 import { guardAvatarHousekeeping } from "@/lib/avatarSessionGuard";
 import { contextBlocks } from "@/lib/contextBlocks";
 
-const OPEN_QUIET_MS = 10000;
+const OPEN_QUIET_MS = 20000;
 // once his answer has finished, this much quiet ends the call, so the person can
 // start it again whenever they are ready
-const CLOSE_QUIET_MS = 4000;
+const CLOSE_QUIET_MS = 15000;
 // a turn that gets no answer is put to the face once more after this long, and if it
 // is still unanswered this much later, the call closes as it always has — the question
 // is kept for the next call
-const RECOVER_MS = 12000;
-const GIVE_UP_MS = 30000;
+const RECOVER_MS = 15000;
+const GIVE_UP_MS = 45000;
 // a call that carries on is held from speaking until the person takes their turn;
 // this is the longest that hold can last if nothing releases it
 const HOLD_MAX_MS = 15000;
 // his turn is marked as speaking but nothing has been heard from him for this long:
 // the end signal was missed, so his turn is finished and the microphone comes back
 const SILENT_END_MS = 2500;
-const VOICE_LEVEL = 0.06;
+// a soft voice at arm's length is a turn as much as a loud one
+const VOICE_LEVEL = 0.03;
 
 /**
  * A call whose face is the owner's LiveAvatar, with the same ElevenLabs agent
@@ -312,10 +313,11 @@ export default class AvatarCall {
   }
 
   /**
-   * Opening guard: ten seconds of quiet before anything is said and the call hangs
+   * Opening guard: twenty seconds of quiet before anything is said and the call hangs
    * up — a call that carries on greets nobody, so the person needs that long to take
    * their turn. Closing guard: once something has been said the call waits for the
-   * answer to finish, then four seconds of quiet.
+   * answer to finish, then fifteen seconds of quiet, long enough to think over a
+   * follow-up question.
    */
   watch() {
     const step = () => {
