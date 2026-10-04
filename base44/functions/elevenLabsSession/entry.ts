@@ -31,9 +31,23 @@ const ACCOUNTS: { id: string; name: string; key: string; agent: string; plain?: 
     key: "ELEVENLABS_ACCOUNT4_API_KEY",
     agent: "ELEVENLABS_ACCOUNT4_AGENT_ID",
   },
+  // The admin's own talk AIs, waiting their turn behind the standing one: the home page's calls
+  // take turns on all four, each on its own account with its own key, its own agent and its own
+  // knowledge, and each answering two questions before the coordinator signals the change.
+  { id: "talk2", name: "AI 2", key: "ELEVENLABS_TALK2_API_KEY", agent: "ELEVENLABS_TALK2_AGENT_ID" },
+  { id: "talk3", name: "AI 3", key: "ELEVENLABS_TALK3_API_KEY", agent: "ELEVENLABS_TALK3_AGENT_ID" },
+  { id: "talk4", name: "AI 4", key: "ELEVENLABS_TALK4_API_KEY", agent: "ELEVENLABS_TALK4_AGENT_ID" },
   // The app's own helpers, each on the account the admin gave it: the writer answers typed
-  // questions, and the words helper finds the words an answer should stand on. Both are asked in
-  // writing only, so neither is ever tuned for a voice call.
+  // questions, the words helper finds the words an answer should stand on, and the signal AI is
+  // asked in writing whose turn the next two questions are. All three are asked in writing only,
+  // so none of them is ever tuned for a voice call.
+  {
+    id: "coordinator",
+    name: "The signal AI",
+    key: "ELEVENLABS_COORDINATOR_API_KEY",
+    agent: "ELEVENLABS_COORDINATOR_AGENT_ID",
+    plain: true,
+  },
   {
     id: "helper-write",
     name: "The writer",

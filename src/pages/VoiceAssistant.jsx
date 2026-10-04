@@ -40,6 +40,7 @@ export default function VoiceAssistant() {
     turns,
     error,
     notice,
+    talkLabel,
     levelRef,
     avatarReady,
     avatarLive,
@@ -311,7 +312,7 @@ export default function VoiceAssistant() {
       <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-between gap-4 px-5">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7">
           {/* who answers is written on the screen itself: the whole page changes with the switch */}
-          <ModeBadge mode={mode} />
+          <ModeBadge mode={mode} talk={talkLabel} />
           <button
             type="button"
             onClick={handleCall}
@@ -362,7 +363,10 @@ export default function VoiceAssistant() {
               error ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {error || notice || faceNote || `${providerName(mode)} answers each turn.`}
+            {error ||
+              notice ||
+              faceNote ||
+              `${talkLabel || providerName(mode)} answers each turn.`}
           </p>
         </div>
       </main>

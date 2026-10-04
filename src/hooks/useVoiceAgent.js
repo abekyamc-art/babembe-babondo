@@ -10,6 +10,8 @@ import { emptyStory, nextStory, withStory } from "@/lib/storyState";
 import { closeWords, wordsNote } from "@/lib/helperWords";
 import { heardLanguage } from "@/lib/heardLanguage";
 import { withoutCues } from "@/lib/cues";
+import { askCoordinator } from "@/lib/handoffSignal";
+import { FIRST_TALK, TALK_ANSWERS, handoffNotice, noSignalNotice } from "@/lib/talkRotation";
 
 // the knowledge note travels in blocks and needs a beat to settle before the
 // question is put to him, so he reads it before he answers; the wait is shown as
@@ -69,6 +71,14 @@ export default function useVoiceAgent({ videoRef } = {}) {
   // a provider the admin has switched away from cannot answer, charge, or speak again.
   const sessionRef = useRef(0);
 
+  // the talk AI answering right now, and how many answers it has given: the home page's four talk
+  // AIs take turns, two answers each, and the fifth AI signals the change
+  const talkRef = useRef({ ...FIRST_TALK, answered: 0 });
+  // a handoff the second answer has asked for, waiting for that answer to finish being read out
+  const handoffDueRef = useRef(false);
+  // the handoff itself, kept in a ref because an answer's own handler is what sends it
+  const handoffRunRef = useRef(null);
+
   // the mode in force, kept in step with the admin's switch: a switch ends whatever
   // session is on air, so the mode that was chosen is the only one left answering
   const mode = useVoiceMode();
@@ -81,6 +91,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const [notice, setNotice] = useState("");
   const [avatarReady, setAvatarReady] = useState(false);
   const [avatarLive, setAvatarLive] = useState(false);
+  // which talk AI is the one answering, written on the home screen and set by each handoff
+  const [talkLabel, setTalkLabel] = useState("");
 
   useEffect(() => {
     let alive = true;
@@ -119,6 +131,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
     if (engine) Promise.resolve(engine.stop?.()).catch(() => {});
     // the words helper was opened for the conversation that just ended
     closeWords().catch(() => {});
+    // a change of mode starts the talk AIs over: the mode just chosen owns the conversation, and
+    // its first talk AI opens the next call
+    talkRef.current = { ...FIRST_TALK, answered: 0 };
+    handoffDueRef.current = false;
+    setTalkLabel(mode === "agent" ? FIRST_TALK.label : "");
   }, [mode]);
 
   const pushTurn = useCallback((role, text) => {
@@ -219,6 +236,19 @@ export default function useVoiceAgent({ videoRef } = {}) {
     engine.sendMemory?.(held);
   }, []);
 
+  /**
+   * One answer given, counted against the talk AI that gave it. Two answers is what each of the
+   * four gives before its break, and the second only asks for the handoff — the AI is never cut
+   * off: its answer is read out in full, and the signal is sent once its voice has stopped. Only
+   * a call that is heard counts, since a typed exchange is answered on screen and nobody's turn.
+   */
+  const countTalkAnswer = useCallback(() => {
+    if (quietRef.current || voiceMode() !== "agent") return;
+    const talk = talkRef.current;
+    talk.answered += 1;
+    if (talk.answered >= TALK_ANSWERS) handoffDueRef.current = true;
+  }, []);
+
   // both kinds of call report back through the same set of handlers
   const makeHandlers = useCallback(
     () => ({
@@ -233,6 +263,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
           setMicActive(false);
           setAvatarLive(false);
           heldRef.current = "";
+          // a call that has ended sends no handoff: its turn is over
+          handoffDueRef.current = false;
           socketRef.current = null;
         }
       },
@@ -254,6 +286,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onAgentAudioEnd: () => {
         setSpeaking(false);
         flushHeld();
+        // the answer has been read out in full: the handoff its second answer asked for is sent
+        if (handoffDueRef.current) {
+          handoffDueRef.current = false;
+          handoffRunRef.current?.();
+        }
       },
       onInterrupted: () => {
         setSpeaking(false);
@@ -279,7 +316,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
         sentRef.current = text;
         if (engine.connected) engine.sendText(text);
       },
-      onAgentAnswered: () => answeredRef.current?.(),
+      onAgentAnswered: () => {
+        answeredRef.current?.();
+        countTalkAnswer();
+      },
       // a call answered by the app's own AI says plainly when an answer did not come
       onError: (message) => setError(message),
       // a turn he could make nothing of is asked again in the status line, and the call
@@ -300,7 +340,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         );
       },
     }),
-    [pushTurn, reviewHeard, reviewWanted, flushHeld, materialFor]
+    [pushTurn, reviewHeard, reviewWanted, flushHeld, materialFor, countTalkAnswer]
   );
 
   // a written question is held back while the knowledge he was handed settles, and
@@ -400,6 +440,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // chat alone — and Mbondo on his own third account, and Sadiki on his own fourth, each for
       // everything they are asked, written or spoken. Every other call keeps the original outside
       // voice's standing account.
+      // A spoken call on the original outside voice answers on the talk AI whose turn it is: the
+      // four take turns, so the one the last handoff left ready is the one this call opens on.
       // A typed question put to the original outside voice is answered in writing by the writer
       // — the helper account kept for exactly that — so he stays the voice of the conversation
       // and never has to write. Every other mode keeps answering in both ways as it always has.
@@ -411,13 +453,15 @@ export default function useVoiceAgent({ videoRef } = {}) {
       const ears = withMic;
       const account = writer
         ? "helper-write"
-        : openingMode === "base44" && withMic
-          ? "second"
-          : openingMode === "mbondo"
-            ? "third"
-            : openingMode === "sadiki"
-              ? "fourth"
-              : "";
+        : openingMode === "agent" && withMic
+          ? talkRef.current.account
+          : openingMode === "base44" && withMic
+            ? "second"
+            : openingMode === "mbondo"
+              ? "third"
+              : openingMode === "sadiki"
+                ? "fourth"
+                : "";
       const ownVoice = account !== "";
       if (openingMode === "base44" && !ownVoice) {
         const call = new Base44Call(handlers);
@@ -522,6 +566,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
     sessionRef.current += 1;
     const socket = socketRef.current;
     socketRef.current = null;
+    // a call the person ends themselves asks for no handoff
+    handoffDueRef.current = false;
     setSpeaking(false);
     setThinking(false);
     setMicActive(false);
@@ -530,6 +576,52 @@ export default function useVoiceAgent({ videoRef } = {}) {
     if (socket) await socket.stop();
     await closeWords().catch(() => {});
   }, []);
+
+  /**
+   * The handoff, once a talk AI has given its two answers: the fifth AI is asked whose turn is
+   * next, its signal is read on the server against the four accounts the app is set up with, the
+   * call is hung up, and the AI it named is left ready to carry the talk on. The talk so far stays
+   * on screen and goes with the next call, so nothing of it is lost in the change. A signal that
+   * names nobody, names the AI already on its break, or names an account that is not set up is
+   * never guessed at: the same AI keeps the conversation instead.
+   */
+  const runHandoff = useCallback(async () => {
+    const engine = socketRef.current;
+    if (!engine || quietRef.current) return;
+    const from = { ...talkRef.current };
+
+    let next = null;
+    try {
+      const reply = await askCoordinator(from.label);
+      if (reply) {
+        const res = await base44.functions.invoke("callHandoff", { reply, from: from.id });
+        next = res?.data?.next || null;
+      }
+    } catch (err) {
+      // a signal that cannot be asked for or read is no signal at all
+      next = null;
+    }
+
+    // the call was ended, or the mode switched, while the signal was on its way: it belongs to no
+    // call any more, and moves nothing
+    if (socketRef.current !== engine) return;
+
+    if (!next) {
+      talkRef.current = { ...from, answered: 0 };
+      setNotice(noSignalNotice(from.label));
+      return;
+    }
+
+    talkRef.current = { id: next.id, label: next.label, account: next.account, answered: 0 };
+    setTalkLabel(next.label);
+    await stop();
+    setNotice(handoffNotice(from.label, next.label));
+  }, [stop]);
+
+  // an answer's own end is what sends a handoff, so the runner is reachable from there
+  useEffect(() => {
+    handoffRunRef.current = runHandoff;
+  }, [runHandoff]);
 
   const sendText = useCallback(
     (text) => {
@@ -568,6 +660,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
     turns,
     error,
     notice,
+    talkLabel,
     levelRef,
     avatarReady,
     avatarLive,
