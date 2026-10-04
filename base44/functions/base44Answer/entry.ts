@@ -17,14 +17,14 @@ import { rulesText } from "../../shared/knowledgeRules.ts";
  * note that may have been trimmed on its way to the phone.
  */
 
-// The platform voice every answer is read in, and the voice language each leading part is read
-// on. The voice service holds no Bantu language at all, so Malay stands in for both Kibembe and
-// Kiswahili: Malay sounds every letter the Bantu way — five pure vowels with no English
-// letter-names, w and y voiced, ny and ng as the language reads them — and that is what carries
-// an Ebembe accent. The spelling handed to it is still the rule book's, so a sound the voice
-// cannot make is written right even when it cannot be said right. English is read on the
-// service's own English.
-const SPEECH_VOICE = "river";
+// The platform voice every answer is read in — the warm, soft one, a spoken voice rather than a
+// reading one — and the voice language each leading part is read on. The voice service holds no
+// Bantu language at all, so Malay stands in for both Kibembe and Kiswahili: Malay sounds every
+// letter the Bantu way — five pure vowels with no English letter-names, w and y voiced, ny and
+// ng as the language reads them — and that is what carries an Ebembe accent. The spelling handed
+// to it is still the rule book's, so a sound the voice cannot make is written right even when it
+// cannot be said right. English is read on the service's own English.
+const SPEECH_VOICE = "honey";
 const SPEECH_LANG: Record<string, string> = { ebembe: "ms", swahili: "ms", english: "en" };
 // the model the Admin's Base44 AI mode answers on, pinned so every answer is written by it
 const ANSWER_MODEL = "gpt_6_sol";
@@ -122,14 +122,20 @@ function textOf(value: any, max = MAX_ANSWER): string {
 }
 
 /**
- * The line the voice reads: the Kibembe alone, with every dash, bracket and note taken out, so
- * only the words are ever spoken and never a pronunciation guide.
+ * The line the voice reads: the words alone, with every dash, bracket and symbol that would be
+ * read out as a word taken away, the sentences left standing with their own punctuation so the
+ * voice's intonation follows them instead of running flat, and a full stop at the end so it
+ * never trails off.
  */
 function voiceLine(value: any): string {
-  return textOf(value, MAX_SPOKEN)
-    .replace(/[-–—()\[\]{}]/g, " ")
+  const line = textOf(value, MAX_SPOKEN)
+    .replace(/[=·•*|_/\\<>{}[\]()"“”]/g, " ")
+    .replace(/[-–—]+/g, " ")
+    .replace(/\s*([,.!?;])\s*/g, "$1 ")
     .replace(/\s+/g, " ")
     .trim();
+  if (!line) return "";
+  return /[.!?]$/.test(line) ? line : line + ".";
 }
 
 /** One line, its runs of space flattened, as the writer reads it. */

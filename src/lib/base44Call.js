@@ -196,12 +196,15 @@ export default class Base44Call {
     return true;
   }
 
-  /** His answer read out loud, at the phone's own quicker pace. */
+  /** His answer read out loud, at the phone's own quicker pace and in the voice's own pitch. */
   async speak(url) {
     this.speaking = true;
     this.h.onAgentAudioStart?.();
     try {
-      await this.throughCtx(url).catch(() => this.throughElement(url));
+      // the file itself first: the quicker pace is reached with the voice's own pitch kept, so
+      // he sounds like a person talking a little faster rather than a voice sped up. A phone
+      // that will not hand the file over gets it decoded onto the call's own audio instead.
+      await this.throughElement(url).catch(() => this.throughCtx(url));
     } catch (err) {
       // the words stay on screen when the voice cannot be played
     } finally {
@@ -212,7 +215,7 @@ export default class Base44Call {
     }
   }
 
-  /** The quickest route: the answer decoded onto the call's own audio, at the phone's pace. */
+  /** The fallback route: the answer decoded onto the call's own audio, at the phone's pace. */
   async throughCtx(url) {
     if (!this.ctx) this.ctx = new (window.AudioContext || window.webkitAudioContext)();
     const res = await fetch(url);
@@ -234,19 +237,20 @@ export default class Base44Call {
     });
   }
 
-  /** The same answer off the file itself, for a phone that will not hand the bytes over. */
+  /** His answer off the file itself, at the phone's own pace and in the voice's own pitch. */
   async throughElement(url) {
     const audio = new Audio(url);
     audio.playbackRate = VOICE_RATE;
-    // the quicker voice rides up in pitch, as a voice speaking faster does
-    audio.preservesPitch = false;
-    audio.mozPreservesPitch = false;
-    audio.webkitPreservesPitch = false;
+    // the quicker pace keeps the voice's own pitch, as a person talking faster does, instead
+    // of riding up into a sped-up squeak
+    audio.preservesPitch = true;
+    audio.mozPreservesPitch = true;
+    audio.webkitPreservesPitch = true;
     this.audio = audio;
-    await new Promise((resolve) => {
+    await new Promise((resolve, reject) => {
       audio.onended = resolve;
-      audio.onerror = resolve;
-      audio.play().catch(resolve);
+      audio.onerror = () => reject(new Error("voice-unplayable"));
+      audio.play().catch(reject);
     });
   }
 
