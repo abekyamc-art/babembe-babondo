@@ -4,9 +4,10 @@ import { contextBlocks } from "@/lib/contextBlocks";
 import { VOICE_RATE } from "@/lib/voicePace";
 
 const IN_RATE = 16000;
-// the capture is lifted before it is sent, so ordinary speech at arm's length arrives
-// as loud as speech close to the phone
-const MIC_GAIN = 2.5;
+// The capture is lifted before it is sent, so ordinary speech at arm's length arrives as loud
+// as speech close to the phone. The lift is kept gentle: a capture squashed flat loses the
+// shape of the words, and the hearing service works the letters out from that shape.
+const MIC_GAIN = 1.6;
 // his first words after the person's turn wait only this long, so his answer begins
 // as soon as the words he was just handed have landed
 const BEAT_MS = 300;
@@ -76,17 +77,25 @@ function lift(samples) {
   return out;
 }
 
+/**
+ * The microphone's own rate down to the rate the service listens at. Every output sample is the
+ * mean of the sound it spans rather than one point of it: a downsample that reads single points
+ * folds everything above the new rate back into the words, and the hearing service reads those
+ * folds as letters that were never said.
+ */
 function resample(input, fromRate, toRate) {
   if (!input.length || fromRate === toRate) return input;
   const ratio = fromRate / toRate;
   const len = Math.floor(input.length / ratio);
   if (len < 1) return new Float32Array(0);
+  const span = Math.max(1, Math.round(ratio));
   const out = new Float32Array(len);
   for (let i = 0; i < len; i += 1) {
-    const pos = i * ratio;
-    const i0 = Math.floor(pos);
-    const i1 = Math.min(i0 + 1, input.length - 1);
-    out[i] = input[i0] + (input[i1] - input[i0]) * (pos - i0);
+    const at = Math.min(Math.round(i * ratio), input.length - 1);
+    const end = Math.min(at + span, input.length);
+    let sum = 0;
+    for (let pos = at; pos < end; pos += 1) sum += input[pos];
+    out[i] = sum / (end - at);
   }
   return out;
 }
@@ -129,6 +138,8 @@ export default class VoiceSocket {
     // a session opened after he has already spoken is not a first meeting
     this.laterTurn = false;
     this.intro = "";
+    // the app's own Ebembe words, handed to the hearing service as the call opens
+    this.keywords = [];
     // carrying on: nothing is heard from him until the person takes their turn
     this.holdQuiet = false;
     this.holdTimer = null;
@@ -213,6 +224,7 @@ export default class VoiceSocket {
       throw new Error(res?.data?.error || "Your agent could not be reached.");
     }
     this.intro = res.data.intro || "";
+    this.keywords = Array.isArray(res.data.asr_keywords) ? res.data.asr_keywords : [];
     const canMuteIntro = !!res.data.allow_intro_override;
 
     await new Promise((resolve, reject) => {
@@ -247,9 +259,12 @@ export default class VoiceSocket {
         // automatic greeting is switched off where his agent allows the switch, and
         // what he has already said is handed over as context for the answer
         const init = { type: "conversation_initiation_client_data" };
-        if (this.laterTurn && canMuteIntro) {
-          init.conversation_config_override = { agent: { first_message: "" } };
-        }
+        const overrides = {};
+        if (this.laterTurn && canMuteIntro) overrides.agent = { first_message: "" };
+        // The admin's saved words ride with the call, so the hearing service comes back with
+        // the person's own Ebembe words instead of the English ones they nearly sound like.
+        if (this.keywords.length) overrides.asr = { keywords: this.keywords };
+        if (Object.keys(overrides).length) init.conversation_config_override = overrides;
         this.send(init);
         if (memory) this.sendMemory(memory);
         settle(resolve);
