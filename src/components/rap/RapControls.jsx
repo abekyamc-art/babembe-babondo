@@ -1,6 +1,7 @@
 import React, { useRef } from "react";
 import { Upload } from "lucide-react";
 import { BEAT_OPTIONS, FLOW_OPTIONS, TAKES, TEMPOS, VOICE_OPTIONS, barsFor, flowOf } from "@/lib/rapBeat";
+import { LANGUAGE_OPTIONS, languageOf, usesStore } from "@/lib/rapLanguage";
 
 function Pills({ options, value, onPick, busy }) {
   return (
@@ -40,6 +41,17 @@ export default function RapControls({ settings, words, beatName, onChange, onBea
       <div className="rap-group">
         <span className="rap-label">Sauti</span>
         <Pills options={VOICE_OPTIONS} value={settings.voice} busy={busy} onPick={(id) => pick("voice", id)} />
+      </div>
+
+      <div className="rap-group">
+        <span className="rap-label">Lugha</span>
+        <Pills
+          options={LANGUAGE_OPTIONS}
+          value={settings.language}
+          busy={busy}
+          onPick={(id) => pick("language", id)}
+        />
+        <p className="rap-hint">{languageOf(settings.language).hint}</p>
       </div>
 
       <div className="rap-group">
@@ -100,7 +112,11 @@ export default function RapControls({ settings, words, beatName, onChange, onBea
           onChange={(event) => pick("topic", event.target.value)}
         />
         <p className="rap-hint">
-          {words ? `Maneno ${words} yaliyothibitishwa yanapatikana kwa rap.` : "Maneno yanapakiwa…"}
+          {!usesStore(settings.language)
+            ? "Base44 AI huchagua maneno yenyewe kwa lugha hii."
+            : words
+              ? `Maneno ${words} yaliyothibitishwa yanapatikana kwa rap.`
+              : "Maneno yanapakiwa…"}
         </p>
       </div>
     </section>

@@ -1,6 +1,7 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { secrets } from "base44:runtime";
 import { flowOf } from "../../shared/rapFlows.ts";
+import { LANG_NAME, rapLang, type RapLang } from "../../shared/rapLangs.ts";
 import { separateStems } from "../../shared/stems.ts";
 
 const UNAVAILABLE = "Sauti haikuweza kutengenezwa. Jaribu tena baada ya sekunde chache.";
@@ -45,25 +46,30 @@ function flowSettings(flow: any): any {
   return settings;
 }
 
-/** A sung take: the lines are sung and rapped on the beat, in the beat's own key and tempo. */
+/** A sung take: the lines are sung and rapped on the beat, in the beat's own key and tempo,
+ *  with a second voice singing behind the lead. */
 async function singSong(
   apiKey: string,
   bpm: number,
   lyrics: string,
   lengthMs: number,
   flow: any,
-  key: string
+  key: string,
+  language: RapLang
 ) {
   const prompt = [
-    "An Afro-Zaga / Bongo Flava rap song in the key of " +
+    "An Afro-Zaga / Bongo Flava rap song whose lyrics are in " +
+      LANG_NAME[language] +
+      ", in the key of " +
       key +
       " at " +
       bpm +
       " BPM: a driving kick and clap, bongo tom rolls, a shaker on every sixteenth, a deep bass locked to that key, no long intro.",
-    "One lead voice SINGS and RAPS every line in pitch with the beat — a melodic sung hook and sung verses, " +
+    "Two voices: one lead voice SINGS and RAPS every line in pitch with the beat — a melodic sung hook and sung verses, " +
       flow.delivery +
       ".",
-    "Singing only, on the beat, in that key: never spoken word, never a reading, never a narrator or a talking voice.",
+    "Behind the lead, a second voice sings under it: it harmonises on the hook and answers with short ad-libs between the bars, always softer than the lead and in the same key and tempo. It never takes the lead and never sings a whole line on its own.",
+    "Singing and rapping only, on the beat, in that key: never spoken word, never a reading, never a narrator or a talking voice.",
     "Use exactly these lines as the lyrics, one line per bar, and add nothing else:",
     lyrics,
   ].join("\n");
@@ -157,6 +163,7 @@ export default async function (req: Request): Promise<Response> {
     const beat = ["app", "mine", "none"].includes(payload?.beat) ? payload.beat : "app";
     const voice = payload?.voice === "agent" ? "agent" : "sing";
     const flow = flowOf(payload?.flow);
+    const language = rapLang(payload?.language);
     const key = clean(payload?.key, 24) || "A minor";
 
     const seconds = (lines.length * 4 * 60) / bpm;
@@ -167,7 +174,7 @@ export default async function (req: Request): Promise<Response> {
     // The singing voice is only ever asked for a sung performance. There is no reading of the
     // lines behind it: a take either comes back sung, or it does not come back at all.
     if (voice === "sing") {
-      const sung = await singSong(apiKey, bpm, lyrics, lengthMs, flow, key);
+      const sung = await singSong(apiKey, bpm, lyrics, lengthMs, flow, key, language);
       if (!sung) return Response.json({ error: UNAVAILABLE }, { status: 502 });
 
       const songUrl = await store(base44, sung, "take.mp3");

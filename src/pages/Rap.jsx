@@ -14,6 +14,7 @@ import RapSong from "@/components/rap/RapSong";
 import RapSimilar from "@/components/rap/RapSimilar";
 import SavedBeats from "@/components/rap/SavedBeats";
 import { RAP_COST } from "@/lib/coins";
+import { usesStore } from "@/lib/rapLanguage";
 import "@/rap-studio.css";
 
 const BUSY_LABEL = {
@@ -89,9 +90,9 @@ export default function Rap() {
 
       {!studio.ideas.length && !lines.length ? (
         <p className="rap-hint">
-          Chagua mipangilio, kisha omba mawazo — Base44 AI hupanga maneno ya Kibembe
-          yaliyothibitishwa kwanza, kisha hutoa mawazo matatu ya rap; chagua moja, mistari
-          yake ichukuliwe na ElevenLabs.
+          Chagua mipangilio, kisha omba mawazo — Base44 AI hupanga maneno kwa lugha uliyochagua
+          kwanza, kisha hutoa mawazo matatu ya rap; chagua moja, mistari yake ichukuliwe na
+          ElevenLabs.
         </p>
       ) : null}
 
@@ -110,7 +111,7 @@ export default function Rap() {
         type="button"
         className="rap-cta rap-cta-ghost"
         onClick={studio.planIdeas}
-        disabled={!!busy || !ready || !studio.words?.length}
+        disabled={!!busy || !ready || (usesStore(settings.language) && !studio.words?.length)}
       >
         {studio.ideas.length ? "Tunga mawazo mapya" : "Tunga mawazo"}
       </button>

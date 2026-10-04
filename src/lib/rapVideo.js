@@ -9,11 +9,15 @@ const INK = "#f5f6ff";
 const MUTED = "#9ba9c6";
 const ACCENT = "#6ba8ff";
 
+/**
+ * The phone is asked for an MP4 and nothing else: an iPhone records MP4 (H.264 with AAC) and
+ * will not record a webm at all. A phone that can record neither is told plainly, and the take
+ * is kept as its audio file instead.
+ */
 function pickMime() {
   const options = [
-    "video/webm;codecs=vp9,opus",
-    "video/webm;codecs=vp8,opus",
-    "video/webm",
+    "video/mp4;codecs=avc1.42E01E,mp4a.40.2",
+    "video/mp4;codecs=h264,aac",
     "video/mp4",
   ];
   return options.find((type) => window.MediaRecorder?.isTypeSupported?.(type)) || "";

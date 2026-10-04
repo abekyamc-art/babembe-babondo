@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { RAP_COST, balanceOf, creditCoins, spendCoins } from "@/lib/coins";
+import { DEFAULT_LANGUAGE } from "@/lib/rapLanguage";
 import { ensureProfile } from "@/lib/social";
 import {
   APP_BEAT_KEY,
@@ -24,6 +25,7 @@ export default function useRapStudio() {
   const [wordsUsed, setWordsUsed] = useState([]);
   const [settings, setSettings] = useState({
     voice: "sing",
+    language: DEFAULT_LANGUAGE,
     flow: DEFAULT_FLOW,
     beat: "app",
     bpm: DEFAULT_BPM,
@@ -271,6 +273,7 @@ export default function useRapStudio() {
     try {
       const res = await base44.functions.invoke("rapLyrics", {
         action: "plan",
+        language: settings.language,
         topic: settings.topic,
         bars: barsFor(settings.seconds, settings.bpm),
         bpm: settings.bpm,
@@ -306,6 +309,7 @@ export default function useRapStudio() {
             swahili: idea.swahili,
             words_used: idea.words_used,
           },
+          language: settings.language,
           topic: settings.topic,
           bars: barsFor(settings.seconds, settings.bpm),
           bpm: settings.bpm,
@@ -338,6 +342,7 @@ export default function useRapStudio() {
       try {
         const created = await base44.entities.RapTake.create({
           title: titleOf(currentLines, settings.topic),
+          language: settings.language,
           voice: settings.voice,
           beat: settings.beat,
           bpm: settings.bpm,
@@ -394,6 +399,7 @@ export default function useRapStudio() {
             bpm: settings.bpm,
             beat: settings.beat,
             voice: settings.voice,
+            language: settings.language,
             flow: settings.flow,
             key,
           });
@@ -484,11 +490,13 @@ export default function useRapStudio() {
         setTakes((prev) => prev.map((row) => (row.id === take.id ? { ...row, video_url: file_url } : row)));
       }
     } catch (err) {
-      setError(
-        err?.message === "video-unsupported"
-          ? "Kifaa hiki hakiwezi kutengeneza video — pakua faili la sauti badala yake."
-          : "Video haikuweza kutengenezwa. Jaribu tena."
-      );
+      if (err?.message === "video-unsupported") {
+        // a phone that cannot record a video at all keeps the take as its audio file
+        saveBlob(wavBlob(take.buffer), `${slug(titleOf(lines, settings.topic))}.wav`);
+        setError("Kifaa hiki hakiwezi kutengeneza video — take yako imehifadhiwa kama faili la sauti.");
+      } else {
+        setError("Video haikuweza kutengenezwa. Jaribu tena.");
+      }
     }
     setBusy("");
   }, [busy, lines, settings.topic, take, titleOf]);
@@ -509,6 +517,7 @@ export default function useRapStudio() {
       seconds: saved.seconds || prev.seconds,
       beat: saved.beat || prev.beat,
       voice: saved.voice || prev.voice,
+      language: saved.language || prev.language,
       topic: saved.title || prev.topic,
     }));
     setPlan([]);

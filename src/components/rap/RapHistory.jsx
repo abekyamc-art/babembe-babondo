@@ -1,6 +1,7 @@
 import React, { useRef, useState } from "react";
 import { Film, Pause, Play, RotateCcw } from "lucide-react";
 import { timeLabel } from "@/lib/rapBeat";
+import { languageLabel } from "@/lib/rapLanguage";
 
 /** The takes already made: heard again, taken up again, or opened as their video. */
 export default function RapHistory({ takes, onReuse }) {
@@ -30,7 +31,8 @@ export default function RapHistory({ takes, onReuse }) {
               <p className="rap-history-title">{take.title || "Take"}</p>
               <p className="rap-hint">
                 {take.bpm || 112} BPM ·{" "}
-                {take.seconds ? timeLabel(take.seconds) : `${(take.ebembe_lines || []).length} bars`}
+                {take.seconds ? timeLabel(take.seconds) : `${(take.ebembe_lines || []).length} bars`} ·{" "}
+                {languageLabel(take.language)}
               </p>
             </div>
             <button

@@ -6,6 +6,17 @@
       "type": "string",
       "description": "What the take is about, as it was typed or drawn from its first line."
     },
+    "language": {
+      "type": "string",
+      "enum": [
+        "ebembe",
+        "swahili",
+        "english",
+        "mix"
+      ],
+      "default": "ebembe",
+      "description": "The language the take was made in: Kibembe, Kiswahili, English, or all three mixed."
+    },
     "voice": {
       "type": "string",
       "enum": [
@@ -39,21 +50,21 @@
       "items": {
         "type": "string"
       },
-      "description": "The rap line by line in plain Ebembe spelling, one line per bar."
+      "description": "The rap line by line as it was written in the take's own language, one line per bar."
     },
     "swahili_lines": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "Each Ebembe line's meaning in Kiswahili, in the same order."
+      "description": "Each line's meaning in the other language, in the same order: Kiswahili for a Kibembe, English or mixed take, and English for a Kiswahili take."
     },
     "words_used": {
       "type": "array",
       "items": {
         "type": "string"
       },
-      "description": "The confirmed Ebembe words the take was built from, exactly as they are saved."
+      "description": "The confirmed Ebembe words the take was built from, exactly as they are saved; a Kiswahili or English take keeps the words it stands on."
     },
     "audio_url": {
       "type": "string",

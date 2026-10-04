@@ -28,7 +28,7 @@ export default function RapDownloads({ onAudio, onMp3, onVideo, onLyrics, mp3, b
       <button type="button" className="rap-dl-row" onClick={onVideo} disabled={busyVideo}>
         <span className="rap-dl-label">
           <Film className="h-4 w-4" />
-          Video ya reels (9:16)
+          Video ya reels (.mp4)
         </span>
         <span className="rap-hint">{busyVideo ? "Inatengenezwa…" : "Maneno yanatembea"}</span>
       </button>

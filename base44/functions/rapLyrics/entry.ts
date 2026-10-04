@@ -1,5 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { flowOf, flowStyle } from "../../shared/rapFlows.ts";
+import { LANG_NAME, rapLang, usesStore, type RapLang } from "../../shared/rapLangs.ts";
 
 const UNAVAILABLE = "Mawazo hayakuweza kutengenezwa. Jaribu tena baada ya sekunde chache.";
 const EMPTY_LIST =
@@ -10,11 +11,14 @@ const MAX_POOL = 1200;
 // the words handed to the model in one plan: a fresh window of the pool, so the same handful
 // of words stops coming back take after take
 const MAX_WINDOW = 140;
-const MIN_FRESH = 60;
+const MIN_SPARE = 6;
 const MAX_TERM = 40;
 const MAX_MEANING = 110;
 const MAX_USAGE = 90;
 const MAX_LINES = 80;
+// the plan's own words carry a take, but a plan of only a handful is too thin to rap on, so the
+// whole saved list stands behind the writer instead
+const MIN_CHOSEN = 8;
 const MAX_IDEAS = 3;
 const MAX_PLAN = 40;
 
@@ -161,6 +165,87 @@ const MEANING_STOP = new Set([
   "rule",
   "rules",
   "sentence",
+  "these",
+  "those",
+  "them",
+  "have",
+  "has",
+  "had",
+  "will",
+  "would",
+  "can",
+  "could",
+  "should",
+  "must",
+  "never",
+  "always",
+  "every",
+  "each",
+  "all",
+  "both",
+  "some",
+  "any",
+  "more",
+  "most",
+  "other",
+  "another",
+  "such",
+  "same",
+  "too",
+  "very",
+  "just",
+  "also",
+  "complete",
+  "forms",
+  "form",
+  "list",
+  "lists",
+  "order",
+  "system",
+  "through",
+  "letter",
+  "letters",
+  "sound",
+  "sounds",
+  "spelling",
+  "written",
+  "speak",
+  "spoken",
+  "called",
+  "means",
+  "name",
+  "names",
+  "title",
+  // the words a note about the language itself is written in
+  "kibembe",
+  "ebembe",
+  "kiswahili",
+  "mfumo",
+  "kamili",
+  "lugha",
+  "neno",
+  "maneno",
+  "sentensi",
+  "kanuni",
+  "sheria",
+  "jina",
+  "majina",
+  "msemo",
+  "misemo",
+  "kitenzi",
+  "mfano",
+  "nyakati",
+  "umoja",
+  "wingi",
+  "kama",
+  "hii",
+  "hiyo",
+  "hivi",
+  "pia",
+  "katika",
+  "baada",
+  "cha",
+  "kwa",
 ]);
 
 // words that are only ever written *about* words: a heading, a rule, a note or a page label.
@@ -219,7 +304,11 @@ const ABOUT_WORDS = new Set([
 function isWordEntry(term: string, meaning: string): boolean {
   if (!term || !meaning) return false;
   if (term.length > MAX_TERM || meaning.length > MAX_MEANING) return false;
-  if (term.split(/\s+/).length > 3 || meaning.split(/\s+/).length > MAX_MEANING_WORDS) return false;
+  // one word, one translation: an entry whose term is a phrase was lifted out of a document,
+  // not saved as a word to rap
+  if (term.split(/\s+/).length > 1 || meaning.split(/\s+/).length > MAX_MEANING_WORDS) return false;
+  // an entry that translates itself is a transliteration, not a meaning
+  if (meaning.toLowerCase() === term.toLowerCase()) return false;
   if (term.replace(/[^\p{L}]/gu, "").length < 3) return false;
   if (!/^[\p{L}\p{N}'’&.\- ]+$/u.test(term)) return false;
   if (/^\d+\s*[.)]/.test(term)) return false;
@@ -229,6 +318,9 @@ function isWordEntry(term: string, meaning: string): boolean {
   // a translation made of sentence words is a note, not the short gloss a word needs
   const gloss = meaning.toLowerCase().split(/\s+/);
   if (gloss.some((word) => MEANING_STOP.has(word.replace(/[^a-z]/g, "")))) return false;
+  // a gloss that ends in h is a transliterated sound rather than a translation: Kiswahili and
+  // English glosses do not end that way, while a written-out pronunciation does
+  if (gloss.some((word) => word.length > 1 && /h$/.test(word.replace(/[^a-z]/g, "")))) return false;
   // an entry spelled only in words about words is a heading or a rule, not a word
   const tokens = term.toLowerCase().split(/\s+/);
   if (tokens.every((token) => ABOUT_WORDS.has(token))) return false;
@@ -346,7 +438,7 @@ async function recentTakes(base44: any) {
 function freshWindow(words: any[], recent: Set<string>, taken: number) {
   const fresh = words.filter((word: any) => !recent.has(word.term.toLowerCase()));
 
-  if (fresh.length >= MIN_FRESH) {
+  if (fresh.length >= MIN_SPARE) {
     if (fresh.length <= MAX_WINDOW) return { list: fresh, avoid: [] as string[] };
     const start = (taken * 53 + 17) % fresh.length;
     const list: any[] = [];
@@ -405,12 +497,26 @@ function meaningOf(term: string, words: any[]): string {
   return found?.meaning || "";
 }
 
+/** A planned entry, whether it arrived as a bare word or as "word = meaning". */
+function entryOf(value: any): { term: string; meaning: string } {
+  if (value && typeof value === "object") {
+    return { term: clean(value.term, MAX_TERM), meaning: clean(value.meaning, MAX_MEANING) };
+  }
+  const text = clean(value, MAX_TERM + MAX_MEANING);
+  const pair = text.match(/^(.{1,40}?)\s*(?:=|—|–|\s-\s|:)\s*(.+)$/);
+  if (pair) return { term: clean(pair[1], MAX_TERM), meaning: clean(pair[2], MAX_MEANING) };
+  // "word (meaning)" is the other way a planned word comes back
+  const paren = text.match(/^(.{1,40}?)\s*\(([^)]{1,60})\)\s*$/);
+  if (paren) return { term: clean(paren[1], MAX_TERM), meaning: clean(paren[2], MAX_MEANING) };
+  return { term: clean(text, MAX_TERM), meaning: "" };
+}
+
 /** The terms the model named, kept only where they really stand in the confirmed list. */
 function confirmedList(values: any, known: Map<string, string>): string[] {
   const seen = new Set<string>();
   const out: string[] = [];
   (Array.isArray(values) ? values : []).forEach((value: any) => {
-    const term = known.get(clean(value, MAX_TERM).toLowerCase());
+    const term = known.get(entryOf(value).term.toLowerCase());
     if (!term || seen.has(term.toLowerCase())) return;
     seen.add(term.toLowerCase());
     out.push(term);
@@ -420,11 +526,16 @@ function confirmedList(values: any, known: Map<string, string>): string[] {
 
 function readLines(values: any): any[] {
   return (Array.isArray(values) ? values : [])
-    .map((line: any) => ({
-      section: clean(line?.section, 14).toUpperCase() || "VERSE",
-      ebembe: plainLine(line?.ebembe),
-      swahili: plainLine(line?.swahili),
-    }))
+    .map((line: any) => {
+      // the writer sometimes labels every bar on its own; only the hook and the body carry a
+      // heading in the take
+      const raw = clean(line?.section, 14).toUpperCase();
+      return {
+        section: raw.includes("HOOK") ? "HOOK" : "VERSE 1",
+        ebembe: plainLine(line?.ebembe),
+        swahili: plainLine(line?.swahili),
+      };
+    })
     .filter((line: any) => line.ebembe)
     .slice(0, MAX_LINES);
 }
@@ -439,60 +550,146 @@ const SPELLING = [
   "- Never write the section name inside ebembe or swahili.",
 ];
 
+/** The rules a take is written by, in its own language: a Kibembe take raps only on the saved
+ *  words, Kiswahili and English take their words from the writer itself, and a mixed take leads
+ *  in Kibembe from the list with Kiswahili and English around it so the phrase is understood. */
+function languageRules(language: RapLang, store: boolean): string[] {
+  if (language === "swahili") {
+    return [
+      "- Every bar is plain, everyday Kiswahili that anyone in the village understands, spelled as it is spoken.",
+      "- Kiswahili only inside the bar: never an Ebembe word, never an English one.",
+      "- Every bar says something real and complete, never a pile of words.",
+    ];
+  }
+  if (language === "english") {
+    return [
+      "- Every bar is plain, everyday English, spelled normally.",
+      "- English only inside the bar: never an Ebembe word, never a Kiswahili one.",
+      "- Every bar says something real and complete, never a pile of words.",
+    ];
+  }
+  if (language === "mix") {
+    return [
+      store
+        ? "- Every bar mixes all three: a Kibembe lead taken ONLY from the list above, with Kiswahili and English words around it so someone who does not know Kibembe still understands the phrase."
+        : "- The saved Kibembe list is empty right now: write this take in Kiswahili with English woven in, and leave Kibembe for another time.",
+      store
+        ? "- A Kibembe word is spelled exactly as the list spells it, with no hyphens between syllables; the verb prefixes na-, a- and ba- may be joined as the list shows."
+        : "",
+      "- Never write a pronunciation guide, a syllable breakdown, or any text in brackets, dashes or slashes.",
+      "- Never write the section name inside the bar.",
+    ];
+  }
+  return SPELLING;
+}
+
+/** The language the meaning line under each bar is written in. */
+function meaningRule(language: RapLang): string {
+  if (language === "swahili") {
+    return "- Give swahili: the same line in English, so a listener learns the meaning. Keep it short.";
+  }
+  return "- Give swahili: the same line in Kiswahili so a listener learns the meaning. Keep it short.";
+}
+
+/** That language, named for the prompts. */
+function meaningLang(language: RapLang): string {
+  return language === "swahili" ? "English" : "Kiswahili";
+}
+
 function wordList(words: any[]): string {
   return words.map((word: any) => word.term + " = " + (word.meaning || "")).join("\n");
 }
 
 /** The words chosen for the theme, then three different ways into it. */
-function planPrompt(words: any[], bpm: number, topic: string, flow: any, recentTitles: string[], avoid: string[]) {
+function planPrompt(
+  words: any[],
+  bpm: number,
+  topic: string,
+  flow: any,
+  recentTitles: string[],
+  avoid: string[],
+  language: RapLang,
+  store: boolean
+) {
   return [
-    "You are preparing a rap in Ebembe, the Babembe language, for a voice that sings it over a fast Afro-Zaga / Bongo Flava beat at " +
+    "You are preparing a rap in " +
+      LANG_NAME[language] +
+      " for a voice that sings it over a fast Afro-Zaga / Bongo Flava beat at " +
       bpm +
       " BPM.",
-    "The list below is the whole of the Ebembe you may use, one word per line as term = meaning:",
-    wordList(words),
-    "Some saved entries are not words at all: a pronunciation fragment, a spelling guide, a rule, a heading or a note about grammar. Never plan or rap one — every word you plan has to be a real Ebembe word whose meaning is a short translation.",
+    store
+      ? "The list below is the whole of the Ebembe you may use, one word per line as term = meaning:"
+      : "You choose the words yourself: pick the everyday " +
+        LANG_NAME[language] +
+        " words this rap will lean on, words that fit the theme and can carry a rap on it.",
+    store ? wordList(words) : "",
+    store
+      ? "Some saved entries are not words at all: a pronunciation fragment, a spelling guide, a rule, a heading or a note about grammar. Never plan or rap one — every word you plan has to be a real Ebembe word whose meaning is a short translation."
+      : "",
     avoid.length
       ? "These words were used in this person's recent takes — leave them for another time and build on the others: " +
         avoid.join(", ")
-      : "",
+      : "Every plan has to stand on words this person has not been rapping, so no two takes come out alike.",
     "Step one — plan the words: choose up to " +
       MAX_PLAN +
-      " of those words that suit the theme and can carry a rap on it, and return them in plan exactly as the list spells them.",
+      " words that suit the theme and can carry a rap on it, and return them in plan" +
+      (store
+        ? ", exactly as the list spells them."
+        : ", each with its short " + meaningLang(language) + " meaning beside it."),
     "Step two — offer " +
       MAX_IDEAS +
       " different angles on that theme, three if you can: a different way into it, a different mood or a different scene, never three versions of one idea.",
     "For each idea give:",
     "- name: its angle in at most 5 words, in Kiswahili, so the person can tell the ideas apart at a glance.",
-    '- hook: the idea\'s hook as one or two short Ebembe lines (section "HOOK"), at most ' +
+    '- hook: the idea\'s hook as one or two short lines in ' +
+      LANG_NAME[language] +
+      ' (section "HOOK"), at most ' +
       flow.maxWords +
-      " Ebembe words each, plain spelling.",
-    "- hook_swahili: the same hook in Kiswahili.",
-    "- words_used: the Ebembe words from plan that this idea really builds on, spelled exactly as the list spells them.",
-    "- lines: the hook written out line by line, each line a bar with its section and its swahili meaning.",
+      " words each, plain spelling.",
+    "- hook_swahili: the same hook in " + meaningLang(language) + ".",
+    "- words_used: the words from plan that this idea really builds on, spelled exactly as you planned them.",
+    "- lines: the hook written out line by line, each line a bar with its section and its " +
+      meaningLang(language) +
+      " meaning.",
     "Rules, all of them strict:",
     flowStyle(flow),
-    ...SPELLING,
+    ...languageRules(language, store),
+    meaningRule(language),
     recentTitles.length
       ? "These angles were already used in this person's recent takes — offer different ones: " +
         recentTitles.join("; ")
       : "",
     "The theme, when one is given, is: " + (topic || "everyday Babembe life"),
-  ].join("\n");
+  ]
+    .filter(Boolean)
+    .join("\n");
 }
 
 /** The chosen angle written out in full, against the very words its plan named. */
-function writePrompt(words: any[], idea: any, bars: number, bpm: number, topic: string, flow: any) {
-  // a very short take is one hook on its own; a longer one is hook, body, hook
+function writePrompt(
+  words: any[],
+  idea: any,
+  bars: number,
+  bpm: number,
+  topic: string,
+  flow: any,
+  language: RapLang,
+  store: boolean
+) {
+  // a short take is a hook and a short body; a longer one is hook, body, hook
   const structure =
     bars <= 6
-      ? 'Return exactly ' + bars + ' lines in total: a single hook (section "HOOK"), and no verse.'
+      ? 'Return exactly ' +
+        bars +
+        ' lines in total: the hook (section "HOOK") first, then a short body (section "VERSE 1") whose every bar says something new.'
       : 'Return exactly ' +
         bars +
         ' lines in total, in this order: a hook of 4 lines (section "HOOK"), then the body (section "VERSE 1"), then the hook again (section "HOOK").';
 
   return [
-    "You write one rap in Ebembe, the Babembe language, for a voice that sings it over a fast Afro-Zaga / Bongo Flava beat at " +
+    "You write one rap in " +
+      LANG_NAME[language] +
+      " for a voice that sings it over a fast Afro-Zaga / Bongo Flava beat at " +
       bpm +
       " BPM.",
     structure,
@@ -501,14 +698,19 @@ function writePrompt(words: any[], idea: any, bars: number, bpm: number, topic: 
       ".",
     idea?.hook ? "Its hook is already set — keep it and build the rap around it: " + idea.hook : "",
     idea?.swahili ? "That hook means: " + idea.swahili : "",
-    "The list below is the whole of the Ebembe you may use, one word per line as term = meaning:",
-    wordList(words),
+    store
+      ? "The list below is the whole of the Ebembe you may use, one word per line as term = meaning:"
+      : "",
+    store ? wordList(words) : "",
     "Rules, all of them strict:",
-    ...SPELLING,
-    "- Each line is one bar of the beat. Repetition, chant and call-and-answer are welcome, and a hook repeats.",
+    ...languageRules(language, store),
+    "- Each line is one bar of the beat. The hook itself comes back, and call-and-answer with the voice behind the lead is welcome, but the body never repeats a line: every body bar carries its own words and its own thought.",
+    "- Every bar says something a listener understands, and no bar leans on the same word again and again — say the thing a different way instead.",
     flowStyle(flow),
-    "- Give swahili: the same line in Kiswahili so a listener learns the meaning. Keep it short.",
-    "- In words_used list the Ebembe terms you actually used, exactly as spelled in the list.",
+    meaningRule(language),
+    store
+      ? "- In words_used list the Ebembe terms you actually used, exactly as spelled in the list."
+      : "- In words_used list the words you actually used.",
     "The theme, when one is given, is: " + (topic || "everyday Babembe life"),
   ]
     .filter(Boolean)
@@ -556,17 +758,108 @@ async function repairLines(
   }
 }
 
+/** A planned word of a Kiswahili or an English take: the writer chose it itself, so only its
+ *  shape is checked — it has to be a word, with a short meaning beside it. */
+function plainPlan(values: any): any[] {
+  const seen = new Set<string>();
+  const out: any[] = [];
+  (Array.isArray(values) ? values : []).forEach((value: any) => {
+    const { term, meaning } = entryOf(value);
+    const key = term.toLowerCase();
+    if (!term || seen.has(key)) return;
+    if (term.split(/\s+/).length > 3) return;
+    if (term.replace(/[^\p{L}]/gu, "").length < 2) return;
+    seen.add(key);
+    out.push({ term, meaning });
+  });
+  return out.slice(0, MAX_PLAN);
+}
+
+/** The words a written take stands on, in a language the saved store does not hold. */
+function plainList(values: any): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  (Array.isArray(values) ? values : []).forEach((value: any) => {
+    const { term } = entryOf(value);
+    const key = term.toLowerCase();
+    if (!term || seen.has(key)) return;
+    if (term.split(/\s+/).length > 3) return;
+    seen.add(key);
+    out.push(term);
+  });
+  return out.slice(0, 60);
+}
+
+/** The words of the take this person made just before this one. */
+async function lastWords(base44: any): Promise<Set<string>> {
+  try {
+    const page = await base44.entities.RapTake.filter(
+      {},
+      { sort: "-created_date", limit: 1, fields: ["words_used"] }
+    );
+    const row = page?.items?.[0];
+    return new Set((row?.words_used || []).map((term: any) => String(term).toLowerCase()));
+  } catch (error: any) {
+    return new Set<string>();
+  }
+}
+
+/** The whole rap written once more on other words, when a take came out leaning on the very
+ *  words of the take before it. */
+async function freshTake(
+  base44: any,
+  words: any[],
+  flow: any,
+  language: RapLang,
+  store: boolean,
+  avoid: string[]
+): Promise<any | null> {
+  const prompt = [
+    "This rap came out leaning on almost the same words as the person's last take, and the person has asked for different words so every phrase is understood afresh.",
+    "The words that last take used: " + avoid.join(", ") + ".",
+    store
+      ? "The list below is the whole of the Ebembe you may use, one word per line as term = meaning:"
+      : "",
+    store ? wordList(words) : "",
+    "Write the whole rap again on different words: keep the same theme, the same number of bars and the same sections, and keep what each bar says, but stand on other words — at least half of the words in every bar have to be words that last take did not use.",
+    "Rules, all of them strict:",
+    ...languageRules(language, store),
+    meaningRule(language),
+    "- Return the bars in lines, in order, each with its section and its swahili.",
+    store
+      ? "- In words_used list the Ebembe words you actually used, exactly as spelled in the list."
+      : "- In words_used list the words you actually used.",
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  try {
+    const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+      prompt,
+      response_json_schema: LINES_SCHEMA,
+    });
+    const next = readLines(out?.lines);
+    return next.length ? { lines: next, words: out?.words_used } : null;
+  } catch (error: any) {
+    console.error("A fresh take could not be written:", error?.message);
+    return null;
+  }
+}
+
 /** Base44 AI reads its own plan once more before the words are handed over: an entry whose
  *  meaning is a pronunciation, a rule or a note about grammar is not a word to rap. */
-async function verifyPlan(base44: any, planned: any[]): Promise<any[]> {
+async function verifyPlan(base44: any, planned: any[], language: RapLang): Promise<any[]> {
   if (!planned.length) return planned;
 
   const prompt = [
-    "These entries were saved in an Ebembe (Babembe) knowledge store. Some of them are not words at all — they are pronunciation fragments, spelling guides, rules, headings or notes about grammar.",
+    "These entries were saved in an Ebembe (Babembe) knowledge store, and they were planned for a rap in " +
+      LANG_NAME[language] +
+      ". Some of them are not words at all — they are pronunciation fragments, spelling guides, rules, headings or notes about grammar.",
     "Here they are, one per line as term = meaning:",
     planned.map((word: any) => word.term + " = " + (word.meaning || "")).join("\n"),
-    "Return in keep only the entries that are real Ebembe words a rapper can use: the term is an Ebembe word and the meaning is its short translation in Kiswahili or English.",
-    "Leave out anything that is not such a word, and leave out any entry whose meaning is a pronunciation, a sound or a note about how a word is written.",
+    "Return in keep ONLY the entries that are real Ebembe words a rapper can use: the term is a word of the language, and the meaning really is a Kiswahili or an English word that translates it — the way Mungu, leta, penda, money, rain and drum are.",
+    "Leave out every entry whose meaning is a transliterated sound — byoh, deh, bweh, ngah, mah, leh, chee — or a syllable run, a pronunciation, a fragment of a rule, a heading, a page label or a note about grammar.",
+    "Leave out as well every entry whose meaning is not a word of Kiswahili or English at all, and every entry whose meaning is empty. When you are not certain an entry is a real word with a real translation, leave it out.",
   ].join("\n");
 
   try {
@@ -580,8 +873,11 @@ async function verifyPlan(base44: any, planned: any[]): Promise<any[]> {
       )
     );
     const kept = planned.filter((word: any) => keep.has(word.term.toLowerCase()));
-    // a reading that kept almost nothing is not trusted over the plan itself
-    return kept.length >= 4 ? kept : planned;
+    // The reading is taken only when it keeps most of the plan: a reading that throws away most of
+    // the saved words is judging Ebembe without knowing it, while the store's own rules were built
+    // for exactly this, so when the cut is that heavy the plan itself stands.
+    if (kept.length >= 4 && kept.length * 5 >= planned.length * 3) return kept;
+    return planned;
   } catch (error: any) {
     console.error("Word check failed:", error?.message);
     return planned;
@@ -603,13 +899,16 @@ export default async function (req: Request): Promise<Response> {
 
     const words = await savedWords(base44);
     const action = typeof payload?.action === "string" ? payload.action : "";
+    const language = rapLang(payload?.language);
 
     // without an action the studio simply reads the same confirmed list the composer uses
     if (action !== "plan" && action !== "write") {
       return Response.json({ words, count: words.length });
     }
 
-    if (!words.length) {
+    // a Kibembe take cannot be written without the saved words; Kiswahili and English take their
+    // words from the writer itself, so they stand on their own
+    if (!words.length && language === "ebembe") {
       return Response.json({ error: EMPTY_LIST, words: [] });
     }
 
@@ -620,22 +919,31 @@ export default async function (req: Request): Promise<Response> {
     const known = knownMap(words);
 
     if (action === "plan") {
+      // the saved words carry a Kibembe or a mixed take; Kiswahili and English take their words
+      // from the writer, and a mixed take with none saved leans on Kiswahili and English
+      const store = usesStore(language) && words.length > 0;
+
       // every plan opens on a fresh window of the store, steered around the person's recent takes
       const recent = await recentTakes(base44);
       const taken = await base44.entities.RapTake.count({});
-      const window = freshWindow(words, recent.used, Number(taken) || 0);
+      const window = store
+        ? freshWindow(words, recent.used, Number(taken) || 0)
+        : { list: [] as any[], avoid: Array.from(recent.used).slice(0, 40) };
 
       const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
-        prompt: planPrompt(window.list, bpm, topic, flow, recent.titles, window.avoid),
+        prompt: planPrompt(window.list, bpm, topic, flow, recent.titles, window.avoid, language, store),
         response_json_schema: IDEAS_SCHEMA,
       });
 
       // the planned words are read once more before they are handed over: what reaches the
       // person is only words that really are words, with their meanings beside them
-      const verified = await verifyPlan(
-        base44,
-        confirmedList(out?.plan, known).map((term) => ({ term, meaning: meaningOf(term, words) }))
-      );
+      const verified = store
+        ? await verifyPlan(
+            base44,
+            confirmedList(out?.plan, known).map((term) => ({ term, meaning: meaningOf(term, words) })),
+            language
+          )
+        : plainPlan(out?.plan);
       const planned = new Set(verified.map((word: any) => word.term.toLowerCase()));
 
       const ideas = (Array.isArray(out?.ideas) ? out.ideas : [])
@@ -643,8 +951,8 @@ export default async function (req: Request): Promise<Response> {
           name: clean(idea?.name, 60),
           hook: plainLine(idea?.hook),
           swahili: plainLine(idea?.hook_swahili),
-          words_used: confirmedList(idea?.words_used, known).filter((term) =>
-            planned.has(term.toLowerCase())
+          words_used: (store ? confirmedList(idea?.words_used, known) : plainList(idea?.words_used)).filter(
+            (term) => planned.has(term.toLowerCase())
           ),
           lines: readLines(idea?.lines),
         }))
@@ -663,12 +971,16 @@ export default async function (req: Request): Promise<Response> {
     }
 
     const idea = payload?.idea || {};
-    const plannedTerms = confirmedList(idea?.words_used, known);
+    const store = usesStore(language) && words.length > 0;
+    const plannedTerms = store ? confirmedList(idea?.words_used, known) : plainList(idea?.words_used);
     const planned = new Set(plannedTerms.map((term) => term.toLowerCase()));
-    // the chosen angle's own words carry the rap; a plan that arrived empty falls back to the whole list
-    const chosen = planned.size
-      ? words.filter((word: any) => planned.has(word.term.toLowerCase()))
-      : words;
+    // the chosen angle's own words carry the rap, and the whole saved list stands behind the
+    // writer when the angle came with only a handful of them
+    const narrow =
+      planned.size >= MIN_CHOSEN
+        ? words.filter((word: any) => planned.has(word.term.toLowerCase()))
+        : words;
+    const chosen = store ? narrow : [];
 
     const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: writePrompt(
@@ -681,7 +993,9 @@ export default async function (req: Request): Promise<Response> {
         bars,
         bpm,
         topic,
-        flow
+        flow,
+        language,
+        store
       ),
       response_json_schema: LINES_SCHEMA,
     });
@@ -691,16 +1005,8 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({ error: UNAVAILABLE, words: words.length }, { status: 502 });
     }
 
-    // nothing reaches the person that leans on a word the store does not hold: those bars are
-    // written once more against the confirmed list before the take is handed over
-    const missed = unverified(lines, known);
-    if (missed.length) {
-      const repaired = await repairLines(base44, chosen, lines, missed, flow);
-      if (repaired) lines = repaired;
-    }
-
     // the words the rap really stands on: what the model listed plus the whole plan it drew from
-    const used = confirmedList(out?.words_used, known);
+    let used = store ? confirmedList(out?.words_used, known) : plainList(out?.words_used);
     const seen = new Set(used.map((term) => term.toLowerCase()));
     plannedTerms.forEach((term) => {
       if (seen.has(term.toLowerCase())) return;
@@ -708,9 +1014,33 @@ export default async function (req: Request): Promise<Response> {
       used.push(term);
     });
 
+    // A take that stands on the same handful of words as the take before it is written once more,
+    // against the words this person has not been rapping, so no two takes come out alike.
+    const before = await lastWords(base44);
+    const shared = used.filter((term) => before.has(term.toLowerCase())).length;
+    if (used.length >= 5 && before.size >= 5 && shared / used.length >= 0.75) {
+      const again = await freshTake(base44, chosen, flow, language, store, Array.from(before).slice(0, 40));
+      if (again) {
+        lines = again.lines;
+        const next = store ? confirmedList(again.words, known) : plainList(again.words);
+        if (next.length >= 4) used = next;
+      }
+    }
+
+    // nothing reaches the person that leans on a word the store does not hold: those bars are
+    // written once more against the confirmed list before the take is handed over
+    if (store) {
+      const missed = unverified(lines, known);
+      if (missed.length) {
+        const repaired = await repairLines(base44, chosen.length ? chosen : words, lines, missed, flow);
+        if (repaired) lines = repaired;
+      }
+    }
+
     return Response.json({
       lines,
       words_used: used.slice(0, 60),
+      language,
       words: words.length,
     });
   } catch (error: any) {
