@@ -172,20 +172,31 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // The app's own Base44 call is spoken on the admin's second, separate ElevenLabs account:
-    // its own key and its own agent, so the outside agent's account is never touched by it.
-    // Both of that account's values have to be there before it is used — half of one account
-    // and half of another would ask for an agent the account does not hold — and until they
-    // are saved, the standing account answers, so a call still opens.
+    // its own key and its own agent. A call asked for there opens there and nowhere else — it
+    // never quietly falls back to the standing account, so the two accounts stay apart and
+    // whatever is missing or refused is said plainly enough to be put right.
     const second = String(payload?.account || "") === "second";
-    const secondKey = secretOr("ELEVENLABS_ACCOUNT2_API_KEY");
-    const secondAgent = secretOr("ELEVENLABS_ACCOUNT2_AGENT_ID");
-    const onSecond = second && !!secondKey && !!secondAgent;
-    const apiKey = onSecond ? secondKey : secrets.get("ELEVENLABS_API_KEY");
-    const agentId = onSecond ? secondAgent : secrets.get("ELEVENLABS_AGENT_ID");
+    const apiKey = second
+      ? secretOr("ELEVENLABS_ACCOUNT2_API_KEY")
+      : secrets.get("ELEVENLABS_API_KEY");
+    const agentId = second
+      ? secretOr("ELEVENLABS_ACCOUNT2_AGENT_ID")
+      : secrets.get("ELEVENLABS_AGENT_ID");
 
     if (!apiKey || !agentId) {
-      console.error("ElevenLabs key or agent id is missing.");
-      return Response.json({ error: unavailable }, { status: 500 });
+      console.error(
+        second
+          ? "The second account's key or agent id is missing."
+          : "ElevenLabs key or agent id is missing."
+      );
+      return Response.json(
+        {
+          error: second
+            ? "Base44 mode's own voice account isn't set up yet — add its ElevenLabs key and agent id in Secrets, then tap to talk again."
+            : unavailable,
+        },
+        { status: 500 }
+      );
     }
 
     // the app's own client, so the admin's saved words can be read for the hearing service
@@ -210,7 +221,16 @@ export default async function (req: Request): Promise<Response> {
         reason = "";
       }
       console.error("ElevenLabs refused the session:", res.status, reason || detail);
-      return Response.json({ error: unavailable }, { status: 502 });
+      return Response.json(
+        {
+          error: second
+            ? `Base44 mode's own voice account refused the call${
+                reason ? `: ${reason}` : ""
+              }. Give its ElevenLabs key Conversational AI permission, then tap to talk again.`
+            : unavailable,
+        },
+        { status: 502 }
+      );
     }
 
     const data = await res.json();
