@@ -7,6 +7,8 @@ import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
 import { loadFreshMaterial, loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
 import { emptyStory, nextStory, withStory } from "@/lib/storyState";
+import { closeWords, wordsNote } from "@/lib/helperWords";
+import { heardLanguage } from "@/lib/heardLanguage";
 
 // the knowledge note travels in blocks and needs a beat to settle before the
 // question is put to him, so he reads it before he answers; the wait is shown as
@@ -116,6 +118,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
     setAvatarLive(false);
     setStatus("idle");
     if (engine) Promise.resolve(engine.stop?.()).catch(() => {});
+    // the words helper was opened for the conversation that just ended
+    closeWords().catch(() => {});
   }, [mode]);
 
   const pushTurn = useCallback((role, text) => {
@@ -209,6 +213,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onStatus: (next) => {
         if (next === "live") setStatus("live");
         if (next === "closed" || next === "ended") {
+          // the conversation is over, so the words helper opened for it is closed with it
+          closeWords().catch(() => {});
           setStatus("idle");
           setSpeaking(false);
           setThinking(false);
@@ -238,6 +244,25 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onInterrupted: () => {
         setSpeaking(false);
         flushHeld();
+      },
+      // the app's own ears have written the person's turn down: the words the answer should
+      // stand on are asked for, and then the turn itself — with the language it was spoken in
+      // — is put to him, so his answer comes back out loud as it always has
+      onHeard: async (text, language, engine) => {
+        pushTurn("user", text);
+        reviewHeard(text);
+        reviewWanted(text);
+        const note = await wordsNote(text);
+        // the language the ears marked and the words they wrote down travel together, so the
+        // answer leads with the language the person actually used
+        const spoken = heardLanguage(language);
+        const memory = [spoken ? `The person just spoke in ${spoken}.` : "", note]
+          .filter(Boolean)
+          .join("\n\n");
+        if (memory) engine.sendMemory(memory);
+        // his own echo of these words is not a second turn on screen
+        sentRef.current = text;
+        engine.sendText(text);
       },
       onAgentAnswered: () => answeredRef.current?.(),
       // a call answered by the app's own AI says plainly when an answer did not come
@@ -325,9 +350,15 @@ export default function useVoiceAgent({ videoRef } = {}) {
         loadKnowledgeNote(opening),
         loadFreshMaterial(opening),
       ]);
+      // a question put to the original outside voice in writing is asked of the words helper as
+      // well, so the words its answer should stand on are in hand before it answers
+      const wordNote = openingMode === "agent" ? await wordsNote(opening) : "";
       // both kinds of call are handed the admin's knowledge: the words the question
       // turns on, the guidance that goes with them, and anything just looked up
-      const knowledge = withKnowledge(memory, withKnowledge(note, fresh));
+      const knowledge = withKnowledge(
+        memory,
+        withKnowledge(note, withKnowledge(fresh, wordNote))
+      );
 
       // the mode changed while the knowledge was being read: this call is not the one the
       // admin asked for, so it is left unopened and nothing of it reaches the room
@@ -339,8 +370,16 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // chat alone — and Mbondo on his own third account, and Sadiki on his own fourth, each for
       // everything they are asked, written or spoken. Every other call keeps the original outside
       // voice's standing account.
-      const account =
-        openingMode === "base44" && withMic
+      // A typed question put to the original outside voice is answered in writing by the writer
+      // — the helper account kept for exactly that — so he stays the voice of the conversation
+      // and never has to write. Every other mode keeps answering in both ways as it always has.
+      const writer = !withMic && openingMode === "agent";
+      // ...and with the microphone open he speaks only: the app's own ears hear the person, and
+      // the words they come back with are what he answers
+      const ears = withMic && openingMode === "agent";
+      const account = writer
+        ? "helper-write"
+        : openingMode === "base44" && withMic
           ? "second"
           : openingMode === "mbondo"
             ? "third"
@@ -373,10 +412,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
 
       // when the owner's face is in place the call runs through it, with the same
       // ElevenLabs agent answering behind it. Typing is answered in writing, so it
-      // never opens the face or the speaker — and neither does a call answered on an
-      // account of its own: the face belongs to the original outside voice, so every call
-      // answered on another account runs without it
-      if (!silent && !ownVoice && faceReadyRef.current && videoRef?.current) {
+      // never opens the face or the speaker — and neither does a call answered on an account of
+      // its own: the face belongs to the original outside voice, so every call answered on
+      // another account runs without it, and so does one whose ears are the app's own
+      if (!silent && !ownVoice && !ears && faceReadyRef.current && videoRef?.current) {
         const call = new AvatarCall(handlers);
         call.mode = openingMode;
         socketRef.current = call;
@@ -412,6 +451,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         await socket.open({
           withMic,
           silent,
+          ears,
           memory: knowledge,
           laterTurn,
           resuming,
@@ -453,6 +493,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
     setAvatarLive(false);
     setStatus("idle");
     if (socket) await socket.stop();
+    await closeWords().catch(() => {});
   }, []);
 
   const sendText = useCallback(

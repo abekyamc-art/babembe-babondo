@@ -1,16 +1,17 @@
 import { secrets } from "base44:runtime";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { ensureFastPace } from "../../shared/agentPace.ts";
-import { MAX_TERM, clean, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
+import { recognitionKeywords } from "../../shared/hearingKeywords.ts";
 
 const unavailable = "The voice call couldn't start. Please try again in a moment.";
 
 // The accounts a call can open on. Each one keeps its own key and its own agent, and a call opens
 // on the account it asked for and nowhere else: the standing account for the original outside
-// voice, the second one for Base44 mode's spoken voice, and Mbondo's own and Sadiki's own for
-// everything they answer, written or spoken. Nothing here ever falls back from one account to
-// another, so whatever is missing is said plainly instead of being answered by someone else.
-const ACCOUNTS = [
+// voice, the second one for Base44 mode's spoken voice, Mbondo's own and Sadiki's own for
+// everything they answer, written or spoken, and the app's two written helpers. Nothing here ever
+// falls back from one account to another, so whatever is missing is said plainly instead of being
+// answered by someone else.
+const ACCOUNTS: { id: string; name: string; key: string; agent: string; plain?: boolean }[] = [
   { id: "", name: "", key: "ELEVENLABS_API_KEY", agent: "ELEVENLABS_AGENT_ID" },
   {
     id: "second",
@@ -30,73 +31,27 @@ const ACCOUNTS = [
     key: "ELEVENLABS_ACCOUNT4_API_KEY",
     agent: "ELEVENLABS_ACCOUNT4_AGENT_ID",
   },
+  // The app's own helpers, each on the account the admin gave it: the writer answers typed
+  // questions, and the words helper finds the words an answer should stand on. Both are asked in
+  // writing only, so neither is ever tuned for a voice call.
+  {
+    id: "helper-write",
+    name: "The writer",
+    key: "HELPER_WRITE_API_KEY",
+    agent: "HELPER_WRITE_AGENT_ID",
+    plain: true,
+  },
+  {
+    id: "helper-words",
+    name: "The words helper",
+    key: "HELPER_WORDS_API_KEY",
+    agent: "HELPER_WORDS_AGENT_ID",
+    plain: true,
+  },
 ];
 
-// The hearing service behind the call knows no Kibembe at all: a word it was never taught comes
-// back as the English or Kiswahili word it nearly sounds like, and the answer follows that wrong
-// text. It does take words of the app's own, though, so the admin's saved Ebembe words ride with
-// every call — up to the fifty it accepts — and what the person says comes back spelled the way
-// the app already holds it.
-const KEYWORD_LIMIT = 50;
-
-// The letter runs no English or Kiswahili word carries. A word wearing one has nothing for the
-// service to fall back on, so those are the words pointed at first, the longest of them ahead.
-const CLUSTERS = ["ny", "ng", "mb", "nk", "nd", "nt", "mv", "bv", "hw", "bw", "gw", "kw", "by"];
-
-// the name of the language itself: always heard, and always written the same way
-const ALWAYS = ["Ebembe", "Kibembe"];
-
-/** How much a saved word needs the service pointed at it. */
-function keywordScore(term: string): number {
-  const word = term.toLowerCase();
-  // Letters past a handful say nothing about whether the word ever gets said, and a very
-  // long word would otherwise take a place an everyday one is the one that needs.
-  let score = Math.min(word.length, 6);
-  CLUSTERS.forEach((cluster) => {
-    if (word.includes(cluster)) score += 4;
-  });
-  return score;
-}
-
-/** The saved words the hearing service is pointed at: one spelling each, single words only, the
- *  ones it would otherwise turn into English or Kiswahili words first. */
-function hearingKeywords(rows: any[]): string[] {
-  const seen = new Set(ALWAYS.map((word) => word.toLowerCase()));
-  const found: { term: string; score: number }[] = [];
-
-  rows.forEach((row: any) => {
-    const term = clean(row?.term, MAX_TERM);
-    // One plain word, and nothing else: a phrase, a syllable run joined by dashes, a rule or a
-    // heading is not something the person says, and pointing the service at it would only make
-    // it write dashes and headings back.
-    if (!/^[\p{L}'’]{3,}$/u.test(term)) return;
-    const key = term.toLowerCase();
-    if (seen.has(key)) return;
-    seen.add(key);
-    found.push({ term, score: keywordScore(term) });
-  });
-
-  found.sort((a, b) => b.score - a.score);
-  return [...ALWAYS, ...found.slice(0, KEYWORD_LIMIT - ALWAYS.length).map((row) => row.term)];
-}
-
-// The words are read once per call, not once per turn: the admin's list is the same list a
-// moment later, and a call opens in one beat.
-const CACHE_MS = 60000;
-let cache: { at: number; words: string[] } = { at: 0, words: [] };
-
-/** The admin's saved words as recognition keywords, kept for a moment so a call reads them once. */
-async function recognitionKeywords(base44: any): Promise<string[]> {
-  if (cache.words.length && Date.now() - cache.at < CACHE_MS) return cache.words;
-  try {
-    const rows = await knowledgeWordRows(base44);
-    cache = { at: Date.now(), words: hearingKeywords(rows) };
-    return cache.words;
-  } catch (error: any) {
-    console.error("The saved words could not be read for the hearing service:", error?.message);
-    return cache.words;
-  }
-}
+// The words the app's own ears and the call's own hearing service are both pointed at live in
+// one shared place, so every turn of speech is written down the same way.
 
 /**
  * The service only takes those words when the agent's own security settings allow it, and it
@@ -152,7 +107,7 @@ async function allowKeywordBoost(apiKey: string, agentId: string, agent: any) {
  * His own agent holds the opening line and the switch that turns it off for a later
  * session. Both are read here, and neither is guessed.
  */
-async function readAgent(apiKey: string, agentId: string) {
+async function readAgent(apiKey: string, agentId: string, tune: boolean) {
   try {
     const res = await fetch(
       "https://api.elevenlabs.io/v1/convai/agents/" + encodeURIComponent(agentId),
@@ -161,11 +116,15 @@ async function readAgent(apiKey: string, agentId: string) {
     if (!res.ok) return { intro: "", allowIntroOverride: false };
 
     const data = await res.json();
-    // the pace lives on the agent, so it is made sure of before this call opens: read,
-    // written, and read back to confirm the write took
-    await ensureFastPace(apiKey, agentId);
-    // and the saved words are only taken by the hearing service when the agent allows them
-    await allowKeywordBoost(apiKey, agentId, data);
+    // a helper asked in writing keeps exactly the settings the admin gave it: nothing is tuned
+    // on an agent that hears nothing
+    if (tune) {
+      // the pace lives on the agent, so it is made sure of before this call opens: read,
+      // written, and read back to confirm the write took
+      await ensureFastPace(apiKey, agentId);
+      // and the saved words are only taken by the hearing service when the agent allows them
+      await allowKeywordBoost(apiKey, agentId, data);
+    }
     const agent = data?.conversation_config?.agent || {};
     const overrides =
       data?.platform_settings?.overrides?.conversation_config_override?.agent || {};
@@ -222,9 +181,11 @@ export default async function (req: Request): Promise<Response> {
 
     // the app's own client, so the admin's saved words can be read for the hearing service
     const base44 = createClientFromRequest(req);
+    // A helper asked in writing is never tuned, and the app's own words are not spent on a
+    // session that hears nothing.
     const [agent, keywords] = await Promise.all([
-      readAgent(apiKey, agentId),
-      recognitionKeywords(base44),
+      readAgent(apiKey, agentId, !account.plain),
+      account.plain ? [] : recognitionKeywords(base44),
     ]);
 
     const res = await fetch(

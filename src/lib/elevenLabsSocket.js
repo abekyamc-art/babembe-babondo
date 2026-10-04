@@ -33,6 +33,10 @@ const HOLD_MAX_MS = 15000;
 // the written answer has landed, or once it has waited long enough for one to arrive
 const WRITTEN_CLOSE_MS = 5000;
 const WRITTEN_WAIT_MS = 25000;
+// Where the app's own ears do the listening, a turn runs from the first sound heard until this
+// much quiet has passed, and is never kept longer than one turn is allowed to run.
+const TURN_END_MS = 1000;
+const TURN_MAX_MS = 30000;
 
 function b64ToBytes(b64) {
   const bin = atob(b64);
@@ -64,6 +68,31 @@ function floatToPcmBytes(samples) {
     out[i] = v < 0 ? v * 0x8000 : v * 0x7fff;
   }
   return new Uint8Array(out.buffer);
+}
+
+/** A held turn as a WAV file, so the app's own ears can open it. */
+function wavBytes(samples, rate) {
+  const bytes = new Uint8Array(44 + samples.length * 2);
+  const view = new DataView(bytes.buffer);
+  const tag = (at, text) => {
+    for (let i = 0; i < text.length; i += 1) view.setUint8(at + i, text.charCodeAt(i));
+  };
+  tag(0, "RIFF");
+  view.setUint32(4, 36 + samples.length * 2, true);
+  tag(8, "WAVE");
+  tag(12, "fmt ");
+  view.setUint32(16, 16, true);
+  view.setUint16(20, 1, true);
+  view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true);
+  view.setUint32(28, rate * 2, true);
+  view.setUint16(32, 2, true);
+  view.setUint16(34, 16, true);
+  tag(36, "data");
+  view.setUint32(40, samples.length * 2, true);
+  const pcm = new DataView(bytes.buffer, 44);
+  for (let i = 0; i < samples.length; i += 1) pcm.setInt16(i * 2, samples[i], true);
+  return bytes;
 }
 
 /**
@@ -154,6 +183,15 @@ export default class VoiceSocket {
     this.recovered = false;
     // a question carried over from the last call is being answered now: nothing is held
     this.resuming = false;
+    // the app's own ears: the sound of the person's turn is kept here and written down, and
+    // nothing of it is spoken into the session itself
+    this.ears = false;
+    this.captureOn = false;
+    this.captureFrom = 0;
+    this.captureFrames = [];
+    this.hearing = false;
+    // a helper session is asked again on the next turn, so it is never hung up on its own
+    this.keepOpen = false;
   }
 
   get connected() {
@@ -165,9 +203,13 @@ export default class VoiceSocket {
     return !!this.stream;
   }
 
-  async open({ withMic, silent, memory, laterTurn, resuming, account } = {}) {
+  async open({ withMic, silent, memory, laterTurn, resuming, account, ears, keepOpen } = {}) {
     // a written message is answered in writing: no microphone, nothing on the speaker
     this.silent = !withMic && !!silent;
+    // the app's own ears listen for this call: the sound stays on the phone and is written
+    // down by the helper, and the words it comes back with are what goes into the session
+    this.ears = !!ears && withMic;
+    this.keepOpen = !!keepOpen;
     this.laterTurn = !!laterTurn;
     this.resuming = !!resuming;
     // which ElevenLabs account answers: "second" is the account Base44 mode's spoken call runs on,
@@ -451,7 +493,14 @@ export default class VoiceSocket {
       if (!this.connected || this.speaking) return;
       const chunk = event.inputBuffer.getChannelData(0);
       const pcm = floatToPcmBytes(lift(resample(chunk, this.ctx.sampleRate, IN_RATE)));
-      if (pcm.length) this.send({ user_audio_chunk: bytesToB64(pcm) });
+      if (!pcm.length) return;
+      // with the app's own ears listening, the sound of the turn stays on the phone until it
+      // has been written down: he is handed the words, never the room
+      if (this.ears) {
+        this.hold(new Int16Array(pcm.buffer, pcm.byteOffset, pcm.byteLength >> 1));
+        return;
+      }
+      this.send({ user_audio_chunk: bytesToB64(pcm) });
     };
 
     // keep the processor alive without playing the mic back
@@ -465,7 +514,70 @@ export default class VoiceSocket {
     this.lastVoiceAt = 0;
     this.answerEndAt = 0;
     this.heardVoice = false;
+    this.captureOn = false;
+    this.captureFrames = [];
     this.watch();
+  }
+
+  /**
+   * The person's turn, kept while it is being said. Nothing is kept until a voice is actually
+   * heard, so the quiet of an idle room is never sent anywhere to be read.
+   */
+  hold(samples) {
+    if (!this.captureOn) {
+      if (this.level() <= VOICE_LEVEL) return;
+      this.captureOn = true;
+      this.captureFrom = performance.now();
+      this.captureFrames = [];
+      // the turn being said now is the one an answer is coming for, so nothing carried over
+      // from the turn before it can be taken for it
+      this.lastUserText = "";
+    }
+    this.captureFrames.push(samples);
+  }
+
+  /**
+   * The turn is over, so it is written down: the sound goes to the app's own ears, and the
+   * words that come back — with the language they were spoken in — are handed to whoever
+   * answers. Those words are what is put into the session, so the answer is spoken and the
+   * room itself is never listened to.
+   */
+  async readTurn() {
+    if (!this.captureOn) return;
+    const frames = this.captureFrames;
+    this.captureOn = false;
+    this.captureFrames = [];
+    const total = frames.reduce((count, frame) => count + frame.length, 0);
+    // a tap, a cough or a door is not a turn
+    if (total < IN_RATE * 0.4) return;
+
+    const samples = new Int16Array(total);
+    let at = 0;
+    frames.forEach((frame) => {
+      samples.set(frame, at);
+      at += frame.length;
+    });
+
+    this.hearing = true;
+    this.setAwaiting(true);
+    try {
+      const res = await base44.functions.invoke("helperListen", {
+        audio: bytesToB64(wavBytes(samples, IN_RATE)),
+      });
+      const text = String(res?.data?.text || "").trim();
+      const language = String(res?.data?.language || "").trim();
+      // nothing was said, so there is nothing to put to him
+      if (!text) {
+        this.setAwaiting(false);
+        return;
+      }
+      await this.h.onHeard?.(text, language, this);
+    } catch (err) {
+      this.h.onError?.(err?.response?.data?.error || "Nothing could hear that turn.");
+      this.setAwaiting(false);
+    } finally {
+      this.hearing = false;
+    }
   }
 
   /**
@@ -492,6 +604,13 @@ export default class VoiceSocket {
         this.beatDue = true;
         // hearing the person is a turn taken, so nothing may hold him silent any more
         this.releaseQuiet();
+      }
+
+      // the app's own ears: the person's turn is over once a breath of quiet has passed, or
+      // once it has run longer than one turn is allowed to
+      if (this.ears && this.captureOn && !answering) {
+        const quietFor = now - Math.max(this.lastVoiceAt, this.captureFrom);
+        if (quietFor >= TURN_END_MS || now - this.captureFrom >= TURN_MAX_MS) this.readTurn();
       }
 
       // a turn that gets no answer is put to him once more; only if that brings nothing
@@ -665,6 +784,11 @@ export default class VoiceSocket {
   watchWritten() {
     const step = () => {
       if (this.autoEnding || !this.connected) return;
+      // a helper session is asked again on the next turn, so it is never hung up by itself
+      if (this.keepOpen) {
+        this.watchId = requestAnimationFrame(step);
+        return;
+      }
       const now = performance.now();
       const idleSince = Math.max(this.silentWaitAt, this.answerEndAt || 0);
       if (now - idleSince >= (this.answered ? WRITTEN_CLOSE_MS : WRITTEN_WAIT_MS)) {
@@ -701,6 +825,8 @@ export default class VoiceSocket {
 
   teardown() {
     this.setAwaiting(false);
+    this.captureOn = false;
+    this.captureFrames = [];
     clearTimeout(this.holdTimer);
     this.holdTimer = null;
     this.holdQuiet = false;
