@@ -170,8 +170,8 @@ export default class VoiceSocket {
     this.silent = !withMic && !!silent;
     this.laterTurn = !!laterTurn;
     this.resuming = !!resuming;
-    // which ElevenLabs account answers: "second" is the admin's own separate account, the one
-    // the app's Base44 call is spoken on; every other call keeps the standing account
+    // which ElevenLabs account answers: "second" is the account Base44 mode's spoken call runs on,
+    // "third" is Mbondo's own; every other call keeps the standing account
     this.account = account || "";
     // he has already introduced himself, so this session is held quiet until the
     // person takes their turn: the introduction never reaches their ears. A question

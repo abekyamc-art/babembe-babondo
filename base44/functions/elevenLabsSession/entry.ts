@@ -5,6 +5,27 @@ import { MAX_TERM, clean, knowledgeWordRows } from "../../shared/knowledgeWords.
 
 const unavailable = "The voice call couldn't start. Please try again in a moment.";
 
+// The accounts a call can open on. Each one keeps its own key and its own agent, and a call opens
+// on the account it asked for and nowhere else: the standing account for the original outside
+// voice, the second one for Base44 mode's spoken voice, and Mbondo's own for everything he
+// answers, written or spoken. Nothing here ever falls back from one account to another, so
+// whatever is missing is said plainly instead of being answered by someone else.
+const ACCOUNTS = [
+  { id: "", name: "", key: "ELEVENLABS_API_KEY", agent: "ELEVENLABS_AGENT_ID" },
+  {
+    id: "second",
+    name: "Mbembe AI",
+    key: "ELEVENLABS_ACCOUNT2_API_KEY",
+    agent: "ELEVENLABS_ACCOUNT2_AGENT_ID",
+  },
+  {
+    id: "third",
+    name: "Mbondo AI",
+    key: "ELEVENLABS_ACCOUNT3_API_KEY",
+    agent: "ELEVENLABS_ACCOUNT3_AGENT_ID",
+  },
+];
+
 // The hearing service behind the call knows no Kibembe at all: a word it was never taught comes
 // back as the English or Kiswahili word it nearly sounds like, and the answer follows that wrong
 // text. It does take words of the app's own, though, so the admin's saved Ebembe words ride with
@@ -171,28 +192,22 @@ export default async function (req: Request): Promise<Response> {
       payload = {};
     }
 
-    // The app's own Base44 call is spoken on the admin's second, separate ElevenLabs account:
-    // its own key and its own agent. A call asked for there opens there and nowhere else — it
-    // never quietly falls back to the standing account, so the two accounts stay apart and
-    // whatever is missing or refused is said plainly enough to be put right.
-    const second = String(payload?.account || "") === "second";
-    const apiKey = second
-      ? secretOr("ELEVENLABS_ACCOUNT2_API_KEY")
-      : secrets.get("ELEVENLABS_API_KEY");
-    const agentId = second
-      ? secretOr("ELEVENLABS_ACCOUNT2_AGENT_ID")
-      : secrets.get("ELEVENLABS_AGENT_ID");
+    // A call opens on the account it asked for; an account nobody named is the standing one.
+    const asked = String(payload?.account || "");
+    const account = ACCOUNTS.find((row) => row.id === asked) || ACCOUNTS[0];
+    const apiKey = secretOr(account.key);
+    const agentId = secretOr(account.agent);
 
     if (!apiKey || !agentId) {
       console.error(
-        second
-          ? "The second account's key or agent id is missing."
+        account.id
+          ? `${account.name}'s key or agent id is missing.`
           : "ElevenLabs key or agent id is missing."
       );
       return Response.json(
         {
-          error: second
-            ? "Mbembe AI's own voice account isn't set up yet — add its ElevenLabs key and agent id in Secrets, then tap to talk again."
+          error: account.id
+            ? `${account.name}'s own voice account isn't set up yet — add its ElevenLabs key and agent id in Secrets, then tap to talk again.`
             : unavailable,
         },
         { status: 500 }
@@ -223,8 +238,8 @@ export default async function (req: Request): Promise<Response> {
       console.error("ElevenLabs refused the session:", res.status, reason || detail);
       return Response.json(
         {
-          error: second
-            ? `Mbembe AI's voice account refused the call${
+          error: account.id
+            ? `${account.name}'s voice account refused the call${
                 reason ? `: ${reason}` : ""
               }. Give its ElevenLabs key Conversational AI permission, then tap to talk again.`
             : unavailable,

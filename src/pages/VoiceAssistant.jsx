@@ -26,7 +26,7 @@ import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
 import ModeToggle from "@/components/voice/ModeToggle";
 import ModeBadge from "@/components/voice/ModeBadge";
-import { providerName } from "@/lib/providerNames";
+import { providerClass, providerName } from "@/lib/providerNames";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 
@@ -280,9 +280,7 @@ export default function VoiceAssistant() {
 
   return (
     <div
-      className={`relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground ${
-        mode === "base44" ? "mode-base44" : "mode-agent"
-      }`}
+      className={`relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground ${providerClass(mode)}`}
     >
       <div aria-hidden className="ambient-wash" />
 

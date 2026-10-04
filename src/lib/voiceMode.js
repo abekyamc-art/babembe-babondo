@@ -2,16 +2,26 @@ import { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 
 /**
- * Who answers in this app, as one app-level setting: the outside voice agent, or the app's
- * own Base44 AI. Only the admin writes it, every session reads it, and the choice is held
- * here between calls so a call that opens reads the mode the admin last set.
+ * Who answers in this app, as one app-level setting: the original outside voice, the second
+ * outside voice that speaks for Base44 mode, or Mbondo AI. Only the admin writes it, every
+ * session reads it, and the choice is held here between calls so a call that opens reads the
+ * mode the admin last set.
  */
 const KEY = "voice";
 const AGENT = "agent";
 const BASE44 = "base44";
+const MBONDO = "mbondo";
+
+/** Every mode the switch can hold, in the order one tap moves through them. */
+export const VOICE_MODES = [AGENT, BASE44, MBONDO];
 
 let current = AGENT;
 const listeners = new Set();
+
+/** The mode a saved value stands for; the original outside voice stands when it is not one of them. */
+function asMode(value) {
+  return VOICE_MODES.includes(value) ? value : AGENT;
+}
 
 /** The mode in force right now, as this phone last read it. */
 export function voiceMode() {
@@ -31,13 +41,13 @@ async function setting() {
 // open, and one read of the setting answers them both
 let reading = null;
 
-/** Read the mode the admin last set; the outside agent stands when it cannot be read. */
+/** Read the mode the admin last set; the original outside voice stands when it cannot be read. */
 export async function loadVoiceMode() {
   if (reading) return reading;
   reading = (async () => {
     try {
       const found = await setting();
-      current = found?.mode === BASE44 ? BASE44 : AGENT;
+      current = asMode(found?.mode);
     } catch (err) {
       current = AGENT;
     }
@@ -53,13 +63,19 @@ export async function loadVoiceMode() {
 
 /** The admin's own switch: the mode is written for the app, so every session follows it. */
 export async function saveVoiceMode(mode) {
-  const next = mode === BASE44 ? BASE44 : AGENT;
+  const next = asMode(mode);
   const found = await setting();
   if (found) await base44.entities.AppSetting.update(found.id, { mode: next });
   else await base44.entities.AppSetting.create({ key: KEY, mode: next });
   current = next;
   tell();
   return next;
+}
+
+/** The provider one tap on the switch moves to, so all three are reachable from one pill. */
+export function nextVoiceMode(mode) {
+  const at = VOICE_MODES.indexOf(asMode(mode));
+  return VOICE_MODES[(at + 1) % VOICE_MODES.length];
 }
 
 /** The mode in force, kept in step with the switch. */

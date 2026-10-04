@@ -333,12 +333,19 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // admin asked for, so it is left unopened and nothing of it reaches the room
       if (gen !== sessionRef.current || voiceMode() !== openingMode) return false;
 
-      // The admin's own switch decides who answers. With Base44 AI in force the app's own AI
-      // writes the written answers, and the voice of a spoken call is given to the admin's
-      // second, separate ElevenLabs account — its own key and its own agent — so the outside
-      // agent's account is never touched by it and Base44 is left to text and chat alone.
-      const secondVoice = openingMode === "base44" && withMic;
-      if (openingMode === "base44" && !secondVoice) {
+      // The admin's own switch decides who answers, and each mode with an account of its own
+      // answers on that account and nowhere else: Base44 mode's spoken voice on the admin's
+      // second, separate account — its own key and its own agent, so Base44 is left to text and
+      // chat alone — and Mbondo on his own third account, for everything he is asked, written or
+      // spoken. Every other call keeps the original outside voice's standing account.
+      const account =
+        openingMode === "base44" && withMic
+          ? "second"
+          : openingMode === "mbondo"
+            ? "third"
+            : "";
+      const ownVoice = account !== "";
+      if (openingMode === "base44" && !ownVoice) {
         const call = new Base44Call(handlers);
         // the mode this session answers under, so a later switch knows to end it
         call.mode = openingMode;
@@ -363,10 +370,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
 
       // when the owner's face is in place the call runs through it, with the same
       // ElevenLabs agent answering behind it. Typing is answered in writing, so it
-      // never opens the face or the speaker — and a spoken Base44 call never opens it
-      // either: the face belongs to the outside agent's own account, and this call is
-      // spoken on the admin's second one
-      if (!silent && !secondVoice && faceReadyRef.current && videoRef?.current) {
+      // never opens the face or the speaker — and neither does a call answered on an
+      // account of its own: the face belongs to the original outside voice, so Base44
+      // mode's spoken call and every Mbondo call run without it
+      if (!silent && !ownVoice && faceReadyRef.current && videoRef?.current) {
         const call = new AvatarCall(handlers);
         call.mode = openingMode;
         socketRef.current = call;
@@ -405,8 +412,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
           memory: knowledge,
           laterTurn,
           resuming,
-          // the spoken Base44 call is answered on the admin's second account
-          account: secondVoice ? "second" : "",
+          // the account this mode answers on: the second for Base44's spoken call, the third
+          // for Mbondo, and the standing one otherwise
+          account,
         });
         if (opening) {
           // a typed question goes in once the note has settled, not the moment the

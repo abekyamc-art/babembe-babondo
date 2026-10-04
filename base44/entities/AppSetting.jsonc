@@ -10,10 +10,11 @@
       "type": "string",
       "enum": [
         "agent",
-        "base44"
+        "base44",
+        "mbondo"
       ],
       "default": "agent",
-      "description": "Who answers in the app: the outside voice agent, or the app's own Base44 AI."
+      "description": "Who answers in the app: the original outside voice, the second outside voice that speaks for Base44 mode, or Mbondo AI, who answers both written and spoken questions himself."
     }
   },
   "required": [

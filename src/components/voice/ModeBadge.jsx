@@ -1,5 +1,5 @@
 import React from "react";
-import { Sparkles, Waves } from "lucide-react";
+import { Radio, Sparkles, Waves } from "lucide-react";
 import { providerName } from "@/lib/providerNames";
 
 /**
@@ -8,8 +8,8 @@ import { providerName } from "@/lib/providerNames";
  * working behind it.
  */
 export default function ModeBadge({ mode }) {
-  const base = mode === "base44";
-  const Icon = base ? Sparkles : Waves;
+  const ICONS = { agent: Waves, base44: Sparkles, mbondo: Radio };
+  const Icon = ICONS[mode] || Waves;
   const label = `${providerName(mode)} answers`;
 
   return (
