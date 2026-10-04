@@ -21,6 +21,9 @@ export default function useRapStudio() {
     topic: "",
   });
   const [lines, setLines] = useState([]);
+  const [plan, setPlan] = useState([]);
+  const [ideas, setIdeas] = useState([]);
+  const [picked, setPicked] = useState(-1);
   const [take, setTake] = useState(null);
   const [takes, setTakes] = useState([]);
   const [beat, setBeat] = useState(null);
@@ -80,27 +83,65 @@ export default function useRapStudio() {
     }
   }, []);
 
-  const compose = useCallback(async () => {
+  /** Base44 AI plans the words first, then offers a few different angles on the theme. */
+  const planIdeas = useCallback(async () => {
     if (busy || !user) return;
-    setBusy("compose");
+    setBusy("plan");
     setError("");
     try {
       const res = await base44.functions.invoke("rapLyrics", {
-        action: "compose",
+        action: "plan",
         topic: settings.topic,
         bars: settings.bars,
         bpm: settings.bpm,
       });
       const data = res?.data || {};
-      if (!data.lines?.length) throw new Error(data.error || "Mistari haikuja. Jaribu tena.");
-      setLines(data.lines.map((line) => ({ ...line, locked: false })));
-      setWordsUsed(data.words_used || []);
+      if (!data.ideas?.length) throw new Error(data.error || "Mawazo hayakuja. Jaribu tena.");
+      setPlan(data.plan || []);
+      setIdeas(data.ideas);
+      setPicked(-1);
+      setLines([]);
+      setWordsUsed([]);
       setTake(null);
     } catch (err) {
-      setError(err?.response?.data?.error || err?.message || "Mistari haikuweza kutengenezwa.");
+      setError(err?.response?.data?.error || err?.message || "Mawazo hayakuweza kutengenezwa.");
     }
     setBusy("");
   }, [busy, settings, user]);
+
+  /** The chosen angle written out in full, against the very words its own plan named. */
+  const writeIdea = useCallback(
+    async (index) => {
+      const idea = ideas[index];
+      if (busy || !idea) return;
+      setBusy("write");
+      setError("");
+      try {
+        const res = await base44.functions.invoke("rapLyrics", {
+          action: "write",
+          idea: {
+            name: idea.name,
+            hook: idea.hook,
+            swahili: idea.swahili,
+            words_used: idea.words_used,
+          },
+          topic: settings.topic,
+          bars: settings.bars,
+          bpm: settings.bpm,
+        });
+        const data = res?.data || {};
+        if (!data.lines?.length) throw new Error(data.error || "Mistari haikuja. Jaribu tena.");
+        setLines(data.lines.map((line) => ({ ...line, locked: false })));
+        setWordsUsed(data.words_used?.length ? data.words_used : idea.words_used || []);
+        setPicked(index);
+        setTake(null);
+      } catch (err) {
+        setError(err?.response?.data?.error || err?.message || "Wazo hili halikuweza kuandikwa.");
+      }
+      setBusy("");
+    },
+    [busy, ideas, settings]
+  );
 
   const editLine = useCallback((index, patch) => {
     setLines((prev) => prev.map((line, at) => (at === index ? { ...line, ...patch } : line)));
@@ -252,6 +293,9 @@ export default function useRapStudio() {
       voice: saved.voice || prev.voice,
       topic: saved.title || prev.topic,
     }));
+    setPlan([]);
+    setIdeas([]);
+    setPicked(-1);
     setTake(null);
     setError("");
   }, []);
@@ -264,6 +308,9 @@ export default function useRapStudio() {
     settings,
     setSettings,
     lines,
+    plan,
+    ideas,
+    picked,
     take,
     takes,
     beat,
@@ -271,7 +318,8 @@ export default function useRapStudio() {
     error,
     shortOnCoins,
     setBeatFile,
-    compose,
+    planIdeas,
+    writeIdea,
     editLine,
     toggleLock,
     makeVoice,

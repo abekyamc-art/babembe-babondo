@@ -369,3 +369,109 @@
 .rap-hidden {
   display: none;
 }
+
+/* the words Base44 AI planned for this rap, above the angles it offers */
+.rap-plan-words {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.rap-plan-word {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  padding: 6px 10px;
+  color: #f5f6ff;
+  background: #141c32;
+  border: 1px solid #293654;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.rap-plan-meaning {
+  color: #7183a8;
+  font-size: 11px;
+  font-style: normal;
+  font-weight: 500;
+}
+
+.rap-ideas {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rap-idea {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 13px;
+  color: #f5f6ff;
+  background: #0d1424;
+  border: 1px solid #222d4a;
+  border-radius: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.rap-idea.is-active {
+  background: #1a2947;
+  border-color: #3f5e97;
+}
+
+.rap-idea:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.rap-idea:focus-visible {
+  outline: 2px solid #6ba8ff;
+  outline-offset: 2px;
+}
+
+.rap-idea-name {
+  color: #8ebaff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+}
+
+.rap-idea-hook {
+  font-size: 15px;
+  font-weight: 650;
+  letter-spacing: -0.2px;
+  overflow-wrap: anywhere;
+}
+
+.rap-idea-swahili {
+  color: #9ba9c6;
+  font-size: 12.5px;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.rap-idea-meta {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 3px;
+}
+
+.rap-idea-pick {
+  color: #8ebaff;
+  font-size: 11.5px;
+  font-weight: 650;
+}
+
+.rap-idea-count {
+  color: #7183a8;
+  font-size: 11.5px;
+  font-weight: 600;
+}

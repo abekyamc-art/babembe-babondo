@@ -4,6 +4,8 @@ import { ArrowLeft, Coins } from "lucide-react";
 import useRapStudio from "@/hooks/useRapStudio";
 import TypingDots from "@/components/voice/TypingDots";
 import RapControls from "@/components/rap/RapControls";
+import RapPlan from "@/components/rap/RapPlan";
+import RapIdeas from "@/components/rap/RapIdeas";
 import RapLyrics from "@/components/rap/RapLyrics";
 import RapPlayer from "@/components/rap/RapPlayer";
 import RapDownloads from "@/components/rap/RapDownloads";
@@ -12,7 +14,8 @@ import { RAP_COST } from "@/lib/coins";
 import "@/rap-studio.css";
 
 const BUSY_LABEL = {
-  compose: "Base44 AI inatunga mistari…",
+  plan: "Base44 AI inapanga maneno na mawazo…",
+  write: "Base44 AI inaandika wazo lako mistari kwa mistari…",
   voice: "ElevenLabs inaimba mistari yako…",
   video: "Video inatengenezwa…",
 };
@@ -60,6 +63,34 @@ export default function Rap() {
         </button>
       ) : null}
 
+      {!studio.ideas.length && !lines.length ? (
+        <p className="rap-hint">
+          Chagua mipangilio, kisha omba mawazo — Base44 AI hupanga maneno ya Kibembe
+          yaliyothibitishwa kwanza, kisha hutoa mawazo matatu ya rap; chagua moja, mistari
+          yake ichukuliwe na ElevenLabs.
+        </p>
+      ) : null}
+
+      <RapPlan plan={studio.plan} />
+
+      {studio.ideas.length ? (
+        <RapIdeas
+          ideas={studio.ideas}
+          picked={studio.picked}
+          busy={!!busy}
+          onPick={studio.writeIdea}
+        />
+      ) : null}
+
+      <button
+        type="button"
+        className="rap-cta rap-cta-ghost"
+        onClick={studio.planIdeas}
+        disabled={!!busy || !ready || !studio.words?.length}
+      >
+        {studio.ideas.length ? "Tunga mawazo mapya" : "Tunga mawazo"}
+      </button>
+
       {lines.length ? (
         <RapLyrics
           lines={lines}
@@ -68,21 +99,7 @@ export default function Rap() {
           onEdit={studio.editLine}
           onLock={studio.toggleLock}
         />
-      ) : (
-        <p className="rap-hint">
-          Chagua mipangilio, kisha tunga mistari — Base44 AI hutunga rap kwa maneno ya Kibembe
-          yaliyothibitishwa pekee, kila mstari na tafsiri yake ya Kiswahili.
-        </p>
-      )}
-
-      <button
-        type="button"
-        className="rap-cta rap-cta-ghost"
-        onClick={studio.compose}
-        disabled={!!busy || !ready || !studio.words?.length}
-      >
-        {lines.length ? "Tunga upya mistari" : "Tunga mistari"}
-      </button>
+      ) : null}
 
       {lines.length ? (
         <button type="button" className="rap-cta" onClick={studio.makeVoice} disabled={!!busy}>
