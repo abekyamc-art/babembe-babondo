@@ -22,7 +22,9 @@ const ALWAYS = ["Ebembe", "Kibembe"];
 /** How much a saved word needs the service pointed at it. */
 function keywordScore(term: string): number {
   const word = term.toLowerCase();
-  let score = word.length;
+  // Letters past a handful say nothing about whether the word ever gets said, and a very
+  // long word would otherwise take a place an everyday one is the one that needs.
+  let score = Math.min(word.length, 6);
   CLUSTERS.forEach((cluster) => {
     if (word.includes(cluster)) score += 4;
   });

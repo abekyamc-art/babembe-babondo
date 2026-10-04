@@ -13,6 +13,10 @@ import { emptyStory, nextStory, withStory } from "@/lib/storyState";
 // him working
 const TYPED_HOLD_MS = 8000;
 
+// knowledge held back while he is answering is kept to this much, so an answer that never
+// ends can never let what is waiting grow without bound
+const HELD_LIMIT = 4000;
+
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 export default function useVoiceAgent({ videoRef } = {}) {
@@ -34,6 +38,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const heardRef = useRef({ text: "", timer: 0 });
   // the request for fresh material already looked up, so one turn is never searched for twice
   const wantedRef = useRef({ text: "", timer: 0 });
+  // knowledge that landed while he was answering, waiting for his voice to stop
+  const heldRef = useRef("");
   // the last turn the person took that no answer followed: the next call opens by
   // answering it
   const pendingRef = useRef("");
@@ -101,8 +107,15 @@ export default function useVoiceAgent({ videoRef } = {}) {
         const res = await base44.functions.invoke("assistantKnowledge", { heard: said });
         const note = res?.data?.note;
         const engine = socketRef.current;
-        // the extra words reach him before he starts answering, never over his answer
-        if (note && engine && !engine.silent && !engine.speaking) engine.sendMemory?.(note);
+        if (!note || !engine || engine.silent) return;
+        // He is answering right now: the note is held instead of being lost, and handed
+        // over the moment his voice stops, so it shapes the turn that follows — the one
+        // that would otherwise be answered without the words he just said.
+        if (engine.speaking) {
+          heldRef.current = `${heldRef.current}\n${note}`.slice(-HELD_LIMIT);
+          return;
+        }
+        engine.sendMemory?.(note);
       } catch (err) {
         // the answer carries on without the extra words
       }
@@ -131,6 +144,20 @@ export default function useVoiceAgent({ videoRef } = {}) {
     }, 350);
   }, []);
 
+  /**
+   * Knowledge that landed while he was answering is handed over the moment his voice
+   * stops — never over the answer being given — so the turn that follows is answered
+   * with the words just heard, and the language they were spoken in, already in hand.
+   */
+  const flushHeld = useCallback(() => {
+    const held = heldRef.current;
+    if (!held) return;
+    const engine = socketRef.current;
+    if (!engine || engine.silent || engine.speaking) return;
+    heldRef.current = "";
+    engine.sendMemory?.(held);
+  }, []);
+
   // both kinds of call report back through the same set of handlers
   const makeHandlers = useCallback(
     () => ({
@@ -142,6 +169,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
           setThinking(false);
           setMicActive(false);
           setAvatarLive(false);
+          heldRef.current = "";
           socketRef.current = null;
         }
       },
@@ -158,8 +186,14 @@ export default function useVoiceAgent({ videoRef } = {}) {
       onAgentText: (text) => pushTurn("agent", text),
       onAgentAudioStart: () => setSpeaking(true),
       onThinking: (on) => setThinking(on),
-      onAgentAudioEnd: () => setSpeaking(false),
-      onInterrupted: () => setSpeaking(false),
+      onAgentAudioEnd: () => {
+        setSpeaking(false);
+        flushHeld();
+      },
+      onInterrupted: () => {
+        setSpeaking(false);
+        flushHeld();
+      },
       onAgentAnswered: () => answeredRef.current?.(),
       // a call answered by the app's own AI says plainly when an answer did not come
       onError: (message) => setError(message),
@@ -181,7 +215,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         );
       },
     }),
-    [pushTurn, reviewHeard, reviewWanted]
+    [pushTurn, reviewHeard, reviewWanted, flushHeld]
   );
 
   // a written question is held back while the knowledge he was handed settles, and
@@ -234,6 +268,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // session opens, so the material is already in hand when he answers it, and a
       // fresh session starts with no lookup behind it
       wantedRef.current.text = opening;
+      // a note held back belonged to the session being left behind
+      heldRef.current = "";
       const [note, fresh] = await Promise.all([
         loadKnowledgeNote(opening),
         loadFreshMaterial(opening),

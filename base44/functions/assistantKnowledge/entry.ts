@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import { alikeTerms } from "../../shared/soundsAlike.ts";
+import { alikeTerms, skeleton } from "../../shared/soundsAlike.ts";
 import { knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 
@@ -68,10 +68,24 @@ const HEADS = {
   like:
     "\nMANENO YANAYOKARIBIA ULILOSIKIA — words close to what was heard:\n" +
     "Neno la kwanza ndilo linalokaribia zaidi — ndilo neno alilomaanisha. Jibu moja kwa moja kutoka maana yake: usimwambie mtu amekosea, usiulize kama alimaanisha neno lingine, na usirudie maneno yake kama jibu lako. Maneno mengine kwenye orodha ni ya karibu tu — usiyataje kama mbadala, na usiulize kama alimaanisha mojawapo. Puuza orodha hii tu kama neno alilosema halipo kabisa.\n",
+
   say:
     "\nMATAMSHI YA SIRI — how to say the words above, for your ear only:\n" +
     "Tumia mwongozo huu kusema neno vizuri, lakini USIANDIKE wala USISEME mwongozo huu kwa mtu: sema na uandike herufi za neno tu, kama \"ole bile\" na si \"oh-leg-bile\".\n",
 };
+
+/**
+ * A word that came back the same, or a letter apart, is that saved word being spoken: the
+ * person is speaking Kibembe. Said plainly, this is what holds him in Kibembe for the rest
+ * of the call — a turn written down like a Kiswahili one must never turn his answer into
+ * Kiswahili — and because it stays in his context, it keeps working on every turn after it.
+ */
+const SURE_LINE =
+  "\nLUGHA YA MTU — mtu huyu anasema KIBEMBE. Maneno haya ni maneno ya Kibembe yaliyohifadhiwa, " +
+  "hata kama jinsi yalivyoandikwa yanafanana na Kiswahili. Endelea kujibu kwa Kibembe kwa maneno " +
+  "yale yale yaliyohifadhiwa, na usibadilishe lugha: usijibu kwa Kiswahili wala Kiingereza kwa " +
+  "sababu ya jinsi maneno yake yameandikwa. Mtu akibadilisha lugha mwenyewe waziwazi, fuata " +
+  "lugha yake hiyo mpya.\n";
 
 // the section that rides with a question is set aside first, so it can never push
 // the vocabulary out of the note
@@ -312,7 +326,21 @@ function likeSection(rows: any[], heard: string) {
     if (HEADS.like.length + body.length + line.length > LIKE_BUDGET) break;
     body += line;
   }
-  return body ? HEADS.like + body : "";
+  // A word that came back exactly, a letter apart, or standing on the same consonants all
+  // the way through is the person speaking that saved word: the note says so, and says
+  // which language that is, for this turn and for every turn that follows it. The
+  // consonants have to account for most of both words, so a long English word that merely
+  // holds a short Ebembe one's consonants is never taken for Kibembe being spoken.
+  const sure = near.some((row: any) => {
+    if (row.tier <= 1) return true;
+    if (row.tier !== 2) return false;
+    const saved = skeleton(row.term);
+    const spoken = skeleton(row.heard);
+    const long = Math.max(saved.length, spoken.length);
+    if (long < 3) return false;
+    return Math.min(saved.length, spoken.length) / long >= 0.6;
+  });
+  return body ? HEADS.like + (sure ? SURE_LINE : "") + body : "";
 }
 
 /**
