@@ -19,14 +19,15 @@ export function signalLine(fromLabel) {
   const options = TALK_IDS.join(", ");
   return (
     `Signal only. ${fromLabel} has answered its two questions and is taking its break now. ` +
-    `Which talk AI takes the next two questions? Answer with one id and nothing else: ${options}.\n` +
+    `Which talk AI takes the next two questions? Answer with one id and nothing else: ${options}. ` +
+    `Do not name ${fromLabel}: it is the one taking its break.\n` +
     `Ni zamu ya nani? Jibu kwa jina moja tu: ${options}.`
   );
 }
 
 /** One AI steps aside and the one the coordinator named is ready to carry the talk on. */
 export function handoffNotice(from, next) {
-  return `${from} has taken its two questions. ${next} is ready — tap the orb to carry on.`;
+  return `${from} has taken its two questions. ${next} is taking over now — keep talking.`;
 }
 
 /** Nothing was named, so nothing is guessed: the same AI keeps the conversation. */

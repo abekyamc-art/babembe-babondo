@@ -70,3 +70,13 @@ export function slotNamed(reply: string) {
   }
   return named;
 }
+
+/**
+ * The four talk AIs in the order their turns follow this one. It is the order the turn is handed on
+ * in when a signal cannot be used, so the talk always moves on and can never settle on one AI.
+ */
+export function slotsAfter(fromId: string) {
+  const at = TALK_SLOTS.findIndex((slot) => slot.id === fromId);
+  const from = at < 0 ? TALK_SLOTS.length - 1 : at;
+  return TALK_SLOTS.map((_, step) => TALK_SLOTS[(from + step + 1) % TALK_SLOTS.length]);
+}

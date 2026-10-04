@@ -79,6 +79,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const talkRef = useRef({ ...FIRST_TALK, answered: 0 });
   // a handoff the second answer has asked for, waiting for that answer to finish being read out
   const handoffDueRef = useRef(false);
+  // the signal for that handoff, asked for while the second answer was still being given, so the
+  // change of AI is a breath rather than a wait
+  const signalRef = useRef(null);
   // the handoff itself, kept in a ref because an answer's own handler is what sends it
   const handoffRunRef = useRef(null);
 
@@ -138,6 +141,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
     // its first talk AI opens the next call
     talkRef.current = { ...FIRST_TALK, answered: 0 };
     handoffDueRef.current = false;
+    signalRef.current = null;
     setTalkLabel(mode === "agent" ? FIRST_TALK.label : "");
   }, [mode]);
 
@@ -279,12 +283,37 @@ export default function useVoiceAgent({ videoRef } = {}) {
    * off: its answer is read out in full, and the signal is sent once its voice has stopped. Only
    * a call that is heard counts, since a typed exchange is answered on screen and nobody's turn.
    */
+  /**
+   * The signal itself: the fifth AI is asked whose turn is next, and what it names is read on the
+   * server against the four accounts the app is set up with. What comes back is the talk AI taking
+   * the next two questions, or nothing at all when no signal could be used.
+   */
+  const requestHandoff = useCallback(async (from) => {
+    try {
+      const reply = await askCoordinator(from.label);
+      if (!reply) return null;
+      const res = await base44.functions.invoke("callHandoff", { reply, from: from.id });
+      return res?.data?.next || null;
+    } catch (err) {
+      // a signal that cannot be asked for or read is no signal at all
+      return null;
+    }
+  }, []);
+
   const countTalkAnswer = useCallback(() => {
     if (quietRef.current || voiceMode() !== "agent") return;
     const talk = talkRef.current;
     talk.answered += 1;
-    if (talk.answered >= TALK_ANSWERS) handoffDueRef.current = true;
-  }, []);
+    if (talk.answered >= TALK_ANSWERS) {
+      handoffDueRef.current = true;
+      return;
+    }
+    // the signal is asked for while the second answer is still being given, so the AI taking the
+    // next two questions is already known when that answer ends
+    if (talk.answered === TALK_ANSWERS - 1 && !signalRef.current) {
+      signalRef.current = requestHandoff({ ...talk });
+    }
+  }, [requestHandoff]);
 
   // both kinds of call report back through the same set of handlers
   const makeHandlers = useCallback(
@@ -302,6 +331,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
           heldRef.current = "";
           // a call that has ended sends no handoff: its turn is over
           handoffDueRef.current = false;
+          signalRef.current = null;
           socketRef.current = null;
         }
       },
@@ -625,6 +655,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
     socketRef.current = null;
     // a call the person ends themselves asks for no handoff
     handoffDueRef.current = false;
+    signalRef.current = null;
     setSpeaking(false);
     setThinking(false);
     setMicActive(false);
@@ -637,27 +668,22 @@ export default function useVoiceAgent({ videoRef } = {}) {
   /**
    * The handoff, once a talk AI has given its two answers: the fifth AI is asked whose turn is
    * next, its signal is read on the server against the four accounts the app is set up with, the
-   * call is hung up, and the AI it named is left ready to carry the talk on. The talk so far stays
-   * on screen and goes with the next call, so nothing of it is lost in the change. A signal that
-   * names nobody, names the AI already on its break, or names an account that is not set up is
-   * never guessed at: the same AI keeps the conversation instead.
+   * call that has had its turn is hung up, and the AI the signal named opens straight away to take
+   * the person's next one — the change of AI is never something the person starts themselves. The
+   * talk so far stays on screen and goes with the new call, so nothing of it is lost in the change.
+   * A signal that cannot be used is never guessed at: the server hands the turn to the AI that
+   * follows in order, and only where no other AI is set up at all does the same AI carry on.
    */
   const runHandoff = useCallback(async () => {
     const engine = socketRef.current;
     if (!engine || quietRef.current) return;
     const from = { ...talkRef.current };
 
-    let next = null;
-    try {
-      const reply = await askCoordinator(from.label);
-      if (reply) {
-        const res = await base44.functions.invoke("callHandoff", { reply, from: from.id });
-        next = res?.data?.next || null;
-      }
-    } catch (err) {
-      // a signal that cannot be asked for or read is no signal at all
-      next = null;
-    }
+    // the signal was asked for while the second answer was still being given, so it is usually
+    // already in hand; one that is not in hand is asked for now
+    const asked = signalRef.current;
+    signalRef.current = null;
+    const next = await (asked || requestHandoff(from));
 
     // the call was ended, or the mode switched, while the signal was on its way: it belongs to no
     // call any more, and moves nothing
@@ -669,11 +695,15 @@ export default function useVoiceAgent({ videoRef } = {}) {
       return;
     }
 
+    // the AI the signal named takes the next two questions: the call that has had its turn is hung
+    // up and the new one opens straight away, listening for the person's next turn with the talk so
+    // far in hand — the person never has to start the next AI themselves
     talkRef.current = { id: next.id, label: next.label, account: next.account, answered: 0 };
     setTalkLabel(next.label);
     await stop();
     setNotice(handoffNotice(from.label, next.label));
-  }, [stop]);
+    await start({ withMic: true, onAnswered: answeredRef.current });
+  }, [requestHandoff, start, stop]);
 
   // an answer's own end is what sends a handoff, so the runner is reachable from there
   useEffect(() => {

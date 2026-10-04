@@ -1,5 +1,5 @@
 import { secrets } from "base44:runtime";
-import { slotNamed } from "../../shared/talkRotation.ts";
+import { slotNamed, slotsAfter } from "../../shared/talkRotation.ts";
 
 /**
  * The handoff signal, read and checked on the server. The coordinator's own answer is handed over
@@ -32,19 +32,22 @@ export default async function (req: Request): Promise<Response> {
 
     const reply = String(payload?.reply || "").slice(0, 600);
     const from = String(payload?.from || "");
-    const slot = slotNamed(reply);
+    const named = slotNamed(reply);
+    // the account a turn is handed to must be whole: its own key and its own agent id
+    const ready = (slot: any) => !!secretOr(slot.key) && !!secretOr(slot.agent);
 
+    // The AI the signal named takes the turn when it is a real one, when it is not the AI taking
+    // its break, and when its account is whole. A signal that names nobody, names the AI already
+    // resting, or names an account that is not set up is never guessed at: the turn passes to the
+    // AI that follows in order instead, so the talk always moves on to another AI and can never
+    // settle on one of them.
+    let slot = named && named.id !== from && ready(named) ? named : null;
     if (!slot) {
-      console.error("The signal named no talk AI the app knows:", reply.slice(0, 120));
-      return Response.json({ error: unread });
+      console.error("No usable signal, so the turn moves on in order:", (reply || "").slice(0, 120));
+      slot = slotsAfter(from).find((row: any) => row.id !== from && ready(row)) || null;
     }
-    if (slot.id === from) {
-      console.error("The signal named the talk AI that is already taking its break:", slot.id);
-      return Response.json({ error: unread });
-    }
-    // the account the turn is being handed to must be whole: its own key and its own agent
-    if (!secretOr(slot.key) || !secretOr(slot.agent)) {
-      console.error(`${slot.label}'s key or agent id is missing, so no signal was given.`);
+    if (!slot) {
+      console.error("No other talk AI has both its key and its agent id saved, so no signal was given.");
       return Response.json({ error: unread });
     }
 

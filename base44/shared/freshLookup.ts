@@ -49,6 +49,65 @@ const MISS =
   "Sema kwa ufupi kwamba hukupata taarifa ya kuthibitishwa kuhusu hilo, kisha mwombe aeleze zaidi " +
   "au toa kilichohifadhiwa kwenye maarifa. Usijibu kwa jambo lingine lisilohusiana, na usiseme tu \"sijui\".\n";
 
+// Google's own results for the request, read before the search is written down: the news desk
+// Google keeps for a search costs nothing and needs no key, and every result keeps its site, its
+// date and its link, so the material an answer is given stands on results it can name and follow.
+const GOOGLE_NEWS = "https://news.google.com/rss/search?hl=en-US&gl=US&ceid=US:en&q=";
+const GOOGLE_ITEMS = 5;
+const GOOGLE_WAIT_MS = 6000;
+
+type GoogleResult = { title: string; source: string; date: string; link: string };
+
+/** One field of a result, with its markup taken out and its length bounded. */
+function fieldOf(item: string, tag: string, limit: number) {
+  const found = item.match(new RegExp(`<${tag}[^>]*>([\\s\\S]*?)</${tag}>`));
+  if (!found) return "";
+  return found[1]
+    .replace(/<!\[CDATA\[|\]\]>/g, "")
+    .replace(/<[^>]*>/g, " ")
+    .replace(/&amp;/g, "&")
+    .replace(/\s{2,}/g, " ")
+    .trim()
+    .slice(0, limit);
+}
+
+/**
+ * What Google has for this request. A Google that does not answer, or answers with nothing, never
+ * stops the lookup: the search simply goes on without the results.
+ */
+async function googleResults(query: string): Promise<GoogleResult[]> {
+  try {
+    const res = await fetch(GOOGLE_NEWS + encodeURIComponent(query), {
+      headers: { "User-Agent": "Mozilla/5.0 (compatible; BabembeApp/1.0)" },
+      signal: AbortSignal.timeout(GOOGLE_WAIT_MS),
+    });
+    if (!res.ok) return [];
+    const xml = await res.text();
+    return [...xml.matchAll(/<item>([\s\S]*?)<\/item>/g)]
+      .slice(0, GOOGLE_ITEMS)
+      .map((match) => ({
+        title: fieldOf(match[1], "title", 140),
+        source: fieldOf(match[1], "source", 80),
+        date: fieldOf(match[1], "pubDate", 40),
+        link: fieldOf(match[1], "link", 300),
+      }))
+      .filter((row) => row.title && row.link);
+  } catch (error: any) {
+    console.error("Could not read Google's results:", error?.message);
+    return [];
+  }
+}
+
+/** Google's own results as the block of the search prompt they ride in. */
+function googleBlock(rows: GoogleResult[]) {
+  if (!rows.length) return "";
+  const lines = rows.map(
+    (row) =>
+      `- ${row.title} — ${row.source || "Google"}${row.date ? ` (${row.date})` : ""} — ${row.link}`
+  );
+  return `\nGOOGLE RESULTS for this very request, taken from Google — use them first:\n${lines.join("\n")}\n`;
+}
+
 const SCHEMA = {
   type: "object",
   properties: {
@@ -78,6 +137,10 @@ const SCHEMA = {
       type: "string",
       description: "where the material came from, named plainly (the site or organisation), or empty",
     },
+    link: {
+      type: "string",
+      description: "the address (the link) of the page the material was taken from, or empty",
+    },
     term: { type: "string", description: "the Ebembe word, on a word request" },
     meaning: { type: "string", description: "what the Ebembe word means" },
     guide: {
@@ -88,10 +151,11 @@ const SCHEMA = {
   required: ["needed", "no_result", "kind"],
 };
 
-const PROMPT = (query: string) =>
+const PROMPT = (query: string, google: string) =>
   "You help an Ebembe village assistant in the Democratic Republic of Congo. A person has just said:\n" +
-  `"""${query}"""\n\n` +
-  "Decide whether this needs material from the internet:\n" +
+  `"""${query}"""` +
+  google +
+  "\n\nDecide whether this needs material from the internet:\n" +
   "- A request for a story, a folk tale or a legend → kind \"story\".\n" +
   "- A request for news, or what is happening somewhere → kind \"news\".\n" +
   "- A request to be taught an Ebembe or Swahili word, or for more words → kind \"word\".\n" +
@@ -99,13 +163,14 @@ const PROMPT = (query: string) =>
   "- A greeting, small talk, a question about the person themselves, thanks, or anything ordinary conversation covers → needed=false, no_result=false, kind=\"none\".\n" +
   "- One or two words alone, or a question asking what a word means → needed=false, no_result=false, kind=\"none\": the words the admin saved are the assistant's own list, and he answers from it.\n" +
   "- Only teach a word (kind \"word\") when the person plainly asks to be taught an Ebembe word that is not on the admin's list.\n\n" +
-  "If it does need material: search the internet, then write that material yourself and write it out in full.\n" +
+  "If it does need material: search Google, then write that material yourself and write it out in full.\n" +
+  "The GOOGLE RESULTS above are real results from Google for this very request: where they answer it, the material must stand on them; what they do not cover, take from your own Google search.\n" +
   "- story: the whole story, told properly, ten to twenty sentences — never a summary, and never a description of the story.\n" +
   "- news: the real, recent news, with the place, the date and where it comes from.\n" +
   "- word: the Ebembe word in `term`, its meaning in `meaning`, how it is said in `guide` (syllables joined by dashes, like oh-leg-bile), and the explanation in `text`. If you cannot confirm the Ebembe word, set needed=false and no_result=true instead of inventing one.\n" +
   "- fact: what you actually found about the person, the place, the group or the thing — who they are, where they are from, what they do, and what is known about them.\n\n" +
   "Take it from sources that can be trusted: established news organisations, official organisations, universities, encyclopaedias. Ignore rumours, gossip and unconfirmed social posts.\n" +
-  "Write the material in Swahili, adding Ebembe words wherever you know them, and put the source you took it from in `source`, named plainly — the site or the organisation.\n" +
+  "Write the material in Swahili, adding Ebembe words wherever you know them, and put the source you took it from in `source`, named plainly — the site or the organisation — with that page's own address in `link`.\n" +
   "Never invent anything. When what you found is thin, or the sources disagree, write the material anyway and say plainly inside `text` that it is not confirmed. When the search gives you nothing at all, set needed=false and no_result=true, and write no material: an answer that says plainly that nothing could be found is better than an invented one.\n" +
   "Fill every field of the answer, using an empty string where a field does not apply.";
 
@@ -160,10 +225,14 @@ export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup>
     return { material: "", needed: false, found: false };
   }
 
+  // Google's own results for this request ride with it into the search, so the material stands on
+  // results that can be named and followed
+  const google = googleBlock(await googleResults(query));
+
   let out: any = {};
   try {
     const found = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: PROMPT(query),
+      prompt: PROMPT(query, google),
       add_context_from_internet: true,
       model: "gemini_3_flash",
       response_json_schema: SCHEMA,
@@ -187,6 +256,7 @@ export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup>
   const meaning = textOf(out.meaning).slice(0, 400);
   const guide = textOf(out.guide).slice(0, 120);
   const source = textOf(out.source).slice(0, 160);
+  const link = textOf(out.link).slice(0, 300);
 
   let material = "";
 
@@ -214,7 +284,9 @@ export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup>
     // a story, a piece of news or a fact is saved as a world note for next time, with where it
     // came from written beside it, so a later answer can name its source too
     const headline = title || text.slice(0, 60);
-    const saved = source ? `${text}\n(Chanzo: ${source})` : text;
+    const saved = source
+      ? `${text}\n(Chanzo: ${source}${link ? ` — ${link}` : ""})`
+      : text;
     const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
       { kind: "note", title: headline },
       { limit: 1 }
