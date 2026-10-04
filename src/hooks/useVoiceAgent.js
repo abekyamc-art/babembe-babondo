@@ -4,6 +4,7 @@ import Base44Call from "@/lib/base44Call";
 import AvatarCall from "@/lib/avatarCall";
 import { dropMic } from "@/lib/micAccess";
 import { useVoiceMode, voiceMode } from "@/lib/voiceMode";
+import { providerName } from "@/lib/providerNames";
 import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
 import { loadFreshMaterial, loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
@@ -74,6 +75,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
   // number they were opened under, and anything arriving under an older number is dropped, so
   // a provider the admin has switched away from cannot answer, charge, or speak again.
   const sessionRef = useRef(0);
+  // whether the session on air has actually been picked up, so a call that ends by itself can be
+  // told apart from one that never opened
+  const liveRef = useRef(false);
 
   // the talk AI answering right now, and how many answers it has given: the home page's four talk
   // AIs take turns, two answers each, and the fifth AI signals the change
@@ -320,8 +324,17 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const makeHandlers = useCallback(
     () => ({
       onStatus: (next) => {
-        if (next === "live") setStatus("live");
+        if (next === "live") {
+          liveRef.current = true;
+          setStatus("live");
+        }
         if (next === "closed" || next === "ended") {
+          // A session that ends on its own — the provider's doing, with the call already picked up
+          // — is said plainly, so a call can never just go quiet with nothing said about why.
+          if (next === "closed" && liveRef.current) {
+            setNotice(`${providerName(voiceMode())}'s call ended on its own — tap and try again.`);
+          }
+          liveRef.current = false;
           // the conversation is over, so the words helper opened for it is closed with it
           closeWords().catch(() => {});
           setStatus("idle");

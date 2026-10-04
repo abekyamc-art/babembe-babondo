@@ -26,8 +26,10 @@ const CLOSE_QUIET_MS = 15000;
 // is kept for the next call
 const RECOVER_MS = 15000;
 const GIVE_UP_MS = 45000;
-// a soft voice at arm's length is a turn as much as a loud one
-const VOICE_LEVEL = 0.03;
+// A soft voice at arm's length is a turn as much as a loud one, and no two phones report the same
+// voice the same way, so the bar for hearing one is set low: what is captured is only ever read
+// once it has been written down, and a sound with no words in it comes back empty and is dropped.
+const VOICE_LEVEL = 0.012;
 // a session that carries on is held from speaking until the person takes their
 // turn; this is the longest that hold can last if nothing releases it
 const HOLD_MAX_MS = 15000;
