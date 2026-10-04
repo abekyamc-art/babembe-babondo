@@ -391,7 +391,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         );
       },
     }),
-    [pushTurn, reviewHeard, reviewWanted, flushHeld, materialFor, countTalkAnswer]
+    [pushTurn, readTurn, reviewHeard, reviewWanted, flushHeld, materialFor, countTalkAnswer]
   );
 
   // a written question is held back while the knowledge he was handed settles, and
