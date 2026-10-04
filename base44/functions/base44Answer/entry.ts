@@ -11,6 +11,8 @@ import { secrets } from "base44:runtime";
 
 // the platform voice the Kibembe is read in, and the ceilings one answer is kept inside
 const SPEECH_VOICE = "river";
+// the model the Admin's Base44 AI mode answers on, pinned so every answer is written by it
+const ANSWER_MODEL = "gpt_6_sol";
 const MAX_ANSWER = 900;
 const MAX_SPOKEN = 320;
 const MAX_QUESTION = 400;
@@ -141,6 +143,7 @@ export default async function (req: Request): Promise<Response> {
 
     const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt,
+      model: ANSWER_MODEL,
       response_json_schema: REPLY_SCHEMA,
     });
 
