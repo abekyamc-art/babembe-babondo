@@ -1,5 +1,6 @@
 import React from "react";
 import { Sparkles, Waves } from "lucide-react";
+import { providerName } from "@/lib/providerNames";
 
 /**
  * Which experience is on screen, written on the home screen itself. The admin's switch
@@ -9,7 +10,7 @@ import { Sparkles, Waves } from "lucide-react";
 export default function ModeBadge({ mode }) {
   const base = mode === "base44";
   const Icon = base ? Sparkles : Waves;
-  const label = base ? "Base44 AI answers" : "Agent answers";
+  const label = `${providerName(mode)} answers`;
 
   return (
     <span className="mode-badge" aria-label={label}>

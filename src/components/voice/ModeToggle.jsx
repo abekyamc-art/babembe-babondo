@@ -1,13 +1,13 @@
 import React, { useState } from "react";
-import { Loader2, Sparkles, Waves } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { saveVoiceMode, useVoiceMode } from "@/lib/voiceMode";
+import { providerName } from "@/lib/providerNames";
 
-/** The admin's own switch: who answers — the outside voice agent, or Base44 AI. */
+/** The admin's own switch: who answers — the original outside voice, or the second one. */
 export default function ModeToggle() {
   const mode = useVoiceMode();
   const [busy, setBusy] = useState(false);
   const base = mode === "base44";
-  const Icon = base ? Sparkles : Waves;
 
   const flip = async () => {
     if (busy) return;
@@ -25,7 +25,7 @@ export default function ModeToggle() {
       type="button"
       role="switch"
       aria-checked={base}
-      aria-label={`Who answers: ${base ? "Base44 AI" : "the outside agent"}. Tap to switch.`}
+      aria-label={`Who answers: ${providerName(mode)}. Tap to switch.`}
       onClick={flip}
       disabled={busy}
       className={`flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border px-2.5 py-1.5 text-[10px] font-semibold uppercase tracking-[0.08em] backdrop-blur transition-colors ${
@@ -34,12 +34,8 @@ export default function ModeToggle() {
           : "border-border bg-card/70 text-muted-foreground hover:text-foreground"
       }`}
     >
-      {busy ? (
-        <Loader2 className="h-3.5 w-3.5 animate-spin" />
-      ) : (
-        <Icon className="h-3.5 w-3.5" />
-      )}
-      {base ? "Base44" : "Agent"}
+      {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+      {providerName(mode)}
     </button>
   );
 }

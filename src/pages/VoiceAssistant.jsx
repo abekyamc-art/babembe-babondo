@@ -26,6 +26,7 @@ import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
 import ModeToggle from "@/components/voice/ModeToggle";
 import ModeBadge from "@/components/voice/ModeBadge";
+import { providerName } from "@/lib/providerNames";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 
@@ -363,12 +364,7 @@ export default function VoiceAssistant() {
               error ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {error ||
-              notice ||
-              faceNote ||
-              (mode === "base44"
-                ? "Base44 AI answers each turn."
-                : "The outside agent answers each turn.")}
+            {error || notice || faceNote || `${providerName(mode)} answers each turn.`}
           </p>
         </div>
       </main>

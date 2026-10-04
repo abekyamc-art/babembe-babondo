@@ -192,7 +192,7 @@ export default async function (req: Request): Promise<Response> {
       return Response.json(
         {
           error: second
-            ? "Base44 mode's own voice account isn't set up yet — add its ElevenLabs key and agent id in Secrets, then tap to talk again."
+            ? "Mbembe AI's own voice account isn't set up yet — add its ElevenLabs key and agent id in Secrets, then tap to talk again."
             : unavailable,
         },
         { status: 500 }
@@ -224,7 +224,7 @@ export default async function (req: Request): Promise<Response> {
       return Response.json(
         {
           error: second
-            ? `Base44 mode's own voice account refused the call${
+            ? `Mbembe AI's voice account refused the call${
                 reason ? `: ${reason}` : ""
               }. Give its ElevenLabs key Conversational AI permission, then tap to talk again.`
             : unavailable,
