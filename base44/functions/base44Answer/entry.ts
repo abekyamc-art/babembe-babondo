@@ -8,22 +8,24 @@ import { rulesText } from "../../shared/knowledgeRules.ts";
  * The Base44 AI call. What the person said is heard, the answer is written by the app's own
  * AI from the knowledge it is handed, and the Kibembe of that answer is spoken back out loud
  * in the platform's own voice. The screen carries the same parts the app already shows —
- * Kibembe, how it sounds, Kiswahili, English — while the voice reads the Kibembe alone,
- * plainly, so what comes out of the phone is the language itself.
+ * Kibembe, how it sounds, Kiswahili, English — and the part belonging to the language the
+ * person used leads them and is the part read aloud, so what comes out of the phone is the
+ * language they are speaking.
  *
  * The knowledge is read here, whole, on every turn: the rule book the admin has in force and
  * every word they saved. Kibembe is answered from the admin's own language rather than from a
  * note that may have been trimmed on its way to the phone.
  */
 
-// The platform voice the Kibembe is read in, and the nearest voice language to Ebembe. The
-// voice service holds no Bantu language at all, so Malay stands in for it: Malay sounds every
-// letter the Bantu way — five pure vowels with no English letter-names, w and y voiced, ny and
-// ng as the language reads them — and that is what carries an Ebembe accent. The spelling
-// handed to it is still the rule book's, so a sound the voice cannot make is written right
-// even when it cannot be said right.
+// The platform voice every answer is read in, and the voice language each leading part is read
+// on. The voice service holds no Bantu language at all, so Malay stands in for both Kibembe and
+// Kiswahili: Malay sounds every letter the Bantu way — five pure vowels with no English
+// letter-names, w and y voiced, ny and ng as the language reads them — and that is what carries
+// an Ebembe accent. The spelling handed to it is still the rule book's, so a sound the voice
+// cannot make is written right even when it cannot be said right. English is read on the
+// service's own English.
 const SPEECH_VOICE = "river";
-const SPEECH_LANG = "ms";
+const SPEECH_LANG: Record<string, string> = { ebembe: "ms", swahili: "ms", english: "en" };
 // the model the Admin's Base44 AI mode answers on, pinned so every answer is written by it
 const ANSWER_MODEL = "gpt_6_sol";
 // The hearing service knows no Kibembe at all. Swahili is the nearest language it does know,
@@ -47,13 +49,14 @@ const REASK = "Sema tena, nakusikiliza.";
 const REPLY_SCHEMA = {
   type: "object",
   properties: {
+    lang: { type: "string", enum: ["ebembe", "swahili", "english"] },
     ebembe: { type: "string" },
     guide: { type: "string" },
     swahili: { type: "string" },
     english: { type: "string" },
     say: { type: "string" },
   },
-  required: ["ebembe", "say"],
+  required: ["lang", "ebembe", "say"],
 };
 
 const ROLE =
@@ -64,11 +67,12 @@ const KNOWLEDGE_HEAD =
   "The knowledge saved for you by the admin of this app. The rules at its head stand above everything else here, and every answer obeys them:";
 
 const HOW = [
-  "Write every answer in exactly these parts, in this order:",
+  "Write every answer in exactly these parts:",
+  "lang: which language the person's own words are in — ebembe, swahili or english — read from their words themselves, never from a phone setting and never from the language of your own last answer. Their language leads the answer: its part is written first and it is the part read aloud. When they change language mid-talk the next answer changes with them, and changes back when they change back.",
   "ebembe: the answer itself in Kibembe (Ebembe), the words a Babembe speaker really uses, written exactly as the rule book's reading key spells them, every letter sounded the Ebembe way rather than the English letter-name, with no hyphens between syllables.",
   "guide: how that same Kibembe sounds to an American ear, syllable by syllable joined with dashes.",
-  "swahili: the same thing in everyday Kiswahili. english: the same thing in plain English.",
-  "say: only the Kibembe part, written the way the rule book spells it — the same letters as the ebembe line, changed only where the voice would otherwise read a letter wrongly (ch for the c sound, and so on), and never an English sound-spelling such as ay, ee or oh. Plain running words with spaces between them: no brackets, no dashes, no hyphens, no pronunciation notes, no language names, and never the listening line. One or two short sentences.",
+  "swahili: the same thing in everyday Kiswahili. english: the same thing in plain English. Every part says the same thing, and the one in the person's own language is the answer they are waiting for.",
+  "say: only the part in the language the person just used, written exactly as that part is written on screen, apart from a letter the voice would otherwise read wrongly (ch for the c sound, and so on) — and on Kibembe, never an English sound-spelling such as ay, ee or oh. Plain running words with spaces between them: no brackets, no dashes, no hyphens, no pronunciation notes, no language names, and never the listening line. One or two short sentences.",
   "Keep the whole answer short: this is talk, not an essay, and never more than three sentences of Kibembe.",
   "Build the Kibembe from the words saved in the knowledge, and write every one of them exactly as it is saved. Never invent a word, a plural, a tense or a meaning that the rules and the saved words do not confirm.",
   "Copy each saved word letter for letter, a b, h or w inside it included: a word that looks like a Kiswahili one is still written the way the list spells it (mabwe, never mawe). Never drop a letter from a saved word and never add one.",
@@ -164,15 +168,25 @@ async function listen(apiKey: string, bytes: Uint8Array, type: string): Promise<
   return textOf(data?.text, MAX_QUESTION);
 }
 
-/** The answer as the screen shows it: the parts, in the order the app always uses. */
-function shown(out: any): string {
-  const rows = [
-    ["Ebembe", textOf(out?.ebembe)],
-    ["Inasikika", textOf(out?.guide)],
-    ["Kiswahili", textOf(out?.swahili)],
-    ["English", textOf(out?.english)],
-  ];
-  return rows
+// The parts of every answer, in the app's own order: the Kibembe, how it sounds, Kiswahili,
+// English. The part in the language the person used leads them; the rest keep that order.
+const PARTS: [string, string][] = [
+  ["ebembe", "Ebembe"],
+  ["guide", "Inasikika"],
+  ["swahili", "Kiswahili"],
+  ["english", "English"],
+];
+
+/** The leading part first, the other three after it in the app's own order. */
+function partsFor(lang: string): [string, string][] {
+  const lead = PARTS.find(([key]) => key === lang) || PARTS[0];
+  return [lead, ...PARTS.filter((part) => part !== lead)];
+}
+
+/** The answer as the screen shows it: the person's own language leading, the rest after it. */
+function shown(out: any, lang: string): string {
+  return partsFor(lang)
+    .map(([key, name]) => [name, textOf(out?.[key])] as [string, string])
     .filter(([, value]) => value)
     .map(([name, value]) => name + ": " + value)
     .join("\n");
@@ -281,10 +295,19 @@ export default async function (req: Request): Promise<Response> {
       response_json_schema: REPLY_SCHEMA,
     });
 
-    const answer = shown(out);
-    // the voice reads the Kibembe itself; when the writer gave no separate spoken line the
-    // Kibembe it wrote is read as it stands
-    const say = voiceLine(out?.say) || voiceLine(out?.ebembe);
+    // the language the person used decides which part leads the answer, which part is read
+    // aloud, and which voice language it is read on
+    const lang =
+      String(out?.lang) === "swahili" || String(out?.lang) === "english"
+        ? String(out.lang)
+        : "ebembe";
+    const answer = shown(out, lang);
+    // the voice reads the part in the person's own language; on Kibembe the writer's own
+    // spoken line carries any letter the voice would otherwise read wrongly
+    const say =
+      lang === "ebembe"
+        ? voiceLine(out?.say) || voiceLine(out?.ebembe)
+        : voiceLine(out?.[lang]) || voiceLine(out?.say);
     if (!answer || !say) {
       return Response.json({ error: "Jibu halikukamilika. Jaribu tena." }, { status: 502 });
     }
@@ -294,7 +317,7 @@ export default async function (req: Request): Promise<Response> {
       const made: any = await base44.asServiceRole.integrations.Core.GenerateSpeech({
         text: say,
         voice: SPEECH_VOICE,
-        language_code: SPEECH_LANG,
+        language_code: SPEECH_LANG[lang],
       });
       audio_url = made?.url || "";
     } catch (error: any) {
