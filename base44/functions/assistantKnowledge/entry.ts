@@ -46,11 +46,13 @@ const GUIDE =
   "- Neno la kwanza kwenye orodha ya maneno yanayokaribia ndilo linalokaribia zaidi; ndilo neno alilomaanisha, hata kama mengine yanafanana nalo — jibu kutoka maana ya lile la kwanza, bila kuuliza.\n" +
   "- Swali au ombi lisipoeleweka, jibu ulichoelewa kwa maneno yako mwenyewe: usirudie maneno yake kama jibu, wala usiulize uthibitisho.\n" +
   "- Mwongozo wa matamshi ni wa sikio lako pekee: chukua neno jinsi linasikika, lakini usiandike wala kusema kwa mtu chochote kilichowekwa ndani ya mabano, wala silabi zilizoandikwa zimetenganishwa kwa vistari. Onyesha na kutamka herufi za neno tu kama linavyoandikwa — mfano: \"ole bile\".\n" +
+  "- Alama za hisia kwenye mabano — [furaha], [curious], [laughs] — hazina nafasi yoyote: mtu anaziona kwenye skrini, na sauti inazisoma kwa sauti. Andika maneno yanayosemwa pekee, bila alama za hisia.\n" +
+  "- Swali likihusu mtu, mahali, tukio, kikundi au kitu ambacho hakina jibu kwenye maarifa haya: USISEME \"sijui\", usiseme \"hakuna kwenye maarifa yangu\", wala usiseme jambo hilo hulijui. Sema kwa ufupi kwamba unaangalia, na mara sehemu ya MAARIFA MAPYA YA MTANDAONI inapofika sema ulichokuta: mtu ni nani, anatoka wapi, anafanya nini na habari zake — na taja chanzo chake. Kama taarifa haijathibitishwa au vyanzo vinapingana, sema wazi kwamba hujui kwa uhakika.\n" +
   LEAD +
   BRIEF;
 
 const FALLBACK =
-  "\nKama swali halipo kwenye maarifa haya, jibu kwa ufahamu wako wa kawaida, lakini sema wazi katika jibu hilo kwamba jibu hilo halitoki kwenye maarifa ya admin.\n";
+  "\nKama swali halipo kwenye maarifa haya, jibu kwa ufahamu wako wa kawaida, lakini sema wazi katika jibu hilo kwamba jibu hilo halitoki kwenye maarifa ya admin — wala usiseme hujui jibu.\n";
 
 // The answer key decides what the answer says: a question that matches one the admin saved is
 // answered with that saved answer itself, and the answer stays inside it instead of wandering.

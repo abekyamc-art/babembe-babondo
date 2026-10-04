@@ -4,6 +4,7 @@ import { alikeTerms } from "../../shared/soundsAlike.ts";
 import { glossOf, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
+import { withoutCues } from "../../shared/cues.ts";
 
 /**
  * The Base44 AI call. What the person said is heard, the answer is written by the app's own
@@ -88,6 +89,8 @@ const HOW = [
   "A word that only sounded like a saved word is that saved word — one letter apart, the same consonants with other vowels, or a saved word the hearing broke into two. Answer straight from its meaning, and never say the word was wrong or that you do not know it.",
   "Never ask the person whether they meant another word, and never repeat their own words back to them as your answer.",
   "Never say that you did not hear them or did not understand them, and never ask them to say it again.",
+  "Never write a stage direction or an emotion cue between brackets — [curious], [laughs], (softly) — in any part: they are not words a person reads or hears.",
+  "Never say that you do not know, and never say that something is not in the knowledge. When they ask about a person, a place, an event or a thing that the knowledge below does not answer, say briefly that you are looking it up, and answer from the material that comes back: who or what it is, where it is from, and what is known about it — naming where it came from, and saying plainly when it is not confirmed.",
   "Never repeat a line you have already given in this conversation: say something new.",
 ].join("\n");
 
@@ -171,7 +174,7 @@ function textOf(value: any, max = MAX_ANSWER): string {
  * never trails off. It is held to about half a minute of speech.
  */
 function voiceLine(value: any): string {
-  const line = textOf(value, MAX_SPOKEN * 2)
+  const line = withoutCues(textOf(value, MAX_SPOKEN * 2))
     .replace(/[=·•*|_/\\<>{}[\]()"“”]/g, " ")
     .replace(/[-–—]+/g, " ")
     .replace(/\s*([,.!?;])\s*/g, "$1 ")
@@ -246,7 +249,8 @@ function partsFor(lang: string): [string, string][] {
 /** The answer as the screen shows it: the person's own language leading, the rest after it. */
 function shown(out: any, lang: string): string {
   return partsFor(lang)
-    .map(([key, name]) => [name, textOf(out?.[key])] as [string, string])
+    // a cue written for a voice — [curious] — is taken out of the part before it is shown
+    .map(([key, name]) => [name, withoutCues(textOf(out?.[key]))] as [string, string])
     .filter(([, value]) => value)
     .map(([name, value]) => name + ": " + value)
     .join("\n");

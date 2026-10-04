@@ -9,6 +9,7 @@ import { loadFreshMaterial, loadKnowledgeNote, withKnowledge } from "@/lib/knowl
 import { emptyStory, nextStory, withStory } from "@/lib/storyState";
 import { closeWords, wordsNote } from "@/lib/helperWords";
 import { heardLanguage } from "@/lib/heardLanguage";
+import { withoutCues } from "@/lib/cues";
 
 // the knowledge note travels in blocks and needs a beat to settle before the
 // question is put to him, so he reads it before he answers; the wait is shown as
@@ -234,7 +235,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
         reviewHeard(text);
         reviewWanted(text);
       },
-      onAgentText: (text) => pushTurn("agent", text),
+      // a cue the provider wrote for its own voice — [curious] — is not a word for a person to
+      // read: it is taken out here, once, so neither the screen nor the remembered lines hold it
+      onAgentText: (text) => pushTurn("agent", withoutCues(text)),
       onAgentAudioStart: () => setSpeaking(true),
       onThinking: (on) => setThinking(on),
       onAgentAudioEnd: () => {
