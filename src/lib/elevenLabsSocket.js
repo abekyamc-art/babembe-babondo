@@ -619,9 +619,12 @@ export default class VoiceSocket {
         this.cleanupNoted = true;
         this.h.onError?.(cleanup);
       }
-      // nothing was said — or what was said carried no word — so there is nothing to put to him
+      // nothing was said — or what was said carried no word — so there is nothing to put to him:
+      // the turn is said plainly instead of the call going quiet on it, and the microphone stays
+      // open so the person can simply say it again
       if (!text) {
         this.setAwaiting(false);
+        this.h.onReask?.("Didn't catch that — say it again.");
         return;
       }
       await this.h.onHeard?.(text, language, this);
