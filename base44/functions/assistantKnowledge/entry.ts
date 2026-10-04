@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { alikeTerms } from "../../shared/soundsAlike.ts";
 import { knowledgeWordRows } from "../../shared/knowledgeWords.ts";
+import { rulesText } from "../../shared/knowledgeRules.ts";
 
 // The note rides along with a typed message as silent context. It is handed over
 // in blocks of the size one update carries, so the whole note can be larger than
@@ -51,6 +52,12 @@ const FALLBACK =
 const PASSAGE_HEAD =
   "\nSEHEMU ZA MAANDISHI YA MWENYEJI — parts of the admin's own texts that match this question:\n" +
   "Jibu kutoka sehemu hizi kwa maneno yako, na sema wazi kama hakuna sehemu inayojibu swali hili.\n";
+
+// The admin's own rule book rides ahead of every other kind of knowledge: how Kibembe is read,
+// pronounced, written and used is decided by it before anything else, and it is handed over
+// whole — its reading key and its tense tables included.
+const RULES_HEAD =
+  "\nSHERIA ZA LUGHA YA KIBEMBE — the admin's own rule book for reading, pronouncing, writing and using Kibembe. It is the highest authority on the language: every answer follows it, and where one of these rules and your own habit disagree, the rule wins. Never invent a word, a plural, a tense or a meaning it does not confirm.\n";
 
 const HEADS = {
   qa: "MASWALI NA MAJIBU\n",
@@ -240,15 +247,15 @@ function carryLines(lines: string[], wanted: string[], budget: number) {
  * The vocabulary the assistant is given, with how much of the saved list it holds
  * — the same numbers the admin's words panel states.
  */
-async function wordTally(rows: any[], wanted: string[]) {
+async function wordTally(rows: any[], wanted: string[], budget: number) {
   const words = packWords(rows);
   // the section's own head is part of its share, so every line chosen is one that fits
-  const room = WORDS_BUDGET - HEADS.word.length;
+  const room = budget - HEADS.word.length;
   const picked = carryLines(words.lines, wanted, room);
   const section = fill(
     HEADS.word,
     picked.indexes.map((index) => words.lines[index]),
-    WORDS_BUDGET
+    budget
   );
   const carried = picked.indexes
     .slice(0, section.lines)
@@ -408,7 +415,13 @@ export default async function (req: Request): Promise<Response> {
     // the words panel asks how much of the list the assistant is actually given
     if (payload?.stats) {
       const rows = await wordsFor(base44);
-      const tally = await wordTally(rows, []);
+      const rules = await rulesText(base44);
+      const rulesSection = rules ? RULES_HEAD + rules : "";
+      const tally = await wordTally(
+        rows,
+        [],
+        Math.max(0, Math.min(WORDS_SHARE, NOTE_BUDGET - rulesSection.length))
+      );
       return Response.json({
         words: {
           total: tally.total,
@@ -432,11 +445,17 @@ export default async function (req: Request): Promise<Response> {
 
     // the entries themselves stay private to the admin: only this derived note
     // leaves the server, and it is the same text the assistant is given anyway
+    // the rule book takes its room in the note first; the words and the rest of the
+    // knowledge are then filled from what the whole book leaves
+    const rules = await rulesText(base44);
+    const rulesSection = rules ? RULES_HEAD + rules : "";
+    const wordsBudget = Math.max(0, Math.min(WORDS_SHARE, NOTE_BUDGET - rulesSection.length));
+
     const wordRows = await wordsFor(base44);
     const like = likeSection(wordRows, query);
-    const tally = await wordTally(wordRows, wanted);
+    const tally = await wordTally(wordRows, wanted, wordsBudget);
     const say = saySection(wordRows, SAY_BUDGET);
-    let left = NOTE_BUDGET - tally.section.length - like.length - say.length;
+    let left = wordsBudget - tally.section.length - like.length - say.length;
 
     const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
       { kind: { $in: ["qa", "note"] } },
@@ -454,7 +473,7 @@ export default async function (req: Request): Promise<Response> {
     const world = fill(HEADS.note, linesOfKind("note"), left);
 
     const body = like + qa.text + world.text + tally.section + say;
-    let note = body ? OPENING + GUIDE + body + FALLBACK : "";
+    let note = body || rulesSection ? OPENING + GUIDE + rulesSection + body + FALLBACK : "";
 
     // a question is answered from the admin's long texts too, through the few
     // passages that match it and nothing more

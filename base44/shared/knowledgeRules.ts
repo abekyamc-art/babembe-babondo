@@ -1,90 +1,62 @@
 /**
  * The admin's own rules, saved in the knowledge panel as a text. Both AIs read them: the
- * assistant through the passages it searches, the Rap Studio through this — the lines a
- * rule-titled text carries about how the language is used are handed to the writer to obey.
+ * assistant carries the rule book ahead of the rest of its knowledge, and the Rap Studio's
+ * writer obeys it on every take.
  */
 
-import {
-  MAX_MEANING,
-  MAX_TERM,
-  clean,
-  glossOf,
-  isWordEntry,
-} from "./knowledgeWords.ts";
-
-// a text whose title mentions rules is the rule book; the document the words panel keeps
-// its plurals and rules in is titled that way too
+// a text whose title mentions rules is the rule book
 const RULE_TITLE = /(rule|sheria|kanuni)/i;
 // one paste is kept as several parts of one document
-const PART = /\(part \d+ of \d+\)/i;
-const MAX_TEXTS = 12;
-const MAX_LINES = 80;
-const MAX_LINE = 200;
-const MAX_CHARS = 4000;
+const PART = /\(part (\d+) of (\d+)\)/i;
+const MAX_TEXTS = 50;
+// The whole book is handed over, its reading key and its tense tables included. This cap only
+// guards against a runaway paste; the rule the admin states at the head of the guide holds:
+// the newest rule book replaces every older version.
+const MAX_RULES = 24000;
 
-// a guide in brackets is never part of a term
-const GUIDES = /[[(][^)\]]*[)\]]/g;
-// "=", a tab, a colon with room after it or a column gap ends the term of an entry
-const SEPARATOR = /[=\t]|\s{2,}|:\s/;
-// a rule says something about how the language is used — how it is spelled, heard, counted,
-// chosen or put together. A line of spellings and variants says none of that and never
-// shapes a take.
-const RULE_WORDS =
-  /\b(use|used|say|says|write|written|read|spell|spelling|pronounce|never|always|must|do not|don't|prefer|choose|select|compare|check|add|keep|preserve|replace|capitali[sz]|hyphen|plural|singular|tense|number|meaning|means|similar|confirmed|correction|correct|rule|vocabulary|order|initial|conversation|question|answer|word|words)\b/i;
-
-/** Whether a line is an entry — a word with its meaning — rather than a rule. */
-function entryLine(raw: string): boolean {
-  const at = raw.search(SEPARATOR);
-  if (at < 0) return false;
-  const term = clean(raw.slice(0, at).replace(/[=:\t\s]+$/, "").replace(GUIDES, " "), MAX_TERM);
-  const meaning = clean(raw.slice(at).replace(/^[=:\t\s]+/, ""), MAX_MEANING);
-  return isWordEntry(term, glossOf(term, meaning));
+/** The book a rule text belongs to: the pasted parts of one document share its title. */
+function bookOf(title: any): string {
+  return String(title || "")
+    .replace(PART, "")
+    .replace(/\s+/g, " ")
+    .trim()
+    .toLowerCase();
 }
 
-/** One line of a rule book: a line that is not an entry of its own, carries no "=", really is
- *  written, and says something about how the language is used. A bare word, a page marker or a
- *  run of spellings is not a rule. */
-function ruleLine(raw: string, line: string): boolean {
-  if (!line || line.length > MAX_LINE) return false;
-  if (line.includes("=") || raw.includes("\t")) return false;
-  if (line.replace(/[^\p{L}]/gu, "").length < 3) return false;
-  if (!/\s/.test(line) && line.length < 30) return false;
-  if (!RULE_WORDS.test(line)) return false;
-  return !entryLine(raw);
+/** Which part of a kept paste a rule text is; 1 for a document saved whole. */
+function partOf(title: any): number {
+  const found = String(title || "").match(PART);
+  return found ? Number(found[1]) || 1 : 1;
 }
 
-/** The rule books in the order one is read: a rule book saved on its own first — the newest
- *  of them ahead of the older — then the parts of a pasted document from its beginning. */
-function inOrder(rows: any[]): any[] {
-  const whole: any[] = [];
-  const parts: any[] = [];
-  rows.forEach((row: any) => {
-    if (PART.test(String(row?.title || ""))) parts.push(row);
-    else whole.push(row);
-  });
-  return [...whole, ...parts.reverse()];
-}
-
-/** The rules the admin saved, as the lines both AIs obey. Read from the rule-titled texts and
- *  kept to a size one take, or one answer, can carry. */
+/** The rule book in force, whole: the newest one the admin saved, and when it was pasted in
+ *  parts they are read from the beginning of the document. Read by both AIs — the assistant
+ *  ahead of every other kind of knowledge, the writer of every take. */
 export async function rulesText(base44: any): Promise<string> {
   try {
     const page = await base44.asServiceRole.entities.KnowledgeText.filter(
       {},
       { sort: "-created_date", limit: MAX_TEXTS, fields: ["title", "text"] }
     );
-    const books = inOrder((page?.items || []).filter((row: any) => RULE_TITLE.test(String(row?.title || ""))));
+    const books = (page?.items || []).filter((row: any) => RULE_TITLE.test(String(row?.title || "")));
+    if (!books.length) return "";
+
+    // the newest rule book is the one in force; an older one is never leaned on again
+    const newest = bookOf(books[0]?.title);
+    const parts = books
+      .filter((row: any) => bookOf(row?.title) === newest)
+      .sort((a: any, b: any) => partOf(a?.title) - partOf(b?.title));
 
     const lines: string[] = [];
     let size = 0;
 
-    books.forEach((row: any) => {
+    parts.forEach((row: any) => {
       String(row?.text || "")
         .split(/\r?\n/)
         .forEach((raw: string) => {
           const line = raw.replace(/\s+/g, " ").trim();
-          if (!ruleLine(raw, line)) return;
-          if (lines.length >= MAX_LINES || size + line.length > MAX_CHARS) return;
+          if (!line) return;
+          if (size + line.length + 1 > MAX_RULES) return;
           size += line.length + 1;
           lines.push(line);
         });
