@@ -147,3 +147,125 @@ export async function renderBeat({ bpm, seconds, style }) {
   scheduleBeat(ctx, ctx.destination, { bpm, seconds: span, style });
   return ctx.startRendering();
 }
+
+const NOTE_NAMES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
+// how far into a song the key is read from, so a long file stays quick to work through
+const KEY_SECONDS = 45;
+
+/** The key a beat sits in, read from its own bass: each of the twelve notes is weighed across
+ *  the whole of it, and the one that carries the most is the root the voice has to sing in. */
+export function keyOf(buffer) {
+  const rate = buffer.sampleRate;
+  const span = Math.min(buffer.length, Math.floor(rate * KEY_SECONDS));
+  const left = buffer.getChannelData(0);
+  const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : left;
+  const block = 8192;
+  const chroma = new Float64Array(12);
+  const base = 65.41; // C2, where a bass line lives
+
+  for (let start = 0; start + block <= span; start += block) {
+    for (let note = 0; note < 12; note += 1) {
+      const freq = base * Math.pow(2, note / 12);
+      const coeff = 2 * Math.cos((2 * Math.PI * freq) / rate);
+      let s1 = 0;
+      let s2 = 0;
+      for (let i = 0; i < block; i += 1) {
+        const v = (left[start + i] + right[start + i]) * 0.5;
+        const s0 = v + coeff * s1 - s2;
+        s2 = s1;
+        s1 = s0;
+      }
+      chroma[note] += s1 * s1 + s2 * s2 - coeff * s1 * s2;
+    }
+  }
+
+  let best = 0;
+  let total = 0;
+  let top = 0;
+  for (let note = 0; note < 12; note += 1) {
+    total += chroma[note];
+    if (chroma[note] > best) {
+      best = chroma[note];
+      top = note;
+    }
+  }
+  if (!best) return { root: "", label: "", confident: false };
+
+  return {
+    root: NOTE_NAMES[top],
+    label: NOTE_NAMES[top] + " minor",
+    confident: best > (total / 12) * 1.6,
+  };
+}
+
+/** The key of a beat held as a file, or nothing when it cannot be read. */
+export async function keyBytes(bytes) {
+  try {
+    const buffer = await audioGraph().decodeAudioData(bytes.slice(0));
+    return keyOf(buffer).label;
+  } catch (err) {
+    return "";
+  }
+}
+
+/** Decodes a take held as a file, so it can be judged before it is handed over. */
+export async function decodeBytes(bytes) {
+  return audioGraph().decodeAudioData(bytes.slice(0));
+}
+
+function pulseAt(energy, lag, frames) {
+  let dot = 0;
+  let left = 0;
+  let right = 0;
+  for (let f = lag; f < frames; f += 1) {
+    const x = energy[f];
+    const y = energy[f - lag];
+    dot += x * y;
+    left += x * x;
+    right += y * y;
+  }
+  const den = Math.sqrt(left * right);
+  return den ? dot / den : 0;
+}
+
+/** Whether a take really came back with a beat under it: the sound has to pulse where the
+ *  tempo says the beat falls, which a plain reading of the lines never does. */
+export function hasBeat(buffer, bpm) {
+  const hop = 1024;
+  const frames = Math.floor(buffer.length / hop);
+  // too short to judge: it is let through rather than thrown away
+  if (frames < 96) return true;
+
+  const left = buffer.getChannelData(0);
+  const right = buffer.numberOfChannels > 1 ? buffer.getChannelData(1) : null;
+  const energy = new Float32Array(frames);
+
+  for (let f = 0; f < frames; f += 1) {
+    let sum = 0;
+    const start = f * hop;
+    for (let i = 0; i < hop; i += 4) {
+      const l = left[start + i] || 0;
+      const r = right ? right[start + i] || 0 : l;
+      const v = (l + r) * 0.5;
+      sum += v * v;
+    }
+    energy[f] = sum;
+  }
+
+  let mean = 0;
+  for (let f = 0; f < frames; f += 1) mean += energy[f];
+  mean /= frames;
+  for (let f = 0; f < frames; f += 1) energy[f] -= mean;
+
+  const fps = buffer.sampleRate / hop;
+  const beat = (60 / Math.min(180, Math.max(60, bpm || 112))) * fps;
+  let best = 0;
+  [beat / 2, beat, beat * 2].forEach((span) => {
+    const lag = Math.round(span);
+    if (lag < 2 || lag >= frames) return;
+    const found = pulseAt(energy, lag, frames);
+    if (found > best) best = found;
+  });
+
+  return best > 0.22;
+}

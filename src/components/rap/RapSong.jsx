@@ -15,8 +15,8 @@ export default function RapSong({ song, beat, note, busy, onSend, onBeatOnly }) 
       </div>
 
       <p className="rap-hint">
-        Tuma wimbo wako — studio huchukua sauti katikati ya mchanganyiko na kubakiza beat
-        pekee, bure na papo hapo.
+        Tuma wimbo wako — ElevenLabs hutenganisha sauti na beat, kisha beat pekee linabaki
+        bila sauti yoyote ndani yake. Inaweza kuchukua muda kwa wimbo mrefu.
       </p>
 
       <button
@@ -45,7 +45,7 @@ export default function RapSong({ song, beat, note, busy, onSend, onBeatOnly }) 
           <div className="rap-history-text">
             <p className="rap-history-title">{beat.name}</p>
             <p className="rap-hint">
-              {beat.source === "song" ? "Beat pekee kutoka kwa wimbo wako" : "Imetengenezwa na studio"}
+              {beat.source === "song" ? "Beat pekee lililotenganishwa na AI" : "Imetengenezwa na studio"}
             </p>
           </div>
           <BeatPlay bytes={beat.bytes} busy={busy} />

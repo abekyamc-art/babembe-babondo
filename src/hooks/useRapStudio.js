@@ -1,9 +1,17 @@
 import { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
-import { RAP_COST, balanceOf, spendCoins } from "@/lib/coins";
+import { RAP_COST, balanceOf, creditCoins, spendCoins } from "@/lib/coins";
 import { ensureProfile } from "@/lib/social";
-import { DEFAULT_BPM, DEFAULT_FLOW, beatSeconds, styleLabel } from "@/lib/rapBeat";
-import { readSong, renderBeat, stripVoice, tempoOf } from "@/lib/beatExtract";
+import {
+  APP_BEAT_KEY,
+  DEFAULT_BPM,
+  DEFAULT_FLOW,
+  DEFAULT_TAKE,
+  barsFor,
+  beatSeconds,
+  styleLabel,
+} from "@/lib/rapBeat";
+import { decodeBytes, hasBeat, keyBytes, readSong, renderBeat, stripVoice, tempoOf } from "@/lib/beatExtract";
 import { fetchAudio, mixTake, wavBlob } from "@/lib/rapAudio";
 import { saveBlob, saveRemote, slug, takeText, videoName } from "@/lib/rapLines";
 import { recordTake } from "@/lib/rapVideo";
@@ -19,7 +27,7 @@ export default function useRapStudio() {
     flow: DEFAULT_FLOW,
     beat: "app",
     bpm: DEFAULT_BPM,
-    bars: 16,
+    seconds: DEFAULT_TAKE,
     topic: "",
   });
   const [lines, setLines] = useState([]);
@@ -103,7 +111,22 @@ export default function useRapStudio() {
     try {
       const read = await readSong(file);
       const found = tempoOf(read.buffer);
-      setSong({ name: file.name, buffer: read.buffer, bpm: found.bpm, confident: found.confident });
+      // the song is kept privately so the cloud separation can read it back; without it the
+      // beat is still lifted on the phone
+      let file_uri = "";
+      try {
+        const kept = await base44.integrations.Core.UploadPrivateFile({ file });
+        file_uri = kept?.file_uri || "";
+      } catch (err) {
+        file_uri = "";
+      }
+      setSong({
+        name: file.name,
+        buffer: read.buffer,
+        bpm: found.bpm,
+        confident: found.confident,
+        file_uri,
+      });
       setBeatNote(
         found.confident
           ? `Wimbo wako umepimwa: mwendo wa ${found.bpm} BPM.`
@@ -116,37 +139,60 @@ export default function useRapStudio() {
     setBusy("");
   }, []);
 
-  /** The voice lifted out of the middle of the mix, leaving the beat — free and straight away. */
+  /** The voice taken out of the middle of the mix on the phone: the fallback for when the
+   *  cloud separation cannot run at all. */
+  const phoneBeatOnly = useCallback(async () => {
+    const out = stripVoice(song.buffer);
+    if (!out.ok) return false;
+
+    const blob = wavBlob(out.buffer);
+    const bytes = await blob.arrayBuffer();
+    const bpm = song.confident ? song.bpm : settings.bpm;
+    const file = new File([blob], `${slug(song.name)}-beat.wav`, { type: "audio/wav" });
+    const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+
+    setBeat({ name: `Beat pekee · ${bpm} BPM`, bytes, file_uri, bpm, source: "song" });
+    setSettings((prev) => ({ ...prev, beat: "mine", bpm }));
+    return true;
+  }, [settings.bpm, song]);
+
+  /** The beat alone out of a song: the song goes to ElevenLabs' own separation, which hands
+   *  back the band with its drums and bass still in it and the singing really gone. The
+   *  phone's own clean-up stays as the fallback when the cloud separation cannot run. */
   const makeBeatOnly = useCallback(async () => {
     if (busy || !song) return;
     setError("");
     setBeatNote("");
-    setBusy("strip");
+    setBusy("stems");
     try {
-      const out = stripVoice(song.buffer);
-      if (!out.ok) {
-        setBeatNote(
-          "Wimbo huu hauna sauti katikati inayoweza kutolewa, kwa hiyo hakuna beat pekee iliyobaki — jaribu “Beat kama huu” badala yake."
-        );
-        setBusy("");
-        return;
-      }
+      if (!song.file_uri) throw new Error("no-file");
+      const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({
+        file_uri: song.file_uri,
+        expires_in: 900,
+      });
+      const res = await base44.functions.invoke("rapStems", { url: signed_url });
+      const fileUri = res?.data?.file_uri;
+      if (!fileUri) throw new Error(res?.data?.error || "stems");
 
-      const blob = wavBlob(out.buffer);
-      const bytes = await blob.arrayBuffer();
+      const { signed_url: beatUrl } = await base44.integrations.Core.CreateFileSignedUrl({
+        file_uri: fileUri,
+      });
+      const bytes = await fetchAudio(beatUrl);
       const bpm = song.confident ? song.bpm : settings.bpm;
-      const name = `Beat pekee · ${bpm} BPM`;
-      const file = new File([blob], `${slug(song.name)}-beat.wav`, { type: "audio/wav" });
-      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
 
-      setBeat({ name, bytes, file_uri, bpm, source: "song" });
+      setBeat({ name: `Beat pekee · ${bpm} BPM`, bytes, file_uri: fileUri, bpm, source: "song" });
       setSettings((prev) => ({ ...prev, beat: "mine", bpm }));
-      setBeatNote("Beat pekee imetolewa — itakuwa chini ya take yako.");
+      setBeatNote("Beat pekee limetenganishwa — hakuna sauti iliyobaki ndani yake.");
     } catch (err) {
-      setError("Sauti haikuweza kutolewa kwenye simu hii. Jaribu wimbo mwingine.");
+      const done = await phoneBeatOnly().catch(() => false);
+      setBeatNote(
+        done
+          ? "ElevenLabs haikuweza kutenganisha; sauti imetolewa kwenye simu — inaweza kubakiza chembe za sauti."
+          : "Wimbo huu hauwezi kutenganishwa, kwa hiyo hakuna beat pekee lililobaki — jaribu “Beat kama huu” badala yake."
+      );
     }
     setBusy("");
-  }, [busy, settings.bpm, song]);
+  }, [busy, phoneBeatOnly, settings.bpm, song]);
 
   /** Base44 AI builds a similar beat itself, at the measured tempo, in the style they picked —
    *  and keeps it, so later takes can drop it on with no rebuilding. */
@@ -160,7 +206,7 @@ export default function useRapStudio() {
       const buffer = await renderBeat({
         bpm,
         style: beatStyle,
-        seconds: beatSeconds(settings.bars, bpm) + 2,
+        seconds: beatSeconds(barsFor(settings.seconds, bpm), bpm) + 2,
       });
       const blob = wavBlob(buffer);
       const bytes = await blob.arrayBuffer();
@@ -178,7 +224,7 @@ export default function useRapStudio() {
       setError("Beat haikuweza kutengenezwa. Jaribu tena.");
     }
     setBusy("");
-  }, [beatStyle, busy, settings.bars, settings.bpm, song]);
+  }, [beatStyle, busy, settings.bpm, settings.seconds, song]);
 
   /** The bytes of a kept beat, fetched from its own private file. */
   const beatBytesOf = useCallback(async (row) => {
@@ -226,7 +272,7 @@ export default function useRapStudio() {
       const res = await base44.functions.invoke("rapLyrics", {
         action: "plan",
         topic: settings.topic,
-        bars: settings.bars,
+        bars: barsFor(settings.seconds, settings.bpm),
         bpm: settings.bpm,
         flow: settings.flow,
       });
@@ -261,7 +307,7 @@ export default function useRapStudio() {
             words_used: idea.words_used,
           },
           topic: settings.topic,
-          bars: settings.bars,
+          bars: barsFor(settings.seconds, settings.bpm),
           bpm: settings.bpm,
           flow: settings.flow,
         });
@@ -295,6 +341,7 @@ export default function useRapStudio() {
           voice: settings.voice,
           beat: settings.beat,
           bpm: settings.bpm,
+          seconds: settings.seconds,
           ebembe_lines: currentLines.map((line) => line.ebembe),
           swahili_lines: currentLines.map((line) => line.swahili),
           words_used: wordsUsed,
@@ -310,7 +357,10 @@ export default function useRapStudio() {
     [beat, settings, titleOf, wordsUsed]
   );
 
-  /** The singing voice takes the lines, then the take is mixed on the phone. */
+  /** The singing voice takes the lines, then the take is mixed on the phone. What comes back
+   *  has to carry a beat where the tempo says it falls: a take that was read out instead of
+   *  sung is thrown away and made once more, and if the second one is no better the coins go
+   *  back to the wallet and the person is told. */
   const makeVoice = useCallback(async () => {
     if (busy || !user || !lines.length) return;
     setError("");
@@ -330,15 +380,45 @@ export default function useRapStudio() {
       const spent = await spendCoins(wallet, RAP_COST);
       if (spent) setProfile(spent);
 
-      const res = await base44.functions.invoke("rapVoice", {
-        lines: current.map((line) => line.ebembe),
-        bpm: settings.bpm,
-        beat: settings.beat,
-        voice: settings.voice,
-        flow: settings.flow,
-      });
-      const data = res?.data || {};
-      if (!data.audio_url) throw new Error(data.error || "Sauti haikuja. Jaribu tena.");
+      // the key the voice sings in: the person's own beat gives it, the studio's own beat has its own
+      const key =
+        settings.beat === "mine" && beat?.bytes ? await keyBytes(beat.bytes) : APP_BEAT_KEY;
+
+      // A sung take has to carry a beat where the tempo says the beat falls: a reading of the
+      // lines never does, so it is no take at all. The assistant's own voice is a spoken take
+      // by choice, so that one is taken as it comes.
+      const sing = async () => {
+        try {
+          const res = await base44.functions.invoke("rapVoice", {
+            lines: current.map((line) => line.ebembe),
+            bpm: settings.bpm,
+            beat: settings.beat,
+            voice: settings.voice,
+            flow: settings.flow,
+            key,
+          });
+          const data = res?.data || {};
+          if (!data.audio_url) return null;
+          if (settings.voice !== "sing") return data;
+
+          const heard = await decodeBytes(await fetchAudio(data.song_url || data.audio_url));
+          return hasBeat(heard, settings.bpm) ? data : null;
+        } catch (err) {
+          return null;
+        }
+      };
+
+      let data = await sing();
+      if (!data) data = await sing();
+      if (!data) {
+        const back = await creditCoins(user.email, RAP_COST);
+        if (back) setProfile(back);
+        setError(
+          `Take haikuweza kutengenezwa kwa mara mbili — coins ${RAP_COST} zimerudi kwenye wallet yako. Jaribu tena.`
+        );
+        setBusy("");
+        return;
+      }
 
       const seconds = Number(data.seconds) || beatSeconds(current.length, settings.bpm);
       const vocalBytes = await fetchAudio(data.audio_url);
@@ -426,6 +506,7 @@ export default function useRapStudio() {
     setSettings((prev) => ({
       ...prev,
       bpm: saved.bpm || prev.bpm,
+      seconds: saved.seconds || prev.seconds,
       beat: saved.beat || prev.beat,
       voice: saved.voice || prev.voice,
       topic: saved.title || prev.topic,

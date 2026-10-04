@@ -31,8 +31,37 @@ export function styleLabel(id) {
 }
 
 export const TEMPOS = [96, 112, 124, 144];
-export const LENGTHS = [8, 16, 32];
 export const DEFAULT_BPM = 112;
+
+/** How long a take runs, chosen by time rather than by bars. */
+export const TAKES = [
+  { id: 10, label: "10s" },
+  { id: 30, label: "30s" },
+  { id: 60, label: "1 dakika" },
+  { id: 90, label: "1:30" },
+  { id: 120, label: "2 dakika" },
+];
+export const DEFAULT_TAKE = 30;
+export const MIN_BARS = 4;
+export const MAX_BARS = 80;
+
+/** The key the studio's own beat is built in: its bass runs on A, B, C and D, A minor. */
+export const APP_BEAT_KEY = "A minor";
+
+/** The bars that fill the chosen time at this tempo, one bar being four beats. */
+export function barsFor(seconds, bpm) {
+  const span = Math.max(1, Number(seconds) || DEFAULT_TAKE);
+  const tempo = Math.max(60, Number(bpm) || DEFAULT_BPM);
+  return Math.min(MAX_BARS, Math.max(MIN_BARS, Math.round((span * tempo) / 240)));
+}
+
+/** A time as it is written beside a take: 30s, or 1:30. */
+export function timeLabel(seconds) {
+  const total = Math.max(0, Math.round(Number(seconds) || 0));
+  const minutes = Math.floor(total / 60);
+  const rest = total % 60;
+  return minutes ? minutes + ":" + String(rest).padStart(2, "0") : total + "s";
+}
 
 /** The kinds of rap the studio can lay down: from laid-back to rapid-fire. */
 export const FLOW_OPTIONS = [

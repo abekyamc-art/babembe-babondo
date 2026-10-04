@@ -1,6 +1,6 @@
 import React, { useRef } from "react";
 import { Upload } from "lucide-react";
-import { BEAT_OPTIONS, FLOW_OPTIONS, LENGTHS, TEMPOS, VOICE_OPTIONS, flowOf } from "@/lib/rapBeat";
+import { BEAT_OPTIONS, FLOW_OPTIONS, TAKES, TEMPOS, VOICE_OPTIONS, barsFor, flowOf } from "@/lib/rapBeat";
 
 function Pills({ options, value, onPick, busy }) {
   return (
@@ -81,13 +81,14 @@ export default function RapControls({ settings, words, beatName, onChange, onBea
       </div>
 
       <div className="rap-group">
-        <span className="rap-label">Urefu (bars)</span>
+        <span className="rap-label">Urefu wa take</span>
         <Pills
-          options={LENGTHS.map((bars) => ({ id: bars, label: `${bars} bars` }))}
-          value={settings.bars}
+          options={TAKES}
+          value={settings.seconds}
           busy={busy}
-          onPick={(value) => pick("bars", Number(value))}
+          onPick={(value) => pick("seconds", Number(value))}
         />
+        <p className="rap-hint">{barsFor(settings.seconds, settings.bpm)} bars kwa mwendo huu.</p>
       </div>
 
       <div className="rap-group">

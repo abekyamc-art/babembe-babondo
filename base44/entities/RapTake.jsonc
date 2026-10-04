@@ -30,6 +30,10 @@
       "default": 112,
       "description": "How fast the take runs, in beats per minute."
     },
+    "seconds": {
+      "type": "number",
+      "description": "How long the take runs, in seconds, as it was chosen in the studio and shown beside it in the history."
+    },
     "ebembe_lines": {
       "type": "array",
       "items": {

@@ -22,7 +22,8 @@ const BUSY_LABEL = {
   voice: "ElevenLabs inaimba mistari yako…",
   video: "Video inatengenezwa…",
   read: "Wimbo wako unapimwa…",
-  strip: "Sauti inatolewa katikati ya mchanganyiko…",
+  stems: "ElevenLabs inatenganisha sauti na beat…",
+  strip: "Sauti inatolewa kwenye simu…",
   beat: "Base44 AI inatengeneza beat kama huo…",
 };
 
