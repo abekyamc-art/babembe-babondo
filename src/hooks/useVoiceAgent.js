@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import VoiceSocket from "@/lib/elevenLabsSocket";
 import Base44Call from "@/lib/base44Call";
 import AvatarCall from "@/lib/avatarCall";
-import { voiceMode } from "@/lib/voiceMode";
+import { useVoiceMode, voiceMode } from "@/lib/voiceMode";
 import { base44 } from "@/api/base44Client";
 import { buildMemory } from "@/lib/agentMemory";
 import { loadFreshMaterial, loadKnowledgeNote, withKnowledge } from "@/lib/knowledge";
@@ -47,6 +47,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
   // of starting it over
   const storyRef = useRef(emptyStory());
 
+  // the mode in force, kept in step with the admin's switch: a switch ends whatever
+  // session is on air, so the mode that was chosen is the only one left answering
+  const mode = useVoiceMode();
   const [status, setStatus] = useState("idle");
   const [speaking, setSpeaking] = useState(false);
   const [thinking, setThinking] = useState(false);
@@ -72,6 +75,23 @@ export default function useVoiceAgent({ videoRef } = {}) {
       alive = false;
     };
   }, []);
+
+  // The admin's switch takes the other provider out of the room. Whichever session is on
+  // air was opened under the mode that is no longer in force, so it is ended right here:
+  // nothing said before the switch is answered by the provider that was just turned off,
+  // and every turn after it is answered by the mode that was chosen.
+  useEffect(() => {
+    const engine = socketRef.current;
+    if (!engine || engine.mode === mode) return;
+    socketRef.current = null;
+    heldRef.current = "";
+    setSpeaking(false);
+    setThinking(false);
+    setMicActive(false);
+    setAvatarLive(false);
+    setStatus("idle");
+    Promise.resolve(engine.stop?.()).catch(() => {});
+  }, [mode]);
 
   const pushTurn = useCallback((role, text) => {
     // a turn is answered by the reply that follows it, so the last unanswered one is
@@ -242,9 +262,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
       } else if (resuming) {
         sentRef.current = opening;
       }
-      // a call already listening through the microphone carries on; a written session
-      // gives way the moment the microphone is asked for
-      if (existing?.connected && (!withMic || existing.micOn)) {
+      // a call already listening through the microphone carries on — so long as it is the
+      // session of the mode in force; a session left over from the other mode is never
+      // spoken into, it is ended first so the turn goes to the chosen mode
+      if (existing?.connected && (!withMic || existing.micOn) && existing.mode === voiceMode()) {
         if (firstMessage) {
           if (silent) await holdForKnowledge(existing);
           existing.sendText(firstMessage);
@@ -285,6 +306,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
       const secondVoice = voiceMode() === "base44" && withMic;
       if (voiceMode() === "base44" && !secondVoice) {
         const call = new Base44Call(handlers);
+        // the mode this session answers under, so a later switch knows to end it
+        call.mode = voiceMode();
         socketRef.current = call;
         quietRef.current = silent;
         setMicActive(withMic);
@@ -311,6 +334,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // spoken on the admin's second one
       if (!silent && !secondVoice && faceReadyRef.current && videoRef?.current) {
         const call = new AvatarCall(handlers);
+        call.mode = voiceMode();
         socketRef.current = call;
         quietRef.current = false;
         setMicActive(withMic);
@@ -335,6 +359,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
       }
 
       const socket = new VoiceSocket(handlers);
+      socket.mode = voiceMode();
       socketRef.current = socket;
       quietRef.current = silent;
       setMicActive(withMic);
