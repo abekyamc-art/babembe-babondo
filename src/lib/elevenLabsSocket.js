@@ -190,6 +190,8 @@ export default class VoiceSocket {
     this.captureFrom = 0;
     this.captureFrames = [];
     this.hearing = false;
+    // whether the reason the cleanup is unavailable has already been said in this call
+    this.cleanupNoted = false;
     // a helper session is asked again on the next turn, so it is never hung up on its own
     this.keepOpen = false;
   }
@@ -241,6 +243,7 @@ export default class VoiceSocket {
     this.autoEnding = false;
     // nothing of the last session rides into this one: no turn, no stale breath
     this.setAwaiting(false);
+    this.cleanupNoted = false;
     this.lastUserText = "";
     this.turnAt = 0;
     this.beatDue = false;
@@ -553,10 +556,11 @@ export default class VoiceSocket {
   }
 
   /**
-   * The turn is over, so it is written down: the sound goes to the app's own ears, and the
-   * words that come back — with the language they were spoken in — are handed to whoever
-   * answers. Those words are what is put into the session, so the answer is spoken and the
-   * room itself is never listened to.
+   * The turn is over, so it is written down: the room is taken out of the sound first — the noise
+   * cleanup keeps only the voice in it — and what is left goes to the app's own ears. The words
+   * that come back, with the language they were spoken in, are handed to whoever answers; those
+   * words are what is put into the session, so the answer is spoken and the room itself is never
+   * listened to, nor answered as though the person had asked something.
    */
   async readTurn() {
     if (!this.captureOn) return;
@@ -582,7 +586,15 @@ export default class VoiceSocket {
       });
       const text = String(res?.data?.text || "").trim();
       const language = String(res?.data?.language || "").trim();
-      // nothing was said, so there is nothing to put to him
+      // the cleanup could not be made this time: the turn was read exactly as it was before it,
+      // and the reason is said once in this call so nobody is left wondering whether the room is
+      // being cleaned at all
+      const cleanup = String(res?.data?.cleanup || "").trim();
+      if (cleanup && !this.cleanupNoted) {
+        this.cleanupNoted = true;
+        this.h.onError?.(cleanup);
+      }
+      // nothing was said — or what was said carried no word — so there is nothing to put to him
       if (!text) {
         this.setAwaiting(false);
         return;
