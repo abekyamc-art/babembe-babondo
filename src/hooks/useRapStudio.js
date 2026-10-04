@@ -2,7 +2,8 @@ import { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { RAP_COST, balanceOf, spendCoins } from "@/lib/coins";
 import { ensureProfile } from "@/lib/social";
-import { DEFAULT_BPM, beatSeconds } from "@/lib/rapBeat";
+import { DEFAULT_BPM, beatSeconds, styleLabel } from "@/lib/rapBeat";
+import { readSong, renderBeat, stripVoice, tempoOf } from "@/lib/beatExtract";
 import { fetchAudio, mixTake, wavBlob } from "@/lib/rapAudio";
 import { saveBlob, saveRemote, slug, takeText, videoName } from "@/lib/rapLines";
 import { recordTake } from "@/lib/rapVideo";
@@ -27,6 +28,10 @@ export default function useRapStudio() {
   const [take, setTake] = useState(null);
   const [takes, setTakes] = useState([]);
   const [beat, setBeat] = useState(null);
+  const [song, setSong] = useState(null);
+  const [savedBeats, setSavedBeats] = useState([]);
+  const [beatStyle, setBeatStyle] = useState("afro");
+  const [beatNote, setBeatNote] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [shortOnCoins, setShortOnCoins] = useState(false);
@@ -56,6 +61,12 @@ export default function useRapStudio() {
       } catch (err) {
         // the history stays empty
       }
+      try {
+        const kept = await base44.entities.SavedBeat.filter({}, { sort: "-created_date", limit: 20 });
+        if (alive) setSavedBeats(kept?.items || []);
+      } catch (err) {
+        // the saved beats row stays empty
+      }
     })();
     return () => {
       alive = false;
@@ -80,6 +91,128 @@ export default function useRapStudio() {
       setSettings((prev) => ({ ...prev, beat: "mine" }));
     } catch (err) {
       setError("Beat yako haikuweza kupakiwa. Jaribu tena.");
+    }
+  }, []);
+
+  /** A song the person sends: read on the phone, its speed measured, its voice ready to lift. */
+  const sendSong = useCallback(async (file) => {
+    setError("");
+    setBeatNote("");
+    setBusy("read");
+    try {
+      const read = await readSong(file);
+      const found = tempoOf(read.buffer);
+      setSong({ name: file.name, buffer: read.buffer, bpm: found.bpm, confident: found.confident });
+      setBeatNote(
+        found.confident
+          ? `Wimbo wako umepimwa: mwendo wa ${found.bpm} BPM.`
+          : "Sikuweza kupima mwendo wa wimbo huu — natumia BPM ya studio."
+      );
+      if (found.confident) setSettings((prev) => ({ ...prev, bpm: found.bpm }));
+    } catch (err) {
+      setError(err?.message || "Wimbo haukuweza kusomwa. Jaribu faili jingine.");
+    }
+    setBusy("");
+  }, []);
+
+  /** The voice lifted out of the middle of the mix, leaving the beat — free and straight away. */
+  const makeBeatOnly = useCallback(async () => {
+    if (busy || !song) return;
+    setError("");
+    setBeatNote("");
+    setBusy("strip");
+    try {
+      const out = stripVoice(song.buffer);
+      if (!out.ok) {
+        setBeatNote(
+          "Wimbo huu hauna sauti katikati inayoweza kutolewa, kwa hiyo hakuna beat pekee iliyobaki — jaribu “Beat kama huu” badala yake."
+        );
+        setBusy("");
+        return;
+      }
+
+      const blob = wavBlob(out.buffer);
+      const bytes = await blob.arrayBuffer();
+      const bpm = song.confident ? song.bpm : settings.bpm;
+      const name = `Beat pekee · ${bpm} BPM`;
+      const file = new File([blob], `${slug(song.name)}-beat.wav`, { type: "audio/wav" });
+      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+
+      setBeat({ name, bytes, file_uri, bpm, source: "song" });
+      setSettings((prev) => ({ ...prev, beat: "mine", bpm }));
+      setBeatNote("Beat pekee imetolewa — itakuwa chini ya take yako.");
+    } catch (err) {
+      setError("Sauti haikuweza kutolewa kwenye simu hii. Jaribu wimbo mwingine.");
+    }
+    setBusy("");
+  }, [busy, settings.bpm, song]);
+
+  /** Base44 AI builds a similar beat itself, at the measured tempo, in the style they picked —
+   *  and keeps it, so later takes can drop it on with no rebuilding. */
+  const makeSimilarBeat = useCallback(async () => {
+    if (busy) return;
+    setError("");
+    setBeatNote("");
+    setBusy("beat");
+    try {
+      const bpm = song?.confident ? song.bpm : settings.bpm;
+      const buffer = await renderBeat({
+        bpm,
+        style: beatStyle,
+        seconds: beatSeconds(settings.bars, bpm) + 2,
+      });
+      const blob = wavBlob(buffer);
+      const bytes = await blob.arrayBuffer();
+      const name = `${styleLabel(beatStyle)} · ${bpm} BPM`;
+      const file = new File([blob], `${slug(name)}.wav`, { type: "audio/wav" });
+      const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+
+      setBeat({ name, bytes, file_uri, bpm, style: beatStyle, source: "ai" });
+      setSettings((prev) => ({ ...prev, beat: "mine", bpm }));
+      setBeatNote("Beat hii imehifadhiwa — unaweza kuitumia tena kwenye take yoyote.");
+
+      const kept = await base44.entities.SavedBeat.create({ name, bpm, style: beatStyle, file_uri });
+      setSavedBeats((prev) => [kept, ...prev]);
+    } catch (err) {
+      setError("Beat haikuweza kutengenezwa. Jaribu tena.");
+    }
+    setBusy("");
+  }, [beatStyle, busy, settings.bars, settings.bpm, song]);
+
+  /** The bytes of a kept beat, fetched from its own private file. */
+  const beatBytesOf = useCallback(async (row) => {
+    const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({
+      file_uri: row.file_uri,
+    });
+    return fetchAudio(signed_url);
+  }, []);
+
+  /** A beat that was kept, straight onto the take. */
+  const useSavedBeat = useCallback(
+    async (row) => {
+      if (busy) return;
+      setError("");
+      setBusy("beat");
+      try {
+        const bytes = await beatBytesOf(row);
+        setBeat({ name: row.name, bytes, file_uri: row.file_uri, bpm: row.bpm, style: row.style, source: "ai" });
+        setSettings((prev) => ({ ...prev, beat: "mine", bpm: row.bpm || prev.bpm }));
+        setBeatNote(`${row.name} imewekwa chini ya take yako.`);
+      } catch (err) {
+        setError("Beat hii haikuweza kupakiwa. Jaribu tena.");
+      }
+      setBusy("");
+    },
+    [beatBytesOf, busy]
+  );
+
+  const removeSavedBeat = useCallback(async (row) => {
+    setError("");
+    try {
+      await base44.entities.SavedBeat.delete(row.id);
+      setSavedBeats((prev) => prev.filter((item) => item.id !== row.id));
+    } catch (err) {
+      setError("Beat hii haikuweza kuondolewa. Jaribu tena.");
     }
   }, []);
 
@@ -314,10 +447,21 @@ export default function useRapStudio() {
     take,
     takes,
     beat,
+    song,
+    savedBeats,
+    beatStyle,
+    setBeatStyle,
+    beatNote,
     busy,
     error,
     shortOnCoins,
     setBeatFile,
+    sendSong,
+    makeBeatOnly,
+    makeSimilarBeat,
+    beatBytesOf,
+    useSavedBeat,
+    removeSavedBeat,
     planIdeas,
     writeIdea,
     editLine,

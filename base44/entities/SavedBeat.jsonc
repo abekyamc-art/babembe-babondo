@@ -1,0 +1,48 @@
+{
+  "name": "SavedBeat",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "What the beat is called in the saved row: its style and the tempo it was built at."
+    },
+    "bpm": {
+      "type": "number",
+      "default": 112,
+      "description": "The tempo the beat was built at, so a later take knows how fast it runs."
+    },
+    "style": {
+      "type": "string",
+      "enum": [
+        "afro",
+        "bongo",
+        "dancehall",
+        "trap"
+      ],
+      "default": "afro",
+      "description": "The feel the beat was built in: Afro-Zaga, Bongo Flava, Dancehall or Trap."
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "Private storage reference for the beat's own file, so it can be dropped onto a later take without being rebuilt. It is never shared."
+    }
+  },
+  "required": [
+    "name",
+    "file_uri"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}

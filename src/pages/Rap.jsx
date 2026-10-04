@@ -10,6 +10,9 @@ import RapLyrics from "@/components/rap/RapLyrics";
 import RapPlayer from "@/components/rap/RapPlayer";
 import RapDownloads from "@/components/rap/RapDownloads";
 import RapHistory from "@/components/rap/RapHistory";
+import RapSong from "@/components/rap/RapSong";
+import RapSimilar from "@/components/rap/RapSimilar";
+import SavedBeats from "@/components/rap/SavedBeats";
 import { RAP_COST } from "@/lib/coins";
 import "@/rap-studio.css";
 
@@ -18,6 +21,9 @@ const BUSY_LABEL = {
   write: "Base44 AI inaandika wazo lako mistari kwa mistari…",
   voice: "ElevenLabs inaimba mistari yako…",
   video: "Video inatengenezwa…",
+  read: "Wimbo wako unapimwa…",
+  strip: "Sauti inatolewa katikati ya mchanganyiko…",
+  beat: "Base44 AI inatengeneza beat kama huo…",
 };
 
 export default function Rap() {
@@ -45,6 +51,23 @@ export default function Rap() {
         busy={!!busy || !ready}
         onChange={studio.setSettings}
         onBeatFile={studio.setBeatFile}
+      />
+
+      <RapSong
+        song={studio.song}
+        beat={beat}
+        note={studio.beatNote}
+        busy={!!busy || !ready}
+        onSend={studio.sendSong}
+        onBeatOnly={studio.makeBeatOnly}
+      />
+
+      <RapSimilar
+        style={studio.beatStyle}
+        bpm={studio.song?.confident ? studio.song.bpm : settings.bpm}
+        busy={!!busy || !ready}
+        onStyle={studio.setBeatStyle}
+        onBuild={studio.makeSimilarBeat}
       />
 
       {busy ? (
@@ -128,6 +151,15 @@ export default function Rap() {
       ) : null}
 
       <RapHistory takes={studio.takes} onReuse={studio.reuse} />
+
+      <SavedBeats
+        beats={studio.savedBeats}
+        activeUri={beat?.file_uri || ""}
+        busy={!!busy || !ready}
+        onUse={studio.useSavedBeat}
+        onRemove={studio.removeSavedBeat}
+        loadBytes={studio.beatBytesOf}
+      />
     </div>
   );
 }

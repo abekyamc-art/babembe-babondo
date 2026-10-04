@@ -18,6 +18,18 @@ export const BEAT_OPTIONS = [
   { id: "none", label: "Bila beat" },
 ];
 
+/** The feels the studio's own engine can lay down when a similar beat is asked for. */
+export const BEAT_STYLES = [
+  { id: "afro", label: "Afro-Zaga" },
+  { id: "bongo", label: "Bongo Flava" },
+  { id: "dancehall", label: "Dancehall" },
+  { id: "trap", label: "Trap" },
+];
+
+export function styleLabel(id) {
+  return BEAT_STYLES.find((style) => style.id === id)?.label || "Beat";
+}
+
 export const TEMPOS = [96, 112, 124];
 export const LENGTHS = [8, 16, 32];
 export const DEFAULT_BPM = 112;
@@ -111,11 +123,46 @@ function bass(ctx, out, at, freq) {
   osc.stop(at + 0.55);
 }
 
+/** One bar in sixteenths per feel: the steps the kick, the clap and the bass fall on, the
+    pitch of each tom, and how hard the shaker shakes on every step (1 ordinary, 2 accented,
+    0 silent). The feel is a pattern inside this one engine, never a second engine. */
+const STYLE_PATTERNS = {
+  afro: {
+    kick: [0, 6, 8],
+    clap: [4, 12],
+    toms: { 3: 300, 7: 236, 10: 300, 14: 236 },
+    bass: [0, 10],
+    shaker: [1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1],
+  },
+  bongo: {
+    kick: [0, 8],
+    clap: [4, 12],
+    toms: { 6: 280, 14: 216 },
+    bass: [0, 8],
+    shaker: [2, 0, 1, 0, 2, 0, 1, 0, 2, 0, 1, 0, 2, 0, 1, 0],
+  },
+  dancehall: {
+    kick: [8],
+    clap: [4, 12],
+    toms: {},
+    bass: [0, 8],
+    shaker: [2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 2, 1, 1, 1],
+  },
+  trap: {
+    kick: [0, 6, 10],
+    clap: [8],
+    toms: {},
+    bass: [0, 10],
+    shaker: [1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 0, 1, 0],
+  },
+};
+
 /**
  * Lays the whole beat into an audio graph and returns how long it runs. The pattern is
  * counted in sixteenths, so one bar is sixteen steps at any tempo.
  */
-export function scheduleBeat(ctx, out, { bpm = DEFAULT_BPM, seconds = 30, at = 0 } = {}) {
+export function scheduleBeat(ctx, out, { bpm = DEFAULT_BPM, seconds = 30, at = 0, style = "afro" } = {}) {
+  const pattern = STYLE_PATTERNS[style] || STYLE_PATTERNS.afro;
   const step = 60 / Math.max(60, bpm) / 4;
   const noise = noiseBuffer(ctx);
   const roots = [55, 61.74, 65.41, 73.42];
@@ -126,12 +173,13 @@ export function scheduleBeat(ctx, out, { bpm = DEFAULT_BPM, seconds = 30, at = 0
     const m = i % 16;
     const bar = Math.floor(i / 16);
 
-    if (m === 0 || m === 6 || m === 8) kick(ctx, out, t);
-    if (m === 4 || m === 12) clap(ctx, out, t, noise);
-    if (m === 3 || m === 7 || m === 10 || m === 14) tom(ctx, out, t, m === 3 || m === 10 ? 300 : 236);
-    shaker(ctx, out, t, noise, m % 4 === 2 ? 0.13 : 0.07);
-    if (m === 0) bass(ctx, out, t, roots[bar % roots.length]);
-    if (m === 10) bass(ctx, out, t, roots[(bar + 2) % roots.length]);
+    if (pattern.kick.includes(m)) kick(ctx, out, t);
+    if (pattern.clap.includes(m)) clap(ctx, out, t, noise);
+    if (pattern.toms[m]) tom(ctx, out, t, pattern.toms[m]);
+    if (pattern.shaker[m]) shaker(ctx, out, t, noise, pattern.shaker[m] === 2 ? 0.13 : 0.07);
+    pattern.bass.forEach((step, index) => {
+      if (step === m) bass(ctx, out, t, roots[(bar + index * 2) % roots.length]);
+    });
   }
 
   return steps * step;
