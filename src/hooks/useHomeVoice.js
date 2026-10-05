@@ -250,28 +250,30 @@ export default function useHomeVoice() {
     try {
       const from = whoIsOn();
 
-      // each older talk AI takes the call in turn, and Cartesia AI is handed it back once they have
-      // each had one — its own turn is what starts the ring round again. With Cartesia AI down for
-      // this call the ring simply carries on among the talk AIs.
-      const ringDone = from.which === TALK && usedRef.current.length >= TALK_IDS.length;
-      const wantedTalk = from.which === CARTESIA || !ringDone || downRef.current;
+      // The talk AIs take the call in turn — they only, so the voice that opened the call is never
+      // handed the turn again by a tap. Once each of them has had one the ring starts a fresh round:
+      // the AI that has just finished stands aside and the one that follows it takes the next turn,
+      // so a tap after a turn always opens the next AI in the sequence and never the first one.
+      if (from.which === TALK && usedRef.current.length >= TALK_IDS.length) {
+        usedRef.current = [from.id];
+      }
 
       // the voice the signal named — asked for while the answer before the last one was still being
       // given — or, where it named nobody, the one that follows in order
       const asked = signalRef.current;
       signalRef.current = null;
-      const first = wantedTalk ? await (asked || nextTalk(from)) : null;
+      const first = await (asked || nextTalk(from));
       // the person ended the call while the signal was on its way
       if (!callingRef.current) return;
-      // nobody could be found to take the turn, and the ring is not at its end: the call stays
-      // exactly where it is, rather than dropping back onto the AI the ring opened on
-      if (wantedTalk && !first) {
+      // nobody could be named: the call stays exactly where it is, rather than dropping back onto the
+      // AI the ring opened on
+      if (!first) {
         setNotice(noSignalNotice(from.label));
         return;
       }
 
-      // who may take the next turn, in the order the turn passes: that voice and the ones that
-      // follow it round the ring, and Cartesia AI closing the ring — each of them once
+      // who may take the next turn, in the order the ring runs: the voice the signal named and the
+      // ones that follow it, each of them once — anyone who has already had a turn is passed over
       const plan = [];
       const planned = new Set();
       let candidate = first;
@@ -286,10 +288,6 @@ export default function useHomeVoice() {
         candidate = await askServer(id, "");
         if (!callingRef.current) return;
       }
-      if (!downRef.current) {
-        plan.push({ which: CARTESIA, id: CARTESIA, label: CARTESIA_AI, account: "" });
-      }
-
       // the call on air is hung up here, and the next voice waits: the person's own tap on the phone
       // is what opens it, with the microphone, so a call that has taken its turn never speaks on
       // into an empty room
