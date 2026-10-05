@@ -32,19 +32,31 @@ export default async function (req: Request): Promise<Response> {
 
     const reply = String(payload?.reply || "").slice(0, 600);
     const from = String(payload?.from || "");
+    // The AIs that have already had their turn in the ring running now. A turn is never handed back
+    // to one of them: that is what used to drop every handoff back onto the AI the ring opened on.
+    const used = new Set(
+      (Array.isArray(payload?.used) ? payload.used : [])
+        .map((id: any) => String(id))
+        .slice(0, 8)
+    );
     const named = slotNamed(reply);
     // the account a turn is handed to must be whole: its own key and its own agent id
     const ready = (slot: any) => !!secretOr(slot.key) && !!secretOr(slot.agent);
+    const fits = (slot: any) => !!slot && slot.id !== from && ready(slot);
 
     // The AI the signal named takes the turn when it is a real one, when it is not the AI taking
-    // its break, and when its account is whole. A signal that names nobody, names the AI already
-    // resting, or names an account that is not set up is never guessed at: the turn passes to the
-    // AI that follows in order instead, so the talk always moves on to another AI and can never
-    // settle on one of them.
-    let slot = named && named.id !== from && ready(named) ? named : null;
+    // its break, when it still has its turn to come in this ring, and when its account is whole. A
+    // signal that names nobody, names the AI already resting, names one that has already had its
+    // turn, or names an account that is not set up is never guessed at: the turn passes to the AI
+    // that follows in order instead, so the talk always moves on to the AI whose turn is next and
+    // can never fall back on one that has already spoken.
+    let slot = fits(named) && !used.has(named.id) ? named : null;
     if (!slot) {
       console.error("No usable signal, so the turn moves on in order:", (reply || "").slice(0, 120));
-      slot = slotsAfter(from).find((row: any) => row.id !== from && ready(row)) || null;
+      const ring = slotsAfter(from).filter((row: any) => fits(row));
+      // the next in order whose turn has not come yet, and — with the ring complete — the next in
+      // order as the ring wraps round
+      slot = ring.find((row: any) => !used.has(row.id)) || ring[0] || null;
     }
     if (!slot) {
       console.error("No other talk AI has both its key and its agent id saved, so no signal was given.");

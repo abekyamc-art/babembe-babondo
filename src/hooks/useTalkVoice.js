@@ -40,6 +40,9 @@ export default function useTalkVoice({ onTurn } = {}) {
   const writtenAnsweredRef = useRef(null);
   // the same for the end of an answer on the live call: a change it asked for is sent there
   const liveSpokeRef = useRef(null);
+  // a call the service ended by itself is reported through here, so the turn it leaves behind is
+  // never lost
+  const endedRef = useRef(null);
   const turnRef = useRef(onTurn);
   turnRef.current = onTurn;
 
@@ -77,6 +80,9 @@ export default function useTalkVoice({ onTurn } = {}) {
       const label = slotRef.current.label;
       finish();
       setNotice(`${label}'s call ended. Tap the phone to talk again.`);
+      // the call ended on its own: whoever is counting the turns decides whether the same AI waits
+      // behind the next tap or the ring moves on
+      endedRef.current?.();
     },
     [finish]
   );
@@ -131,10 +137,11 @@ export default function useTalkVoice({ onTurn } = {}) {
    * refused it, so what to put right is never left to be guessed at.
    */
   const start = useCallback(
-    async ({ account, label, onAnswered, onAnswerEnd } = {}) => {
+    async ({ account, label, onAnswered, onAnswerEnd, onEnded } = {}) => {
       if (activeRef.current) return "";
       if (onAnswered) liveAnsweredRef.current = onAnswered;
       if (onAnswerEnd) liveSpokeRef.current = onAnswerEnd;
+      if (onEnded) endedRef.current = onEnded;
       // the AI this call is opened on, named on screen and used for every turn that follows it
       slotRef.current = {
         account: account === undefined ? FIRST_TALK.account : account,

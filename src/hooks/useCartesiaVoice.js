@@ -14,7 +14,7 @@ const NO_REACH = "Cartesia AI couldn't be reached. Please try again.";
 const ENDED = "Cartesia AI's call ended. Tap the phone to talk again.";
 const TOUCH_TO_HEAR = "Touch the screen to let the sound through.";
 
-export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd } = {}) {
+export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEnded } = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -32,6 +32,10 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd } = {
   // the end of an answer is reported the same way, so a call can move on the moment it is read out
   const answerEndRef = useRef(onAnswerEnd);
   answerEndRef.current = onAnswerEnd;
+  // a call the service closed by itself is reported the same way, so the turn it leaves behind is
+  // never lost
+  const endedRef = useRef(onEnded);
+  endedRef.current = onEnded;
   // while the phone is holding the sound back, this waits for the touch that starts it
   const offTouchRef = useRef(null);
 
@@ -61,6 +65,9 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd } = {
       if (!activeRef.current) return;
       finish();
       setNotice(ENDED);
+      // the call closed on its own: whoever is counting the turns decides whether the same AI waits
+      // behind the next tap or the ring moves on
+      endedRef.current?.();
     },
     [finish]
   );

@@ -49,6 +49,14 @@ export function resumeNotice(from, next, answers = TALK_ANSWERS) {
   return `${from} has taken its ${count} questions. Tap the phone to talk with ${next}.`;
 }
 
+/**
+ * The call ended by itself in the middle of a turn: the same AI still owes its answers, so it is the
+ * one waiting behind the person's tap rather than the ring starting over.
+ */
+export function waitNotice(label) {
+  return `${label} is waiting. Tap the phone to carry on.`;
+}
+
 /** Nothing was named, so nothing is guessed: the same AI keeps the conversation. */
 export function noSignalNotice(from) {
   return `The handoff signal didn't come through — ${from} can carry on.`;
