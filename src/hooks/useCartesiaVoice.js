@@ -14,7 +14,7 @@ const NO_REACH = "Cartesia AI couldn't be reached. Please try again.";
 const ENDED = "Cartesia AI's call ended. Tap the phone to talk again.";
 const TOUCH_TO_HEAR = "Touch the screen to let the sound through.";
 
-export default function useCartesiaVoice({ onTurn, onAnswered } = {}) {
+export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd } = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -29,6 +29,9 @@ export default function useCartesiaVoice({ onTurn, onAnswered } = {}) {
   turnRef.current = onTurn;
   const answeredRef = useRef(onAnswered);
   answeredRef.current = onAnswered;
+  // the end of an answer is reported the same way, so a call can move on the moment it is read out
+  const answerEndRef = useRef(onAnswerEnd);
+  answerEndRef.current = onAnswerEnd;
   // while the phone is holding the sound back, this waits for the touch that starts it
   const offTouchRef = useRef(null);
 
@@ -100,6 +103,8 @@ export default function useCartesiaVoice({ onTurn, onAnswered } = {}) {
   const handleAudioEnd = useCallback(() => {
     speakingRef.current = false;
     backToListening();
+    // the answer has been read out in full: a change it asked for is sent here and now
+    answerEndRef.current?.();
   }, [backToListening]);
 
   const handleError = useCallback((message) => setError(message), []);

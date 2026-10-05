@@ -362,8 +362,10 @@ export default class CartesiaCall {
     this.endTimer = setTimeout(() => {
       if (!this.speaking) return;
       this.speaking = false;
-      this.h.onAgentAudioEnd?.();
+      // the answer is counted before its voice is reported drained, so a change the count asks for
+      // is sent by that same report and never waits on the next answer's
       this.finishAnswer();
+      this.h.onAgentAudioEnd?.();
     }, remainingMs);
   }
 
@@ -382,9 +384,10 @@ export default class CartesiaCall {
     this.sources = [];
     this.playHead = 0;
     if (wasSpeaking) {
-      this.h.onAgentAudioEnd?.();
-      // the person spoke over him: the answer was still given, and is counted as one
+      // the person spoke over him: the answer was still given and is counted as one, counted before
+      // its voice is reported drained so that report carries the change it asked for
       this.finishAnswer();
+      this.h.onAgentAudioEnd?.();
     }
   }
 

@@ -38,6 +38,8 @@ export default function useTalkVoice({ onTurn } = {}) {
   // handler each was asked with, never through one another's
   const liveAnsweredRef = useRef(null);
   const writtenAnsweredRef = useRef(null);
+  // the same for the end of an answer on the live call: a change it asked for is sent there
+  const liveSpokeRef = useRef(null);
   const turnRef = useRef(onTurn);
   turnRef.current = onTurn;
 
@@ -52,6 +54,7 @@ export default function useTalkVoice({ onTurn } = {}) {
   const finish = useCallback(() => {
     activeRef.current = false;
     speakingRef.current = false;
+    liveSpokeRef.current = null;
     socketRef.current = null;
     levelRef.current = 0;
     if (offTouchRef.current) {
@@ -109,10 +112,12 @@ export default function useTalkVoice({ onTurn } = {}) {
     setStatus("speaking");
   }, []);
 
-  /** The voice has drained: the call listens again. */
+  /** The voice has drained: the call listens again, and the answer ends for whoever counts them. */
   const handleAudioEnd = useCallback(() => {
     speakingRef.current = false;
     backToListening();
+    // an answer read out in full is reported, so a change it asked for is sent here and now
+    liveSpokeRef.current?.();
   }, [backToListening]);
 
   /** An answer is complete and read out: it is counted against the turn this AI is on. */
@@ -126,9 +131,10 @@ export default function useTalkVoice({ onTurn } = {}) {
    * refused it, so what to put right is never left to be guessed at.
    */
   const start = useCallback(
-    async ({ account, label, onAnswered } = {}) => {
+    async ({ account, label, onAnswered, onAnswerEnd } = {}) => {
       if (activeRef.current) return "";
       if (onAnswered) liveAnsweredRef.current = onAnswered;
+      if (onAnswerEnd) liveSpokeRef.current = onAnswerEnd;
       // the AI this call is opened on, named on screen and used for every turn that follows it
       slotRef.current = {
         account: account === undefined ? FIRST_TALK.account : account,

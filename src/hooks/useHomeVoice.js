@@ -14,7 +14,7 @@ import {
 } from "@/lib/talkRotation";
 
 /**
- * The home page's call, and who is on it — the rotation the calls have always used.
+ * The home page's call, and who is on it.
  *
  * Cartesia AI opens every call and answers seven questions; the app's older talk AIs then take the
  * call in turn, each on its own account with its own key and its own agent, and each answering two
@@ -22,25 +22,38 @@ import {
  * call back, so the ring keeps moving and the person keeps talking without ever starting the next
  * voice themselves: the call on air is hung up and the next one opens straight away.
  *
- * The handover itself has three rules, and all three are what make the rotation actually move:
+ * What makes the change actually land is that it is a plain sequence of events, not a reading of the
+ * screen:
  *
- * 1. It is sent once the answer that asked for it has been read out in full, so no voice is ever cut
- *    off mid-sentence.
- * 2. The next voice is asked for while the answer before the last one is still being given, so the
- *    handover does not sit waiting on a signal when the moment comes.
- * 3. A signal that names nobody is never a dead end: it is read on the server all the same, where
- *    the turn passes to the talk AI that follows in order, and the app passes it on in order itself
- *    where even that could not be asked for. The talk always moves on to another voice, and a voice
- *    that cannot open is never offered the same turn twice.
+ * 1. The last answer of a turn asks for the change; the voice itself reports the moment that answer
+ *    has been read out, and that report is what sends the change — so no voice is cut off
+ *    mid-sentence, and nothing about the screen's state decides when the call moves.
+ * 2. The voice taking the next turn is asked for while the answer before the last one is still being
+ *    given, and the asking is capped: a signal that never comes still passes the turn in order, so
+ *    the rotation is never left waiting on one.
+ * 3. The voices are opened in the order the turn passes, each once in a call. The name on the screen
+ *    follows the call that actually opened, and when none can open the voice that stood down takes
+ *    the call back with the reason said plainly.
  */
 
 const CARTESIA = "cartesia";
 const TALK = "talk";
 
-// The breath a handover waits once the answer asking for it has been read out, and the moment an
-// answer is given to begin its voice before the handover stops waiting for it.
-const HANDOFF_BREATH_MS = 500;
-const ANSWER_LEAD_MS = 2500;
+/** Nothing, after the given moment: a wait that always comes back. */
+const wait = (ms) =>
+  new Promise((resolve) => {
+    setTimeout(() => resolve(""), ms);
+  });
+
+// The signal is given this long, from its account being opened to its answer coming back. It is
+// asked for while the answer before the last one is still being given, so it is almost always in
+// hand by the time the call moves; a signal that does not come in time is not waited on.
+const SIGNAL_MAX_MS = 12000;
+
+// The longest the answer that asked for the change is given to finish being read out. The answer's
+// own end is what sends the change — this only stops a call whose end was never reported from
+// sitting on a voice that has already taken its turn.
+const DRAIN_MAX_MS = 30000;
 
 export default function useHomeVoice() {
   const [turns, setTurns] = useState([]);
@@ -48,8 +61,6 @@ export default function useHomeVoice() {
   const [holder, setHolder] = useState(CARTESIA);
   const [voice, setVoice] = useState(CARTESIA_AI);
   const [notice, setNotice] = useState("");
-  // the handover the last answer asked for: sent once that answer has been read out
-  const [due, setDue] = useState(false);
 
   // the voice that holds the call, kept in a ref because the handlers that read it were handed to
   // the calls as they opened
@@ -61,25 +72,26 @@ export default function useHomeVoice() {
   // the finished answers given by whoever holds the call now
   const answersRef = useRef(0);
   // a call is on air, and is being handed over: neither a turn taken outside a call nor one taken
-  // while the handover is running is counted
+  // while the change is running is counted
   const callingRef = useRef(false);
   const turningRef = useRef(false);
-  // what an answer is charged through, and the handover itself, each kept in a ref because the
+  // what an answer is charged through, and the change itself, each kept in a ref because the
   // handlers that send them are handed to the calls as they open
   const chargeRef = useRef(null);
   const handoffRef = useRef(null);
+  // the change the last answer asked for, and the guard that sends it if that answer's end is never
+  // reported
+  const dueRef = useRef(false);
+  const dueTimerRef = useRef(0);
   // an outside AI that could not take the call is not asked again during the same call
   const downRef = useRef(false);
   // the voices that could not take the call in this one: their turn is never offered to them twice
   const triedRef = useRef(new Set());
   // the signal asked for while the answer before the last one was still being given
   const signalRef = useRef(null);
-  // whether the voice of the answer now due has begun, so a handover is never sent into the middle
-  // of an answer only just begun
-  const spokeRef = useRef(false);
 
   // the whole talk is kept here, so a call that hands over carries the conversation with it and
-  // nothing said before the handover is lost from the screen
+  // nothing said before the change is lost from the screen
   const onTurn = useCallback((role, text) => {
     setTurns((prev) => [...prev, { role, text }]);
   }, []);
@@ -106,13 +118,17 @@ export default function useHomeVoice() {
   /** The coordinator's own answer, and the voice it names — or the next one in order. */
   const nextTalk = useCallback(
     async (from) => {
-      let reply = "";
-      try {
-        reply = await askCoordinator(from.label);
-      } catch (err) {
-        reply = "";
-      }
-      return askServer(from.id, reply);
+      const named = await Promise.race([
+        (async () => {
+          try {
+            return await askCoordinator(from.label);
+          } catch (err) {
+            return "";
+          }
+        })(),
+        wait(SIGNAL_MAX_MS),
+      ]);
+      return askServer(from.id, named || "");
     },
     [askServer]
   );
@@ -126,19 +142,33 @@ export default function useHomeVoice() {
   }, []);
 
   /**
-   * One answer has been given, so it is charged — and counted against the number whoever holds the
+   * The change the last answer asked for, sent the moment that answer has been read out in full.
+   * The voice reports its own end, so the call moves on that report and never on a reading of the
+   * screen. It runs once and only once.
+   */
+  const dueHandoff = useCallback(() => {
+    if (!dueRef.current) return;
+    dueRef.current = false;
+    clearTimeout(dueTimerRef.current);
+    dueTimerRef.current = 0;
+    handoffRef.current?.();
+  }, []);
+
+  /**
+   * One answer has been given, so it is charged — and counted against the turns whoever holds the
    * call answers before the next voice takes it: Cartesia AI seven, each talk AI two. The last of
-   * those only asks for the handover, which is sent once that answer has been read out in full so
-   * no voice is ever cut off mid-sentence.
+   * those only asks for the change: it is sent by that answer's own end, so the voice is never cut
+   * off mid-sentence and the screen's state never decides when the call moves.
    */
   const onAnswered = useCallback(() => {
     chargeRef.current?.();
-    if (!callingRef.current || turningRef.current) return;
+    if (!callingRef.current || turningRef.current || dueRef.current) return;
     const limit = holderRef.current === CARTESIA ? CARTESIA_ANSWERS : TALK_ANSWERS;
     answersRef.current += 1;
     if (answersRef.current >= limit) {
-      spokeRef.current = false;
-      setDue(true);
+      dueRef.current = true;
+      clearTimeout(dueTimerRef.current);
+      dueTimerRef.current = setTimeout(dueHandoff, DRAIN_MAX_MS);
       return;
     }
     // the voice taking the next turn is asked for while this answer is still being given, so it is
@@ -146,10 +176,10 @@ export default function useHomeVoice() {
     if (answersRef.current === limit - 1 && !signalRef.current) {
       signalRef.current = nextTalk(whoIsOn());
     }
-  }, [nextTalk, whoIsOn]);
+  }, [dueHandoff, nextTalk, whoIsOn]);
 
   const talk = useTalkVoice({ onTurn });
-  const cartesia = useCartesiaVoice({ onTurn, onAnswered });
+  const cartesia = useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd: dueHandoff });
 
   /** Who holds the call, written on screen and kept in a ref for the handlers sent out with it. */
   const setCurrent = useCallback((which, label) => {
@@ -158,30 +188,39 @@ export default function useHomeVoice() {
     setVoice(label);
   }, []);
 
-  /** The call opens on whoever holds it now, and says plainly when it cannot. */
-  const openHolder = useCallback(async () => {
-    const why =
-      holderRef.current === CARTESIA
-        ? await cartesia.start()
-        : await talk.start({
-            account: talkRef.current.account,
-            label: talkRef.current.label,
-            onAnswered,
-          });
-    return why ? { ok: false, why } : { ok: true, why: "" };
-  }, [cartesia, talk, onAnswered]);
+  /** A named voice opens the call, and says plainly whether it did. */
+  const openVoice = useCallback(
+    async (which, slot) => {
+      const why =
+        which === CARTESIA
+          ? await cartesia.start()
+          : await talk.start({
+              account: slot.account,
+              label: slot.label,
+              onAnswered,
+              onAnswerEnd: dueHandoff,
+            });
+      return why ? { ok: false, why } : { ok: true, why: "" };
+    },
+    [cartesia, talk, onAnswered, dueHandoff]
+  );
 
-  const closeHolder = useCallback(async () => {
-    if (holderRef.current === CARTESIA) await cartesia.stop();
-    else await talk.stop();
-  }, [cartesia, talk]);
+  /** The call on air, hung up. */
+  const closeVoice = useCallback(
+    async (which) => {
+      if (which === CARTESIA) await cartesia.stop();
+      else await talk.stop();
+    },
+    [cartesia, talk]
+  );
 
   /**
-   * The handover itself: the call on air is hung up and the next voice opens straight away — the
+   * The change itself: the call on air is hung up and the next voice opens straight away — the
    * person never starts it themselves, and the talk so far stays on the screen and goes with the new
-   * call. A voice that cannot open has the turn passed on from it to the voice that follows, and only
-   * where no other voice can open at all does the voice that stood down carry on, with the reason
-   * said plainly rather than the person being left in silence.
+   * call. Who takes it is decided before anything is hung up, and the voices are opened in the order
+   * the turn passes, each of them once in a call: a voice that cannot open is never offered the turn
+   * twice, and where none of them can open the voice that stood down takes the call back with the
+   * reason said plainly rather than the person being left in silence.
    */
   const handoff = useCallback(async () => {
     if (turningRef.current) return;
@@ -197,112 +236,95 @@ export default function useHomeVoice() {
       const ringDone = from.which === TALK && takenRef.current >= TALK_IDS.length;
       const wantedTalk = from.which === CARTESIA || !ringDone || downRef.current;
 
-      // the signal asked for while the answer before the last one was still being given is used
-      // here; one that is not in hand was asked for too late and is asked for now
+      // the voice the signal named — asked for while the answer before the last one was still being
+      // given — or, where it named nobody, the one that follows in order
       const asked = signalRef.current;
       signalRef.current = null;
-      let next = wantedTalk ? await (asked || nextTalk(from)) : null;
-      // the person ended the call while the signal was being read
+      const first = wantedTalk ? await (asked || nextTalk(from)) : null;
+      // the person ended the call while the signal was on its way
       if (!callingRef.current) return;
 
-      // a voice that could not take the call earlier in this call is never offered the same turn
-      // again: the turn passes to the voice that follows it
-      if (next && triedRef.current.has(next.id)) {
-        next = await askServer(next.id, "");
+      // who may take the next turn, in the order the turn passes: that voice and the ones that
+      // follow it round the ring, and Cartesia AI closing the ring — each of them once
+      const plan = [];
+      const planned = new Set();
+      let candidate = first;
+      for (let step = 0; step < TALK_IDS.length && candidate; step += 1) {
+        if (planned.has(candidate.id) || triedRef.current.has(candidate.id)) break;
+        plan.push({ ...candidate, which: TALK });
+        planned.add(candidate.id);
+        candidate = await askServer(candidate.id, "");
         if (!callingRef.current) return;
-        if (next && triedRef.current.has(next.id)) next = null;
+      }
+      if (!downRef.current) {
+        plan.push({ which: CARTESIA, id: CARTESIA, label: CARTESIA_AI, account: "" });
       }
 
-      // nothing else to hand the call to at all: the voice on the line keeps it rather than the
-      // call being hung up for a handover with nowhere to go
-      if (wantedTalk && !next) {
-        setNotice(noSignalNotice(from.label));
-        return;
-      }
-
-      await closeHolder();
+      // the call on air is hung up, and the plan is opened in the order it was built
+      await closeVoice(from.which);
       if (!callingRef.current) return;
       // the answers before the change belonged to the voice standing down
       answersRef.current = 0;
 
-      // the voice standing down takes the call straight back when the next one cannot open
-      const backUp = async (why) => {
-        setCurrent(from.which, from.label);
-        talkRef.current = before;
-        takenRef.current = takenBefore;
-        setNotice(why);
-        if (callingRef.current) await openHolder();
-      };
+      // the voice that refused the turn last, so what could not come through is named if none can
+      let refusedLabel = "";
+      for (const slot of plan) {
+        const opened = await openVoice(slot.which, slot);
+        // the person ended the call while this voice was opening
+        if (!callingRef.current) return;
 
-      // the older talk AIs have all had their turn: Cartesia AI takes the call back for its seven
-      if (!next) {
-        takenRef.current = 0;
-        setCurrent(CARTESIA, CARTESIA_AI);
-        setNotice(handoffNotice(from.label, CARTESIA_AI, TALK_ANSWERS));
-        const opened = await openHolder();
-        if (opened.ok) return;
-        downRef.current = true;
-        await backUp(opened.why || `${CARTESIA_AI} couldn't take over — ${from.label} is carrying on.`);
-        return;
+        if (opened.ok) {
+          // the ring, and the name on the screen — which follows the call that actually opened
+          if (slot.which === CARTESIA) {
+            takenRef.current = 0;
+            talkRef.current = { ...FIRST_TALK };
+          } else {
+            takenRef.current += 1;
+            talkRef.current = { id: slot.id, label: slot.label, account: slot.account };
+          }
+          setCurrent(slot.which, slot.label);
+          const answers = from.which === CARTESIA ? CARTESIA_ANSWERS : TALK_ANSWERS;
+          setNotice(handoffNotice(from.label, slot.label, answers));
+          return;
+        }
+
+        // the voice could not take the call: it is not offered the turn again in this call
+        if (slot.which === TALK) triedRef.current.add(slot.id);
+        else downRef.current = true;
+        refusedLabel = slot.label;
       }
 
-      const answers = from.which === CARTESIA ? CARTESIA_ANSWERS : TALK_ANSWERS;
-      takenRef.current += 1;
-      setCurrent(TALK, next.label);
-      talkRef.current = { id: next.id, label: next.label, account: next.account };
-      setNotice(handoffNotice(from.label, next.label, answers));
-      const opened = await openHolder();
-      if (opened.ok) return;
-
-      // the voice could not take the call: the turn passes to the voice that follows it, and only
-      // where no other voice can open does the one that stood down carry on
-      triedRef.current.add(next.id);
-      const after = await askServer(next.id, "");
+      // none of them could take the call: the voice that stood down takes it back, and the reason is
+      // said plainly instead of the person being left in silence
+      setCurrent(from.which, from.label);
+      talkRef.current = before;
+      takenRef.current = takenBefore;
+      const back = await openVoice(from.which, from);
       if (!callingRef.current) return;
-      if (!after || triedRef.current.has(after.id)) {
-        await backUp(opened.why || `${next.label} couldn't take over — ${from.label} is carrying on.`);
-        return;
-      }
-      takenRef.current += 1;
-      setCurrent(TALK, after.label);
-      talkRef.current = { id: after.id, label: after.label, account: after.account };
-      setNotice(`${next.label} couldn't take over — ${after.label} is on the call now.`);
-      const again = await openHolder();
-      if (again.ok) return;
-      triedRef.current.add(after.id);
-      await backUp(again.why || `${after.label} couldn't take over — ${from.label} is carrying on.`);
+      setNotice(
+        back.ok
+          ? refusedLabel
+            ? `${refusedLabel} couldn't take over — ${from.label} is carrying on.`
+            : noSignalNotice(from.label)
+          : `${from.label} couldn't take the call back — tap the phone to talk again.`
+      );
     } finally {
-      // a swap that could not finish never leaves the rotation wedged: the answer after it hands
-      // over like any other
+      // a change that could not finish never leaves the rotation wedged
       turningRef.current = false;
     }
-  }, [askServer, closeHolder, nextTalk, openHolder, setCurrent, whoIsOn]);
+  }, [askServer, closeVoice, nextTalk, openVoice, setCurrent, whoIsOn]);
 
-  // the handover is sent by an answer's own handler, so it is reachable from there
+  // the change is sent by an answer's own handler, so it is reachable from there
   useEffect(() => {
     handoffRef.current = handoff;
   }, [handoff]);
 
-  const active = holder === CARTESIA ? cartesia : talk;
-
-  // The handover the last answer asked for is sent here: the answer is read out in full first, the
-  // call on air is hung up, and the next voice opens straight away — this is the hang-up and the
-  // start that move the rotation, and the person never starts it themselves.
-  useEffect(() => {
-    if (!due) return undefined;
-    // the voice is still reading the answer out: the handover waits for it to finish
-    if (active.speaking) {
-      spokeRef.current = true;
-      return undefined;
-    }
-    // an answer whose voice has not begun yet is given its moment to begin before the wait is over
-    const hold = spokeRef.current ? HANDOFF_BREATH_MS : ANSWER_LEAD_MS;
-    const id = setTimeout(() => {
-      setDue(false);
-      handoffRef.current?.();
-    }, hold);
-    return () => clearTimeout(id);
-  }, [due, active.speaking, active.status, active.thinking, turns]);
+  const clearChange = useCallback(() => {
+    dueRef.current = false;
+    clearTimeout(dueTimerRef.current);
+    dueTimerRef.current = 0;
+    signalRef.current = null;
+  }, []);
 
   const start = useCallback(
     async ({ onAnswered: charge } = {}) => {
@@ -313,22 +335,20 @@ export default function useHomeVoice() {
       takenRef.current = 0;
       downRef.current = false;
       triedRef.current = new Set();
-      signalRef.current = null;
-      spokeRef.current = false;
-      setDue(false);
+      clearChange();
       setNotice("");
       // every call opens on Cartesia AI; the older talk AIs take the call once it has given its
       // seven answers
       talkRef.current = { ...FIRST_TALK };
       setCurrent(CARTESIA, CARTESIA_AI);
-      const opened = await openHolder();
+      const opened = await openVoice(CARTESIA, { account: "", label: CARTESIA_AI });
       if (opened.ok) return true;
 
       // Cartesia AI could not take the call: the first talk AI opens it instead, and Cartesia is not
       // asked again during this call
       downRef.current = true;
       setCurrent(TALK, FIRST_TALK.label);
-      const backup = await openHolder();
+      const backup = await openVoice(TALK, FIRST_TALK);
       if (backup.ok) takenRef.current = 1;
       setNotice(
         backup.why ||
@@ -337,19 +357,17 @@ export default function useHomeVoice() {
       );
       return backup.ok;
     },
-    [openHolder, setCurrent]
+    [clearChange, openVoice, setCurrent]
   );
 
   const stop = useCallback(async () => {
     callingRef.current = false;
     turningRef.current = false;
     answersRef.current = 0;
-    signalRef.current = null;
-    spokeRef.current = false;
-    setDue(false);
+    clearChange();
     setNotice("");
-    await closeHolder();
-  }, [closeHolder]);
+    await closeVoice(holderRef.current);
+  }, [clearChange, closeVoice]);
 
   /**
    * A written question is put to the older talk AIs, whichever voice is on the call: sent into the
@@ -372,6 +390,8 @@ export default function useHomeVoice() {
     },
     [talk, onWritten]
   );
+
+  const active = holder === CARTESIA ? cartesia : talk;
 
   return {
     status: active.status,
