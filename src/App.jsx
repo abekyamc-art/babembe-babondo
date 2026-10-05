@@ -28,6 +28,7 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Messages = lazy(() => import('./pages/Messages'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Rap = lazy(() => import('./pages/Rap'));
+const KibembeChat = lazy(() => import('./pages/KibembeChat'));
 
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
@@ -93,6 +94,7 @@ const AuthenticatedApp = () => {
                   <Route path="/u/:email" element={<Profile />} />
                   <Route path="/messages" element={<Messages />} />
                   <Route path="/messages/:threadId" element={<Chat />} />
+                  <Route path="/kibembe" element={<KibembeChat />} />
                 </Route>
                 <Route path="*" element={<PageNotFound />} />
               </Routes>
