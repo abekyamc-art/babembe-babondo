@@ -56,6 +56,20 @@ export default class CartesiaCall {
     this.endTimer = null;
     this.micLevel = 0;
     this.callId = "";
+    // The turn being answered right now, and the turns already counted. The service numbers every
+    // turn — the person's and his — in one strictly increasing line, so those numbers say which
+    // answers were given to the person, and no turn is ever counted twice.
+    this.turn = 0;
+    this.countedTurn = 0;
+    // the person's own turns: the one they spoke last, and the one already answered
+    this.userTurn = 0;
+    this.answerTurn = 0;
+    // whether the person has spoken at all, for a line that carries no turn numbering
+    this.personTurned = false;
+    // whether his answer is still open — the service has not closed its turn yet
+    this.answerOpen = false;
+    // his answer as it is being written, kept while it arrives
+    this.draft = "";
     // what the session reports itself ready with, while it is still being opened
     this.opened = null;
   }
@@ -175,25 +189,49 @@ export default class CartesiaCall {
     }
 
     if (msg.type === "turn_started") {
+      // the person's own turn: an answer given on a later turn is an answer to them
+      if (msg.role === "user") {
+        this.personTurned = true;
+        if (typeof msg.turn === "number") this.userTurn = Math.max(this.userTurn, msg.turn);
+        return;
+      }
       // he has taken the turn and is working on it
-      if (msg.role === "assistant") this.h.onThinking?.(true);
+      this.h.onThinking?.(true);
+      if (typeof msg.turn === "number") this.turn = msg.turn;
+      this.draft = "";
+      // his answer stays open until the service closes its turn, or until his voice has drained
+      this.answerOpen = true;
+      return;
+    }
+
+    // his answer as it is being written, kept while it arrives: the line is whole even where the
+    // service closes the turn without carrying the text along with it
+    if (msg.type === "turn_output_text_delta") {
+      if (msg.role === "assistant" && msg.text) this.draft += msg.text;
       return;
     }
 
     if (msg.type === "turn_ended") {
-      const text = String(msg.text || "").trim();
       if (msg.role === "user") {
-        if (text) this.h.onUserText?.(text);
+        this.personTurned = true;
+        if (typeof msg.turn === "number") this.userTurn = Math.max(this.userTurn, msg.turn);
+        const said = String(msg.text || "").trim();
+        if (said) this.h.onUserText?.(said);
         // his answer is being worked out now
         this.h.onThinking?.(true);
         return;
       }
+      // the turn the service closed is the one being counted, and the wait for his voice to drain
+      // is called off with it so the same answer is never counted twice
+      const text = String(msg.text || this.draft || "").trim();
+      this.draft = "";
+      if (typeof msg.turn === "number") this.turn = msg.turn;
+      this.answerOpen = false;
       this.h.onThinking?.(false);
-      if (text) {
-        this.h.onAgentText?.(text);
-        // the answer is complete: this is one of the answers this AI gives before its turn ends
-        this.h.onAnswered?.();
-      }
+      if (text) this.h.onAgentText?.(text);
+      // One answer given. A turn the service closes is counted here whether or not it carried the
+      // words along with it — the answer was heard either way.
+      this.countAnswer(this.turn);
       return;
     }
 
@@ -205,6 +243,35 @@ export default class CartesiaCall {
         console.error("Cartesia AI reported:", msg.code, msg.message);
       }
     }
+  }
+
+  /**
+   * One answer given, counted against the turn it answered. The service numbers every turn — the
+   * person's and his — in one strictly increasing line, so an answer counts for the person's turn
+   * it follows and for that turn only: the greeting he opens with, and anything he says on his own,
+   * is his own and never counts. A turn whose end is reported more than once — and the same turn's
+   * voice draining after it — is still one answer.
+   */
+  countAnswer(turn) {
+    const n = typeof turn === "number" && turn > 0 ? turn : this.countedTurn + 1;
+    if (n <= this.countedTurn) return;
+    if (this.userTurn) {
+      if (this.userTurn >= n || this.userTurn <= this.answerTurn) return;
+      this.answerTurn = this.userTurn;
+    } else if (!this.personTurned) {
+      // a line that carries no turn numbering at all: only an answer following the person's turn
+      return;
+    }
+    this.personTurned = false;
+    this.countedTurn = n;
+    this.h.onAnswered?.();
+  }
+
+  /** His voice has drained with the turn still open: it is an answer given all the same. */
+  finishAnswer() {
+    if (!this.answerOpen) return;
+    this.answerOpen = false;
+    this.countAnswer(this.turn);
   }
 
   send(payload) {
@@ -280,9 +347,11 @@ export default class CartesiaCall {
       this.sources = this.sources.filter((s) => s !== node);
     };
 
-    // he is heard from the moment his voice actually begins
+    // he is heard from the moment his voice actually begins: from here his answer is open, so one
+    // whose turn the service never closes is still counted once its voice has drained
     if (!this.speaking) {
       this.speaking = true;
+      this.answerOpen = true;
       this.h.onAgentAudioStart?.();
     }
 
@@ -294,6 +363,7 @@ export default class CartesiaCall {
       if (!this.speaking) return;
       this.speaking = false;
       this.h.onAgentAudioEnd?.();
+      this.finishAnswer();
     }, remainingMs);
   }
 
@@ -311,7 +381,11 @@ export default class CartesiaCall {
     });
     this.sources = [];
     this.playHead = 0;
-    if (wasSpeaking) this.h.onAgentAudioEnd?.();
+    if (wasSpeaking) {
+      this.h.onAgentAudioEnd?.();
+      // the person spoke over him: the answer was still given, and is counted as one
+      this.finishAnswer();
+    }
   }
 
   teardown() {

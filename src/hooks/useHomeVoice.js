@@ -85,43 +85,38 @@ export default function useHomeVoice() {
   const handoff = useCallback(async () => {
     if (turningRef.current) return;
     turningRef.current = true;
+    try {
+      const from = voiceRef.current;
+      const next = from === CARTESIA ? ASSISTANT : CARTESIA;
+      // an AI that could not take the call is not asked again in the same call: the one on the line
+      // simply keeps it, and the talk never stalls on a voice that cannot open
+      if (next === CARTESIA && downRef.current) return;
 
-    const from = voiceRef.current;
-    const next = from === CARTESIA ? ASSISTANT : CARTESIA;
-    // an AI that could not take the call is not asked again in the same call: the one on the line
-    // simply keeps it, and the talk never stalls on a voice that cannot open
-    if (next === CARTESIA && downRef.current) {
+      await closeVoice(from);
+      // the person ended the call while it was being handed over
+      if (!callingRef.current) return;
+
+      voiceRef.current = next;
+      setVoice(next);
+      setNotice(handoffNotice(NAMES[from], NAMES[next]));
+
+      const opened = await openVoice(next);
+      if (opened.ok) return;
+
+      if (next === CARTESIA) downRef.current = true;
+      voiceRef.current = from;
+      setVoice(from);
+      // where the next AI gave a reason it could not open, that reason is what is said: it is the one
+      // thing that can be acted on
+      setNotice(
+        opened.why || `${NAMES[next]} couldn't take over — ${NAMES[from]} is carrying on.`
+      );
+      if (callingRef.current) await openVoice(from);
+    } finally {
+      // a swap that could not finish never leaves the rotation wedged: the answer after it hands
+      // over like any other
       turningRef.current = false;
-      return;
     }
-
-    await closeVoice(from);
-    // the person ended the call while it was being handed over
-    if (!callingRef.current) {
-      turningRef.current = false;
-      return;
-    }
-
-    voiceRef.current = next;
-    setVoice(next);
-    setNotice(handoffNotice(NAMES[from], NAMES[next]));
-
-    const opened = await openVoice(next);
-    if (opened.ok) {
-      turningRef.current = false;
-      return;
-    }
-
-    if (next === CARTESIA) downRef.current = true;
-    voiceRef.current = from;
-    setVoice(from);
-    // where the next AI gave a reason it could not open, that reason is what is said: it is the one
-    // thing that can be acted on
-    setNotice(
-      opened.why || `${NAMES[next]} couldn't take over — ${NAMES[from]} is carrying on.`
-    );
-    if (callingRef.current) await openVoice(from);
-    turningRef.current = false;
   }, [closeVoice, openVoice]);
 
   // the handover is sent by an answer's own handler, so it is reachable from there
