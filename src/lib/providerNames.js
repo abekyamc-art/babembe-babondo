@@ -25,6 +25,12 @@ const CLASSES = {
 export const KIBEMBE_ASSISTANT = "Kibembe Assistant";
 export const KIBEMBE_CLASS = "mode-kibembe";
 
+/**
+ * The outside agent the home page's calls hand over to: Cartesia AI answers from its own account,
+ * listening and writing its own answers, and takes every other turn on the call.
+ */
+export const CARTESIA_AI = "Cartesia AI";
+
 /** What the provider behind a mode is called on screen. */
 export function providerName(mode) {
   return NAMES[mode] || GLOIRE_AI;

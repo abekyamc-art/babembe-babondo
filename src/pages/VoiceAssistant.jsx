@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Languages, Loader2, Phone, PhoneOff, Sparkles } from "lucide-react";
+import { Languages, Loader2, Phone, PhoneOff, Radio, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import useOpenAiAssistant from "@/hooks/useOpenAiAssistant";
+import useHomeVoice from "@/hooks/useHomeVoice";
 import {
   DAILY_LIMIT,
   GUEST_LIMIT,
@@ -24,9 +24,13 @@ import CoinPill from "@/components/voice/CoinPill";
 import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
 import ModeBadge from "@/components/voice/ModeBadge";
-import { KIBEMBE_ASSISTANT, KIBEMBE_CLASS } from "@/lib/providerNames";
+import { CARTESIA_AI, KIBEMBE_ASSISTANT, KIBEMBE_CLASS } from "@/lib/providerNames";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
+
+// each voice the call hands over to is written with its own mark, so who is answering is seen at a
+// glance and not only read in the line beneath it
+const VOICE_ICONS = { [KIBEMBE_ASSISTANT]: Languages, [CARTESIA_AI]: Radio };
 
 export default function VoiceAssistant() {
   const {
@@ -38,10 +42,11 @@ export default function VoiceAssistant() {
     error,
     notice,
     levelRef,
+    voiceLabel,
     start,
     stop,
     ask,
-  } = useOpenAiAssistant();
+  } = useHomeVoice();
   const navigate = useNavigate();
 
   const [user, setUser] = useState(null);
@@ -299,8 +304,8 @@ export default function VoiceAssistant() {
 
       <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-between gap-4 px-5">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7">
-          {/* who answers is written on the screen itself */}
-          <ModeBadge icon={Languages} label={`${KIBEMBE_ASSISTANT} answers`} />
+          {/* who answers is written on the screen itself, and follows whoever the call is with */}
+          <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
           <button
             type="button"
             onClick={handleCall}
@@ -349,7 +354,7 @@ export default function VoiceAssistant() {
               error ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {error || notice || `${KIBEMBE_ASSISTANT} answers each turn.`}
+            {error || notice || `${voiceLabel} answers each turn.`}
           </p>
         </div>
       </main>

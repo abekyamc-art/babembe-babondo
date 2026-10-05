@@ -17,7 +17,7 @@ const NO_VOICE = "The answer came back, but the voice could not read it out.";
 const TOUCH_TO_HEAR = "Tap the screen to let the sound through.";
 const ENDED = "The call ended. Tap the phone to begin again.";
 
-export default function useOpenAiAssistant() {
+export default function useOpenAiAssistant({ onTurn } = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [turns, setTurns] = useState([]);
@@ -37,9 +37,14 @@ export default function useOpenAiAssistant() {
   const answeredRef = useRef(null);
   // turns are answered one after another, so a turn taken while one is being answered is not lost
   const chainRef = useRef(Promise.resolve());
+  // every turn is reported to whoever is keeping the whole conversation, so a call that hands over
+  // to the next AI carries the talk so far with it
+  const turnRef = useRef(onTurn);
+  turnRef.current = onTurn;
 
   const pushTurn = useCallback((role, text) => {
     setTurns((prev) => [...prev, { role, text }]);
+    turnRef.current?.(role, text);
   }, []);
 
   const backToListening = useCallback(() => {
