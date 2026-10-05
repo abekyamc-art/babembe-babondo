@@ -18,10 +18,10 @@ import {
 /**
  * The home page's call, and who is on it.
  *
- * Cartesia AI opens every call and answers seven questions; the app's older talk AIs then take the
- * call in turn, each on its own account with its own key and its own agent, and each answering two
- * questions before the turn is passed on. Once they have all had a turn Cartesia AI is handed the
- * call back, so the ring keeps moving and the person keeps talking.
+ * Cartesia AI opens every call and keeps it for as long as the person goes on talking: its answers
+ * are never handed to another AI. The app's older talk AIs are reached only when Cartesia AI cannot
+ * open the call, and between themselves they still take the call in turn — each on its own account
+ * with its own key and its own agent, two questions at a time — so the ring keeps moving.
  *
  * What makes the change actually land is that it is a plain sequence of events, not a reading of the
  * screen:
@@ -172,17 +172,19 @@ export default function useHomeVoice() {
   }, []);
 
   /**
-   * One answer has been given, so it is charged — and counted against the turns whoever holds the
-   * call answers before the next voice takes it: Cartesia AI seven, each talk AI two. The last of
-   * those only asks for the change: it is sent by that answer's own end, so the voice is never cut
+   * One answer has been given, so it is charged. On Cartesia AI nothing else follows: it keeps the
+   * call however long the person talks. On a talk AI the answer is counted against its two, and the
+   * second only asks for the change: it is sent by that answer's own end, so the voice is never cut
    * off mid-sentence and the screen's state never decides when the call moves.
    */
   const onAnswered = useCallback(() => {
     chargeRef.current?.();
+    // Cartesia AI keeps the call for as long as the person goes on talking: its answers are never
+    // handed on, however many of them it has given
+    if (holderRef.current === CARTESIA) return;
     if (!callingRef.current || turningRef.current || dueRef.current) return;
-    const limit = holderRef.current === CARTESIA ? CARTESIA_ANSWERS : TALK_ANSWERS;
     answersRef.current += 1;
-    if (answersRef.current >= limit) {
+    if (answersRef.current >= TALK_ANSWERS) {
       dueRef.current = true;
       clearTimeout(dueTimerRef.current);
       dueTimerRef.current = setTimeout(dueHandoff, DRAIN_MAX_MS);
@@ -190,7 +192,7 @@ export default function useHomeVoice() {
     }
     // the voice taking the next turn is asked for while this answer is still being given, so it is
     // already in hand the moment the last one ends
-    if (answersRef.current === limit - 1 && !signalRef.current) {
+    if (answersRef.current === TALK_ANSWERS - 1 && !signalRef.current) {
       signalRef.current = nextTalk(whoIsOn());
     }
   }, [dueHandoff, nextTalk, whoIsOn]);
@@ -385,9 +387,10 @@ export default function useHomeVoice() {
   const endedTurn = useCallback(() => {
     if (!callingRef.current || turningRef.current || pendingRef.current) return;
     const from = whoIsOn();
-    const limit = from.which === CARTESIA ? CARTESIA_ANSWERS : TALK_ANSWERS;
     clearChange();
-    if (answersRef.current >= limit) {
+    // Cartesia AI keeps the call: one it ended itself waits behind the tap on Cartesia AI, and is
+    // never handed to another AI — only a talk AI that owes no more answers passes the turn on
+    if (from.which === TALK && answersRef.current >= TALK_ANSWERS) {
       handoffRef.current?.();
       return;
     }
