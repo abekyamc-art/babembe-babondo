@@ -24,13 +24,14 @@ import CoinPill from "@/components/voice/CoinPill";
 import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
 import ModeBadge from "@/components/voice/ModeBadge";
-import { CARTESIA_AI, KIBEMBE_CLASS, SADIKI_AI } from "@/lib/providerNames";
+import { CARTESIA_AI, KIBEMBE_CLASS } from "@/lib/providerNames";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 
-// each voice the call hands over to is written with its own mark, so who is answering is seen at a
-// glance and not only read in the line beneath it
-const VOICE_ICONS = { [SADIKI_AI]: Languages, [CARTESIA_AI]: Radio };
+// the outside voice the call hands over to on its own carries its own mark; the older talk AIs
+// carry the app's own, so who is answering is seen at a glance and not only read in the line
+// beneath it
+const VOICE_ICONS = { [CARTESIA_AI]: Radio };
 
 export default function VoiceAssistant() {
   const {
