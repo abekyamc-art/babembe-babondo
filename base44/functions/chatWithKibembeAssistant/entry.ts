@@ -2,6 +2,8 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { secrets } from 'base44:runtime';
 import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
+import { lookupForTurn } from "../../shared/freshLookup.ts";
+import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
@@ -31,15 +33,20 @@ const INSTRUCTIONS = [
   'Before you answer, read the Kibembe Word Bank in the attached file search store: search it for',
   'every Kibembe word, meaning, spelling, grammar pattern and pronunciation that your answer uses.',
   'Rules:',
-  '- Answer in Kibembe (Ebembe) only. Never mix in English, Kiswahili, French or any other language.',
-  '- Use only words, meanings and grammar the Word Bank confirms. Never invent, guess, translate or',
-  '  re-spell a Kibembe word, and never state a pronunciation the Word Bank does not carry.',
-  'The words and the rules the admin has saved in this app are handed to you with every message: they',
-  'are part of the Word Bank, they are the newest part of it, and a word written there is confirmed.',
-  '- If the Word Bank does not confirm what was asked, say briefly in Kibembe that you do not have it,',
-  '  instead of guessing.',
+  '- Answer in the language the person used, and in that language alone: Kibembe for Kibembe, Kiswahili',
+  '  for Kiswahili, English for English. Never mix two languages into one answer, and never translate.',
+  ANSWER_LANGUAGE,
+  SOURCE_RULES,
+  '- Kibembe is written only from the Word Bank: use only words, meanings and grammar it confirms, and',
+  '  never invent, guess, translate or re-spell a Kibembe word, and never state a pronunciation the',
+  '  Word Bank does not carry. The words and the rules the admin has saved in this app are handed to',
+  '  you with every message: they are part of the Word Bank, the newest part of it, and a word written',
+  '  there is confirmed.',
+  '- Where neither the Word Bank nor the material handed over confirms it, say briefly, in the language',
+  '  the person used, that you do not have it — never guess, and never say nothing was found when',
+  '  material was handed to you.',
   '- Keep the reply to one or two plain sentences.',
-  '- Write plain text only: no headings, no lists, no markdown, and nothing about your own working.',
+  '- Write plain text only: no headings, no lists and no markdown.',
 ].join('\n');
 
 // What the person sees when the app is not set up yet, or when the answer could not be fetched.
@@ -85,8 +92,23 @@ export default async function (req) {
     const rules = trimToLines(await rulesText(base44), RULES_BUDGET);
     const words = wordListBlock(await bankRows(base44), message, WORD_BUDGET);
     const saved = rules || words ? `${RULES_HEAD}${rules}${words}` : '';
-    const input = saved ? `${saved}\nMtu amesema: ${message}` : message;
-    console.log('Saved knowledge handed over:', saved.length, 'characters,', rules.length, 'of them rules');
+
+    // A request the saved knowledge does not answer — news, a story, who someone is — is looked up
+    // on the internet before the answer is written, by the same lookup the app's other assistants
+    // use, and the material rides with the message. A search that found nothing, or that could not
+    // be made at all, is said plainly instead of being answered around.
+    const lookup = await lookupForTurn(base44, message);
+
+    const input = [saved, lookup.material, `Mtu amesema: ${message}`].filter(Boolean).join('\n');
+    console.log(
+      'Saved knowledge handed over:',
+      saved.length,
+      'characters,',
+      rules.length,
+      'of them rules, and',
+      lookup.material.length,
+      'characters looked up'
+    );
 
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',

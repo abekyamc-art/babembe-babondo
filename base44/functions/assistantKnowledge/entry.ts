@@ -3,6 +3,7 @@ import { alikeTerms, skeleton, tight } from "../../shared/soundsAlike.ts";
 import { bankRows, knowledgeStamp, trimToLines } from "../../shared/wordBank.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { keyLine, keyMatches } from "../../shared/answerKey.ts";
+import { ANSWER_LANGUAGE } from "../../shared/languageRules.ts";
 
 // The note rides along with a typed message as silent context. It is handed over
 // in blocks of the size one update carries, so the whole note can be larger than
@@ -52,6 +53,7 @@ const GUIDE =
   "\nJINSI YA KUJIBU — how to answer:\n" +
   "- Chukua muda wako: kabla ya kujibu, soma maarifa haya na orodha ya maneno kwanza, kisha jibu kwa utulivu na kwa ukamilifu.\n" +
   "- LUGHA: jibu kwa lugha ALIYOTUMIA mtu, na kwa lugha hiyo PEKEE — bila kuchanganya lugha nyingine, bila kutafsiri, na bila kufundisha. Sikiliza maneno YAKE mwenyewe: yakifanana na maneno ya Kibembe yaliyohifadhiwa hapa, au na jinsi sheria za lugha zinaandika maneno, basi ni KIBEMBE — jibu kwa Kibembe tupu, hata kama jinsi yalivyoandikwa yanafanana na Kiswahili. Yakijibu kwa maneno ya Kiswahili wazi, ni KISWAHILI — jibu kwa Kiswahili tupu. Yakijibu kwa Kiingereza wazi, ni KIINGEREZA — jibu kwa Kiingereza tupu. Akisema lugha nyingine yoyote, jibu kwa lugha hiyo hiyo. Mtu akibadilisha lugha mwenyewe, fuata lugha yake mpya, na usirudi kwenye lugha ya awali.\n" +
+  ANSWER_LANGUAGE + "\n" +
   "- SALAMU: mtu akisalimu kwa maneno machache — kwa mfano \"ole bile\" — salimu tu: mwitikie kwa salamu ya Kibembe, kwa urefu sawa na salamu yake, maneno machache, bila maelezo, bila kufundisha, bila kutafsiri na bila kuuliza swali refu. Mfano: mtu: \"ole bile\" → wewe: \"ole sawa ole makala\". Mtu akisema zaidi ya salamu — swali, ombi au habari — jibu hilo kama kawaida.\n" +
   "- Maandishi uliyopewa kwa lugha nyingine — kutoka mtandaoni au kutoka kwenye maarifa: yatafsiri kwa lugha ya mtu, na jibu lako lote libaki kwa lugha hiyo. Usimwonyeshe wala kumsomea lugha nyingine.\n" +
   "- USIMWOMBE MTU ARUDIE, usiulize alimaanisha lugha gani au neno gani, na usiseme hukusikia wala hukuelewa. Chukua lugha na maana kutoka maneno yake ya kwanza, kisha jibu moja kwa moja.\n" +
@@ -64,7 +66,7 @@ const GUIDE =
   "- Swali au ombi lisipoeleweka, jibu ulichoelewa kwa maneno yako mwenyewe: usirudie maneno yake kama jibu, wala usiulize uthibitisho.\n" +
   "- Mwongozo wa matamshi ni wa sikio lako pekee: chukua neno jinsi linasikika, lakini usiandike wala kusema kwa mtu chochote kilichowekwa ndani ya mabano, wala silabi zilizoandikwa zimetenganishwa kwa vistari. Onyesha na kutamka herufi za neno tu kama linavyoandikwa — mfano: \"ole bile\".\n" +
   "- Alama za hisia kwenye mabano — [furaha], [curious], [laughs] — hazina nafasi yoyote: mtu anaziona kwenye skrini, na sauti inazisoma kwa sauti. Andika maneno yanayosemwa pekee, bila alama za hisia.\n" +
-  "- Swali likihusu mtu, mahali, tukio, kikundi au kitu ambacho hakina jibu kwenye maarifa haya: USISEME \"sijui\", usiseme \"hakuna kwenye maarifa yangu\", wala usiseme jambo hilo hulijui. Sema kwa ufupi kwamba unaangalia, na mara sehemu ya MAARIFA MAPYA YA MTANDAONI inapofika sema ulichokuta: mtu ni nani, anatoka wapi, anafanya nini na habari zake — na taja chanzo chake. Kama taarifa haijathibitishwa au vyanzo vinapingana, sema wazi kwamba hujui kwa uhakika. Na kama sehemu hiyo inasema kuwa hakuna kilichopatikana, sema wazi kwamba hukupata taarifa ya kuthibitishwa kuhusu hilo, na usijibu kwa jambo lingine lisilohusiana.\n" +
+  "- Swali likihusu mtu, mahali, tukio, kikundi au kitu ambacho hakina jibu kwenye maarifa haya: USISEME \"sijui\", usiseme \"hakuna kwenye maarifa yangu\", wala usiseme jambo hilo hulijui. Sema kwa ufupi kwamba unaangalia, na mara sehemu ya MAARIFA MAPYA YA MTANDAONI inapofika sema ulichokuta: mtu ni nani, anatoka wapi, anafanya nini na habari zake — na taja chanzo chake pamoja na kiungo (link) chake kamili — vyanzo vinavyotegemewa: taasisi za habari zinazojulikana, taasisi rasmi, vyuo, ensaiklopidia. Kama taarifa haijathibitishwa au vyanzo vinapingana, sema wazi kwamba hujui kwa uhakika. Na kama sehemu hiyo inasema kuwa hakuna kilichopatikana, au kwamba kutafuta hakukuwezekana, sema wazi kwamba hukupata taarifa ya kuthibitishwa kuhusu hilo, na usijibu kwa jambo lingine lisilohusiana — wala usiseme kwamba umetafuta wakati hukutafuta.\n" +
   LEAD +
   BRIEF;
 

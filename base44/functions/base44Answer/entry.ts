@@ -7,6 +7,7 @@ import { knowledgeStamp } from "../../shared/wordBank.ts";
 import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
+import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 
 /**
  * The Base44 AI call. What the person said is heard, the answer is written by the app's own
@@ -77,6 +78,7 @@ const KNOWLEDGE_HEAD =
 const HOW = [
   "Write every answer in exactly these parts:",
   "lang: which language the person's own words are in — ebembe, swahili or english — read from their words themselves, never from a phone setting and never from the language of your own last answer. Their language leads the answer: its part is written first and it is the part read aloud. When they change language mid-talk the next answer changes with them, and changes back when they change back.",
+  ANSWER_LANGUAGE,
   "ebembe: the answer itself in Kibembe (Ebembe), the words a Babembe speaker really uses, written exactly as the rule book's reading key spells them, every letter sounded the Ebembe way rather than the English letter-name, with no hyphens between syllables.",
   "guide: how that same Kibembe sounds to an American ear, syllable by syllable joined with dashes.",
   "swahili: the same thing in everyday Kiswahili. english: the same thing in plain English. Every part says the same thing, and the one in the person's own language is the answer they are waiting for.",
@@ -93,6 +95,7 @@ const HOW = [
   "Never say that you did not hear them or did not understand them, and never ask them to say it again.",
   "Never write a stage direction or an emotion cue between brackets — [curious], [laughs], (softly) — in any part: they are not words a person reads or hears.",
   "Never say that you do not know, and never say that something is not in the knowledge. When they ask about a person, a place, an event or a thing that the knowledge below does not answer, say briefly that you are looking it up, and answer from the material that comes back: who or what it is, where it is from, and what is known about it — naming where it came from, and saying plainly when it is not confirmed.",
+  SOURCE_RULES,
   "Never repeat a line you have already given in this conversation: say something new.",
 ].join("\n");
 

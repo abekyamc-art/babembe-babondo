@@ -36,8 +36,8 @@ const HEAD =
   "\nMAARIFA MAPYA YA MTANDAONI — material that was just looked up for this request:\n" +
   "Tumia sehemu hii kwa ombi ambalo halina jibu kwenye maarifa ya admin: mtu ni nani, anatoka wapi, anafanya nini, habari zake, hadithi, tukio au jambo. " +
   "Toa alichoomba kikamilifu — usifanye muhtasari, na usiishie hapo: ongeza maneno mapya kadri anavyotaka. " +
-  "Lugha: Ebembe kwanza, kisha Kiswahili. " +
-  "Sema wazi kwamba jibu hili limetafutwa mtandaoni, na taja chanzo chake kama kilivyoandikwa. " +
+  "Lugha: jibu kwa lugha ya mtu. Mtu aliyeongea Kibembe akiomba habari, hadithi au maelezo ya Kiswahili, eleza kwa Kibembe; akiomba wazi kwamba iwe kwa Kiswahili, jibu kwa Kiswahili pekee. " +
+  "Sema wazi kwamba jibu hili limetafutwa mtandaoni, taja chanzo chake kama kilivyoandikwa, na uandike kiungo (link) chake kamili. " +
   "Ikiwa taarifa haijathibitishwa au vyanzo vinapingana, sema wazi kwamba hujui kwa uhakika. " +
   "USISEME kwamba jibu halipo kwenye maarifa yako, wala kwamba hukijui: sema ulichokuta.\n";
 
@@ -45,9 +45,9 @@ const HEAD =
 // person is told plainly that nothing could be confirmed, and no other subject is brought in.
 const MISS =
   "\nTAFUTA ILIYOSHINDWA — the search this request needed found nothing:\n" +
-  "Ombi hili la mtu lilihitaji kutafutwa mtandaoni, lakini hakuna kilichopatikana kwa uhakika. " +
+  "Ombi hili la mtu lilihitaji kutafutwa mtandaoni, lakini hakuna kilichopatikana kwa uhakika — au kutafuta hakukuwezekana kabisa. " +
   "Sema kwa ufupi kwamba hukupata taarifa ya kuthibitishwa kuhusu hilo, kisha mwombe aeleze zaidi " +
-  "au toa kilichohifadhiwa kwenye maarifa. Usijibu kwa jambo lingine lisilohusiana, na usiseme tu \"sijui\".\n";
+  "au toa kilichohifadhiwa kwenye maarifa. Usijibu kwa jambo lingine lisilohusiana, na usiseme tu \"sijui\" — na usiseme kwamba umetafuta wakati hukutafuta.\n";
 
 // Video results for the request, read before the search is written down: a search of YouTube is
 // what this app's own network can reach, and it is where its subjects live.

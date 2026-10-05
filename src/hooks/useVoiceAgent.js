@@ -461,7 +461,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         const earsLang = heardLanguage(language);
         if (earsLang) {
           engine.sendMemory(
-            `The ears wrote the person's turn down as ${earsLang}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${earsLang}, answer in ${earsLang} only — never in a mix.`
+            `The ears wrote the person's turn down as ${earsLang}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${earsLang}, answer in ${earsLang} only — never in a mix; where their words mix Kibembe and Kiswahili, answer in Kibembe only; where they plainly ask for a language, answer in that one only.`
           );
         }
         // The turn itself is put to him now, so neither the words helper nor a lookup can ever leave
