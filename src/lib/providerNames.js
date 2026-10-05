@@ -18,9 +18,9 @@ const CLASSES = {
 };
 
 /**
- * The app's own Kibembe assistant — the one answered from the saved Word Bank. It is the assistant
- * the home screen now speaks with, and its colour class keeps that screen's palette its own, apart
- * from the four voices the Kibembe screen switches between.
+ * The app's own Kibembe assistant — the one answered from the saved Word Bank. It answers on the
+ * Kibembe assistance screen, with Sadiki AI reading its answers, and its colour class keeps the home
+ * screen's palette its own.
  */
 export const KIBEMBE_ASSISTANT = "Kibembe Assistant";
 export const KIBEMBE_CLASS = "mode-kibembe";

@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
-import useOpenAiAssistant from "@/hooks/useOpenAiAssistant";
+import useSadikiVoice from "@/hooks/useSadikiVoice";
 import useCartesiaVoice from "@/hooks/useCartesiaVoice";
-import { CARTESIA_AI, KIBEMBE_ASSISTANT } from "@/lib/providerNames";
+import { CARTESIA_AI, SADIKI_AI } from "@/lib/providerNames";
 import { CARTESIA_ANSWERS, TALK_ANSWERS, handoffNotice } from "@/lib/talkRotation";
 
 /**
@@ -10,30 +10,28 @@ import { CARTESIA_ANSWERS, TALK_ANSWERS, handoffNotice } from "@/lib/talkRotatio
  * Two voices take their turns the way the app's calls always have: each answers its own number of
  * questions, then that call is hung up and the other one picks the conversation up straight away —
  * the person keeps talking and never starts the next AI themselves. Cartesia AI opens every call,
- * answers seven questions and hands over; the app's own assistant answers two and hands back, and
- * the two swap places for as long as the call runs.
+ * answers seven questions and hands over; Sadiki AI answers two and hands back, and the two swap
+ * places for as long as the call runs.
+ *
+ * The app's own Kibembe assistant no longer answers on this screen: it works on the Kibembe
+ * assistance screen now, where Sadiki reads its answers with it.
  */
 
-const ASSISTANT = "assistant";
+const SADIKI = "sadiki";
 const CARTESIA = "cartesia";
-const NAMES = { [ASSISTANT]: KIBEMBE_ASSISTANT, [CARTESIA]: CARTESIA_AI };
+const NAMES = { [SADIKI]: SADIKI_AI, [CARTESIA]: CARTESIA_AI };
 
 // How long each voice holds the call before it is hung up and the other one takes over.
-const TURN_ANSWERS = { [CARTESIA]: CARTESIA_ANSWERS, [ASSISTANT]: TALK_ANSWERS };
+const TURN_ANSWERS = { [CARTESIA]: CARTESIA_ANSWERS, [SADIKI]: TALK_ANSWERS };
 
 const turnAnswers = (voice) => TURN_ANSWERS[voice] || TALK_ANSWERS;
 
-// The ears wrote a turn down as a language nobody said: nothing answers a line like that, and the
-// call is handed to the voice that hears Ebembe itself.
-const MISHEARD =
-  "That turn came back in another language — Cartesia AI is taking the call. Say it again.";
-
 export default function useHomeVoice() {
   const [turns, setTurns] = useState([]);
-  const [voice, setVoice] = useState(ASSISTANT);
+  const [voice, setVoice] = useState(SADIKI);
   const [notice, setNotice] = useState("");
 
-  const voiceRef = useRef(ASSISTANT);
+  const voiceRef = useRef(SADIKI);
   const answersRef = useRef(0);
   // a call is on air, and is being handed over: neither a turn taken outside a call nor one taken
   // while the handover is running is counted
@@ -53,7 +51,7 @@ export default function useHomeVoice() {
   }, []);
 
   // an answer has been given, so it is charged — and counted against the number this voice answers
-  // before the other one takes the call: Cartesia AI seven, the assistant two
+  // before the other one takes the call: Cartesia AI seven, Sadiki AI two
   const onAnswered = useCallback(() => {
     chargeRef.current?.();
     if (!callingRef.current || turningRef.current) return;
@@ -63,40 +61,26 @@ export default function useHomeVoice() {
     handoffRef.current?.();
   }, []);
 
-  /**
-   * The assistant's ears wrote a turn down in a script this app's people never speak — Ebembe came
-   * back as Chinese or Japanese words. Nothing answers a line like that: the call is handed straight
-   * to Cartesia AI, which hears Ebembe itself, and the person is asked to say it again.
-   */
-  const onMisheard = useCallback(() => {
-    if (voiceRef.current !== ASSISTANT) return;
-    if (!callingRef.current || turningRef.current) return;
-    setNotice(MISHEARD);
-    handoffRef.current?.(MISHEARD);
-  }, []);
-
-  const assistant = useOpenAiAssistant({ onTurn, onMisheard });
+  const sadiki = useSadikiVoice({ onTurn });
   const cartesia = useCartesiaVoice({ onTurn, onAnswered });
 
   /** The AI asked to take the call, and why it could not where it could not. */
   const openVoice = useCallback(
     async (which) => {
-      if (which === CARTESIA) {
-        const why = await cartesia.start();
-        return why ? { ok: false, why } : { ok: true, why: "" };
-      }
-      const ok = await assistant.start({ onAnswered });
-      return { ok, why: "" };
+      // each AI opens on its own account and says plainly when it could not, so whoever cannot take
+      // the call is named rather than left to be guessed at
+      const why = which === CARTESIA ? await cartesia.start() : await sadiki.start({ onAnswered });
+      return why ? { ok: false, why } : { ok: true, why: "" };
     },
-    [assistant, cartesia, onAnswered]
+    [cartesia, sadiki, onAnswered]
   );
 
   const closeVoice = useCallback(
     async (which) => {
       if (which === CARTESIA) await cartesia.stop();
-      else await assistant.stop();
+      else await sadiki.stop();
     },
-    [assistant, cartesia]
+    [cartesia, sadiki]
   );
 
   /**
@@ -110,7 +94,7 @@ export default function useHomeVoice() {
     turningRef.current = true;
     try {
       const from = voiceRef.current;
-      const next = from === CARTESIA ? ASSISTANT : CARTESIA;
+      const next = from === CARTESIA ? SADIKI : CARTESIA;
       // an AI that could not take the call is not asked again in the same call: the one on the line
       // simply keeps it, and the talk never stalls on a voice that cannot open
       if (next === CARTESIA && downRef.current) return;
@@ -158,24 +142,27 @@ export default function useHomeVoice() {
       answersRef.current = 0;
       downRef.current = false;
       setNotice("");
-      // every call opens on Cartesia AI; the app's own assistant takes its turn once Cartesia has
-      // given its seven answers
+      // every call opens on Cartesia AI; Sadiki AI takes its turn once Cartesia has given its
+      // seven answers
       voiceRef.current = CARTESIA;
       setVoice(CARTESIA);
       const opened = await openVoice(CARTESIA);
       if (opened.ok) return true;
 
-      // Cartesia AI could not take the call: the assistant opens it instead, and is not asked to
-      // hand over to a voice already known to be down during this call
+      // Cartesia AI could not take the call: Sadiki AI opens it instead, and is not asked to hand
+      // over to a voice already known to be down during this call
       downRef.current = true;
-      voiceRef.current = ASSISTANT;
-      setVoice(ASSISTANT);
+      voiceRef.current = SADIKI;
+      setVoice(SADIKI);
+      const backup = await openVoice(SADIKI);
       setNotice(
-        opened.why || `${NAMES[CARTESIA]} couldn't take the call — ${NAMES[ASSISTANT]} is on it.`
+        backup.why ||
+          opened.why ||
+          `${NAMES[CARTESIA]} couldn't take the call — ${NAMES[SADIKI]} is on it.`
       );
-      return assistant.start({ onAnswered });
+      return backup.ok;
     },
-    [assistant, onAnswered, openVoice]
+    [onAnswered, openVoice]
   );
 
   const stop = useCallback(async () => {
@@ -187,12 +174,12 @@ export default function useHomeVoice() {
   }, [closeVoice]);
 
   /**
-   * A written question is put to the app's own assistant, whichever AI is on the call. Its answer is
-   * charged like any other, but it only counts against the assistant's turn while the assistant
-   * really holds the call — a line Cartesia AI opened never gave that answer.
+   * A written question is put to Sadiki AI, whichever AI is on the call. Its answer is charged like
+   * any other, but it only counts against Sadiki's turn while Sadiki really holds the call — a line
+   * Cartesia AI opened never gave that answer.
    */
   const onWritten = useCallback(() => {
-    if (voiceRef.current !== ASSISTANT) {
+    if (voiceRef.current !== SADIKI) {
       chargeRef.current?.();
       return;
     }
@@ -202,12 +189,12 @@ export default function useHomeVoice() {
   const ask = useCallback(
     async (text, charge) => {
       if (charge) chargeRef.current = charge;
-      return assistant.ask(text, onWritten);
+      return sadiki.ask(text, onWritten);
     },
-    [assistant, onWritten]
+    [sadiki, onWritten]
   );
 
-  const active = voice === CARTESIA ? cartesia : assistant;
+  const active = voice === CARTESIA ? cartesia : sadiki;
 
   return {
     status: active.status,

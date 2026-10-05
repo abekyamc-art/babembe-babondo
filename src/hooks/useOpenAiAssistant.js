@@ -4,22 +4,28 @@ import { primedAudio, primeAudio } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import { isMisheard } from "@/lib/misheardSpeech";
 import RealtimeCall, { stageLabel } from "@/lib/realtimeCall";
+import { reviewAnswer } from "@/lib/sadikiReview";
+import { SADIKI_AI } from "@/lib/providerNames";
 
 /**
- * The home screen's own assistant: the app's Kibembe assistant, answered from the saved Word Bank
- * on the server. A spoken turn goes out over a real Realtime connection and the words the service
- * writes down are put to `chatWithKibembeAssistant` — the same assistant the written chat asks —
- * and the answer that comes back is the verified one, which the voice connection then reads aloud.
- * A written turn is put to the same assistant and answered on screen.
+ * The Kibembe assistance screen's own assistant: the app's Kibembe assistant, answered from the
+ * saved Word Bank on the server. A spoken turn goes out over a real Realtime connection and the words
+ * the service writes down are put to `chatWithKibembeAssistant` — the same assistant the written
+ * chat asks — and the answer that comes back is read by Sadiki AI before anything is shown or said.
+ * A written turn is put to the same assistant, read in the same way, and answered on screen.
  */
 
-// A spoken turn the ears wrote down in a script this app's people never speak — Ebembe come back as
-// Chinese or Japanese words — is never answered here: it is handed over at once, so the call can
-// move to the voice that hears Ebembe itself.
 const COULD_NOT_ASK = "The assistant could not be reached. Please try again.";
 const NO_VOICE = "The answer came back, but the voice could not read it out.";
 const TOUCH_TO_HEAR = "Tap the screen to let the sound through.";
 const ENDED = "The call ended. Tap the phone to begin again.";
+// Sadiki AI reads every answer before it is given: where he could not be asked at all, that is said
+// plainly and the answer the assistant wrote stands as it is
+const REVIEW_MISSED = `${SADIKI_AI} couldn't read that answer just now — it comes to you as the assistant wrote it.`;
+// A spoken turn the ears wrote down in a script this app's people never speak — Ebembe come back as
+// Chinese or Japanese words — is never answered here: it is refused, and the person is asked to say
+// it again, so no answer is ever written from words nobody said.
+const MISHEARD = "That turn came back in another language — say it again, please.";
 
 export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
   const [active, setActive] = useState(false);
@@ -75,8 +81,13 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
           setError(data.error);
           return;
         }
-        const reply = String(data.reply || "").trim();
-        if (!reply) return;
+        const draft = String(data.reply || "").trim();
+        if (!draft) return;
+        // Sadiki AI reads the answer before the person is given it, and what stands is what he hands
+        // back; where he could not be asked at all, the answer the assistant wrote stands instead
+        const reviewed = await reviewAnswer(line, draft);
+        const reply = reviewed || draft;
+        if (!reviewed) setNotice(REVIEW_MISSED);
         pushTurn("assistant", reply);
         // the answer has been given, so it is counted against the allowance
         answeredRef.current?.();
@@ -99,9 +110,13 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
       const said = String(text || "").trim();
       if (!said) return;
       // Ebembe written down as Chinese or Japanese words is an answer to nothing: that turn is
-      // handed over, and never put to the assistant
+      // handed over where a screen is waiting to take it, and refused plainly where it is not
       if (isMisheard(said)) {
-        misheardRef.current?.(said);
+        if (misheardRef.current) {
+          misheardRef.current(said);
+          return;
+        }
+        setError(MISHEARD);
         return;
       }
       chainRef.current = chainRef.current.then(() => answer(said)).catch(() => {});
