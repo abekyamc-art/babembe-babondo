@@ -66,6 +66,10 @@ export default function useHomeVoice() {
   const pendingRef = useRef(null);
   // the voices that could not open a call in this one: their turn is never offered to them twice
   const triedRef = useRef([]);
+  // the hang-up the change is running right now: the person's tap waits on it before the next voice
+  // is opened, so the voice standing down is released first and two voices are never on the line
+  // at the same time
+  const handingRef = useRef(null);
 
   // the whole talk is kept here, so a call that hands over carries the conversation with it and
   // nothing said before the change is lost from the screen
@@ -153,27 +157,38 @@ export default function useHomeVoice() {
    * is lost from it.
    */
   const handoff = useCallback(async () => {
-    if (turningRef.current) return;
+    // a change is already running, or the next voice is already waiting behind the person's tap
+    if (turningRef.current || pendingRef.current) return;
     turningRef.current = true;
+    const from = seatRef.current;
+    // the voices that may take the call next, in the order the ring runs, each of them once
+    const plan = nextPlan(from.id, triedRef.current);
+    // The voice taking the next turn is chosen and waiting from the moment the change begins — and
+    // the count starts again from nothing, since the answers so far belonged to the voice standing
+    // down. Choosing it here is what keeps a tap that lands while the call is being hung up from
+    // opening a second call on top of the voice that is standing down.
+    const next = plan[0];
+    answersRef.current = 0;
+    pendingRef.current = { next, plan, from };
+    setWaiting(true);
+    setLabel(next.label);
+    setNotice(resumeNotice(from.label, next.label, from.answers));
+    // The call on air is hung up here, and the change stays under way until the voice behind the
+    // person's tap has opened: that tap waits on this hang-up before it opens anything, so the voice
+    // standing down is released first and the two are never on the line at once.
+    handingRef.current = closeSeat(from);
     try {
-      const from = seatRef.current;
-      // the voices that may take the call next, in the order the ring runs, each of them once
-      const plan = nextPlan(from.id, triedRef.current);
-      // the voice the call has selected to take the next turn: the one that follows this voice in
-      // the ring, named on the screen while the call waits
-      const next = plan[0];
-      await closeSeat(from);
-      // the person ended the call while it was being hung up
-      if (!callingRef.current) return;
-      // the answers so far belonged to the voice standing down, so the count starts again from
-      // nothing — and it starts for the voice the tap is about to open
-      answersRef.current = 0;
-      pendingRef.current = { next, plan, from };
-      setWaiting(true);
-      setLabel(next.label);
-      setNotice(resumeNotice(from.label, next.label, from.answers));
+      await handingRef.current;
+    } catch (err) {
+      // a hang-up that could not finish never leaves the call wedged
     } finally {
-      // a change that could not finish never leaves the rotation wedged
+      handingRef.current = null;
+    }
+    // the person ended the call while it was being hung up: nothing is left waiting
+    if (!callingRef.current) {
+      pendingRef.current = null;
+      setWaiting(false);
+      setNotice("");
       turningRef.current = false;
     }
   }, [closeSeat]);
@@ -195,31 +210,48 @@ export default function useHomeVoice() {
     pendingRef.current = null;
     setWaiting(false);
 
-    // the voice the call selected while it was standing down is the one the person's tap starts;
-    // the rest of the ring is only the fallback for a voice that cannot open at all
-    const order = [pending.next, ...pending.plan.filter((seat) => seat.id !== pending.next.id)];
-
-    let refused = "";
-    for (const next of order) {
-      const opened = await openSeat(next);
-      if (!opened.ok) {
-        refused = next.label;
-        if (!triedRef.current.includes(next.id)) triedRef.current = [...triedRef.current, next.id];
-        continue;
+    try {
+      // the voice that was holding the call is hung up before the next one opens, so no two voices
+      // are ever on the line at once
+      if (handingRef.current) {
+        try {
+          await handingRef.current;
+        } catch (err) {
+          // the hang-up was given up on: the call still moves on rather than sitting still
+        }
       }
-      setCurrent(next);
-      setNotice(handoffNotice(pending.from.label, next.label, pending.from.answers));
-      return true;
-    }
+      // the person ended the call while it was being hung up
+      if (!callingRef.current) return false;
 
-    // none of them could open: nothing is guessed at, and the person is told plainly what to do
-    setLabel(pending.from.label);
-    setNotice(
-      refused
-        ? `${refused} couldn't take the call — tap the phone to try again.`
-        : "Tap the phone to talk again."
-    );
-    return false;
+      // the voice the call selected while it was standing down is the one the person's tap starts;
+      // the rest of the ring is only the fallback for a voice that cannot open at all
+      const order = [pending.next, ...pending.plan.filter((seat) => seat.id !== pending.next.id)];
+
+      let refused = "";
+      for (const next of order) {
+        const opened = await openSeat(next);
+        if (!opened.ok) {
+          refused = next.label;
+          if (!triedRef.current.includes(next.id)) triedRef.current = [...triedRef.current, next.id];
+          continue;
+        }
+        setCurrent(next);
+        setNotice(handoffNotice(pending.from.label, next.label, pending.from.answers));
+        return true;
+      }
+
+      // none of them could open: nothing is guessed at, and the person is told plainly what to do
+      setLabel(pending.from.label);
+      setNotice(
+        refused
+          ? `${refused} couldn't take the call — tap the phone to try again.`
+          : "Tap the phone to talk again."
+      );
+      return false;
+    } finally {
+      // the change is over: whoever holds the call now is the one answering
+      turningRef.current = false;
+    }
   }, [openSeat, setCurrent]);
 
   const clearChange = useCallback(() => {
@@ -257,9 +289,10 @@ export default function useHomeVoice() {
   const start = useCallback(
     async ({ onAnswered: charge } = {}) => {
       if (charge) chargeRef.current = charge;
-      // a voice is waiting after a handoff: the tap opens the next one in the ring, so the call
-      // carries on from where it stood instead of starting over
-      if (pendingRef.current) return resume();
+      // A tap that lands while the change is running carries it on: it opens the next voice in the
+      // ring behind it — waiting on the hang-up still running — instead of a second call starting on
+      // top of the voice that is standing down.
+      if (pendingRef.current || turningRef.current) return resume();
 
       callingRef.current = true;
       turningRef.current = false;
