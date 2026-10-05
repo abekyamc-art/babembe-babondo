@@ -128,7 +128,13 @@ export default function Chat() {
         >
           <span className="grid h-9 w-9 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary text-[13px] font-semibold uppercase text-muted-foreground">
             {other?.avatar_url ? (
-              <Image src={other.avatar_url} alt="" className="h-9 w-9" />
+              <Image
+                src={other.avatar_url}
+                alt=""
+                focalPointX={other.avatar_crop_x}
+                focalPointY={other.avatar_crop_y}
+                className="h-9 w-9"
+              />
             ) : (
               username.slice(0, 1)
             )}

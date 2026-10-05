@@ -1,6 +1,8 @@
 import React, { useEffect, useRef, useState } from "react";
 import { Coins, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import { Image } from "@/components/ui/image";
+import AvatarCrop, { cropOf } from "@/components/profile/AvatarCrop";
 import { balanceOf } from "@/lib/coins";
 import { ensureProfile, publicFile } from "@/lib/social";
 
@@ -21,6 +23,8 @@ export default function AccountProfile({ user, wallet, onGetCoins }) {
   const fileRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [username, setUsername] = useState("");
+  // the picture just chosen, held with the framing being chosen for it until both are saved together
+  const [pending, setPending] = useState(null);
   const [busy, setBusy] = useState("");
 
   useEffect(() => {
@@ -49,6 +53,8 @@ export default function AccountProfile({ user, wallet, onGetCoins }) {
     );
   }
 
+  // A chosen picture is framed before it is saved, and the framing is saved with it — so the
+  // picture is written once, exactly as it will be shown everywhere.
   const changePicture = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -56,8 +62,24 @@ export default function AccountProfile({ user, wallet, onGetCoins }) {
     setBusy("picture");
     try {
       const url = await publicFile(file);
-      const saved = await base44.entities.Profile.update(profile.id, { avatar_url: url });
+      setPending({ url, ...cropOf(profile) });
+    } finally {
+      setBusy("");
+    }
+  };
+
+  // the picture is saved with the part of it that was chosen to show
+  const saveCrop = async (x, y) => {
+    if (!profile || !pending) return;
+    setBusy("picture");
+    try {
+      const saved = await base44.entities.Profile.update(profile.id, {
+        avatar_url: pending.url,
+        avatar_crop_x: x,
+        avatar_crop_y: y,
+      });
       setProfile(saved);
+      setPending(null);
     } finally {
       setBusy("");
     }
@@ -79,23 +101,43 @@ export default function AccountProfile({ user, wallet, onGetCoins }) {
   return (
     <>
       <div className="account-identity">
-        <button
-          type="button"
-          onClick={() => fileRef.current?.click()}
-          aria-label="Change profile picture"
-          className="account-avatar account-avatar-btn"
-        >
-          {profile?.avatar_url ? (
-            <img src={profile.avatar_url} alt="" className="account-img" />
-          ) : (
-            <PersonIcon />
-          )}
-          {busy === "picture" ? (
-            <span className="account-avatar-busy">
-              <Loader2 className="h-5 w-5 animate-spin" />
-            </span>
-          ) : null}
-        </button>
+        {pending ? (
+          <AvatarCrop
+            url={pending.url}
+            x={pending.x}
+            y={pending.y}
+            busy={busy === "picture"}
+            onCancel={() => setPending(null)}
+            onSave={saveCrop}
+          />
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => fileRef.current?.click()}
+              aria-label="Change profile picture"
+              className="account-avatar account-avatar-btn"
+            >
+              {profile?.avatar_url ? (
+                <Image
+                  src={profile.avatar_url}
+                  alt=""
+                  focalPointX={cropOf(profile).x}
+                  focalPointY={cropOf(profile).y}
+                  className="account-img"
+                />
+              ) : (
+                <PersonIcon />
+              )}
+              {busy === "picture" ? (
+                <span className="account-avatar-busy">
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                </span>
+              ) : null}
+            </button>
+            <p className="account-hint">Tap your picture to change it</p>
+          </>
+        )}
         <input
           ref={fileRef}
           type="file"
@@ -103,7 +145,6 @@ export default function AccountProfile({ user, wallet, onGetCoins }) {
           onChange={changePicture}
           className="hidden"
         />
-        <p className="account-hint">Tap your picture to change it</p>
         <div className="account-label">Account</div>
         <div className="account-name">{user.full_name || "Signed in"}</div>
         <div className="account-email">{user.email}</div>

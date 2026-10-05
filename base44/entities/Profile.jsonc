@@ -14,6 +14,16 @@
       "type": "string",
       "description": "Public URL of the profile picture."
     },
+    "avatar_crop_x": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Where across the picture its round frame is anchored: 0 is the left edge, 0.5 the middle, 1 the right edge. It is the framing chosen when the picture was set."
+    },
+    "avatar_crop_y": {
+      "type": "number",
+      "default": 0.5,
+      "description": "Where down the picture its round frame is anchored: 0 is the top edge, 0.5 the middle, 1 the bottom edge. It is the framing chosen when the picture was set."
+    },
     "coins": {
       "type": "number",
       "default": 0,

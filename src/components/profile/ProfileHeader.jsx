@@ -19,7 +19,13 @@ export default function ProfileHeader({
     <header className="flex flex-col items-center gap-4 px-6 pb-5 pt-3 text-center">
       <div className="grid h-24 w-24 place-items-center overflow-hidden rounded-full border border-border bg-secondary text-[28px] font-semibold uppercase text-muted-foreground">
         {person?.avatar_url ? (
-          <Image src={person.avatar_url} alt="" className="h-24 w-24" />
+          <Image
+            src={person.avatar_url}
+            alt=""
+            focalPointX={person.avatar_crop_x}
+            focalPointY={person.avatar_crop_y}
+            className="h-24 w-24"
+          />
         ) : (
           username.slice(0, 1)
         )}

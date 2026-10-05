@@ -99,7 +99,13 @@ export default function Messages() {
                   >
                     <span className="grid h-12 w-12 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary text-[15px] font-semibold uppercase text-muted-foreground">
                       {person?.avatar_url ? (
-                        <Image src={person.avatar_url} alt="" className="h-12 w-12" />
+                        <Image
+                          src={person.avatar_url}
+                          alt=""
+                          focalPointX={person.avatar_crop_x}
+                          focalPointY={person.avatar_crop_y}
+                          className="h-12 w-12"
+                        />
                       ) : (
                         username.slice(0, 1)
                       )}

@@ -77,7 +77,13 @@ export default function PeoplePanel({
                     >
                       <span className="grid h-10 w-10 shrink-0 place-items-center overflow-hidden rounded-full bg-secondary text-[13px] font-semibold uppercase text-muted-foreground">
                         {person.avatar_url ? (
-                          <Image src={person.avatar_url} alt="" className="h-10 w-10" />
+                          <Image
+                            src={person.avatar_url}
+                            alt=""
+                            focalPointX={person.avatar_crop_x}
+                            focalPointY={person.avatar_crop_y}
+                            className="h-10 w-10"
+                          />
                         ) : (
                           (person.username || "?").slice(0, 1)
                         )}
