@@ -15,8 +15,8 @@ export const FIRST_TALK = { id: "gloire", label: GLOIRE_AI, account: "" };
 export const TALK_ANSWERS = 2;
 
 /**
- * How many answers Cartesia AI gives on a home call before the app's own assistant takes the next
- * turn. The two swap places for as long as the call runs, and every answer given spends one credit.
+ * How many answers Cartesia AI gives on a home call before the ring of voices moves on to the next
+ * one. Every answer given spends one credit.
  */
 export const CARTESIA_ANSWERS = 7;
 
