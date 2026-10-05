@@ -382,9 +382,30 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // — is put to him, so his answer comes back out loud as it always has
       onHeard: async (text, language, engine) => {
         pushTurn("user", text);
-        // The app's own reading of the turn runs while the words helper reads it too: the language
-        // the person's own words are in — the ears do not know Kibembe, and write a Kibembe turn
-        // down like a Kiswahili one — whether it is a greeting, and whether it left a place open.
+        // The ears' own name for the language goes in ahead of the turn, so the answer begins in
+        // the right language even when the app's own reading of the turn is still running. The ears
+        // do not know Kibembe and write a Kibembe turn down like a Kiswahili one, so their name is
+        // handed over as what they wrote — never as a command.
+        const earsLang = heardLanguage(language);
+        if (earsLang) {
+          engine.sendMemory(
+            `The ears wrote the person's turn down as ${earsLang}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${earsLang}, answer in ${earsLang} only — never in a mix.`
+          );
+        }
+        // The turn itself is put to him now, so neither the words helper nor a lookup can ever leave
+        // it unanswered. His own echo of these words is not a second turn on screen.
+        sentRef.current = text;
+        if (!engine.connected) {
+          setNotice("He couldn't be reached — tap the orb and say it again.");
+          return;
+        }
+        if (!engine.sendText(text)) {
+          setNotice("That turn didn't reach him — say it again.");
+          return;
+        }
+        // What follows the turn is extra context, never a second turn: the app's own reading of it
+        // — the language the person's own words are in, whether it is a greeting, and whether it
+        // left a place open — the words the answer should stand on, and the material just looked up.
         const [read, first, material] = await Promise.all([
           readTurn(text),
           wordsNote(text),
@@ -392,24 +413,23 @@ export default function useVoiceAgent({ videoRef } = {}) {
         ]);
         // A turn in Kibembe whose words left a place no saved word accounts for is reviewed a second
         // time: the words helper reads its own first answer once more and says which saved Ebembe
-        // word fits that place, so the phrase comes out whole before the answer is written.
+        // word fits that place, so the phrase comes out whole.
         const words = first && read.missing ? await wordsNote(text, { first }) : first;
-        const earsLang = heardLanguage(language);
-        // The person's own words decide the language of the answer. Where the app's own knowledge
-        // proves the turn is Kibembe that is said outright, and where it does not, the ears' name is
-        // handed over as what the ears wrote — never as a command — so a Kibembe turn is never
-        // answered in Kiswahili because of how the ears spelled it.
+        // the call moved on while the reading ran, so what was found belongs to no turn any more
+        if (socketRef.current !== engine || engine.silent || !engine.connected) return;
+        // where the app's own knowledge proves the turn is Kibembe, that is said outright
         const spoken = read.lang
           ? `The person just spoke in ${read.lang}. Answer in ${read.lang} only — from your first word to your last, and in no other language.`
-          : earsLang
-            ? `The ears wrote the person's turn down as ${earsLang}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${earsLang}, answer in ${earsLang} only — never in a mix.`
-            : "";
-        // the language, the words just heard and the material just looked up travel together
+          : "";
         const memory = [spoken, read.note, words, material].filter(Boolean).join("\n\n");
-        if (memory) engine.sendMemory(memory);
-        // his own echo of these words is not a second turn on screen
-        sentRef.current = text;
-        if (engine.connected) engine.sendText(text);
+        if (!memory) return;
+        // He has already begun answering: what was found is held for the turn that follows instead
+        // of being pushed over the answer being given
+        if (engine.speaking) {
+          heldRef.current = `${heldRef.current}\n${memory}`.slice(-HELD_LIMIT);
+          return;
+        }
+        engine.sendMemory(memory);
       },
       onAgentAnswered: () => {
         answeredRef.current?.();
