@@ -3,11 +3,12 @@ import { Mic, MicOff, Phone, PhoneOff } from "lucide-react";
 import ChatBubble from "@/components/kibembe/ChatBubble";
 import useKibembeVoice from "@/hooks/useKibembeVoice";
 
-// what the call is doing, said in one line
+// what the call is doing, said in one line. "listening" is only ever shown once the voice
+// session is really open and its sound is ready
 const LABELS = {
   idle: "Simu imezimwa",
   connecting: "Inaunganisha…",
-  listening: "Nakusikiliza…",
+  listening: "Imeunganishwa — sema sasa",
   thinking: "Anafikiria…",
   speaking: "Anazungumza…",
   muted: "Mic imezimwa",
