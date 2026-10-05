@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { primedAudio, primeAudio } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
+import { isMisheard } from "@/lib/misheardSpeech";
 import RealtimeCall, { stageLabel } from "@/lib/realtimeCall";
 
 /**
@@ -12,12 +13,15 @@ import RealtimeCall, { stageLabel } from "@/lib/realtimeCall";
  * A written turn is put to the same assistant and answered on screen.
  */
 
+// A spoken turn the ears wrote down in a script this app's people never speak — Ebembe come back as
+// Chinese or Japanese words — is never answered here: it is handed over at once, so the call can
+// move to the voice that hears Ebembe itself.
 const COULD_NOT_ASK = "The assistant could not be reached. Please try again.";
 const NO_VOICE = "The answer came back, but the voice could not read it out.";
 const TOUCH_TO_HEAR = "Tap the screen to let the sound through.";
 const ENDED = "The call ended. Tap the phone to begin again.";
 
-export default function useOpenAiAssistant({ onTurn } = {}) {
+export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [turns, setTurns] = useState([]);
@@ -41,6 +45,9 @@ export default function useOpenAiAssistant({ onTurn } = {}) {
   // to the next AI carries the talk so far with it
   const turnRef = useRef(onTurn);
   turnRef.current = onTurn;
+  // a turn the ears could not write in this app's own script is handed over through here
+  const misheardRef = useRef(onMisheard);
+  misheardRef.current = onMisheard;
 
   const pushTurn = useCallback((role, text) => {
     setTurns((prev) => [...prev, { role, text }]);
@@ -91,6 +98,12 @@ export default function useOpenAiAssistant({ onTurn } = {}) {
     (text) => {
       const said = String(text || "").trim();
       if (!said) return;
+      // Ebembe written down as Chinese or Japanese words is an answer to nothing: that turn is
+      // handed over, and never put to the assistant
+      if (isMisheard(said)) {
+        misheardRef.current?.(said);
+        return;
+      }
       chainRef.current = chainRef.current.then(() => answer(said)).catch(() => {});
     },
     [answer]

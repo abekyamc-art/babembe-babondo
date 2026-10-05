@@ -2,20 +2,31 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import useOpenAiAssistant from "@/hooks/useOpenAiAssistant";
 import useCartesiaVoice from "@/hooks/useCartesiaVoice";
 import { CARTESIA_AI, KIBEMBE_ASSISTANT } from "@/lib/providerNames";
-import { TALK_ANSWERS, handoffNotice } from "@/lib/talkRotation";
+import { CARTESIA_ANSWERS, TALK_ANSWERS, handoffNotice } from "@/lib/talkRotation";
 
 /**
  * The home page's call, and who is on it.
  *
- * Two outside voices take their turns the way the app's calls always have: each answers two
+ * Two voices take their turns the way the app's calls always have: each answers its own number of
  * questions, then that call is hung up and the other one picks the conversation up straight away —
  * the person keeps talking and never starts the next AI themselves. Cartesia AI opens every call,
- * and the app's own assistant takes the second turn and every other one after it.
+ * answers seven questions and hands over; the app's own assistant answers two and hands back, and
+ * the two swap places for as long as the call runs.
  */
 
 const ASSISTANT = "assistant";
 const CARTESIA = "cartesia";
 const NAMES = { [ASSISTANT]: KIBEMBE_ASSISTANT, [CARTESIA]: CARTESIA_AI };
+
+// How long each voice holds the call before it is hung up and the other one takes over.
+const TURN_ANSWERS = { [CARTESIA]: CARTESIA_ANSWERS, [ASSISTANT]: TALK_ANSWERS };
+
+const turnAnswers = (voice) => TURN_ANSWERS[voice] || TALK_ANSWERS;
+
+// The ears wrote a turn down as a language nobody said: nothing answers a line like that, and the
+// call is handed to the voice that hears Ebembe itself.
+const MISHEARD =
+  "That turn came back in another language — Cartesia AI is taking the call. Say it again.";
 
 export default function useHomeVoice() {
   const [turns, setTurns] = useState([]);
@@ -41,18 +52,30 @@ export default function useHomeVoice() {
     setTurns((prev) => [...prev, { role, text }]);
   }, []);
 
-  // an answer has been given, so it is charged — and counted against the two this AI gives before
-  // the other one takes the call
+  // an answer has been given, so it is charged — and counted against the number this voice answers
+  // before the other one takes the call: Cartesia AI seven, the assistant two
   const onAnswered = useCallback(() => {
     chargeRef.current?.();
     if (!callingRef.current || turningRef.current) return;
     answersRef.current += 1;
-    if (answersRef.current < TALK_ANSWERS) return;
+    if (answersRef.current < turnAnswers(voiceRef.current)) return;
     answersRef.current = 0;
     handoffRef.current?.();
   }, []);
 
-  const assistant = useOpenAiAssistant({ onTurn });
+  /**
+   * The assistant's ears wrote a turn down in a script this app's people never speak — Ebembe came
+   * back as Chinese or Japanese words. Nothing answers a line like that: the call is handed straight
+   * to Cartesia AI, which hears Ebembe itself, and the person is asked to say it again.
+   */
+  const onMisheard = useCallback(() => {
+    if (voiceRef.current !== ASSISTANT) return;
+    if (!callingRef.current || turningRef.current) return;
+    setNotice(MISHEARD);
+    handoffRef.current?.(MISHEARD);
+  }, []);
+
+  const assistant = useOpenAiAssistant({ onTurn, onMisheard });
   const cartesia = useCartesiaVoice({ onTurn, onAnswered });
 
   /** The AI asked to take the call, and why it could not where it could not. */
@@ -82,7 +105,7 @@ export default function useHomeVoice() {
    * never left in silence — the AI that had its turn takes the call straight back, and the reason
    * is said plainly.
    */
-  const handoff = useCallback(async () => {
+  const handoff = useCallback(async (saying = "") => {
     if (turningRef.current) return;
     turningRef.current = true;
     try {
@@ -98,7 +121,10 @@ export default function useHomeVoice() {
 
       voiceRef.current = next;
       setVoice(next);
-      setNotice(handoffNotice(NAMES[from], NAMES[next]));
+      // the voice taking the call opens its own turn: the answers before the handover were the other
+      // one's, and every one of them is already spent
+      answersRef.current = 0;
+      setNotice(saying || handoffNotice(NAMES[from], NAMES[next], turnAnswers(from)));
 
       const opened = await openVoice(next);
       if (opened.ok) return;
@@ -132,8 +158,8 @@ export default function useHomeVoice() {
       answersRef.current = 0;
       downRef.current = false;
       setNotice("");
-      // every call opens on Cartesia AI; the app's own assistant takes its turn once two answers
-      // have been given
+      // every call opens on Cartesia AI; the app's own assistant takes its turn once Cartesia has
+      // given its seven answers
       voiceRef.current = CARTESIA;
       setVoice(CARTESIA);
       const opened = await openVoice(CARTESIA);

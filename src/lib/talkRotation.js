@@ -14,6 +14,12 @@ export const FIRST_TALK = { id: "gloire", label: GLOIRE_AI, account: "" };
 /** How many answers a talk AI gives before the coordinator signals the change. */
 export const TALK_ANSWERS = 2;
 
+/**
+ * How many answers Cartesia AI gives on a home call before the app's own assistant takes the next
+ * turn. The two swap places for as long as the call runs, and every answer given spends one credit.
+ */
+export const CARTESIA_ANSWERS = 7;
+
 /** The line the coordinator is handed: one signal, naming the AI whose turn comes next. */
 export function signalLine(fromLabel) {
   const options = TALK_IDS.join(", ");
@@ -25,9 +31,13 @@ export function signalLine(fromLabel) {
   );
 }
 
-/** One AI steps aside and the one the coordinator named is ready to carry the talk on. */
-export function handoffNotice(from, next) {
-  return `${from} has taken its two questions. ${next} is taking over now — keep talking.`;
+// the number of answers a notice names, written the way the notice says it
+const COUNT_WORDS = { 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven" };
+
+/** One AI steps aside after its own answers, and the next one is ready to carry the talk on. */
+export function handoffNotice(from, next, answers = TALK_ANSWERS) {
+  const count = COUNT_WORDS[answers] || String(answers);
+  return `${from} has taken its ${count} questions. ${next} is taking over now — keep talking.`;
 }
 
 /** Nothing was named, so nothing is guessed: the same AI keeps the conversation. */
