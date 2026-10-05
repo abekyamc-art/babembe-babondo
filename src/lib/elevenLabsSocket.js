@@ -43,6 +43,9 @@ const TURN_END_MS = 1000;
 const TURN_MAX_MS = 30000;
 // how long the sound is given to start before the person is asked to touch the screen for it
 const START_WAIT_MS = 1500;
+// The app's own ears are given this long to write a turn down. Ears that hang are ears the call
+// does without: the AI hears the person itself rather than the conversation sitting in silence.
+const HEAR_MS = 10000;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -198,6 +201,8 @@ export default class VoiceSocket {
     this.captureFrom = 0;
     this.captureFrames = [];
     this.hearing = false;
+    // turns in a row the app's own ears could make nothing of
+    this.misses = 0;
     // whether the reason the cleanup is unavailable has already been said in this call
     this.cleanupNoted = false;
     // a helper session is asked again on the next turn, so it is never hung up on its own
@@ -333,11 +338,14 @@ export default class VoiceSocket {
       ws.onerror = () => {
         if (!opened) settle(reject, new Error("Could not connect to your agent."));
       };
-      ws.onclose = () => {
+      ws.onclose = (event) => {
         if (!opened) {
           settle(reject, new Error("Could not connect to your agent."));
           return;
         }
+        // a session that dies before it is ever answered is written down for what it was, so the
+        // reason is never left to be guessed at
+        console.error("The voice session closed:", event?.code, event?.reason || "");
         this.teardown();
         if (!this.closing) this.h.onStatus?.("closed");
       };
@@ -606,9 +614,18 @@ export default class VoiceSocket {
     this.hearing = true;
     this.setAwaiting(true);
     try {
-      const res = await base44.functions.invoke("helperListen", {
-        audio: bytesToB64(wavBytes(samples, IN_RATE)),
-      });
+      const res = await Promise.race([
+        base44.functions.invoke("helperListen", {
+          audio: bytesToB64(wavBytes(samples, IN_RATE)),
+        }),
+        wait(HEAR_MS).then(() => null),
+      ]);
+      // the ears never answered: the AI hears the person itself from here on, so a service that
+      // hangs can never leave the call silent
+      if (!res) {
+        this.fallbackToOwnEars();
+        return;
+      }
       const text = String(res?.data?.text || "").trim();
       const language = String(res?.data?.language || "").trim();
       // the cleanup could not be made this time: the turn was read exactly as it was before it,
@@ -623,17 +640,45 @@ export default class VoiceSocket {
       // the turn is said plainly instead of the call going quiet on it, and the microphone stays
       // open so the person can simply say it again
       if (!text) {
+        // One turn the ears could make nothing of is simply said again. Ears that cannot read two
+        // turns running are ears this call does without: the AI hears the person itself, so a turn
+        // is never lost to ears that cannot read it.
+        this.misses += 1;
         this.setAwaiting(false);
-        this.h.onReask?.("Didn't catch that — say it again.");
+        if (this.misses < 2) {
+          this.h.onReask?.("Didn't catch that — say it again.");
+          return;
+        }
+        this.fallbackToOwnEars();
         return;
       }
+      this.misses = 0;
       await this.h.onHeard?.(text, language, this);
     } catch (err) {
-      this.h.onError?.(err?.response?.data?.error || "Nothing could hear that turn.");
-      this.setAwaiting(false);
+      // The app's own ears could not read the turn at all — a key they are not allowed to use, a
+      // service that cannot answer — so the listening is handed to the AI itself rather than the
+      // conversation going silent over ears that cannot hear.
+      console.error("The ears could not read the turn:", err?.response?.data?.error || err?.message);
+      this.fallbackToOwnEars();
     } finally {
       this.hearing = false;
     }
+  }
+
+  /**
+   * The app's own ears cannot read this conversation, so the AI hears the person itself from here
+   * on: the sound of a turn goes straight into the session instead of being written down on the
+   * phone first. The turn that was lost can never be brought back, so the person is told plainly and
+   * asked to say it once more — and the error line is cleared, since nothing is wrong any more.
+   */
+  fallbackToOwnEars() {
+    this.ears = false;
+    this.captureOn = false;
+    this.captureFrames = [];
+    this.misses = 0;
+    this.setAwaiting(false);
+    this.h.onError?.("");
+    this.h.onReask?.("He couldn't read that turn — he's listening to you himself now. Say it again.");
   }
 
   /**

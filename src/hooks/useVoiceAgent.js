@@ -391,6 +391,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
           // — is said plainly, so a call can never just go quiet with nothing said about why.
           if (next === "closed" && liveRef.current) {
             setNotice(`${providerName(voiceMode())}'s call ended on its own — tap and try again.`);
+          } else if (next === "closed") {
+            // the session died before it was ever answered: said plainly, so a call that cannot
+            // open is never left looking like a call that simply has nothing to say
+            setNotice("The call couldn't start — tap the orb and try again.");
           }
           liveRef.current = false;
           // the call is gone, so the wait on its turn goes with it
@@ -416,6 +420,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
           return;
         }
         pushTurn("user", text);
+        // a turn the AI hears for itself is a turn like any other: if it never begins answering,
+        // the same turn moves to the next talk AI instead of the call sitting in silence
+        const engine = socketRef.current;
+        if (engine) armStuck(engine, text);
         reviewHeard(text);
         reviewWanted(text);
       },
