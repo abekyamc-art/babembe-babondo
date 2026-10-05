@@ -44,6 +44,7 @@ export default function VoiceAssistant() {
     notice,
     levelRef,
     voiceLabel,
+    waiting,
     start,
     stop,
     ask,
@@ -272,7 +273,9 @@ export default function VoiceAssistant() {
             ? "Thinking"
             : micActive
               ? "Listening"
-              : "Tap to talk";
+              : waiting
+                ? "Tap to continue"
+                : "Tap to talk";
 
   return (
     <div

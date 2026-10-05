@@ -10,7 +10,7 @@ import {
   TALK_ANSWERS,
   TALK_IDS,
   handoffNotice,
-  noSignalNotice,
+  resumeNotice,
 } from "@/lib/talkRotation";
 
 /**
@@ -19,8 +19,7 @@ import {
  * Cartesia AI opens every call and answers seven questions; the app's older talk AIs then take the
  * call in turn, each on its own account with its own key and its own agent, and each answering two
  * questions before the turn is passed on. Once they have all had a turn Cartesia AI is handed the
- * call back, so the ring keeps moving and the person keeps talking without ever starting the next
- * voice themselves: the call on air is hung up and the next one opens straight away.
+ * call back, so the ring keeps moving and the person keeps talking.
  *
  * What makes the change actually land is that it is a plain sequence of events, not a reading of the
  * screen:
@@ -31,9 +30,10 @@ import {
  * 2. The voice taking the next turn is asked for while the answer before the last one is still being
  *    given, and the asking is capped: a signal that never comes still passes the turn in order, so
  *    the rotation is never left waiting on one.
- * 3. The voices are opened in the order the turn passes, each once in a call. The name on the screen
- *    follows the call that actually opened, and when none can open the voice that stood down takes
- *    the call back with the reason said plainly.
+ * 3. The call on air is hung up, and the next voice waits: the person's own tap on the phone is what
+ *    opens it, with the microphone, and the talk carries on from where it stood. Voices are opened in
+ *    the order the turn passes, each once in a call — the name on the screen follows the call that
+ *    actually opened, and when none can open the reason is said plainly instead of silence.
  */
 
 const CARTESIA = "cartesia";
@@ -61,6 +61,8 @@ export default function useHomeVoice() {
   const [holder, setHolder] = useState(CARTESIA);
   const [voice, setVoice] = useState(CARTESIA_AI);
   const [notice, setNotice] = useState("");
+  // a voice has taken its turn and the next one is waiting for the person's own tap
+  const [waiting, setWaiting] = useState(false);
 
   // the voice that holds the call, kept in a ref because the handlers that read it were handed to
   // the calls as they opened
@@ -89,6 +91,9 @@ export default function useHomeVoice() {
   const triedRef = useRef(new Set());
   // the signal asked for while the answer before the last one was still being given
   const signalRef = useRef(null);
+  // the voices waiting to take the call, and the voice they are taking it from — held while the
+  // person's own tap is what opens the next one
+  const pendingRef = useRef(null);
 
   // the whole talk is kept here, so a call that hands over carries the conversation with it and
   // nothing said before the change is lost from the screen
@@ -215,20 +220,17 @@ export default function useHomeVoice() {
   );
 
   /**
-   * The change itself: the call on air is hung up and the next voice opens straight away — the
-   * person never starts it themselves, and the talk so far stays on the screen and goes with the new
-   * call. Who takes it is decided before anything is hung up, and the voices are opened in the order
-   * the turn passes, each of them once in a call: a voice that cannot open is never offered the turn
-   * twice, and where none of them can open the voice that stood down takes the call back with the
-   * reason said plainly rather than the person being left in silence.
+   * The change itself: who takes the next turn is decided here, while the answer before the last one
+   * is still being given, and the call on air is then hung up. The voice taking the next turn waits
+   * for the person's own tap on the phone — the plan built here is what that tap opens, in the order
+   * the turn passes and each voice once in a call — and the talk so far stays on the screen and goes
+   * with the new call.
    */
   const handoff = useCallback(async () => {
     if (turningRef.current) return;
     turningRef.current = true;
     try {
       const from = whoIsOn();
-      const before = { ...talkRef.current };
-      const takenBefore = takenRef.current;
 
       // each older talk AI takes the call in turn, and Cartesia AI is handed it back once they have
       // each had one — its own turn is what starts the ring round again. With Cartesia AI down for
@@ -260,53 +262,23 @@ export default function useHomeVoice() {
         plan.push({ which: CARTESIA, id: CARTESIA, label: CARTESIA_AI, account: "" });
       }
 
-      // the call on air is hung up, and the plan is opened in the order it was built
+      // the call on air is hung up here, and the next voice waits: the person's own tap on the phone
+      // is what opens it, with the microphone, so a call that has taken its turn never speaks on
+      // into an empty room
       await closeVoice(from.which);
       if (!callingRef.current) return;
       // the answers before the change belonged to the voice standing down
       answersRef.current = 0;
-
-      // the voice that refused the turn last, so what could not come through is named if none can
-      let refusedLabel = "";
-      for (const slot of plan) {
-        const opened = await openVoice(slot.which, slot);
-        // the person ended the call while this voice was opening
-        if (!callingRef.current) return;
-
-        if (opened.ok) {
-          // the ring, and the name on the screen — which follows the call that actually opened
-          if (slot.which === CARTESIA) {
-            takenRef.current = 0;
-            talkRef.current = { ...FIRST_TALK };
-          } else {
-            takenRef.current += 1;
-            talkRef.current = { id: slot.id, label: slot.label, account: slot.account };
-          }
-          setCurrent(slot.which, slot.label);
-          const answers = from.which === CARTESIA ? CARTESIA_ANSWERS : TALK_ANSWERS;
-          setNotice(handoffNotice(from.label, slot.label, answers));
-          return;
-        }
-
-        // the voice could not take the call: it is not offered the turn again in this call
-        if (slot.which === TALK) triedRef.current.add(slot.id);
-        else downRef.current = true;
-        refusedLabel = slot.label;
-      }
-
-      // none of them could take the call: the voice that stood down takes it back, and the reason is
-      // said plainly instead of the person being left in silence
-      setCurrent(from.which, from.label);
-      talkRef.current = before;
-      takenRef.current = takenBefore;
-      const back = await openVoice(from.which, from);
-      if (!callingRef.current) return;
+      pendingRef.current = { plan, from };
+      setWaiting(true);
+      const next = plan[0] || from;
+      setVoice(next.label);
       setNotice(
-        back.ok
-          ? refusedLabel
-            ? `${refusedLabel} couldn't take over — ${from.label} is carrying on.`
-            : noSignalNotice(from.label)
-          : `${from.label} couldn't take the call back — tap the phone to talk again.`
+        resumeNotice(
+          from.label,
+          next.label,
+          from.which === CARTESIA ? CARTESIA_ANSWERS : TALK_ANSWERS
+        )
       );
     } finally {
       // a change that could not finish never leaves the rotation wedged
@@ -319,6 +291,56 @@ export default function useHomeVoice() {
     handoffRef.current = handoff;
   }, [handoff]);
 
+  /**
+   * The person's own tap after a handoff: the next voice in the ring opens, the microphone with it,
+   * and the talk carries on from where it stood — no voice is asked for twice in one call. A voice
+   * that cannot open is named plainly rather than the call going quietly nowhere.
+   */
+  const resume = useCallback(async () => {
+    const pending = pendingRef.current;
+    if (!pending) return false;
+    pendingRef.current = null;
+    setWaiting(false);
+
+    let refusedLabel = "";
+    for (const slot of pending.plan) {
+      const opened = await openVoice(slot.which, slot);
+      if (!opened.ok) {
+        // the voice could not take the call: it is not offered the turn again in this call
+        refusedLabel = slot.label;
+        if (slot.which === TALK) triedRef.current.add(slot.id);
+        else downRef.current = true;
+        continue;
+      }
+
+      // the ring, and the name on the screen — which follows the call that actually opened
+      if (slot.which === CARTESIA) {
+        takenRef.current = 0;
+        talkRef.current = { ...FIRST_TALK };
+      } else {
+        takenRef.current += 1;
+        talkRef.current = { id: slot.id, label: slot.label, account: slot.account };
+      }
+      setCurrent(slot.which, slot.label);
+      setNotice(
+        handoffNotice(
+          pending.from.label,
+          slot.label,
+          pending.from.which === CARTESIA ? CARTESIA_ANSWERS : TALK_ANSWERS
+        )
+      );
+      return true;
+    }
+
+    // none of them could open: nothing is guessed at, and the person is told plainly what to do
+    setNotice(
+      refusedLabel
+        ? `${refusedLabel} couldn't take the call — tap the phone to try again.`
+        : "Tap the phone to talk again."
+    );
+    return false;
+  }, [openVoice, setCurrent]);
+
   const clearChange = useCallback(() => {
     dueRef.current = false;
     clearTimeout(dueTimerRef.current);
@@ -329,6 +351,9 @@ export default function useHomeVoice() {
   const start = useCallback(
     async ({ onAnswered: charge } = {}) => {
       if (charge) chargeRef.current = charge;
+      // a voice is waiting after a handoff: the tap opens the next one in the ring, so the call
+      // carries on from where it stood instead of starting over
+      if (pendingRef.current) return resume();
       callingRef.current = true;
       turningRef.current = false;
       answersRef.current = 0;
@@ -357,7 +382,7 @@ export default function useHomeVoice() {
       );
       return backup.ok;
     },
-    [clearChange, openVoice, setCurrent]
+    [clearChange, openVoice, resume, setCurrent]
   );
 
   const stop = useCallback(async () => {
@@ -365,6 +390,9 @@ export default function useHomeVoice() {
     turningRef.current = false;
     answersRef.current = 0;
     clearChange();
+    // a call the person ended is a call with nothing waiting in it
+    pendingRef.current = null;
+    setWaiting(false);
     setNotice("");
     await closeVoice(holderRef.current);
   }, [clearChange, closeVoice]);
@@ -404,6 +432,8 @@ export default function useHomeVoice() {
     levelRef: active.levelRef,
     // who is answering now, written on the screen itself
     voiceLabel: voice,
+    // the call has handed over and the next voice is waiting for the person's own tap
+    waiting,
     start,
     stop,
     ask,

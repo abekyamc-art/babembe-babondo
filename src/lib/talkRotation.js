@@ -40,6 +40,15 @@ export function handoffNotice(from, next, answers = TALK_ANSWERS) {
   return `${from} has taken its ${count} questions. ${next} is taking over now — keep talking.`;
 }
 
+/**
+ * One AI has taken its turn and the next one is waiting: the person's own tap on the phone is what
+ * opens it, with the microphone, so the call never speaks on into an empty room.
+ */
+export function resumeNotice(from, next, answers = TALK_ANSWERS) {
+  const count = COUNT_WORDS[answers] || String(answers);
+  return `${from} has taken its ${count} questions. Tap the phone to talk with ${next}.`;
+}
+
 /** Nothing was named, so nothing is guessed: the same AI keeps the conversation. */
 export function noSignalNotice(from) {
   return `The handoff signal didn't come through — ${from} can carry on.`;
