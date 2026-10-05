@@ -100,7 +100,10 @@ export default function useHomeVoice() {
    */
   const onAnswered = useCallback(() => {
     chargeRef.current?.();
-    if (!callingRef.current || turningRef.current || dueRef.current) return;
+    // a change is already under way, or the call is paused on one: an answer counted here would
+    // belong to the voice standing down instead of the one taking the call, whose count starts at
+    // nothing
+    if (!callingRef.current || turningRef.current || pendingRef.current || dueRef.current) return;
     answersRef.current += 1;
     if (answersRef.current < seatRef.current.answers) return;
     dueRef.current = true;
@@ -156,15 +159,19 @@ export default function useHomeVoice() {
       const from = seatRef.current;
       // the voices that may take the call next, in the order the ring runs, each of them once
       const plan = nextPlan(from.id, triedRef.current);
+      // the voice the call has selected to take the next turn: the one that follows this voice in
+      // the ring, named on the screen while the call waits
+      const next = plan[0];
       await closeSeat(from);
       // the person ended the call while it was being hung up
       if (!callingRef.current) return;
-      // the answers so far belonged to the voice standing down
+      // the answers so far belonged to the voice standing down, so the count starts again from
+      // nothing — and it starts for the voice the tap is about to open
       answersRef.current = 0;
-      pendingRef.current = { plan, from };
+      pendingRef.current = { next, plan, from };
       setWaiting(true);
-      setLabel(plan[0].label);
-      setNotice(resumeNotice(from.label, plan[0].label, from.answers));
+      setLabel(next.label);
+      setNotice(resumeNotice(from.label, next.label, from.answers));
     } finally {
       // a change that could not finish never leaves the rotation wedged
       turningRef.current = false;
@@ -188,8 +195,12 @@ export default function useHomeVoice() {
     pendingRef.current = null;
     setWaiting(false);
 
+    // the voice the call selected while it was standing down is the one the person's tap starts;
+    // the rest of the ring is only the fallback for a voice that cannot open at all
+    const order = [pending.next, ...pending.plan.filter((seat) => seat.id !== pending.next.id)];
+
     let refused = "";
-    for (const next of pending.plan) {
+    for (const next of order) {
       const opened = await openSeat(next);
       if (!opened.ok) {
         refused = next.label;
@@ -232,7 +243,7 @@ export default function useHomeVoice() {
       return;
     }
     // the turn is not over: the same voice waits behind the tap, with the answers it still owes
-    pendingRef.current = { plan: [from], from };
+    pendingRef.current = { next: from, plan: [from], from };
     setWaiting(true);
     setLabel(from.label);
     setNotice(waitNotice(from.label));
