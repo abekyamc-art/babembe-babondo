@@ -9,9 +9,8 @@ import { TALK_ANSWERS, handoffNotice } from "@/lib/talkRotation";
  *
  * Two outside voices take their turns the way the app's calls always have: each answers two
  * questions, then that call is hung up and the other one picks the conversation up straight away —
- * the person keeps talking and never starts the next AI themselves. The app's own assistant opens
- * every call, exactly as it always has, and Cartesia AI takes the second turn and every other one
- * after it.
+ * the person keeps talking and never starts the next AI themselves. Cartesia AI opens every call,
+ * and the app's own assistant takes the second turn and every other one after it.
  */
 
 const ASSISTANT = "assistant";
@@ -138,13 +137,24 @@ export default function useHomeVoice() {
       answersRef.current = 0;
       downRef.current = false;
       setNotice("");
-      // every call opens on the app's own assistant, as it always has; Cartesia AI takes its turn
-      // once two answers have been given
+      // every call opens on Cartesia AI; the app's own assistant takes its turn once two answers
+      // have been given
+      voiceRef.current = CARTESIA;
+      setVoice(CARTESIA);
+      const opened = await openVoice(CARTESIA);
+      if (opened.ok) return true;
+
+      // Cartesia AI could not take the call: the assistant opens it instead, and is not asked to
+      // hand over to a voice already known to be down during this call
+      downRef.current = true;
       voiceRef.current = ASSISTANT;
       setVoice(ASSISTANT);
+      setNotice(
+        opened.why || `${NAMES[CARTESIA]} couldn't take the call — ${NAMES[ASSISTANT]} is on it.`
+      );
       return assistant.start({ onAnswered });
     },
-    [assistant, onAnswered]
+    [assistant, onAnswered, openVoice]
   );
 
   const stop = useCallback(async () => {
@@ -155,13 +165,25 @@ export default function useHomeVoice() {
     await closeVoice(voiceRef.current);
   }, [closeVoice]);
 
-  /** A written question is put to the app's own assistant, whichever AI is on the call. */
+  /**
+   * A written question is put to the app's own assistant, whichever AI is on the call. Its answer is
+   * charged like any other, but it only counts against the assistant's turn while the assistant
+   * really holds the call — a line Cartesia AI opened never gave that answer.
+   */
+  const onWritten = useCallback(() => {
+    if (voiceRef.current !== ASSISTANT) {
+      chargeRef.current?.();
+      return;
+    }
+    onAnswered();
+  }, [onAnswered]);
+
   const ask = useCallback(
     async (text, charge) => {
       if (charge) chargeRef.current = charge;
-      return assistant.ask(text, onAnswered);
+      return assistant.ask(text, onWritten);
     },
-    [assistant, onAnswered]
+    [assistant, onWritten]
   );
 
   const active = voice === CARTESIA ? cartesia : assistant;
