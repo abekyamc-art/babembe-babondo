@@ -1,9 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, Mic } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import ChatBubble from "@/components/kibembe/ChatBubble";
 import ChatComposer from "@/components/kibembe/ChatComposer";
+import KibembeVoicePanel from "@/components/kibembe/KibembeVoicePanel";
 
 const COULD_NOT_REACH = "The assistant could not be reached. Please try again.";
 
@@ -14,6 +15,7 @@ const COULD_NOT_REACH = "The assistant could not be reached. Please try again.";
 export default function KibembeChat() {
   const [messages, setMessages] = useState([]);
   const [draft, setDraft] = useState("");
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const endRef = useRef(null);
@@ -61,7 +63,21 @@ export default function KibembeChat() {
             Answers in Kibembe, read from the Word Bank
           </p>
         </div>
+        <button
+          type="button"
+          onClick={() => setVoiceOpen((open) => !open)}
+          aria-expanded={voiceOpen}
+          aria-label={voiceOpen ? "Close the voice panel" : "Open the voice panel"}
+          className={`ml-auto flex h-10 shrink-0 items-center gap-2 rounded-full border px-3 font-body text-xs transition ${
+            voiceOpen ? "border-accent text-accent" : "border-border text-foreground"
+          }`}
+        >
+          <Mic className="h-4 w-4" />
+          Sauti
+        </button>
       </header>
+
+      {voiceOpen ? <KibembeVoicePanel /> : null}
 
       <div className="flex-1 space-y-3 px-4 py-4">
         {messages.length === 0 ? (
