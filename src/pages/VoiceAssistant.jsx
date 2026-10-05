@@ -1,8 +1,8 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Loader2, Phone, PhoneOff, Sparkles } from "lucide-react";
+import { Languages, Loader2, Phone, PhoneOff, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import useVoiceAgent from "@/hooks/useVoiceAgent";
+import useOpenAiAssistant from "@/hooks/useOpenAiAssistant";
 import {
   DAILY_LIMIT,
   GUEST_LIMIT,
@@ -14,9 +14,7 @@ import {
   spendCredit,
 } from "@/lib/usage";
 import { ensureProfile } from "@/lib/social";
-import { loadVoiceMode, useVoiceMode } from "@/lib/voiceMode";
 import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
-import { primeMic } from "@/lib/micAccess";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
@@ -25,14 +23,12 @@ import UsagePill from "@/components/voice/UsagePill";
 import CoinPill from "@/components/voice/CoinPill";
 import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
-import ModeToggle from "@/components/voice/ModeToggle";
 import ModeBadge from "@/components/voice/ModeBadge";
-import { providerClass, providerName } from "@/lib/providerNames";
+import { KIBEMBE_ASSISTANT, KIBEMBE_CLASS } from "@/lib/providerNames";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 
 export default function VoiceAssistant() {
-  const orbVideoRef = useRef(null);
   const {
     status,
     speaking,
@@ -41,17 +37,12 @@ export default function VoiceAssistant() {
     turns,
     error,
     notice,
-    talkLabel,
     levelRef,
-    avatarReady,
-    avatarLive,
     start,
     stop,
-  } = useVoiceAgent({ videoRef: orbVideoRef });
+    ask,
+  } = useOpenAiAssistant();
   const navigate = useNavigate();
-  // the experience on screen follows the admin's switch, and every page the app shows
-  // follows the same saved mode
-  const mode = useVoiceMode();
 
   const [user, setUser] = useState(null);
   const [stamps, setStamps] = useState([]);
@@ -105,9 +96,6 @@ export default function VoiceAssistant() {
       } catch (err) {
         setStamps([]);
       }
-      // the admin's own setting decides who answers every call: the screen is not ready to
-      // start one under a mode it has not read yet
-      await loadVoiceMode();
       if (alive) setReady(true);
     })();
     return () => {
@@ -203,12 +191,9 @@ export default function VoiceAssistant() {
       openGate();
       return;
     }
-    // the microphone and the sound are asked for inside the tap itself — the one moment a phone
-    // accepts that ask — and the call opening a moment later listens through what the tap opened
-    primeMic();
-    const wasLive = status === "live";
-    if (wasLive) await stop();
-    await start({ withMic: true, onAnswered: spend });
+    // the microphone and the sound are asked for inside the tap itself, in the engine that opens
+    // a moment later
+    await start({ onAnswered: spend });
   };
 
   const handleSend = async (text) => {
@@ -217,7 +202,7 @@ export default function VoiceAssistant() {
       openGate();
       return;
     }
-    await start({ withMic: false, silent: true, firstMessage: text, onAnswered: spend });
+    await ask(text, spend);
   };
 
   const handleAccount = () => setAccountOpen(true);
@@ -270,9 +255,6 @@ export default function VoiceAssistant() {
     await base44.auth.logout("/");
   };
 
-  // the face is optional — without it the orb stays exactly as it has always been
-  const faceNote = ready && !avatarReady ? "Face isn't connected yet — voice only for now." : "";
-
   const statusLabel =
     !ready
       ? "Checking…"
@@ -284,13 +266,11 @@ export default function VoiceAssistant() {
             ? "Thinking"
             : micActive
               ? "Listening"
-              : status === "live"
-                ? "Ready"
-                : "Tap to talk";
+              : "Tap to talk";
 
   return (
     <div
-      className={`relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground ${providerClass(mode)}`}
+      className={`relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground ${KIBEMBE_CLASS}`}
     >
       <div aria-hidden className="ambient-wash" />
 
@@ -302,7 +282,6 @@ export default function VoiceAssistant() {
           <span className="truncate font-display text-[15px] tracking-tight">Babembe Babondo GS</span>
         </div>
         <div className="flex shrink-0 items-center gap-2.5">
-          {user?.role === "admin" ? <ModeToggle /> : null}
           <UsagePill
             remaining={remaining}
             signedIn={!!user}
@@ -320,8 +299,8 @@ export default function VoiceAssistant() {
 
       <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-between gap-4 px-5">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7">
-          {/* who answers is written on the screen itself: the whole page changes with the switch */}
-          <ModeBadge mode={mode} talk={talkLabel} />
+          {/* who answers is written on the screen itself */}
+          <ModeBadge icon={Languages} label={`${KIBEMBE_ASSISTANT} answers`} />
           <button
             type="button"
             onClick={handleCall}
@@ -333,8 +312,6 @@ export default function VoiceAssistant() {
               status={status}
               speaking={speaking}
               thinking={thinking}
-              videoRef={orbVideoRef}
-              faceOn={avatarLive}
             />
           </button>
 
@@ -372,10 +349,7 @@ export default function VoiceAssistant() {
               error ? "text-destructive" : "text-muted-foreground"
             }`}
           >
-            {error ||
-              notice ||
-              faceNote ||
-              `${talkLabel || providerName(mode)} answers each turn.`}
+            {error || notice || `${KIBEMBE_ASSISTANT} answers each turn.`}
           </p>
         </div>
       </main>

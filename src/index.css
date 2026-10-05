@@ -167,6 +167,16 @@
     --accent: 152 62% 50%;
   }
 
+  /* The Kibembe assistant's own palette: the home screen answers from the saved Word Bank now, and
+     it carries a colour of its own — apart from the four voices the Kibembe screen switches between. */
+  .mode-kibembe {
+    --accent: 338 72% 46%;
+  }
+
+  .dark .mode-kibembe {
+    --accent: 338 78% 62%;
+  }
+
   /* the home screen's own line naming who answers */
   .mode-badge {
     display: inline-flex;
