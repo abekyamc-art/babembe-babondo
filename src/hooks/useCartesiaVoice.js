@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import CartesiaCall from "@/lib/cartesiaCall";
+import { readHeardTurn } from "@/lib/homeHearing";
 
 /**
  * Cartesia AI on the line: the outside agent the home page's calls hand over to. It listens and
@@ -36,6 +37,8 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
   // never lost
   const endedRef = useRef(onEnded);
   endedRef.current = onEnded;
+  // the line he said last, so a correction on the next turn is read against it
+  const lastAgentRef = useRef("");
   // while the phone is holding the sound back, this waits for the touch that starts it
   const offTouchRef = useRef(null);
 
@@ -74,15 +77,23 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
 
   /** The person's own turn, written down and reported by the agent. */
   const handleUserText = useCallback(
-    (text) => turnRef.current?.("user", text),
+    (text) => {
+      turnRef.current?.("user", text);
+      // Cartesia AI hears, answers and speaks on its own account, and its own settings are left
+      // exactly as they are — so no reading is handed to it. What the reading is still used for is
+      // the app's own learning: a word, a sound or an answer the person puts right on this turn is
+      // saved into the Word Bank, so the Kibembe they confirm is not lost with the call.
+      readHeardTurn(text, lastAgentRef.current);
+    },
     []
   );
 
   /** His turn, as the agent itself wrote it down. */
-  const handleAgentText = useCallback(
-    (text) => turnRef.current?.("assistant", text),
-    []
-  );
+  const handleAgentText = useCallback((text) => {
+    const line = String(text || "").trim();
+    if (line) lastAgentRef.current = line;
+    turnRef.current?.("assistant", text);
+  }, []);
 
   /** An answer is complete and read out: it is counted against the turn this AI is on. */
   const handleAnswered = useCallback(() => answeredRef.current?.(), []);

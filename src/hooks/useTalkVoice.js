@@ -3,6 +3,7 @@ import VoiceSocket from "@/lib/elevenLabsSocket";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { primeMic } from "@/lib/micAccess";
 import { FIRST_TALK } from "@/lib/talkRotation";
+import { openHearingNote, readHeardTurn } from "@/lib/homeHearing";
 
 /**
  * One of the older talk AIs on the home page's call. Each is opened on its own account — its own key,
@@ -34,6 +35,8 @@ export default function useTalkVoice({ onTurn } = {}) {
   // The talk AI the call is open on, so the written turn and a call that ends on its own both name
   // the same one — the first talk AI until a call names another.
   const slotRef = useRef({ ...FIRST_TALK });
+  // the line the AI said last, so a correction on the next turn is read against it
+  const lastAgentRef = useRef("");
   // an answer given on the call that is open and one given to a written turn are charged through the
   // handler each was asked with, never through one another's
   const liveAnsweredRef = useRef(null);
@@ -91,13 +94,29 @@ export default function useTalkVoice({ onTurn } = {}) {
   const handleUserText = useCallback(
     (text) => {
       const said = String(text || "").trim();
-      if (said) push("user", said);
+      if (!said) return;
+      push("user", said);
+      // The app's own reading of the turn rides with it: the confirmed Kibembe word or phrase the
+      // sound belongs to is handed to the voice before it answers, so a sound the ears were unsure
+      // of is answered from the app's own word bank and in Kibembe. A correction the person makes
+      // is saved as the same turn is read. A reading that cannot be made leaves the turn to the
+      // voice itself, which is already carrying the rules of the call.
+      readHeardTurn(said, lastAgentRef.current).then((note) => {
+        if (note) socketRef.current?.sendMemory(note);
+      });
     },
     [push]
   );
 
   /** The AI's turn, as the agent itself wrote it down. */
-  const handleAgentText = useCallback((text) => push("assistant", text), [push]);
+  const handleAgentText = useCallback(
+    (text) => {
+      const line = String(text || "").trim();
+      if (line) lastAgentRef.current = line;
+      push("assistant", text);
+    },
+    [push]
+  );
 
   const handleThinking = useCallback(
     (on) => {
@@ -180,6 +199,13 @@ export default function useTalkVoice({ onTurn } = {}) {
       activeRef.current = true;
       setActive(true);
       setStatus("listening");
+
+      // The rules of the call go in as it opens, before the person's first turn: how Kibembe is
+      // heard and answered here, and that the app's own Word Bank is the only source of its words.
+      // The bank itself stays on the server; only the rules ride into the call.
+      openHearingNote().then((note) => {
+        if (note) socket.sendMemory(note);
+      });
 
       // the phone's hold on the sound: nothing the AI says is heard until it is started, and a touch
       // is what starts it
