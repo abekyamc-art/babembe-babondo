@@ -13,7 +13,13 @@ import { closeWords, wordsNote } from "@/lib/helperWords";
 import { heardLanguage } from "@/lib/heardLanguage";
 import { withoutCues } from "@/lib/cues";
 import { askCoordinator } from "@/lib/handoffSignal";
-import { FIRST_TALK, TALK_ANSWERS, handoffNotice, noSignalNotice } from "@/lib/talkRotation";
+import {
+  FIRST_TALK,
+  TALK_ANSWERS,
+  handoffNotice,
+  noSignalNotice,
+  stuckNotice,
+} from "@/lib/talkRotation";
 
 // the knowledge note travels in blocks and needs a beat to settle before the
 // question is put to him, so he reads it before he answers; the wait is shown as
@@ -23,6 +29,11 @@ const TYPED_HOLD_MS = 8000;
 // knowledge held back while he is answering is kept to this much, so an answer that never
 // ends can never let what is waiting grow without bound
 const HELD_LIMIT = 4000;
+
+// a turn the AI on air has not so much as begun answering is a person left in silence: after
+// this long the same turn is handed to the next talk AI in order, so a stalled AI never holds
+// the conversation
+const STUCK_MS = 4000;
 
 // a turn nothing could be read from: no note, no language said, no greeting, nothing left open
 const EMPTY_READ = { note: "", lang: "", greeting: false, missing: false };
@@ -78,6 +89,13 @@ export default function useVoiceAgent({ videoRef } = {}) {
   // whether the session on air has actually been picked up, so a call that ends by itself can be
   // told apart from one that never opened
   const liveRef = useRef(false);
+  // the wait put on the turn the AI on air is holding: armed when the turn reaches it and cancelled
+  // the moment its answer begins, so only a real stall moves the turn on
+  const stuckTimerRef = useRef(0);
+  // the turn already handed on for a stall, so one turn is never moved twice
+  const stuckTurnRef = useRef("");
+  // the move itself, kept in a ref because a timer is what sends it
+  const stuckRunRef = useRef(null);
 
   // the talk AI answering right now, and how many answers it has given: the home page's four talk
   // AIs take turns, two answers each, and the fifth AI signals the change
@@ -134,6 +152,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
     const engine = socketRef.current;
     socketRef.current = null;
     heldRef.current = "";
+    // the turn being waited on belonged to the mode just switched away from
+    clearTimeout(stuckTimerRef.current);
+    stuckTimerRef.current = 0;
+    stuckTurnRef.current = "";
     setSpeaking(false);
     setThinking(false);
     setMicActive(false);
@@ -153,7 +175,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const pushTurn = useCallback((role, text) => {
     // a turn is answered by the reply that follows it, so the last unanswered one is
     // always the newest turn with no reply after it
-    if (role === "user") pendingRef.current = text;
+    if (role === "user") {
+      pendingRef.current = text;
+      // a fresh turn is its own turn, so it may be moved on once if it is never answered
+      stuckTurnRef.current = "";
+    }
     if (role === "agent") pendingRef.current = "";
     if (role === "agent" && text) linesRef.current = [...linesRef.current, text];
     storyRef.current = nextStory(storyRef.current, role, text);
@@ -320,6 +346,38 @@ export default function useVoiceAgent({ videoRef } = {}) {
     }
   }, [requestHandoff]);
 
+  /** The wait on the turn the AI on air is holding ends here: nothing was stuck. */
+  const clearStuck = useCallback(() => {
+    if (stuckTimerRef.current) clearTimeout(stuckTimerRef.current);
+    stuckTimerRef.current = 0;
+  }, []);
+
+  /**
+   * The turn has just reached the AI on air. If it has not so much as begun answering within a few
+   * seconds the person is left in silence, so that same turn is handed to the next talk AI in order.
+   * Only a spoken call on one of the rotating talk AIs is watched — a typed turn, another mode's own
+   * voice and the app's own AI are never moved on — and the wait is called off the moment an answer
+   * begins, so an AI that is simply slow to speak is never taken off the turn.
+   */
+  const armStuck = useCallback(
+    (engine, turn) => {
+      clearStuck();
+      const said = String(turn || "").trim();
+      if (!engine || !said || engine.mode !== "agent" || !engine.micOn) return;
+      // this turn has already been moved on once: it is never moved a second time
+      if (stuckTurnRef.current === said) return;
+      stuckTimerRef.current = setTimeout(() => {
+        stuckTimerRef.current = 0;
+        if (socketRef.current !== engine) return;
+        // his answer has begun, in voice or in words: nothing was stuck
+        if (engine.speaking || engine.answered || !engine.connected) return;
+        stuckTurnRef.current = said;
+        stuckRunRef.current?.(engine, said);
+      }, STUCK_MS);
+    },
+    [clearStuck]
+  );
+
   // both kinds of call report back through the same set of handlers
   const makeHandlers = useCallback(
     () => ({
@@ -335,6 +393,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
             setNotice(`${providerName(voiceMode())}'s call ended on its own — tap and try again.`);
           }
           liveRef.current = false;
+          // the call is gone, so the wait on its turn goes with it
+          clearStuck();
           // the conversation is over, so the words helper opened for it is closed with it
           closeWords().catch(() => {});
           setStatus("idle");
@@ -362,7 +422,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
       // a cue the provider wrote for its own voice — [curious] — is not a word for a person to
       // read: it is taken out here, once, so neither the screen nor the remembered lines hold it
       onAgentText: (text) => pushTurn("agent", withoutCues(text)),
-      onAgentAudioStart: () => setSpeaking(true),
+      // his voice has begun: nothing was stuck, so the wait on the turn is called off
+      onAgentAudioStart: () => {
+        clearStuck();
+        setSpeaking(true);
+      },
       onThinking: (on) => setThinking(on),
       onAgentAudioEnd: () => {
         setSpeaking(false);
@@ -403,6 +467,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
           setNotice("That turn didn't reach him — say it again.");
           return;
         }
+        // the turn is with the AI on air now: if it never begins answering, the same turn is
+        // handed to the next talk AI rather than leaving the person in silence
+        armStuck(engine, text);
         // What follows the turn is extra context, never a second turn: the app's own reading of it
         // — the language the person's own words are in, whether it is a greeting, and whether it
         // left a place open — the words the answer should stand on, and the material just looked up.
@@ -432,6 +499,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
         engine.sendMemory(memory);
       },
       onAgentAnswered: () => {
+        // an answer has come, so the turn was never stuck
+        clearStuck();
         answeredRef.current?.();
         countTalkAnswer();
       },
@@ -455,7 +524,17 @@ export default function useVoiceAgent({ videoRef } = {}) {
         );
       },
     }),
-    [pushTurn, readTurn, reviewHeard, reviewWanted, flushHeld, materialFor, countTalkAnswer]
+    [
+      pushTurn,
+      readTurn,
+      reviewHeard,
+      reviewWanted,
+      flushHeld,
+      materialFor,
+      countTalkAnswer,
+      armStuck,
+      clearStuck,
+    ]
   );
 
   // a written question is held back while the knowledge he was handed settles, and
@@ -693,6 +772,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
     sessionRef.current += 1;
     const socket = socketRef.current;
     socketRef.current = null;
+    // the call being ended is not waited on any more, and the turn it was holding is left for
+    // whoever takes it next
+    clearStuck();
     // a call the person ends themselves asks for no handoff
     handoffDueRef.current = false;
     signalRef.current = null;
@@ -749,6 +831,55 @@ export default function useVoiceAgent({ videoRef } = {}) {
   useEffect(() => {
     handoffRunRef.current = runHandoff;
   }, [runHandoff]);
+
+  /**
+   * The talk AI that follows the one stuck on a turn, read on the server against the accounts the
+   * app is set up with, so a turn is never handed to an account that is not whole. No signal is
+   * asked for here — an AI that has stalled must not be waited on again — the order is the answer.
+   */
+  const nextTalk = useCallback(async (fromId) => {
+    try {
+      const res = await base44.functions.invoke("callHandoff", { reply: "", from: fromId });
+      return res?.data?.next || null;
+    } catch (err) {
+      return null;
+    }
+  }, []);
+
+  /**
+   * The AI on air never began answering, so the turn it was holding goes to the AI that follows it:
+   * the stalled call is hung up — the answer it never gave can neither reach the screen nor be
+   * charged for — and the AI taking over opens straight away on the turn that is still waiting, so
+   * the person only has to wait, never to ask again.
+   */
+  const runStuck = useCallback(
+    async (engine, said) => {
+      const from = { ...talkRef.current };
+      const next = await nextTalk(from.id);
+      // the call was ended, or the mode switched, while the next AI was being looked up
+      if (socketRef.current !== engine) return;
+      if (!next) {
+        setNotice("He didn't answer just now — say that again.");
+        return;
+      }
+
+      talkRef.current = { id: next.id, label: next.label, account: next.account, answered: 0 };
+      setTalkLabel(next.label);
+      signalRef.current = null;
+      handoffDueRef.current = false;
+      await stop();
+      // the turn nobody answered is kept, so the AI taking over is the one that answers it
+      pendingRef.current = said;
+      await start({ withMic: true, onAnswered: answeredRef.current });
+      setNotice(stuckNotice(from.label, next.label));
+    },
+    [nextTalk, start, stop]
+  );
+
+  // a stall is reported by a timer, so the move is reachable from there
+  useEffect(() => {
+    stuckRunRef.current = runStuck;
+  }, [runStuck]);
 
   const sendText = useCallback(
     (text) => {

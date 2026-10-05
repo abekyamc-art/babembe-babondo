@@ -34,3 +34,8 @@ export function handoffNotice(from, next) {
 export function noSignalNotice(from) {
   return `The handoff signal didn't come through — ${from} can carry on.`;
 }
+
+/** An AI that never began answering: the question it was holding goes to the one after it. */
+export function stuckNotice(from, next) {
+  return `${from} didn't answer — ${next} is taking your question now.`;
+}
