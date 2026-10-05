@@ -171,9 +171,11 @@ export default function useTalkVoice({ onTurn } = {}) {
       setNotice("");
       setStatus("connecting");
 
-      // the microphone and the sound are asked for inside the tap itself
+      // the microphone and the sound are asked for inside the tap itself, and the sound the tap
+      // started is the one this call plays through: a call never closes it, so the voice standing
+      // down can never take the sound away from the voice that follows it
       primeMic();
-      primeAudio();
+      const audio = primeAudio();
 
       const socket = new VoiceSocket({
         onStatus: handleStatus,
@@ -188,7 +190,7 @@ export default function useTalkVoice({ onTurn } = {}) {
       });
 
       try {
-        await socket.open({ withMic: true, account: slotRef.current.account });
+        await socket.open({ withMic: true, account: slotRef.current.account, audio });
       } catch (err) {
         await socket.stop();
         setStatus("idle");

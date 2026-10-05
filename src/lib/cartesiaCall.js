@@ -86,14 +86,16 @@ export default class CartesiaCall {
     return this.calling ? this.micLevel : 0;
   }
 
-  async open({ stream, token, agentId }) {
+  async open({ stream, token, agentId, audio }) {
     this.stream = stream || null;
     this.closing = false;
     this.h.onStatus?.("connecting");
 
     // the sound the tap that began the call already started: a context the phone is still holding
-    // plays nothing at all, so the one the tap started is the one used here
-    this.ctx = primedAudio() || new (window.AudioContext || window.webkitAudioContext)();
+    // plays nothing at all, so the one the tap started is the one used here. It is the app's own and
+    // it outlives the call: it is never closed here, so the voice standing down can never leave the
+    // next voice playing into a sound that is already going away
+    this.ctx = audio || primedAudio() || new (window.AudioContext || window.webkitAudioContext)();
     if (this.ctx.state === "suspended") {
       // never block the connection on this — the tap that started it resumes playback
       this.ctx.resume().catch(() => {});
@@ -413,7 +415,8 @@ export default class CartesiaCall {
       this.stream = null;
     }
     this.micLevel = 0;
-    if (this.ctx && this.ctx.state !== "closed") this.ctx.close().catch(() => {});
+    // the sound belongs to the app and is never closed here, so the voice standing down can never
+    // leave the next voice playing into a sound that is already going away
     this.ctx = null;
     this.speaking = false;
   }

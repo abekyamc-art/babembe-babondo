@@ -4,6 +4,11 @@
  * holding runs nothing: no voice comes out of it, and the microphone's own capture never fires, so
  * a call on one neither hears nor is heard. It is therefore started inside the tap that begins a
  * call — the one moment a phone accepts it — and handed to the call that opens a moment later.
+ *
+ * This one sound belongs to the app and outlives every call, and no call ever closes it. A voice
+ * that closed it as it stood down would take the sound away from the voice that follows it, and
+ * that voice's answer would be heard as noise instead of speech — so a call only ever lets go of
+ * the sound, never ends it.
  */
 let ctx = null;
 

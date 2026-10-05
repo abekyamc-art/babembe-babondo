@@ -2,7 +2,7 @@ import { base44 } from "@/api/base44Client";
 import { isRepeatIntro } from "@/lib/agentMemory";
 import { contextBlocks } from "@/lib/contextBlocks";
 import { VOICE_RATE } from "@/lib/voicePace";
-import { primedAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
+import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage } from "@/lib/micAccess";
 
 const IN_RATE = 16000;
@@ -229,7 +229,7 @@ export default class VoiceSocket {
     return this.userSpoke || this.resuming;
   }
 
-  async open({ withMic, silent, memory, laterTurn, resuming, account, ears, keepOpen } = {}) {
+  async open({ withMic, silent, memory, laterTurn, resuming, account, ears, keepOpen, audio } = {}) {
     // a written message is answered in writing: no microphone, nothing on the speaker
     this.silent = !withMic && !!silent;
     // the app's own ears listen for this call: the sound stays on the phone and is written
@@ -267,8 +267,12 @@ export default class VoiceSocket {
 
     // The call runs on the sound the tap that began it already started: a context the phone is
     // still holding runs nothing at all — not his voice, and not the microphone's own capture — so
-    // the one the tap started is the one used here.
-    this.ctx = primedAudio() || new (window.AudioContext || window.webkitAudioContext)();
+    // the one the tap started is the one used here. That context is the app's own and it outlives
+    // the call: a voice never closes it, so the voice standing down can never leave the voice that
+    // follows it playing its answer into a context that is already going away, which is heard as
+    // noise instead of speech.
+    this.ctx =
+      audio || primedAudio() || primeAudio() || new (window.AudioContext || window.webkitAudioContext)();
     if (this.ctx.state === "suspended") {
       // never block the connection on this — the tap that started it resumes playback
       this.ctx.resume().catch(() => {});
@@ -351,6 +355,11 @@ export default class VoiceSocket {
       };
     });
 
+    // the sound is made sure of before the call is called live, so a phone that is holding it back
+    // is said plainly instead of the answer going out into a sound that plays nothing
+    if (this.ctx.state === "suspended") {
+      await Promise.race([this.ctx.resume().catch(() => {}), wait(START_WAIT_MS)]);
+    }
     // the microphone is listening before the call is called live, so a phone that cannot start it
     // says so plainly instead of leaving a call that hears nothing
     if (withMic) await this.startMic();
@@ -960,9 +969,8 @@ export default class VoiceSocket {
       this.stream.getTracks().forEach((track) => track.stop());
       this.stream = null;
     }
-    if (this.ctx && this.ctx.state !== "closed") {
-      this.ctx.close().catch(() => {});
-    }
+    // The sound belongs to the app and is never closed here: it outlives every call, so the voice
+    // standing down can never leave the next voice playing into a sound that is already going away.
     this.ctx = null;
     this.speaking = false;
   }

@@ -139,9 +139,11 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     setNotice("");
     setStatus("connecting");
 
-    // the microphone and the sound are asked for inside the tap that began the call
+    // the microphone and the sound are asked for inside the tap that began the call, and the sound
+    // the tap started is the one this call plays through: a call never closes it, so the voice
+    // standing down can never take the sound away from the voice that follows it
     primeMic();
-    primeAudio();
+    const audio = primeAudio();
 
     let stream;
     try {
@@ -176,7 +178,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     });
 
     try {
-      await call.open({ stream, token: session.token, agentId: session.agent_id });
+      await call.open({ stream, token: session.token, agentId: session.agent_id, audio });
     } catch (err) {
       await call.stop();
       stream.getTracks().forEach((track) => track.stop());
