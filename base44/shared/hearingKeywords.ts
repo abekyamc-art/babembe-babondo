@@ -1,4 +1,5 @@
 import { MAX_TERM, clean, knowledgeWordRows } from "./knowledgeWords.ts";
+import { knowledgeStamp } from "./wordBank.ts";
 
 // The hearing service behind every call knows no Kibembe at all: a word it was never taught comes
 // back as the English or Kiswahili word it nearly sounds like, and every answer follows that wrong
@@ -48,17 +49,21 @@ export function hearingKeywords(rows: any[]): string[] {
   return [...ALWAYS, ...found.slice(0, KEYWORD_LIMIT - ALWAYS.length).map((row) => row.term)];
 }
 
-// The words are read once per call, not once per turn: the admin's list is the same list a
-// moment later, and a call opens in one beat.
+// The words are read once per call, not once per turn, and the held copy is dropped the moment the
+// store moves: a word the admin has just saved is pointed at on the very next turn, while a call
+// that changes nothing still reads the list once.
 const CACHE_MS = 60000;
-let cache: { at: number; words: string[] } = { at: 0, words: [] };
+let cache: { at: number; stamp: string; words: string[] } = { at: 0, stamp: "", words: [] };
 
-/** The admin's saved words as recognition keywords, kept for a moment so a call reads them once. */
+/** The admin's saved words as recognition keywords, held while the store is unchanged. */
 export async function recognitionKeywords(base44: any): Promise<string[]> {
-  if (cache.words.length && Date.now() - cache.at < CACHE_MS) return cache.words;
+  const stamp = await knowledgeStamp(base44);
+  if (cache.words.length && stamp && cache.stamp === stamp && Date.now() - cache.at < CACHE_MS) {
+    return cache.words;
+  }
   try {
     const rows = await knowledgeWordRows(base44);
-    cache = { at: Date.now(), words: hearingKeywords(rows) };
+    cache = { at: Date.now(), stamp, words: hearingKeywords(rows) };
     return cache.words;
   } catch (error: any) {
     console.error("The saved words could not be read for the hearing service:", error?.message);

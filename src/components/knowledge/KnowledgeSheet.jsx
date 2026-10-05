@@ -79,8 +79,13 @@ export default function KnowledgeSheet({ open, onClose }) {
     setError("");
   };
 
-  // every word read from a pasted list arrives saved already, as one group
-  const addWords = (saved) => setRows((prev) => [...saved, ...prev]);
+  // Every word read from a pasted list arrives saved already, as one group, and the list and the
+  // count are then read from the server again: what the panel states is what the store holds, so a
+  // word the assistant has just been given is on screen with it.
+  const addWords = (saved) => {
+    setRows((prev) => [...saved, ...prev]);
+    reload();
+  };
 
   const cancelEdit = () => {
     setEditingId(null);
@@ -109,6 +114,8 @@ export default function KnowledgeSheet({ open, onClose }) {
       }
       setEditingId(null);
       setDraft(emptyEntry(kind));
+      // the saved entries are read from the server again, so the list and the count agree with them
+      reload();
     } catch (err) {
       setError("Could not save that entry.");
     } finally {
@@ -124,6 +131,7 @@ export default function KnowledgeSheet({ open, onClose }) {
       await base44.entities.AssistantKnowledge.delete(row.id);
       setRows((prev) => prev.filter((item) => item.id !== row.id));
       if (editingId === row.id) cancelEdit();
+      reload();
     } catch (err) {
       setError("Could not delete that entry.");
     } finally {

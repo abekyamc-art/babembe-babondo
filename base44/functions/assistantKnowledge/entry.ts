@@ -1,6 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { alikeTerms, skeleton, tight } from "../../shared/soundsAlike.ts";
-import { knowledgeWordRows } from "../../shared/knowledgeWords.ts";
+import { bankRows, knowledgeStamp, trimToLines } from "../../shared/wordBank.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { keyLine, keyMatches } from "../../shared/answerKey.ts";
 
@@ -12,6 +12,11 @@ const MAX_NOTE = 32000;
 // The vocabulary keeps its own share of the note, so a long list of questions and
 // world notes can never crowd the words out.
 const WORDS_SHARE = 24000;
+
+// The rule book has a room of its own inside the note too, so a very long one — a whole reading
+// guide pasted in, say — can never crowd the vocabulary out of it. What rides in is the head of the
+// book, where its general rules and its reading key stand.
+const RULES_ROOM = 9000;
 
 // A turn's own language line, and the line a greeting is answered from, ride at the head of the
 // note, ahead of every other part.
@@ -454,33 +459,23 @@ async function wordTally(rows: any[], wanted: string[], budget: number) {
   };
 }
 
-/**
- * The saved words, read once and kept for a moment: a live call looks them up on
- * every turn, and the whole list serves the note and the words panel alike.
- */
 const CACHE_MS = 60000;
-let wordCache: { at: number; rows: any[] } = { at: 0, rows: [] };
 
-async function wordsFor(base44: any) {
-  if (wordCache.rows.length && Date.now() - wordCache.at < CACHE_MS) return wordCache.rows;
-  // the same saved words the Rap Studio raps on: the admin's word entries, plus the words the
-  // saved documents spell out themselves
-  const rows = await knowledgeWordRows(base44);
-  wordCache = { at: Date.now(), rows };
-  return rows;
-}
-
-// the saved answers, read once and kept for the same moment: a live call asks on every turn, so
-// the answer key is not fetched again and again mid-conversation
-let keyCache: { at: number; rows: any[] } = { at: 0, rows: [] };
+// The saved answers, held only while the store is unchanged: a live call asks on every turn, so the
+// answer key is not fetched again and again mid-conversation — and an answer the admin has just
+// saved or changed is read again at once rather than a minute later.
+let keyCache: { at: number; stamp: string; rows: any[] } = { at: 0, stamp: "", rows: [] };
 
 async function keyRowsFor(base44: any) {
-  if (keyCache.rows.length && Date.now() - keyCache.at < CACHE_MS) return keyCache.rows;
+  const stamp = await knowledgeStamp(base44);
+  if (keyCache.rows.length && stamp && keyCache.stamp === stamp && Date.now() - keyCache.at < CACHE_MS) {
+    return keyCache.rows;
+  }
   const page = await base44.asServiceRole.entities.AssistantKnowledge.filter(
     { kind: "qa" },
     { sort: "created_date", limit: KEY_ROWS, fields: ["kind", "question", "answer"] }
   );
-  keyCache = { at: Date.now(), rows: rowsOf(page) };
+  keyCache = { at: Date.now(), stamp, rows: rowsOf(page) };
   return keyCache.rows;
 }
 
@@ -648,9 +643,9 @@ export default async function (req: Request): Promise<Response> {
 
     // the words panel asks how much of the list the assistant is actually given
     if (payload?.stats) {
-      const rows = await wordsFor(base44);
+      const rows = await bankRows(base44);
       const rules = await rulesText(base44);
-      const rulesSection = rules ? RULES_HEAD + rules : "";
+      const rulesSection = rules ? RULES_HEAD + trimToLines(rules, RULES_ROOM) : "";
       const tally = await wordTally(
         rows,
         [],
@@ -676,7 +671,7 @@ export default async function (req: Request): Promise<Response> {
       const heard = payload.heard.trim().slice(0, MAX_QUERY);
       // the answer key comes first in the note, so the saved answer is what the turn opens with,
       // and the words closest to what was heard follow it
-      const [words, keys] = await Promise.all([wordsFor(base44), keyRowsFor(base44)]);
+      const [words, keys] = await Promise.all([bankRows(base44), keyRowsFor(base44)]);
       const liked = likeSection(words, heard);
       const lang = turnLanguage(heard, liked.near, false);
       const greeting = isGreeting(heard, liked.near);
@@ -695,10 +690,10 @@ export default async function (req: Request): Promise<Response> {
     // the rule book takes its room in the note first; the words and the rest of the
     // knowledge are then filled from what the whole book leaves
     const rules = await rulesText(base44);
-    const rulesSection = rules ? RULES_HEAD + rules : "";
+    const rulesSection = rules ? RULES_HEAD + trimToLines(rules, RULES_ROOM) : "";
     const wordsBudget = Math.max(0, Math.min(WORDS_SHARE, NOTE_BUDGET - rulesSection.length));
 
-    const wordRows = await wordsFor(base44);
+    const wordRows = await bankRows(base44);
     const liked = likeSection(wordRows, query);
     const like = liked.text;
     // the language this turn is being spoken or written in, read from the person's own words, and

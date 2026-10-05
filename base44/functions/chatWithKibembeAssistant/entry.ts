@@ -1,11 +1,28 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { secrets } from 'base44:runtime';
+import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
+import { rulesText } from "../../shared/knowledgeRules.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
 const MODEL = 'gpt-4o-mini';
 const MAX_MESSAGE = 2000;
 const MAX_REPLY_TOKENS = 400;
+
+// How much of the app's own saved knowledge rides with one turn: the rule book the admin keeps in
+// force, and the words they have saved. The file search store is searched as before — this is the
+// half of the Word Bank that changes the moment the admin pastes something in, so a word saved a
+// minute ago answers now.
+const RULES_BUDGET = 7000;
+const WORD_BUDGET = 7000;
+
+// The admin's own rule book, handed over ahead of the words: how Kibembe is read, pronounced,
+// written and used is decided by it, and every answer follows it.
+const RULES_HEAD =
+  '\nSHERIA ZA LUGHA YA KIBEMBE — the admin\'s own rule book for reading, pronouncing, writing and ' +
+  'using Kibembe, saved in this app. It is the highest authority on the language: where one of ' +
+  'these rules and your own habit disagree, the rule wins. Never invent a word, a plural or a ' +
+  'tense it does not confirm.\n';
 
 // The assistant's own standing orders: the Word Bank is read before every answer, and nothing
 // Kibembe is ever written that the Word Bank does not confirm.
@@ -17,6 +34,8 @@ const INSTRUCTIONS = [
   '- Answer in Kibembe (Ebembe) only. Never mix in English, Kiswahili, French or any other language.',
   '- Use only words, meanings and grammar the Word Bank confirms. Never invent, guess, translate or',
   '  re-spell a Kibembe word, and never state a pronunciation the Word Bank does not carry.',
+  'The words and the rules the admin has saved in this app are handed to you with every message: they',
+  'are part of the Word Bank, they are the newest part of it, and a word written there is confirmed.',
   '- If the Word Bank does not confirm what was asked, say briefly in Kibembe that you do not have it,',
   '  instead of guessing.',
   '- Keep the reply to one or two plain sentences.',
@@ -61,6 +80,14 @@ export default async function (req) {
     const storeId = secrets.get('OPENAI_VECTOR_STORE_ID');
     if (!storeId) return Response.json({ error: NO_STORE });
 
+    // What the admin has saved in this app rides with the message: the rule book in force first,
+    // then every word they hold. Both are read here on the server and never sent to the app.
+    const rules = trimToLines(await rulesText(base44), RULES_BUDGET);
+    const words = wordListBlock(await bankRows(base44), message, WORD_BUDGET);
+    const saved = rules || words ? `${RULES_HEAD}${rules}${words}` : '';
+    const input = saved ? `${saved}\nMtu amesema: ${message}` : message;
+    console.log('Saved knowledge handed over:', saved.length, 'characters,', rules.length, 'of them rules');
+
     const response = await fetch('https://api.openai.com/v1/responses', {
       method: 'POST',
       headers: {
@@ -70,7 +97,7 @@ export default async function (req) {
       body: JSON.stringify({
         model: MODEL,
         instructions: INSTRUCTIONS,
-        input: message,
+        input,
         // File Search alone: web search, tool search and function calling are all left off, and
         // the search is required, so the Word Bank is read before the answer is written.
         tools: [{ type: 'file_search', vector_store_ids: [storeId], max_num_results: 5 }],

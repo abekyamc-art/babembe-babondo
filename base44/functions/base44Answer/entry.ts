@@ -3,6 +3,7 @@ import { secrets } from "base44:runtime";
 import { alikeTerms } from "../../shared/soundsAlike.ts";
 import { glossOf, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
+import { knowledgeStamp } from "../../shared/wordBank.ts";
 import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
@@ -117,13 +118,14 @@ const LIKE_HEAD =
   "The first one is the nearest: that is the word the person said, so answer straight from its meaning. Never tell them they were wrong, never offer another of these words instead, and never ask which one they meant.\n";
 
 /**
- * The knowledge is read once and kept for a moment: a live call asks on every turn, so the
- * rule book and the word list are not fetched again and again mid-conversation. An edit the
- * admin makes still lands within the minute.
+ * The knowledge is held only while the store is unchanged: a live call asks on every turn, so the
+ * rule book and the word list are not fetched again and again mid-conversation — and an edit the
+ * admin makes is read again at once rather than a minute later.
  */
 const CACHE_MS = 60000;
-let cache: { at: number; rules: string; rows: any[]; keys: any[] } = {
+let cache: { at: number; stamp: string; rules: string; rows: any[]; keys: any[] } = {
   at: 0,
+  stamp: "",
   rules: "",
   rows: [],
   keys: [],
@@ -139,13 +141,16 @@ async function answerRows(base44: any) {
 }
 
 async function knowledgeFor(base44: any) {
-  if (cache.rows.length && Date.now() - cache.at < CACHE_MS) return cache;
+  const stamp = await knowledgeStamp(base44);
+  if (cache.rows.length && stamp && cache.stamp === stamp && Date.now() - cache.at < CACHE_MS) {
+    return cache;
+  }
   const loaded = await Promise.all([
     rulesText(base44),
     knowledgeWordRows(base44),
     answerRows(base44),
   ]);
-  cache = { at: Date.now(), rules: loaded[0], rows: loaded[1], keys: loaded[2] };
+  cache = { at: Date.now(), stamp, rules: loaded[0], rows: loaded[1], keys: loaded[2] };
   return cache;
 }
 
