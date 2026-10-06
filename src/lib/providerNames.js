@@ -31,6 +31,12 @@ export const KIBEMBE_CLASS = "mode-kibembe";
  */
 export const CARTESIA_AI = "Cartesia AI";
 
+/**
+ * The admin's own second Cartesia account, with its own key and its own agent: it answers on the
+ * account the app's first Cartesia voice does not use, and is named on screen as Cartesia AI 1.
+ */
+export const CARTESIA_AI1 = "Cartesia AI 1";
+
 /** What the provider behind a mode is called on screen. */
 export function providerName(mode) {
   return NAMES[mode] || GLOIRE_AI;

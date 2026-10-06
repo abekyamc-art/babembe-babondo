@@ -5,15 +5,20 @@ import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import CartesiaCall from "@/lib/cartesiaCall";
 import { readHeardTurn } from "@/lib/homeHearing";
 import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
+import { CARTESIA_AI } from "@/lib/providerNames";
 
 /**
- * Cartesia AI on the line: the outside agent the home page's calls hand over to. It listens and
- * answers by itself, so there is nothing to ask on the app's behalf — the turns it reports are the
- * turns shown on screen, and each finished answer is handed to whoever is counting them.
+ * The Cartesia voice on the line: the outside agent the home page's calls hand over to. It listens
+ * and answers by itself, so there is nothing to ask on the app's behalf — the turns it reports are
+ * the turns shown on screen, and each finished answer is handed to whoever is counting them.
+ *
+ * Two Cartesia accounts answer through it: Cartesia AI on the app's own account, and Cartesia AI 1
+ * on the admin's second one, each with its own key and its own agent. Whoever is on the call is the
+ * one its call is opened on, and the one named in anything the screen says about it.
  */
 
-const NO_REACH = "Cartesia AI couldn't be reached. Please try again.";
-const ENDED = "Cartesia AI's call ended. Tap the phone to talk again.";
+const NO_REACH = (who) => `${who} couldn't be reached. Please try again.`;
+const ENDED = (who) => `${who}'s call ended. Tap the phone to talk again.`;
 const TOUCH_TO_HEAR = "Touch the screen to let the sound through.";
 
 export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEnded } = {}) {
@@ -22,6 +27,8 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const levelRef = useRef(0);
+  // the Cartesia voice the call is open on, named on screen and in anything said about it
+  const labelRef = useRef(CARTESIA_AI);
 
   const callRef = useRef(null);
   const activeRef = useRef(false);
@@ -70,7 +77,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
       if (next !== "closed") return;
       if (!activeRef.current) return;
       finish();
-      setNotice(ENDED);
+      setNotice(ENDED(labelRef.current));
       // the call closed on its own: whoever is counting the turns decides whether the same AI waits
       // behind the next tap or the ring moves on
       endedRef.current?.();
@@ -145,10 +152,12 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
    * short-lived token, and that is what opens the agent's calling socket. Returns an empty string
    * when the call opened, or the reason it could not, so whoever asked for it can say so plainly.
    */
-  const start = useCallback(async () => {
+  const start = useCallback(async ({ account = "", label = CARTESIA_AI } = {}) => {
     // a call is opening or already open: a tap that lands on it never opens a second one
     if (activeRef.current || startingRef.current) return "";
     startingRef.current = true;
+    // the Cartesia voice this call is opened on, which is the one every message below names
+    labelRef.current = label || CARTESIA_AI;
 
     setError("");
     setNotice("");
@@ -171,7 +180,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
 
     let session;
     try {
-      const res = await base44.functions.invoke("cartesiaSession", {});
+      const res = await base44.functions.invoke("cartesiaSession", { account });
       session = res?.data || {};
     } catch (err) {
       session = {};
@@ -180,7 +189,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
       stream.getTracks().forEach((track) => track.stop());
       startingRef.current = false;
       setStatus("idle");
-      return session.error || NO_REACH;
+      return session.error || NO_REACH(labelRef.current);
     }
 
     const call = new CartesiaCall({
@@ -201,7 +210,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
       stream.getTracks().forEach((track) => track.stop());
       startingRef.current = false;
       setStatus("idle");
-      return err?.message || NO_REACH;
+      return err?.message || NO_REACH(labelRef.current);
     }
 
     callRef.current = call;

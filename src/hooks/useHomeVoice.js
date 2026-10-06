@@ -130,7 +130,7 @@ export default function useHomeVoice() {
     async (next) => {
       const why =
         next.kind === "cartesia"
-          ? await cartesia.start()
+          ? await cartesia.start({ account: next.account, label: next.label })
           : await talk.start({
               account: next.account,
               label: next.label,

@@ -20,6 +20,12 @@ export const TALK_ANSWERS = 2;
  */
 export const CARTESIA_ANSWERS = 7;
 
+/**
+ * How many answers Cartesia AI 1 gives on a home call — the admin's own second Cartesia account,
+ * which takes the call straight after Cartesia AI and answers five before standing aside.
+ */
+export const CARTESIA_AI1_ANSWERS = 5;
+
 /** The line the coordinator is handed: one signal, naming the AI whose turn comes next. */
 export function signalLine(fromLabel) {
   const options = TALK_IDS.join(", ");

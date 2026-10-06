@@ -29,9 +29,9 @@ const READ_FAILED = "That turn could not be read just now.";
  * the app's own reading of the call: asked with nothing, it hands back the rules the call follows —
  * Kibembe first, answered in Kibembe, the Word Bank as the only source of its words — which the call
  * carries from the moment it opens. Asked with one heard turn, it reads that turn against the
- * admin's confirmed Kibembe in the app's fixed order — the word or phrase as the bank writes it,
- * then the confirmed word the sound is closest to, then the saved phrase whose answer belongs to it
- * — and hands back the reading as the voice answering it is told.
+ * admin's confirmed Kibembe — the word or phrase exactly as the bank writes it, or the saved phrase
+ * whose answer belongs to it — and hands back the reading as the voice answering it is told. What
+ * the person said is never rewritten: a word the bank does not hold is left exactly as it was heard.
  *
  * A turn that puts a word, a sound or an answer right is read once more, and what the person
  * confirmed is saved into the app's own Word Bank: the word as they say it, the form the ears got

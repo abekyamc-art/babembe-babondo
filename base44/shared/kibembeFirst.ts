@@ -1,5 +1,5 @@
 import { MAX_TERM, MAX_USAGE, PREFIXES, clean, glossOf } from "./knowledgeWords.ts";
-import { alikeTerms, tight } from "./soundsAlike.ts";
+import { tight } from "./soundsAlike.ts";
 import { keyMatches } from "./answerKey.ts";
 import { ANSWER_LANGUAGE } from "./languageRules.ts";
 
@@ -10,19 +10,21 @@ import { ANSWER_LANGUAGE } from "./languageRules.ts";
  * so the rules of the call are handed to them here, in the app's own words, as the call opens.
  *
  * The rules are also what the app's own reading works by: a turn is matched against the confirmed
- * Kibembe of the admin's own Word Bank in one fixed order — the word or phrase exactly as the bank
- * writes it, then the confirmed word the sound is closest to, then the saved phrase whose answer
- * belongs to it — so a voice far from the phone, a quiet voice and a fast voice are all heard as
- * Kibembe, and a sound that is close to a confirmed word is taken as that word.
+ * Kibembe of the admin's own Word Bank — the word or phrase exactly as the bank writes it, or the
+ * saved phrase whose answer belongs to it — so a voice far from the phone, a quiet voice and a fast
+ * voice are all heard as Kibembe, and a word the bank holds is understood the moment it is said.
+ *
+ * A turn is never rewritten. What the person said is kept in their own words, and a word the bank
+ * does not hold is never swapped for another one that merely sounds like it.
  */
 
 const RULES = [
   "KIBEMBE FIRST — HOW THIS CALL HEARS AND ANSWERS",
   "- This call is Kibembe (Ebembe) work: listen for Kibembe from the first sound the microphone brings, and take what is said as Kibembe.",
   "- Never wait for a perfect spelling or a perfect pronunciation, and never say you did not hear the person when any speech reached the microphone. A voice far from the phone, a quiet voice, a fast voice and a room with noise in it are all heard.",
-  "- Take what you heard in this order: 1) a Kibembe word or phrase exactly as the app's own Word Bank writes it; 2) the confirmed word it sounds closest to — the same opening sound, the same syllables, the same ending; 3) the closest saved Kibembe phrase or answer.",
-  '- When a sound is close to a confirmed Kibembe word or phrase, it is that word: take it and answer naturally. A sound heard as "orrabare", or as "orr-be-be-be-rrr-be", is the confirmed phrase "Ole bile", and the answer to it is "Ole sawa".',
-  "- When only part of a word is heard, answer from the confirmed meaning closest to it.",
+  "- Take what you heard in this order: 1) a Kibembe word or phrase exactly as the app's own Word Bank writes it; 2) the saved Kibembe phrase whose answer belongs to it; 3) the person's own words, exactly as they were said.",
+  "- Write the turn down as the person said it, word for word. Their Kibembe is theirs: it is never rewritten into another spelling, and a word one of them said is never answered as a different word that merely sounds like it.",
+  "- A Kibembe word the app's own Word Bank does not hold is still Kibembe: keep it as it was heard, answer from the words around it, and never put a meaning on it that nobody gave.",
   "- Never invent a Kibembe word, never invent a meaning for one, and never switch to another language to cover a word you did not catch.",
   "- Only when nothing at all is close: ask one short question, in Kibembe, to have it said once more, and carry on from there.",
   "- Answer in Kibembe. Another language only when the person asks for it in words.",
@@ -33,9 +35,6 @@ const RULES = [
 export function firstRules(): string {
   return `${RULES}\nTHE APP'S OWN LANGUAGE RULES:\n${ANSWER_LANGUAGE}\n`;
 }
-
-// how short a turn has to be for the nearest-sounding saved word to be read as the word said
-const SPOKEN_LIMIT = 3;
 
 /** One turn's own words, as they are compared with the saved ones. */
 function saidWords(value: any): string[] {
@@ -107,28 +106,9 @@ export function readTurn(heard: string, words: any[], patterns: any[] = []): any
   }
   if (exact) return { kind: "word", heard: "", ...exact };
 
-  // 2) the confirmed word the sound is closest to: an accent or a letter apart, or the same
-  // consonants with the vowels wandering. It is read only for a word or a short phrase being said —
-  // a whole sentence is answered from its own words and from the saved patterns, never replaced by
-  // one saved word that merely sounds like something inside it.
-  const alike =
-    said.length <= SPOKEN_LIMIT
-      ? alikeTerms(heard, words || [], 3).filter((row: any) => row.tier <= 2)
-      : [];
-  if (alike.length) {
-    const near = alike[0];
-    return {
-      kind: "word",
-      term: near.term,
-      meaning: glossOf(near.term, near.meaning),
-      usage: clean(near.usage, MAX_USAGE),
-      how: "sound-alike",
-      heard: near.heard || "",
-      span: 0,
-    };
-  }
-
-  // 3) the closest saved Kibembe phrase or answer: the question that was asked, with its answer
+  // 2) the closest saved Kibembe phrase or answer: the question that was asked, with its answer.
+  // Nothing is ever read in place of the person's own words: a word the bank does not hold is left
+  // exactly as it was heard rather than taken for the saved word it sounds nearest to.
   const asked = keyMatches(patterns || [], heard, 1);
   if (asked.length) {
     return { kind: "pattern", term: asked[0].said, answer: asked[0].answer, how: "pattern" };
@@ -138,9 +118,9 @@ export function readTurn(heard: string, words: any[], patterns: any[] = []): any
 }
 
 /**
- * The reading of one turn as the voice answering it is told: what was said, what it is in the app's
- * own Word Bank, and how to answer — so the sound the ears were unsure of is answered from the
- * confirmed word rather than guessed at. Nothing when there is no reading to hand over.
+ * The reading of one turn as the voice answering it is told: what was said, and the saved Kibembe
+ * word or phrase it is, so a word the bank holds is answered from its own meaning. A turn the bank
+ * does not hold has no reading at all: what the person said is left exactly as they said it.
  */
 export function turnNote(heard: string, reading: any): string {
   if (!reading) return "";
@@ -157,18 +137,12 @@ export function turnNote(heard: string, reading: any): string {
 
   const meaning = reading.meaning ? ` It means: ${reading.meaning}.` : "";
   const usage = reading.usage ? ` How it is used: ${reading.usage}.` : "";
-  const near =
-    reading.how === "exact"
-      ? " It is written exactly as the Word Bank writes it."
-      : ` They said it a little differently${
-          reading.heard ? ` (heard as "${clean(reading.heard, MAX_TERM)}")` : ""
-        }: it is the same confirmed word, and the form the Word Bank writes it in is "${reading.term}".`;
 
   return (
     "HOW TO HEAR THIS TURN\n" +
     `One turn was just said: "${said}"\n` +
-    `From the app's own Kibembe Word Bank this is the confirmed word or phrase "${reading.term}".${meaning}${usage}${near}\n` +
-    "Take it as that word or phrase, and answer naturally, in Kibembe.\n"
+    `The app's own Kibembe Word Bank already holds this word or phrase as "${reading.term}", written exactly as the bank writes it.${meaning}${usage}\n` +
+    "Keep the person's own words as they said them, answer naturally from the meaning above, and answer in Kibembe.\n"
   );
 }
 

@@ -1,14 +1,16 @@
-import { CARTESIA_AI, MBEMBE_AI, MBONDO_AI, SADIKI_AI } from "@/lib/providerNames";
-import { CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRotation";
+import { CARTESIA_AI, CARTESIA_AI1, MBEMBE_AI, MBONDO_AI, SADIKI_AI } from "@/lib/providerNames";
+import { CARTESIA_AI1_ANSWERS, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRotation";
 
 /**
  * Who answers on the home page's calls, and in what order.
  *
- * Every voice the app offers stands on this one ring: Cartesia AI opens the call, then the talk AIs
- * the admin has set up, then the accounts that speak for the other modes — Mbembe AI for Base44 mode,
+ * Every voice the app offers stands on this one ring: Cartesia AI opens the call, then the admin's
+ * own second Cartesia account, Cartesia AI 1, then the talk AIs the admin has set up, then the
+ * accounts that speak for the other modes — Mbembe AI for Base44 mode,
  * then Mbondo AI, then Sadiki AI — so a call walks through every voice the app offers and comes back
  * to Cartesia AI when the ring is complete. Each voice answers its own number of finished answers and
- * then stands aside for the next one that is available: Cartesia AI seven, and every other voice two.
+ * then stands aside for the next one that is available: Cartesia AI seven, Cartesia AI 1 five, and
+ * every other voice two.
  *
  * GLOIRE AI is not on this ring: its own account stays set up exactly as it is, but a home call never
  * offers it a turn.
@@ -18,6 +20,13 @@ import { CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRotation";
  */
 export const HOME_SEATS = [
   { id: "cartesia", label: CARTESIA_AI, kind: "cartesia", account: "", answers: CARTESIA_ANSWERS },
+  {
+    id: "cartesia1",
+    label: CARTESIA_AI1,
+    kind: "cartesia",
+    account: "one",
+    answers: CARTESIA_AI1_ANSWERS,
+  },
   { id: "talk2", label: "AI 2", kind: "talk", account: "talk2", answers: TALK_ANSWERS },
   { id: "talk3", label: "AI 3", kind: "talk", account: "talk3", answers: TALK_ANSWERS },
   { id: "talk4", label: "AI 4", kind: "talk", account: "talk4", answers: TALK_ANSWERS },
