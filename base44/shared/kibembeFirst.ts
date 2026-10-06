@@ -1,5 +1,5 @@
 import { MAX_TERM, MAX_USAGE, PREFIXES, clean, glossOf } from "./knowledgeWords.ts";
-import { tight } from "./soundsAlike.ts";
+import { heardForms, strongTerms, tight } from "./soundsAlike.ts";
 import { keyMatches } from "./answerKey.ts";
 import { KIBEMBE_GUIDE } from "./kibembeGuide.ts";
 
@@ -78,9 +78,22 @@ export function readTurn(heard: string, words: any[], patterns: any[] = []): any
   for (const row of words || []) {
     const term = clean(row?.term, MAX_TERM);
     if (!term) continue;
-    const how = saidTerm(term, said);
+    // the word as the bank writes it, and every way it is known to come out: a confirmed variation
+    // is this same word being said, never a word of its own
+    let how = "";
+    let span = 0;
+    for (const spelling of [term, ...heardForms(row)]) {
+      const found = saidTerm(spelling, said);
+      if (!found) continue;
+      span = Math.max(span, saidWords(spelling).length);
+      if (found === "exact") {
+        how = "exact";
+        break;
+      }
+      how = "phrase";
+    }
     if (!how) continue;
-    const span = saidWords(term).length;
+    span = Math.max(span, saidWords(term).length);
     const better =
       !exact || (how === "exact" && exact.how !== "exact") || (how === exact.how && span > exact.span);
     if (better) {
@@ -105,6 +118,27 @@ export function readTurn(heard: string, words: any[], patterns: any[] = []): any
     return { kind: "pattern", term: asked[0].said, answer: asked[0].answer, how: "pattern" };
   }
 
+  // 3) A pronunciation that is a strong match to one confirmed word, and only a strong one: the same
+  // word said in the person's own way — an accent, a letter, a syllable or the same consonants apart.
+  // It is marked as heard that way rather than as the bank's own spelling, so the voice answers from
+  // the confirmed meaning while the words themselves are left exactly as they were said. A word that
+  // merely resembles a saved one is never taken: that would be answering a word nobody said, and the
+  // voice answering the call is the one that weighs a wider resemblance, with the whole bank in hand.
+  const near = strongTerms(heard, words || [])[0];
+  if (near) {
+    return {
+      kind: "near",
+      term: near.term,
+      heard: near.said,
+      meaning: glossOf(near.term, (words || []).find((row: any) => sameTerm(row?.term, near.term))?.meaning),
+      usage: clean(
+        (words || []).find((row: any) => sameTerm(row?.term, near.term))?.usage,
+        MAX_USAGE
+      ),
+      how: "near",
+    };
+  }
+
   return null;
 }
 
@@ -123,6 +157,19 @@ export function turnNote(heard: string, reading: any): string {
       `One turn was just said: "${said}"\n` +
       `It is the saved Kibembe phrase "${reading.term}", and the answer saved for it is: "${reading.answer}"\n` +
       "Give that answer, in Kibembe, in your own voice — in fresh words, never the same sentence you have already used in this call.\n"
+    );
+  }
+
+  // A turn that strongly matches a confirmed word is that word being said another way: the voice
+  // answers from the confirmed meaning, and never tells the person their speaking was wrong.
+  if (reading.kind === "near") {
+    const sound = reading.meaning ? ` It means: ${reading.meaning}.` : "";
+    const howUsed = reading.usage ? ` How it is used: ${reading.usage}.` : "";
+    return (
+      "HOW TO HEAR THIS TURN\n" +
+      `One turn was just said: "${said}"\n` +
+      `By its sound and by what is being talked about, this is the app's confirmed Kibembe word or phrase "${reading.term}", said in the person's own way — not a different word.${sound}${howUsed}\n` +
+      "Answer it naturally in Kibembe, from that meaning, in your own fresh words: never correct how they said it, never say it was not understood, and never ask whether they meant another word. Where the answer turns on exactly what they meant, ask one short Kibembe question first and answer as soon as they have said it.\n"
     );
   }
 
@@ -164,6 +211,8 @@ export function fixPrompt(heard: string, lastAgent: string): string {
     "- Write the Kibembe word or phrase exactly as the person said it, and its meaning only when they gave one.",
     "- The form the ears wrote wrongly is the short wrong text the ears wrote for this same word on this turn — one, two or three words at most, never a sentence the assistant said and never a different meaning. Leave it empty when no such wrong form was given.",
     "- The answer to give is only the answer the person said should be given.",
+    "- A correction that is only another way of saying a word or phrase this app already holds is NOT a new word: write that saved form exactly as the app writes it in canonical, and the way the person said it in term.",
+    "- Leave canonical empty only when the person's word is really one the app does not hold. Never make a second word out of an accent, a letter, a syllable or a sound of one the app already has.",
   ].join("\n");
 }
 
@@ -192,9 +241,61 @@ export const FIX_SCHEMA = {
       type: "string",
       description: "the answer to give when this word or phrase is said, only when the person gave one",
     },
+    canonical: {
+      type: "string",
+      description:
+        "the saved Kibembe word or phrase this correction is another way of saying, written exactly as the app holds it; empty when it is a word the app does not hold",
+    },
   },
   required: ["confirmed", "term"],
 };
+
+/**
+ * What the person's own words are, when they have put the app's own writing of one of their turns
+ * right on the screen. Nothing is saved from this: it is what the person is shown before they say
+ * whether it should be kept, and only their answer saves it.
+ */
+export const SAYS_SCHEMA = {
+  type: "object",
+  properties: {
+    term: {
+      type: "string",
+      description: "the word or phrase the person says they really said, written as they wrote it",
+    },
+    canonical: {
+      type: "string",
+      description:
+        "the saved Kibembe word or phrase this is another way of saying, written exactly as the app holds it; empty when the app does not hold it",
+    },
+    meaning: { type: "string", description: "its meaning, only when the person gave one" },
+    guide: {
+      type: "string",
+      description: "how it is said, syllables joined by dashes, only when they gave that",
+    },
+    answer: {
+      type: "string",
+      description: "the answer to give when it is said, only when they gave one",
+    },
+  },
+  required: ["term"],
+};
+
+/** The reading a turn the person has put right is asked for: what their words are, and where they belong. */
+export function saysPrompt(heard: string, said: string): string {
+  return [
+    "You keep the record of a Kibembe (Ebembe) voice call for the app's own Word Bank.",
+    "The app's own ears wrote one of the person's turns down wrongly, and the person has put their own words in its place on the screen.",
+    "",
+    `What the ears wrote for that turn: "${clean(heard, 400) || "(nothing was written for this turn)"}"`,
+    `What the person says they really said: "${clean(said, 400)}"`,
+    "",
+    "Write down the person's own words, and only what they gave.",
+    "- The word or phrase goes in term, written exactly as the person wrote it.",
+    "- When that word or phrase is only another way of saying one this app already holds — an accent, a letter, a syllable or a sound apart — write the saved form exactly as the app holds it in canonical. A pronunciation of a saved word is never made into a second word.",
+    "- Leave canonical empty when the app does not hold this word at all.",
+    "- Never invent a meaning, a reading, a spelling or an answer: a field nobody gave stays empty.",
+  ].join("\n");
+}
 
 /** A confirmed spelling has to be a word or a short phrase, and nothing else. */
 export function isConfirmedTerm(term: string): boolean {
@@ -207,4 +308,25 @@ export function isConfirmedTerm(term: string): boolean {
 export function sameTerm(a: any, b: any): boolean {
   const left = tight(a);
   return !!left && left === tight(b);
+}
+
+/**
+ * The saved word or phrase a confirmed form belongs to: the entry that holds that spelling, the entry
+ * that keeps it among the ways it is said, or the one confirmed word it is a strong way of saying —
+ * never a word that merely shares some of its sounds. Nothing when the app holds no such word: only
+ * then is a form saved as a word of its own.
+ */
+export function savedEntry(rows: any[], term: string): any {
+  const said = clean(term, MAX_TERM);
+  if (!said) return null;
+
+  const held = (rows || []).find(
+    (row: any) =>
+      sameTerm(row?.term, said) || heardForms(row).some((form: string) => sameTerm(form, said))
+  );
+  if (held) return held;
+
+  const near = strongTerms(said, rows || [])[0];
+  if (!near) return null;
+  return (rows || []).find((row: any) => sameTerm(row?.term, near.term)) || null;
 }

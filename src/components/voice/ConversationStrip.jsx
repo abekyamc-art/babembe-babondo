@@ -37,7 +37,7 @@ export default function ConversationStrip({ turns, pending, onCorrectTurn }) {
                 <HeardTurn
                   text={turn.text}
                   editable={editable}
-                  onCorrect={(text) => onCorrectTurn(at, text)}
+                  onCorrect={(text) => onCorrectTurn(at, text, turn.text)}
                 />
               ) : (
                 <p className="conversation-text max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-2 text-[13px] leading-snug text-foreground">

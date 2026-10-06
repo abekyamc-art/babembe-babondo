@@ -43,6 +43,13 @@
     "usage": {
       "type": "string",
       "description": "How the assistant should use the Ebembe word, on word entries."
+    },
+    "heard": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The other ways this same word comes out when people say it \u2014 an accent, a spelling, a syllable, a sound the ears wrote \u2014 each one confirmed by the person. They all belong to this one word and are never words of their own."
     }
   },
   "required": [

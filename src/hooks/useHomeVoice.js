@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import useTalkVoice from "@/hooks/useTalkVoice";
 import useCartesiaVoice from "@/hooks/useCartesiaVoice";
 import { HOME_SEATS, nextPlan } from "@/lib/homeRotation";
+import { keepHeard, proposeHeard } from "@/lib/homeHearing";
 import { handoffNotice, resumeNotice, waitNotice } from "@/lib/talkRotation";
 
 /**
@@ -40,6 +41,8 @@ export default function useHomeVoice() {
   const [notice, setNotice] = useState("");
   // a voice has taken its turn and the next one is waiting for the person's own tap
   const [waiting, setWaiting] = useState(false);
+  // what the app would keep from a turn the person has put right, waiting for their own answer
+  const [saveAsk, setSaveAsk] = useState(null);
 
   // the voice holding the call, kept in a ref because the handlers that read it were handed to the
   // calls as they opened
@@ -386,7 +389,7 @@ export default function useHomeVoice() {
    * words, so the answer that comes is an answer to what they actually said.
    */
   const correctTurn = useCallback(
-    (at, text) => {
+    (at, text, wasHeard) => {
       const said = String(text || "").trim();
       if (!said) return;
       setTurns((prev) =>
@@ -394,9 +397,27 @@ export default function useHomeVoice() {
       );
       const live = seatRef.current.kind === "cartesia" ? cartesia : talk;
       live.correct?.(said);
+
+      // The app offers to keep what the person put right — their own words in place of what the ears
+      // wrote for that turn — and nothing goes into the Word Bank until they answer the offer.
+      proposeHeard(said, wasHeard).then((proposal) => {
+        if (proposal) setSaveAsk({ ...proposal, text: said, heard: String(wasHeard || "") });
+      });
     },
     [cartesia, talk]
   );
+
+  /** The person has said the offer should be kept: their own words go into the Word Bank now. */
+  const keepSave = useCallback(async () => {
+    const ask = saveAsk;
+    setSaveAsk(null);
+    if (!ask) return;
+    const kept = await keepHeard(ask.text, ask.heard);
+    if (kept) setNotice(`"${kept}" is kept in the Word Bank.`);
+  }, [saveAsk]);
+
+  /** They left the offer: nothing is written, and the turn stays as they put it. */
+  const leaveSave = useCallback(() => setSaveAsk(null), []);
 
   // whichever voice holds the call is the one whose state the screen reads
   const live = seat.kind === "cartesia" ? cartesia : talk;
@@ -421,5 +442,9 @@ export default function useHomeVoice() {
     ask,
     // the person's own words put in place of the app's writing of their turn
     correctTurn,
+    // what the app would keep from those words, and the person's own answer to the offer
+    saveAsk,
+    keepSave,
+    leaveSave,
   };
 }

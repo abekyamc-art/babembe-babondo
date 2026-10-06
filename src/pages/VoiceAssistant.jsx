@@ -18,6 +18,7 @@ import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
+import SaveAsk from "@/components/voice/SaveAsk";
 import ThinkingLine from "@/components/voice/ThinkingLine";
 import UsagePill from "@/components/voice/UsagePill";
 import CoinPill from "@/components/voice/CoinPill";
@@ -49,6 +50,9 @@ export default function VoiceAssistant() {
     stop,
     ask,
     correctTurn,
+    saveAsk,
+    keepSave,
+    leaveSave,
   } = useHomeVoice();
   const navigate = useNavigate();
 
@@ -357,14 +361,19 @@ export default function VoiceAssistant() {
               onCorrectTurn={correctTurn}
             />
           </div>
-          <p
-            aria-live="polite"
-            className={`min-h-4 shrink-0 text-center text-[12px] leading-4 ${
-              error ? "text-destructive" : "text-muted-foreground"
-            }`}
-          >
-            {error || notice || `${voiceLabel} answers each turn.`}
-          </p>
+          {/* what the app would keep from a turn the person has put right: their own answer saves it */}
+          {saveAsk ? (
+            <SaveAsk ask={saveAsk} onKeep={keepSave} onLeave={leaveSave} />
+          ) : (
+            <p
+              aria-live="polite"
+              className={`min-h-4 shrink-0 text-center text-[12px] leading-4 ${
+                error ? "text-destructive" : "text-muted-foreground"
+              }`}
+            >
+              {error || notice || `${voiceLabel} answers each turn.`}
+            </p>
+          )}
         </div>
       </main>
 

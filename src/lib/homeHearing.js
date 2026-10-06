@@ -41,3 +41,44 @@ export async function readHeardTurn(text, lastAgent = "") {
     return "";
   }
 }
+
+/**
+ * What the app would keep from a turn the person has put right on the screen: their own words in
+ * place of what the ears wrote for that turn, read against the app's own Word Bank. Nothing is saved
+ * by this — it is the offer the person is shown, and their own answer to it is what saves. A null
+ * comes back when their words carry nothing to keep.
+ */
+export async function proposeHeard(text, heard = "") {
+  const said = String(text || "").trim();
+  if (!said) return null;
+  try {
+    const res = await base44.functions.invoke("kibembeHearing", {
+      text: said,
+      heard: String(heard || ""),
+      propose: true,
+    });
+    return res?.data?.proposal || null;
+  } catch (err) {
+    return null;
+  }
+}
+
+/**
+ * The person has said the offer should be kept: their own words go into the Word Bank now, and when
+ * they are only another way of saying a word already saved, they are kept under that word and never
+ * as a word of their own. The saved spelling comes back, or an empty string when nothing was kept.
+ */
+export async function keepHeard(text, heard = "") {
+  const said = String(text || "").trim();
+  if (!said) return "";
+  try {
+    const res = await base44.functions.invoke("kibembeHearing", {
+      text: said,
+      heard: String(heard || ""),
+      confirmed: true,
+    });
+    return String(res?.data?.saved || "");
+  } catch (err) {
+    return "";
+  }
+}
