@@ -31,14 +31,17 @@ import { heardForms, spellingsOf, strongMatch, tight } from "./soundsAlike.ts";
 const URL = "https://api.openai.com/v1/audio/transcriptions";
 const MODEL = "gpt-4o-transcribe";
 const FALLBACK_MODEL = "whisper-1";
-// The reader knows no Kibembe at all, and none of the languages it does know is this one: naming one
-// of them makes it write the person's Kibembe as that language's own words — the very thing that must
-// not happen here. Kiswahili named as the language is the worst of the two, since a Kibembe turn then
-// comes back as Kiswahili nobody spoke. So no language is named at all: the prompt carries the
-// language instead — Kibembe, written as the sounds it is said in, in the spelling of the app's own
-// confirmed words — and the reader is left to write what it hears rather than to translate it.
+// The reader knows no Kibembe, and the language it is pointed at is there only to keep the writing in
+// the letters of this region. Left to guess, the reader wanders off into whatever script it lands on —
+// a plain tone came back written in Amharic letters — and a turn written that way can never be placed
+// on the app's own spelling of its words. Kiswahili is the nearest Bantu reading of what is spoken
+// here, so Kibembe comes back as Bantu sounds in Latin letters, which is what the app's own correction
+// is built on. What the turn is — Kibembe, written as it is said, never translated into the word it
+// nearly sounds like — is carried by the prompt below, and not by this.
 // a turn is given this long to be read, generously: a Kibembe turn read properly is worth the wait
 const HEAR_MS = 30000;
+// The nearest Bantu reading of what is spoken here, and the one the writing is kept in: see below.
+const LANGUAGE = "sw";
 // how much of the app's own spelling is pointed at the reader: enough for the words being
 // practised, short enough to stay a hint rather than a dictionary dropped in front of it
 const MAX_PROMPT = 1500;
@@ -53,6 +56,10 @@ const PROMPT_HEAD = [
   "word, that word is not what was said: write the Kibembe sounds instead of it.",
   "A word listed with the ways people say it is still written in the spelling it is listed under,",
   "however it comes out of the mouth.",
+  "The list below is only the spelling to write with: it is never read out, and a word from it belongs",
+  "in the writing only where that same word was really heard in the turn.",
+  "Where the turn holds no clear speech at all, write nothing: an empty answer is the right one, and a",
+  "turn nobody said is never filled in with a listed word.",
   "The words:",
 ].join(" ");
 
@@ -98,6 +105,7 @@ async function read(apiKey: string, model: string, bytes: Uint8Array, type: stri
   const form = new FormData();
   form.append("model", model);
   form.append("file", new Blob([bytes], { type: type || "audio/wav" }), nameFor(type));
+  form.append("language", LANGUAGE);
   if (prompt) form.append("prompt", prompt);
   form.append("response_format", "json");
   return fetch(URL, {
@@ -146,7 +154,11 @@ export async function writeDown({
 
   const data: any = await res.json().catch(() => ({}));
   const said = String(data?.text || "").replace(/\s+/g, " ").trim();
-  return /[\p{L}\p{N}]/u.test(said) ? said : "";
+  if (!/[\p{L}\p{N}]/u.test(said)) return "";
+  // A turn written in a script the people here never speak is the reader guessing at some other
+  // language altogether, and those are not the person's words. It comes back empty instead of being
+  // handed on, so the call asks for the turn once more and then hears the person itself.
+  return /[^\p{Script=Latin}\p{M}\p{N}\p{P}\p{S}\p{Z}]/u.test(said) ? "" : said;
 }
 
 // The longest run of words that is still one saved word: an expression said whole — a greeting, a

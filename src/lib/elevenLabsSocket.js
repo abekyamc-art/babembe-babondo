@@ -618,7 +618,10 @@ export default class VoiceSocket {
    * listened to, nor answered as though the person had asked something.
    */
   async readTurn() {
-    if (!this.captureOn) return;
+    // one turn is written down at a time: a person who begins again while the turn before is still
+    // being read is one turn behind and never a second one, so the same words are never put to the AI
+    // twice and never counted as two turns
+    if (!this.captureOn || this.hearing) return;
     const frames = this.captureFrames;
     this.captureOn = false;
     this.captureFrames = [];
@@ -656,7 +659,12 @@ export default class VoiceSocket {
       const cleanup = String(res?.data?.cleanup || "").trim();
       if (cleanup && !this.cleanupNoted) {
         this.cleanupNoted = true;
-        this.h.onError?.(cleanup);
+        // The room cleanup is a helper and not the call: where it cannot be made, the turn is read
+        // exactly as it always was. That is said once on the line under the conversation and never as
+        // an error — an error raised here stayed on the screen for the rest of the call and hid the
+        // line the call itself says ("say it again", "tap the phone to continue", whose turn is
+        // next), which is what left a talk voice looking as though it had gone dead.
+        this.h.onReask?.(cleanup);
       }
       // nothing was said — or what was said carried no word — so there is nothing to put to him:
       // the turn is said plainly instead of the call going quiet on it, and the microphone stays
