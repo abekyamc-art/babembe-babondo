@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Languages, Loader2, Phone, PhoneOff, Radio, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import useHomeVoice from "@/hooks/useHomeVoice";
+import { noteKibembeSession } from "@/lib/kpiEvents";
 import {
   DAILY_LIMIT,
   GUEST_LIMIT,
@@ -65,6 +66,14 @@ export default function VoiceAssistant() {
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState(null);
   const pendingGate = useRef(false);
+  // the session is counted once, on the first turn asked of it — the microphone or a written message
+  const countedRef = useRef(false);
+
+  const noteFirstAsk = useCallback(() => {
+    if (countedRef.current) return;
+    countedRef.current = true;
+    noteKibembeSession();
+  }, []);
 
   const limit = user ? DAILY_LIMIT : GUEST_LIMIT;
   const { remaining, nextReturnAt } = creditsFrom(stamps, limit, clock);
@@ -205,6 +214,7 @@ export default function VoiceAssistant() {
     }
     // the microphone and the sound are asked for inside the tap itself, in the engine that opens
     // a moment later
+    noteFirstAsk();
     await start({ onAnswered: spend });
   };
 
@@ -214,6 +224,7 @@ export default function VoiceAssistant() {
       openGate();
       return;
     }
+    noteFirstAsk();
     await ask(text, spend);
   };
 

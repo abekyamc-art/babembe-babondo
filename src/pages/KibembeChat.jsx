@@ -6,6 +6,7 @@ import ChatComposer from "@/components/kibembe/ChatComposer";
 import KibembeVoicePanel from "@/components/kibembe/KibembeVoicePanel";
 import useOpenAiAssistant from "@/hooks/useOpenAiAssistant";
 import { KIBEMBE_CLASS, SADIKI_AI } from "@/lib/providerNames";
+import { noteKibembeSession } from "@/lib/kpiEvents";
 
 /**
  * The Kibembe assistance screen: the app's own Kibembe assistant answers here, from the saved Word
@@ -18,6 +19,14 @@ export default function KibembeChat() {
   const [draft, setDraft] = useState("");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const endRef = useRef(null);
+  // the session is counted once, on the first turn asked of it — written or spoken
+  const countedRef = useRef(false);
+
+  const noteFirstAsk = useCallback(() => {
+    if (countedRef.current) return;
+    countedRef.current = true;
+    noteKibembeSession();
+  }, []);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
@@ -29,8 +38,9 @@ export default function KibembeChat() {
     const message = draft.trim();
     if (!message || busy) return;
     setDraft("");
+    noteFirstAsk();
     await ask(message);
-  }, [ask, busy, draft]);
+  }, [ask, busy, draft, noteFirstAsk]);
 
   return (
     <div className={`flex min-h-full flex-col bg-background ${KIBEMBE_CLASS}`}>
@@ -68,7 +78,10 @@ export default function KibembeChat() {
           speaking={speaking}
           thinking={thinking}
           micActive={micActive}
-          onStart={() => start()}
+          onStart={() => {
+            noteFirstAsk();
+            start();
+          }}
           onEnd={stop}
         />
       ) : null}

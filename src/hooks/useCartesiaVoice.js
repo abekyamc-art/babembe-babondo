@@ -6,6 +6,7 @@ import CartesiaCall from "@/lib/cartesiaCall";
 import { readHeardTurn } from "@/lib/homeHearing";
 import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
 import { CARTESIA_AI } from "@/lib/providerNames";
+import { noteVoiceTurn } from "@/lib/kpiEvents";
 
 /**
  * The Cartesia voice on the line: the outside agent the home page's calls hand over to. It listens
@@ -157,6 +158,8 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
   const handleAudioEnd = useCallback(() => {
     speakingRef.current = false;
     backToListening();
+    // his voice has drained: one voice turn has been spoken out in full
+    noteVoiceTurn();
     // the answer has been read out in full: a change it asked for is sent here and now
     answerEndRef.current?.();
   }, [backToListening]);

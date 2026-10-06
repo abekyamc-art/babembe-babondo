@@ -4,6 +4,7 @@ import { primedAudio, primeAudio } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import { isMisheard } from "@/lib/misheardSpeech";
 import RealtimeCall, { stageLabel } from "@/lib/realtimeCall";
+import { noteVoiceTurn } from "@/lib/kpiEvents";
 import { reviewAnswer } from "@/lib/sadikiReview";
 import { SADIKI_AI } from "@/lib/providerNames";
 
@@ -96,6 +97,8 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
         setStatus("speaking");
         const spoken = await call.speak(reply);
         if (!spoken) setNotice(NO_VOICE);
+        // the answer has been read out in full: one voice turn, done
+        else noteVoiceTurn();
       } catch (err) {
         setError(COULD_NOT_ASK);
       } finally {

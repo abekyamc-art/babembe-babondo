@@ -6,6 +6,7 @@ import { FIRST_TALK } from "@/lib/talkRotation";
 import { openHearingNote, readHeardTurn } from "@/lib/homeHearing";
 import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
 import { heardLanguage } from "@/lib/heardLanguage";
+import { noteVoiceTurn } from "@/lib/kpiEvents";
 
 /**
  * One of the older talk AIs on the home page's call. Each is opened on its own account — its own key,
@@ -209,6 +210,8 @@ export default function useTalkVoice({ onTurn } = {}) {
   const handleAudioEnd = useCallback(() => {
     speakingRef.current = false;
     backToListening();
+    // the voice has drained: one voice turn has been spoken out in full
+    noteVoiceTurn();
     // an answer read out in full is reported, so a change it asked for is sent here and now
     liveSpokeRef.current?.();
   }, [backToListening]);
