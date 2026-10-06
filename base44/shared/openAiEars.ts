@@ -31,10 +31,12 @@ import { heardForms, spellingsOf, strongMatch, tight } from "./soundsAlike.ts";
 const URL = "https://api.openai.com/v1/audio/transcriptions";
 const MODEL = "gpt-4o-transcribe";
 const FALLBACK_MODEL = "whisper-1";
-// The reader knows no Kibembe at all. Kiswahili is the nearest language it does know, so the
-// person's Kibembe comes back as Bantu sounds — the sounds the saved words are written in —
-// instead of being forced into English nobody spoke. Naming it also stops the reader guessing.
-const LANGUAGE = "sw";
+// The reader knows no Kibembe at all, and none of the languages it does know is this one: naming one
+// of them makes it write the person's Kibembe as that language's own words — the very thing that must
+// not happen here. Kiswahili named as the language is the worst of the two, since a Kibembe turn then
+// comes back as Kiswahili nobody spoke. So no language is named at all: the prompt carries the
+// language instead — Kibembe, written as the sounds it is said in, in the spelling of the app's own
+// confirmed words — and the reader is left to write what it hears rather than to translate it.
 // a turn is given this long to be read, generously: a Kibembe turn read properly is worth the wait
 const HEAR_MS = 30000;
 // how much of the app's own spelling is pointed at the reader: enough for the words being
@@ -43,10 +45,12 @@ const MAX_PROMPT = 1500;
 
 // What the reader is told before it listens. The words themselves follow it.
 const PROMPT_HEAD = [
-  "Kibembe (Ebembe) speech from a Babembe village.",
-  "Write it down exactly as it is said, in the spelling of the words listed after this line.",
-  "Write every sound of every word, the way it is spoken: never translate the turn, and never",
-  "replace a Kibembe word with the English or Kiswahili word it nearly sounds like.",
+  "Kibembe (Ebembe) speech from a Babembe village: a Bantu language of its own, not Kiswahili and",
+  "not English, and the person is speaking neither of those two.",
+  "Write the turn down exactly as it is said, in the letters of the spelling of the words listed",
+  "after this line — every sound of every word, the way it is spoken.",
+  "Never translate the turn and never tidy it up. Where a word sounds like a Kiswahili or English",
+  "word, that word is not what was said: write the Kibembe sounds instead of it.",
   "A word listed with the ways people say it is still written in the spelling it is listed under,",
   "however it comes out of the mouth.",
   "The words:",
@@ -94,7 +98,6 @@ async function read(apiKey: string, model: string, bytes: Uint8Array, type: stri
   const form = new FormData();
   form.append("model", model);
   form.append("file", new Blob([bytes], { type: type || "audio/wav" }), nameFor(type));
-  form.append("language", LANGUAGE);
   if (prompt) form.append("prompt", prompt);
   form.append("response_format", "json");
   return fetch(URL, {
