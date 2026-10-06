@@ -29,6 +29,12 @@ export const CARTESIA_ANSWERS = 7;
 export const CARTESIA_AI1_ANSWERS = 5;
 
 /**
+ * How many answers Cartesia AI 2 gives on a home call — the admin's own third Cartesia account, which
+ * takes the call straight after Cartesia AI 1 and answers five before standing aside.
+ */
+export const CARTESIA_AI2_ANSWERS = 5;
+
+/**
  * AI 2 stands down for a month and comes back on its own. From today until November 6, 2026 the
  * ring of a home call passes over it — no signal names it and no turn is handed to it — and on that
  * date it takes its place in the ring again with nothing to change anywhere.

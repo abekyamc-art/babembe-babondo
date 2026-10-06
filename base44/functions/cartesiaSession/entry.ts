@@ -13,11 +13,13 @@ const NOTE_ROWS = 60;
 /**
  * The Cartesia accounts a home call's voices open on, each with its own key and its own agent.
  * Cartesia AI answers on the account the app already had; Cartesia AI 1 answers on the admin's own
- * second account. Neither account's own settings are touched from here.
+ * second account, and Cartesia AI 2 on their third. None of the accounts' own settings are touched
+ * from here.
  */
 const ACCOUNTS: Record<string, { name: string; key: string; agent: string }> = {
   "": { name: "Cartesia AI", key: "CARTESIA_API_KEY", agent: "CARTESIA_AGENT_ID" },
   one: { name: "Cartesia AI 1", key: "CARTESIA_AI1_API_KEY", agent: "CARTESIA_AI1_AGENT_ID" },
+  two: { name: "Cartesia AI 2", key: "CARTESIA_AI2_API_KEY", agent: "CARTESIA_AI2_AGENT_ID" },
 };
 
 /** A secret's value, or nothing at all when it has not been saved yet. */

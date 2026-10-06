@@ -37,6 +37,12 @@ export const CARTESIA_AI = "Cartesia AI";
  */
 export const CARTESIA_AI1 = "Cartesia AI 1";
 
+/**
+ * The admin's own third Cartesia account, with its own key and its own agent: it answers on an
+ * account neither of the app's other Cartesia voices uses, and is named on screen as Cartesia AI 2.
+ */
+export const CARTESIA_AI2 = "Cartesia AI 2";
+
 /** What the provider behind a mode is called on screen. */
 export function providerName(mode) {
   return NAMES[mode] || GLOIRE_AI;

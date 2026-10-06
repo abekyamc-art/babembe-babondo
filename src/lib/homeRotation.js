@@ -1,16 +1,23 @@
-import { CARTESIA_AI, CARTESIA_AI1, MBEMBE_AI, MBONDO_AI, SADIKI_AI } from "@/lib/providerNames";
-import { AI2_ID, ai2Resting, CARTESIA_AI1_ANSWERS, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRotation";
+import { CARTESIA_AI, CARTESIA_AI1, CARTESIA_AI2, MBEMBE_AI, MBONDO_AI, SADIKI_AI } from "@/lib/providerNames";
+import {
+  AI2_ID,
+  ai2Resting,
+  CARTESIA_AI1_ANSWERS,
+  CARTESIA_AI2_ANSWERS,
+  CARTESIA_ANSWERS,
+  TALK_ANSWERS,
+} from "@/lib/talkRotation";
 
 /**
  * Who answers on the home page's calls, and in what order.
  *
  * Every voice the app offers stands on this one ring: Cartesia AI opens the call, then the admin's
- * own second Cartesia account, Cartesia AI 1, then the talk AIs the admin has set up, then the
- * accounts that speak for the other modes — Mbembe AI for Base44 mode,
+ * own second Cartesia account, Cartesia AI 1, then their third, Cartesia AI 2, then the talk AIs the
+ * admin has set up, then the accounts that speak for the other modes — Mbembe AI for Base44 mode,
  * then Mbondo AI, then Sadiki AI — so a call walks through every voice the app offers and comes back
  * to Cartesia AI when the ring is complete. Each voice answers its own number of finished answers and
- * then stands aside for the next one that is available: Cartesia AI seven, Cartesia AI 1 five, and
- * every other voice two.
+ * then stands aside for the next one that is available: Cartesia AI seven, Cartesia AI 1 and
+ * Cartesia AI 2 five each, and every other voice two.
  *
  * GLOIRE AI is not on this ring: its own account stays set up exactly as it is, but a home call never
  * offers it a turn.
@@ -26,6 +33,13 @@ const RING = [
     kind: "cartesia",
     account: "one",
     answers: CARTESIA_AI1_ANSWERS,
+  },
+  {
+    id: "cartesia2",
+    label: CARTESIA_AI2,
+    kind: "cartesia",
+    account: "two",
+    answers: CARTESIA_AI2_ANSWERS,
   },
   { id: "talk2", label: "AI 2", kind: "talk", account: "talk2", answers: TALK_ANSWERS },
   { id: "talk3", label: "AI 3", kind: "talk", account: "talk3", answers: TALK_ANSWERS },

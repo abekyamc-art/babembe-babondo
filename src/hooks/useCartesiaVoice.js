@@ -12,9 +12,10 @@ import { CARTESIA_AI } from "@/lib/providerNames";
  * and answers by itself, so there is nothing to ask on the app's behalf — the turns it reports are
  * the turns shown on screen, and each finished answer is handed to whoever is counting them.
  *
- * Two Cartesia accounts answer through it: Cartesia AI on the app's own account, and Cartesia AI 1
- * on the admin's second one, each with its own key and its own agent. Whoever is on the call is the
- * one its call is opened on, and the one named in anything the screen says about it.
+ * Three Cartesia accounts answer through it: Cartesia AI on the app's own account, Cartesia AI 1 on
+ * the admin's second one and Cartesia AI 2 on their third, each with its own key and its own agent.
+ * Whoever is on the call is the one its call is opened on, and the one named in anything the screen
+ * says about it.
  */
 
 const NO_REACH = (who) => `${who} couldn't be reached. Please try again.`;
