@@ -64,22 +64,15 @@ const ACCOUNTS: { id: string; name: string; key: string; agent: string; plain?: 
   },
 ];
 
-// The words the app's own ears and the call's own hearing service are both pointed at live in
-// one shared place, so every turn of speech is written down the same way.
-//
-// So does the language the hearing is pointed at. The service knows no Kibembe at all: left to
-// guess, it writes a Kibembe turn as whatever language it thinks it heard, and the words come back
-// in letters nobody here speaks, with nothing to answer from. Pointed at Kiswahili — the language
-// Kibembe is heard through in this app — the turn comes back as the words that were said, in the
-// app's own letters, and the saved words point it at the Kibembe itself.
-const HEARD_LANGUAGE = "sw";
+// The words the hearing service is pointed at live in one shared place, so every turn of speech is
+// written down the same way. The app's own ears are the ones that write every turn down, so the
+// language the voice answers in is left alone completely: the one the admin gave his agent stands.
 
 /**
- * The service only takes the saved words, and only writes turns in the language the hearing is
- * pointed at, when the agent's own security settings allow it — and it ignores them silently when
- * they do not, so both permissions are made sure of here. The agent's settings are merged into as
- * they already stand, never replaced, and a permission that cannot be written is never a reason a
- * call fails to open.
+ * The service only takes the saved words when the agent's own security settings allow it — and it
+ * ignores them silently when they do not, so that one permission is made sure of here. Nothing of the
+ * agent's own language is touched: his settings are merged into as they already stand, never
+ * replaced, and a permission that cannot be written is never a reason a call fails to open.
  */
 async function allowHearingSettings(apiKey: string, agentId: string, agent: any) {
   try {
@@ -91,8 +84,7 @@ async function allowHearingSettings(apiKey: string, agentId: string, agent: any)
     const overrides = settings.overrides || {};
     const fields = overrides.conversation_config_override || {};
     const asr = fields.asr || {};
-    const spoken = fields.agent || {};
-    if (asr.keywords === true && spoken.language === true) return true;
+    if (asr.keywords === true) return true;
 
     const res = await fetch(
       "https://api.elevenlabs.io/v1/convai/agents/" + encodeURIComponent(agentId),
@@ -107,7 +99,6 @@ async function allowHearingSettings(apiKey: string, agentId: string, agent: any)
               conversation_config_override: {
                 ...fields,
                 asr: { ...asr, keywords: true },
-                agent: { ...spoken, language: true },
               },
             },
           },
@@ -115,12 +106,12 @@ async function allowHearingSettings(apiKey: string, agentId: string, agent: any)
       }
     );
     if (!res.ok) {
-      console.error("Could not allow the saved words and language into the hearing service:", res.status);
+      console.error("Could not allow the saved words into the hearing service:", res.status);
       return false;
     }
     return true;
   } catch (error: any) {
-    console.error("Could not allow the saved words and language into the hearing service:", error?.message);
+    console.error("Could not allow the saved words into the hearing service:", error?.message);
     return false;
   }
 }
@@ -253,7 +244,6 @@ export default async function (req: Request): Promise<Response> {
       intro: agent.intro,
       allow_intro_override: agent.allowIntroOverride,
       asr_keywords: keywords,
-      asr_language: account.plain ? "" : HEARD_LANGUAGE,
     });
   } catch (error) {
     console.error("Voice session failed:", error.message);

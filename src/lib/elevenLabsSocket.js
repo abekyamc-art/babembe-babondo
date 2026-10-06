@@ -1,7 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { isRepeatIntro } from "@/lib/agentMemory";
 import { contextBlocks } from "@/lib/contextBlocks";
-import { VOICE_RATE } from "@/lib/voicePace";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage } from "@/lib/micAccess";
 
@@ -183,8 +182,6 @@ export default class VoiceSocket {
     this.intro = "";
     // the app's own Ebembe words, handed to the hearing service as the call opens
     this.keywords = [];
-    // the language the hearing is pointed at, so a Kibembe turn is written as it was spoken
-    this.language = "";
     // carrying on: nothing is heard from him until the person takes their turn
     this.holdQuiet = false;
     this.holdTimer = null;
@@ -300,7 +297,6 @@ export default class VoiceSocket {
     }
     this.intro = res.data.intro || "";
     this.keywords = Array.isArray(res.data.asr_keywords) ? res.data.asr_keywords : [];
-    this.language = String(res.data.asr_language || "").trim();
     const canMuteIntro = !!res.data.allow_intro_override;
 
     await new Promise((resolve, reject) => {
@@ -338,9 +334,10 @@ export default class VoiceSocket {
         const overrides = {};
         const spoken = {};
         if (this.laterTurn && canMuteIntro) spoken.first_message = "";
-        // The language Kibembe is heard through here rides with the call, so a Kibembe turn comes
-        // back as the words that were spoken instead of the service's guess at some other language.
-        if (this.language) spoken.language = this.language;
+        // His own language setting is left exactly as the admin gave it. The person's turn is written
+        // down by the app's own ears and handed to him as words, so nothing about the call has to be
+        // switched for him to hear them — and switching it made him read the person's Kibembe as some
+        // other language and answer something they never said.
         if (Object.keys(spoken).length) overrides.agent = spoken;
         // The admin's saved words ride with the call, so the hearing service comes back with
         // the person's own Ebembe words instead of the English ones they nearly sound like.
@@ -830,9 +827,11 @@ export default class VoiceSocket {
 
     const node = this.ctx.createBufferSource();
     node.buffer = buffer;
-    // the answer runs quicker than the service's own top speed allows: the rest of the
-    // pace is taken here, on the phone, and the voice rides up a little in pitch
-    node.playbackRate.value = VOICE_RATE;
+    // The voice is played exactly as the service speaks it. The pace of his answer is set on his own
+    // agent, and taking any more of it here meant playing the sound back quicker than it was recorded
+    // — a voice played that way rides up in pitch and comes out scratchy instead of like a person.
+    // What is heard now is his own voice, at the pace he was given, clean.
+
     // on a session that carries on, his voice stays in the silent sink until the
     // person takes their turn, so the introduction is never heard
     node.connect(this.silent || this.holdQuiet ? this.silencer() : this.ctx.destination);
@@ -851,8 +850,8 @@ export default class VoiceSocket {
     if (this.playHead < now + 0.04) this.playHead = now + 0.04;
     this.playHead += lead;
     node.start(this.playHead);
-    // the quicker voice drains the same audio sooner, so the next chunk follows it
-    this.playHead += buffer.duration / VOICE_RATE;
+    // the next piece of his voice follows this one exactly where it ends
+    this.playHead += buffer.duration;
     this.sources.push(node);
     node.onended = () => {
       this.sources = this.sources.filter((s) => s !== node);
