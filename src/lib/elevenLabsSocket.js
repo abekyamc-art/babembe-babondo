@@ -375,6 +375,11 @@ export default class VoiceSocket {
     // says so plainly instead of leaving a call that hears nothing
     if (withMic) await this.startMic();
     if (this.silent) this.watchWritten();
+    // A session the service closed the moment it opened — an account that refused it, a plan that is
+    // out, settings it took back — is not a call at all. It is said plainly here, so the voice is
+    // passed over and the ring moves on to the next one, instead of a call nobody can hear being
+    // shown as live and never taking its turn.
+    if (!this.connected) throw new Error("Your agent could not be reached.");
     this.h.onStatus?.("live");
   }
 

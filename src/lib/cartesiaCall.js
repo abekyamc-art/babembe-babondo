@@ -158,6 +158,10 @@ export default class CartesiaCall {
 
     // the microphone starts only once the session can take its sound
     await this.startMic();
+    // A session the service closed as it opened is not a call: it is said plainly here, so the voice
+    // is passed over and the ring moves on to the next one, instead of a call nobody can hear being
+    // shown as live and never taking its turn.
+    if (!this.connected) throw new Error("Cartesia AI could not be reached.");
     this.calling = true;
     this.h.onStatus?.("live");
     return true;
