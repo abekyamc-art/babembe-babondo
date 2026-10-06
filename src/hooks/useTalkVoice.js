@@ -5,6 +5,7 @@ import { primeMic } from "@/lib/micAccess";
 import { FIRST_TALK } from "@/lib/talkRotation";
 import { openHearingNote, readHeardTurn } from "@/lib/homeHearing";
 import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
+import { heardLanguage } from "@/lib/heardLanguage";
 
 /**
  * One of the older talk AIs on the home page's call. Each is opened on its own account — its own key,
@@ -20,6 +21,7 @@ import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
 const NO_REACH = "That voice couldn't be reached. Please try again.";
 const TOUCH_TO_HEAR = "Tap the screen to let the sound through.";
 const COULD_NOT_ASK = "That voice couldn't answer just now. Please try again.";
+const TURN_NOT_DELIVERED = "That turn didn't reach the voice — say it again.";
 
 export default function useTalkVoice({ onTurn } = {}) {
   const [active, setActive] = useState(false);
@@ -119,6 +121,39 @@ export default function useTalkVoice({ onTurn } = {}) {
     [push]
   );
 
+  /**
+   * The app's own ears have written the person's turn down. What they come back with is what the
+   * screen shows and what the AI is handed — never the room itself — so the Kibembe the person said
+   * is the Kibembe that is answered, in the app's own spelling, whichever voice is on the call.
+   *
+   * The service behind every voice here knows no Kibembe at all and writes a Kibembe turn as the
+   * English or Kiswahili words it nearly sounds like; the app's own ears are pointed at the person's
+   * own saved words and expressions instead, so the letters come back as the app already holds them.
+   */
+  const handleHeard = useCallback(
+    (text, language, socket) => {
+      const said = String(text || "").trim();
+      if (!said) return;
+      // the turn is shown exactly as the app's own ears wrote it, and the app's own reading of it
+      // rides with it, so a word the Word Bank holds is answered from its own meaning
+      handleUserText(said);
+      if (!socket.sendText(said)) {
+        setNotice(TURN_NOT_DELIVERED);
+        return;
+      }
+      // The ears do not know Kibembe and write a Kibembe turn down like a Kiswahili one, so their
+      // own name for the language goes in as what they wrote — never as a command — and the answer
+      // that follows is still Kibembe where the person's own words are mixed or plainly Kibembe.
+      const heard = heardLanguage(language);
+      if (heard) {
+        socket.sendMemory(
+          `The person's turn was written down by the app's own ears as ${heard}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${heard}, answer in ${heard} only — never in a mix; where their words mix Kibembe and Kiswahili, answer in Kibembe only; where they plainly ask for a language, answer in that one only.`
+        );
+      }
+    },
+    [handleUserText]
+  );
+
   /** The AI's turn, as the agent itself wrote it down. */
   const handleAgentText = useCallback(
     (text) => {
@@ -193,6 +228,7 @@ export default function useTalkVoice({ onTurn } = {}) {
       const socket = new VoiceSocket({
         onStatus: handleStatus,
         onUserText: handleUserText,
+        onHeard: handleHeard,
         onAgentText: handleAgentText,
         onThinking: handleThinking,
         onAgentAudioStart: handleAudioStart,
@@ -203,7 +239,14 @@ export default function useTalkVoice({ onTurn } = {}) {
       });
 
       try {
-        await socket.open({ withMic: true, account: slotRef.current.account, audio });
+        // The app's own ears hear the person for this call: the sound of a turn stays on the phone
+        // until it has been written down, and what the voice is handed is those words — never the
+        // room. That is what makes the Kibembe the person says come back in the app's own spelling:
+        // the ears are pointed at their saved words and expressions, while a voice's own service,
+        // which knows no Kibembe, writes the turn as the English or Kiswahili words it nearly
+        // sounds like. Where the ears cannot read a turn — two turns running — the voice hears the
+        // person itself, exactly as it did before.
+        await socket.open({ withMic: true, ears: true, account: slotRef.current.account, audio });
       } catch (err) {
         await socket.stop();
         startingRef.current = false;
@@ -237,6 +280,7 @@ export default function useTalkVoice({ onTurn } = {}) {
       handleAnswered,
       handleAudioEnd,
       handleAudioStart,
+      handleHeard,
       handleError,
       handleReask,
       handleStatus,

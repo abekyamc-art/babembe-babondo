@@ -1,6 +1,6 @@
 import { secrets } from "base44:runtime";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
-import { recognitionKeywords } from "../../shared/hearingKeywords.ts";
+import { earKeyTerms } from "../../shared/hearingKeywords.ts";
 
 // The app's own ears: the account the admin gave this helper, and the model that writes down
 // what it hears. A turn of speech is a few hundred kilobytes, so anything much larger than
@@ -147,7 +147,7 @@ export default async function (req: Request): Promise<Response> {
 
     // the app's own client, so the admin's saved words can point the service at them
     const base44 = createClientFromRequest(req);
-    const keywords = await recognitionKeywords(base44);
+    const keywords = await earKeyTerms(base44);
 
     let bytes: Uint8Array;
     try {
@@ -186,9 +186,10 @@ export default async function (req: Request): Promise<Response> {
     const form = new FormData();
     form.append("model_id", MODEL);
     form.append("file", new Blob([voice], { type: voiceType }), voiceName);
-    // the saved words point the service at the letters it would otherwise write as the English
-    // or Kiswahili words they nearly sound like, one field each — joined into a single field
-    // they are refused
+    // The saved words and expressions point the service at the letters it would otherwise write as
+    // the English or Kiswahili words they nearly sound like — the Kibembe the person is practising
+    // first, so a turn comes back in the app's own spelling. One field each: joined into a single
+    // field they are refused.
     keywords.forEach((word: string) => form.append("keyterms", word));
 
     const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
