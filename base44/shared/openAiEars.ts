@@ -1,6 +1,6 @@
 import { MAX_TERM, clean, knowledgeWordRows } from "./knowledgeWords.ts";
 import { earKeyTerms } from "./hearingKeywords.ts";
-import { heardForms, tight } from "./soundsAlike.ts";
+import { heardForms, spellingsOf, strongMatch, tight } from "./soundsAlike.ts";
 
 /**
  * The app's own ears, on OpenAI.
@@ -14,11 +14,16 @@ import { heardForms, tight } from "./soundsAlike.ts";
  * spelling of the words the admin saved, the letter runs no English word carries, and the one rule
  * that matters here — Kibembe is written as it is said, and never turned into the English or
  * Kiswahili word it nearly sounds like. What comes back is then placed on the app's own spelling of
- * those words, and on the ways the admin has confirmed each of them comes out, so the writing that
- * reaches the answering AI is the confirmed Ebembe itself and never a sound-alike of it.
+ * those words — the spelling the bank holds each word in, and every way the admin has confirmed that
+ * same word comes out — and a word the reader wrote as some other sound is placed on the one
+ * confirmed word it strongly sounds like, so the writing that reaches the answering AI is the
+ * confirmed Ebembe itself.
  *
- * A word nobody saved is left exactly as it was said: this reader writes turns down, it never
- * invents a word, and it never replaces one word with another that merely resembles it.
+ * A word no confirmed word strongly sounds like is left exactly as it was said: this reader writes
+ * turns down, it never invents a word, and it never replaces one word with another that merely
+ * resembles it. Where a word could be two saved words, or the saved word said the other way round —
+ * "good" and "not good" sound alike — it chooses neither and keeps what was said. Nor is anything
+ * here ever saved: only the admin's own confirmation adds a way of saying a word.
  */
 
 // The reading service, the reader every turn is written with, and the one an account that is not
@@ -42,6 +47,8 @@ const PROMPT_HEAD = [
   "Write it down exactly as it is said, in the spelling of the words listed after this line.",
   "Write every sound of every word, the way it is spoken: never translate the turn, and never",
   "replace a Kibembe word with the English or Kiswahili word it nearly sounds like.",
+  "A word listed with the ways people say it is still written in the spelling it is listed under,",
+  "however it comes out of the mouth.",
   "The words:",
 ].join(" ");
 
@@ -139,41 +146,164 @@ export async function writeDown({
   return /[\p{L}\p{N}]/u.test(said) ? said : "";
 }
 
+// The longest run of words that is still one saved word: an expression said whole — a greeting, a
+// phrase the admin saved with the ways it comes out — is placed whole, never one word of it at a time.
+const MAX_RUN = 5;
+
+// The sound a word wears when it says the other way round: a Kibembe or Kiswahili negation sitting
+// at its edge. Two words that do not agree about wearing one of these are never made one another —
+// "good" and "not good" sound very nearly alike, and a word the person said the other way round is
+// not a word to be corrected, it is the word they meant.
+const OPPOSITE = ["si", "ha", "te", "to", "ta", "ndi"];
+
+function saysTheOpposite(a: string, b: string): boolean {
+  if (a === b) return false;
+  return OPPOSITE.some(
+    (mark) => a.startsWith(mark) !== b.startsWith(mark) || a.endsWith(mark) !== b.endsWith(mark)
+  );
+}
+
 /**
- * The turn placed on the app's own spelling of its words. A word the reader wrote as the admin
- * itself saved it, or as one of the ways the admin has confirmed that word comes out, is written
- * back in the saved spelling — so the Ebembe handed to the answering AI is the confirmed Ebembe.
+ * The turn placed on the app's own spelling of its words.
  *
- * Nothing else is touched: a word nobody saved keeps the letters it was said in, and never becomes
- * the saved word it merely resembles — a reader that guessed at a different word would be answering
- * something the person never said.
+ * A word the reader wrote as the admin itself saved it, or as one of the ways the admin has confirmed
+ * that word comes out, is written back in the saved spelling — so the Ebembe handed to the answering
+ * AI is the confirmed Ebembe. A saved expression said whole is placed whole, never one word of it at
+ * a time: a phrase read word by word is exactly what a reading of it gets wrong.
+ *
+ * A word the bank does not write that way is placed on the saved word it strongly sounds like. The
+ * reader knows no Kibembe, so what it writes is often the English or Kiswahili word the sound nearly
+ * makes — and the word that sound really belongs to is the one the admin confirmed. What a word is
+ * placed on is always a confirmed spelling, so a word placed at all is placed on Ebembe, never on the
+ * English word it sounds like. The match stays narrow: an accent or one letter apart, or the same
+ * consonants in the same order in a word of a similar length, and only against what the bank holds.
+ * A word that stands close to two saved words is not guessed at either; nor is a word that sounds
+ * like the saved word saying the opposite.
+ *
+ * Nothing else is touched: a word no confirmed word strongly sounds like keeps the letters it was
+ * said in, and no match made here is ever saved as a new way of saying anything.
  */
 export function correctEbembe(text: string, rows: any[]): string {
   const said = String(text || "");
   if (!said || !rows?.length) return said;
 
-  const saved = new Map<string, string>();
+  // Every way the bank knows a word: the spelling it is saved in, and the ways the admin confirmed
+  // that same word comes out — one word at a time, and two or three of them said together.
+  const written = new Map<string, string>();
+  const spoken: { term: string; word: string }[][] = [];
+  const taken = new Set<string>();
   for (const row of rows) {
     const term = clean(row?.term, MAX_TERM);
-    if (!term || /\s/.test(term)) continue;
-    for (const form of [term, ...heardForms(row)]) {
+    if (!term) continue;
+    for (const form of spellingsOf(row)) {
       const key = tight(form);
-      if (key && !saved.has(key)) saved.set(key, term);
+      if (!key) continue;
+      if (!written.has(key)) written.set(key, term);
+      // a run of words is placed by its sound as one thing; a run longer than an expression is left
+      // to the letters alone
+      const count = String(form).trim().split(/\s+/).length;
+      if (key.length < 3 || count > MAX_RUN) continue;
+      const id = `${count}|${key}|${term}`;
+      if (taken.has(id)) continue;
+      taken.add(id);
+      if (!spoken[count]) spoken[count] = [];
+      spoken[count].push({ term, word: key });
     }
   }
-  if (!saved.size) return said;
+  if (!written.size) return said;
 
-  return said.replace(/[\p{L}'’]+/gu, (word: string) => saved.get(tight(word)) || word);
+  // the words of the turn, in the order they were said, with everything around them left as it is
+  const parts = said.split(/([\p{L}'’]+)/u);
+  const runs: number[] = [];
+  parts.forEach((part, index) => {
+    if (/^[\p{L}'’]+$/u.test(part)) runs.push(index);
+  });
+
+  let at = 0;
+  while (at < runs.length) {
+    const room = Math.min(MAX_RUN, runs.length - at);
+    let placed = "";
+    let used = 0;
+    // the longest run that is still one saved word leads, so a saved expression said whole is placed
+    // whole rather than one word of it at a time
+    for (let width = room; width >= 1 && !used; width -= 1) {
+      const phrase = runs
+        .slice(at, at + width)
+        .map((index) => parts[index])
+        .join(" ");
+      const key = tight(phrase);
+      if (!key) continue;
+      // written as the bank writes it, or as one of the ways the admin confirmed it comes out
+      const exact = written.get(key);
+      if (exact) {
+        placed = exact;
+        used = width;
+        break;
+      }
+      if (key.length < 3) continue;
+      // otherwise the run is placed on the one saved word it strongly sounds like
+      for (const one of spoken[width] || []) {
+        if (Math.abs(one.word.length - key.length) > 2) continue;
+        if (!strongMatch(key, one.word)) continue;
+        // the saved word said the other way round is not where this run goes; nor is a run that
+        // sounds like two different saved words — what was said is never flipped to make it fit
+        if (saysTheOpposite(key, one.word)) break;
+        if (placed && placed !== one.term) {
+          placed = "";
+          break;
+        }
+        placed = one.term;
+      }
+      if (placed) used = width;
+    }
+
+    if (used) {
+      parts[runs[at]] = placed;
+      // the rest of the run was taken in by the saved word that stands in its place
+      for (let k = 1; k < used; k += 1) parts[runs[at + k]] = "";
+    }
+    at += used || 1;
+  }
+
+  return parts
+    .join("")
+    .replace(/\s{2,}/g, " ")
+    .replace(/\s+([,.!?;:])/g, "$1")
+    .trim();
 }
 
 /**
  * What the ears are pointed at, read once and held while the store is unchanged: the words a turn
  * is read against, and the terms the reader is handed before it listens. A word the admin has just
  * saved is pointed at on the very next turn.
+ *
+ * The reader is handed the ways each word comes out as well as the spelling the app writes it in, so
+ * the sounds a Kibembe word is really said with are read back as the one confirmed word they belong
+ * to — a turn read that way needs no placing afterwards.
  */
 export async function earsKnowledge(
   base44: any
 ): Promise<{ terms: string[]; rows: any[] }> {
   const [terms, rows] = await Promise.all([earKeyTerms(base44), knowledgeWordRows(base44)]);
-  return { terms, rows };
+  return { terms: withSaidWays(terms, rows), rows };
+}
+
+/** Each term carrying the ways the admin has confirmed that word comes out, so the reader is pointed
+ *  at the spelling the app holds and at the sounds the person makes for it. */
+function withSaidWays(terms: string[], rows: any[]): string[] {
+  const ways = new Map<string, string[]>();
+  for (const row of rows || []) {
+    const key = tight(clean(row?.term, MAX_TERM));
+    if (!key || ways.has(key)) continue;
+    const forms = heardForms(row)
+      .map((form) => form.replace(/\s+/g, " ").slice(0, 20))
+      .filter((form) => form && tight(form) !== key)
+      .slice(0, 3);
+    if (forms.length) ways.set(key, forms);
+  }
+  if (!ways.size) return terms || [];
+  return (terms || []).map((term) => {
+    const forms = ways.get(tight(term));
+    return forms?.length ? `${term} (said: ${forms.join(", ")})` : term;
+  });
 }
