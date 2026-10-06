@@ -180,6 +180,8 @@ export default class VoiceSocket {
     this.intro = "";
     // the app's own Ebembe words, handed to the hearing service as the call opens
     this.keywords = [];
+    // the language the hearing is pointed at, so a Kibembe turn is written as it was spoken
+    this.language = "";
     // carrying on: nothing is heard from him until the person takes their turn
     this.holdQuiet = false;
     this.holdTimer = null;
@@ -295,6 +297,7 @@ export default class VoiceSocket {
     }
     this.intro = res.data.intro || "";
     this.keywords = Array.isArray(res.data.asr_keywords) ? res.data.asr_keywords : [];
+    this.language = String(res.data.asr_language || "").trim();
     const canMuteIntro = !!res.data.allow_intro_override;
 
     await new Promise((resolve, reject) => {
@@ -330,7 +333,12 @@ export default class VoiceSocket {
         // what he has already said is handed over as context for the answer
         const init = { type: "conversation_initiation_client_data" };
         const overrides = {};
-        if (this.laterTurn && canMuteIntro) overrides.agent = { first_message: "" };
+        const spoken = {};
+        if (this.laterTurn && canMuteIntro) spoken.first_message = "";
+        // The language Kibembe is heard through here rides with the call, so a Kibembe turn comes
+        // back as the words that were spoken instead of the service's guess at some other language.
+        if (this.language) spoken.language = this.language;
+        if (Object.keys(spoken).length) overrides.agent = spoken;
         // The admin's saved words ride with the call, so the hearing service comes back with
         // the person's own Ebembe words instead of the English ones they nearly sound like.
         if (this.keywords.length) overrides.asr = { keywords: this.keywords };

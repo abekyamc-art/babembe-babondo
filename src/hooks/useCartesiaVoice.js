@@ -4,6 +4,7 @@ import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import CartesiaCall from "@/lib/cartesiaCall";
 import { readHeardTurn } from "@/lib/homeHearing";
+import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
 
 /**
  * Cartesia AI on the line: the outside agent the home page's calls hand over to. It listens and
@@ -24,6 +25,8 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
 
   const callRef = useRef(null);
   const activeRef = useRef(false);
+  // a call is opening right now: a tap that lands on it never opens a second one
+  const startingRef = useRef(false);
   const speakingRef = useRef(false);
   // the turn and the answer are always reported through the handlers as they stand right now
   const turnRef = useRef(onTurn);
@@ -78,12 +81,22 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
   /** The person's own turn, written down and reported by the agent. */
   const handleUserText = useCallback(
     (text) => {
-      turnRef.current?.("user", text);
+      const said = String(text || "").trim();
+      if (!said) return;
+      // Sometimes the ears write a language nobody on this call speaks — a guess at some other
+      // script altogether. Those are not the person's words and nothing is read from them: the turn
+      // is asked for once more, and the Kibembe they really said is what comes back.
+      if (isMisheard(said)) {
+        setNotice(SAY_AGAIN_KIBEMBE);
+        return;
+      }
+      setNotice("");
+      turnRef.current?.("user", said);
       // Cartesia AI hears, answers and speaks on its own account, and its own settings are left
       // exactly as they are — so no reading is handed to it. What the reading is still used for is
       // the app's own learning: a word, a sound or an answer the person puts right on this turn is
       // saved into the Word Bank, so the Kibembe they confirm is not lost with the call.
-      readHeardTurn(text, lastAgentRef.current);
+      readHeardTurn(said, lastAgentRef.current);
     },
     []
   );
@@ -133,7 +146,9 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
    * when the call opened, or the reason it could not, so whoever asked for it can say so plainly.
    */
   const start = useCallback(async () => {
-    if (activeRef.current) return "";
+    // a call is opening or already open: a tap that lands on it never opens a second one
+    if (activeRef.current || startingRef.current) return "";
+    startingRef.current = true;
 
     setError("");
     setNotice("");
@@ -149,6 +164,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     try {
       stream = await claimMic();
     } catch (err) {
+      startingRef.current = false;
       setStatus("idle");
       return micMessage(err);
     }
@@ -162,6 +178,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     }
     if (!session.token || !session.agent_id) {
       stream.getTracks().forEach((track) => track.stop());
+      startingRef.current = false;
       setStatus("idle");
       return session.error || NO_REACH;
     }
@@ -182,12 +199,14 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     } catch (err) {
       await call.stop();
       stream.getTracks().forEach((track) => track.stop());
+      startingRef.current = false;
       setStatus("idle");
       return err?.message || NO_REACH;
     }
 
     callRef.current = call;
     activeRef.current = true;
+    startingRef.current = false;
     setActive(true);
     setStatus("listening");
 

@@ -4,6 +4,7 @@ import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { primeMic } from "@/lib/micAccess";
 import { FIRST_TALK } from "@/lib/talkRotation";
 import { openHearingNote, readHeardTurn } from "@/lib/homeHearing";
+import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
 
 /**
  * One of the older talk AIs on the home page's call. Each is opened on its own account — its own key,
@@ -31,6 +32,8 @@ export default function useTalkVoice({ onTurn } = {}) {
   const writtenRef = useRef(null);
   const activeRef = useRef(false);
   const speakingRef = useRef(false);
+  // a call is opening right now: a tap that lands on it never opens a second one
+  const startingRef = useRef(false);
   const offTouchRef = useRef(null);
   // The talk AI the call is open on, so the written turn and a call that ends on its own both name
   // the same one — the first talk AI until a call names another.
@@ -95,6 +98,14 @@ export default function useTalkVoice({ onTurn } = {}) {
     (text) => {
       const said = String(text || "").trim();
       if (!said) return;
+      // Sometimes the ears write a language nobody on this call speaks — a guess at some other
+      // script altogether. Those are not the person's words and nothing is read from them: the turn
+      // is asked for once more, and the Kibembe they really said is what comes back.
+      if (isMisheard(said)) {
+        setNotice(SAY_AGAIN_KIBEMBE);
+        return;
+      }
+      setNotice("");
       push("user", said);
       // The app's own reading of the turn rides with it: the confirmed Kibembe word or phrase the
       // sound belongs to is handed to the voice before it answers, so a sound the ears were unsure
@@ -157,7 +168,9 @@ export default function useTalkVoice({ onTurn } = {}) {
    */
   const start = useCallback(
     async ({ account, label, onAnswered, onAnswerEnd, onEnded } = {}) => {
-      if (activeRef.current) return "";
+      // a call is opening or already open: a tap that lands on it never opens a second one
+      if (activeRef.current || startingRef.current) return "";
+      startingRef.current = true;
       if (onAnswered) liveAnsweredRef.current = onAnswered;
       if (onAnswerEnd) liveSpokeRef.current = onAnswerEnd;
       if (onEnded) endedRef.current = onEnded;
@@ -193,12 +206,14 @@ export default function useTalkVoice({ onTurn } = {}) {
         await socket.open({ withMic: true, account: slotRef.current.account, audio });
       } catch (err) {
         await socket.stop();
+        startingRef.current = false;
         setStatus("idle");
         return err?.response?.data?.error || err?.message || NO_REACH;
       }
 
       socketRef.current = socket;
       activeRef.current = true;
+      startingRef.current = false;
       setActive(true);
       setStatus("listening");
 

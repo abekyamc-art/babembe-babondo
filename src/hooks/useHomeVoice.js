@@ -50,6 +50,8 @@ export default function useHomeVoice() {
   // while the change is running is counted
   const callingRef = useRef(false);
   const turningRef = useRef(false);
+  // a call is opening right now: a tap that lands on it is never a second call
+  const startingRef = useRef(false);
   // what an answer is charged through, and the change itself, each kept in a ref because the handlers
   // that send them are handed to the calls as they open
   const chargeRef = useRef(null);
@@ -289,11 +291,18 @@ export default function useHomeVoice() {
   const start = useCallback(
     async ({ onAnswered: charge } = {}) => {
       if (charge) chargeRef.current = charge;
-      // A tap that lands while the change is running carries it on: it opens the next voice in the
-      // ring behind it — waiting on the hang-up still running — instead of a second call starting on
-      // top of the voice that is standing down.
-      if (pendingRef.current || turningRef.current) return resume();
 
+      // A call is opening, or one is already on air: that is the only call there is, so a tap that
+      // lands on it never opens a second one. The one exception is the tap after a handoff, which
+      // carries the change on by opening the voice the call has already chosen — that tap is not a
+      // second call either, it is the one call moving to its next voice.
+      if (startingRef.current) return false;
+      if (callingRef.current) {
+        if (pendingRef.current || turningRef.current) return resume();
+        return false;
+      }
+
+      startingRef.current = true;
       callingRef.current = true;
       turningRef.current = false;
       answersRef.current = 0;
@@ -309,6 +318,7 @@ export default function useHomeVoice() {
       for (const next of HOME_SEATS) {
         const opened = await openSeat(next);
         if (opened.ok) {
+          startingRef.current = false;
           setCurrent(next);
           if (next.id !== HOME_SEATS[0].id) {
             setNotice(`${HOME_SEATS[0].label} couldn't take the call — ${next.label} is on it.`);
@@ -319,6 +329,7 @@ export default function useHomeVoice() {
       }
 
       // no voice could open the call at all
+      startingRef.current = false;
       callingRef.current = false;
       setCurrent(HOME_SEATS[0]);
       setNotice("The call couldn't start — tap the phone and try again.");
@@ -328,6 +339,7 @@ export default function useHomeVoice() {
   );
 
   const stop = useCallback(async () => {
+    startingRef.current = false;
     callingRef.current = false;
     turningRef.current = false;
     answersRef.current = 0;
@@ -366,7 +378,9 @@ export default function useHomeVoice() {
     micActive: live.micActive,
     turns,
     error: live.error || "",
-    notice: notice || live.notice || "",
+    // what the voice answering says about the turn being made has the floor, so a turn it could not
+    // read is said plainly even where a handoff has left its own line on the screen
+    notice: live.notice || notice || "",
     levelRef: live.levelRef,
     // who is answering now, written on the screen itself
     voiceLabel: label,

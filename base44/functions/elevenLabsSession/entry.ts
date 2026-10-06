@@ -66,14 +66,22 @@ const ACCOUNTS: { id: string; name: string; key: string; agent: string; plain?: 
 
 // The words the app's own ears and the call's own hearing service are both pointed at live in
 // one shared place, so every turn of speech is written down the same way.
+//
+// So does the language the hearing is pointed at. The service knows no Kibembe at all: left to
+// guess, it writes a Kibembe turn as whatever language it thinks it heard, and the words come back
+// in letters nobody here speaks, with nothing to answer from. Pointed at Kiswahili — the language
+// Kibembe is heard through in this app — the turn comes back as the words that were said, in the
+// app's own letters, and the saved words point it at the Kibembe itself.
+const HEARD_LANGUAGE = "sw";
 
 /**
- * The service only takes those words when the agent's own security settings allow it, and it
- * ignores them silently when they do not — so the permission is made sure of here. The agent's
- * settings are merged into as they already stand, never replaced, and a permission that cannot
- * be written is never a reason a call fails to open.
+ * The service only takes the saved words, and only writes turns in the language the hearing is
+ * pointed at, when the agent's own security settings allow it — and it ignores them silently when
+ * they do not, so both permissions are made sure of here. The agent's settings are merged into as
+ * they already stand, never replaced, and a permission that cannot be written is never a reason a
+ * call fails to open.
  */
-async function allowKeywordBoost(apiKey: string, agentId: string, agent: any) {
+async function allowHearingSettings(apiKey: string, agentId: string, agent: any) {
   try {
     const settings = agent?.platform_settings;
     // the settings are only ever written from a copy of themselves: without them there is
@@ -83,7 +91,8 @@ async function allowKeywordBoost(apiKey: string, agentId: string, agent: any) {
     const overrides = settings.overrides || {};
     const fields = overrides.conversation_config_override || {};
     const asr = fields.asr || {};
-    if (asr.keywords === true) return true;
+    const spoken = fields.agent || {};
+    if (asr.keywords === true && spoken.language === true) return true;
 
     const res = await fetch(
       "https://api.elevenlabs.io/v1/convai/agents/" + encodeURIComponent(agentId),
@@ -95,19 +104,23 @@ async function allowKeywordBoost(apiKey: string, agentId: string, agent: any) {
             ...settings,
             overrides: {
               ...overrides,
-              conversation_config_override: { ...fields, asr: { ...asr, keywords: true } },
+              conversation_config_override: {
+                ...fields,
+                asr: { ...asr, keywords: true },
+                agent: { ...spoken, language: true },
+              },
             },
           },
         }),
       }
     );
     if (!res.ok) {
-      console.error("Could not allow the saved words into the hearing service:", res.status);
+      console.error("Could not allow the saved words and language into the hearing service:", res.status);
       return false;
     }
     return true;
   } catch (error: any) {
-    console.error("Could not allow the saved words into the hearing service:", error?.message);
+    console.error("Could not allow the saved words and language into the hearing service:", error?.message);
     return false;
   }
 }
@@ -136,8 +149,8 @@ async function readAgent(apiKey: string, agentId: string, tune: boolean) {
       // the pace lives on the agent, so it is made sure of before this call opens: read,
       // written, and read back to confirm the write took
       await ensureFastPace(apiKey, agentId);
-      // and the saved words are only taken by the hearing service when the agent allows them
-      await allowKeywordBoost(apiKey, agentId, data);
+      // and the saved words and the language of the hearing are only taken when the agent allows them
+      await allowHearingSettings(apiKey, agentId, data);
     }
     const agent = data?.conversation_config?.agent || {};
     const overrides =
@@ -240,6 +253,7 @@ export default async function (req: Request): Promise<Response> {
       intro: agent.intro,
       allow_intro_override: agent.allowIntroOverride,
       asr_keywords: keywords,
+      asr_language: account.plain ? "" : HEARD_LANGUAGE,
     });
   } catch (error) {
     console.error("Voice session failed:", error.message);

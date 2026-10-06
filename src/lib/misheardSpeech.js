@@ -13,3 +13,9 @@ const OTHER_SCRIPTS = /[\u3040-\u30ff\u3400-\u4dbf\u4e00-\u9fff\uac00-\ud7af\uf9
 export function isMisheard(text) {
   return OTHER_SCRIPTS.test(String(text || ""));
 }
+
+/**
+ * The line the person is given when the ears come back with a language nobody on this call speaks.
+ * The turn is asked for once more rather than written down and answered as words they never said.
+ */
+export const SAY_AGAIN_KIBEMBE = "Those weren't words from here — say it again, in Kibembe.";
