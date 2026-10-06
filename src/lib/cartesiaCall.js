@@ -191,9 +191,12 @@ export default class CartesiaCall {
     }
 
     if (msg.type === "turn_started") {
-      // the person's own turn: an answer given after it is an answer to them
+      // the person's own turn: an answer given after it is an answer to them. The turn is theirs from
+      // the moment the service reports it, so the answer that follows is counted even where the
+      // service never closes the turn it opened — a turn nobody closed is still a turn of theirs.
       if (msg.role === "user") {
         if (typeof msg.turn === "number") this.userTurn = Math.max(this.userTurn, msg.turn);
+        this.userHeard = true;
         return;
       }
       // he has taken the turn and is working on it

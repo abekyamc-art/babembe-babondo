@@ -255,8 +255,15 @@ export default function useHomeVoice() {
         return true;
       }
 
-      // none of them could open: nothing is guessed at, and the person is told plainly what to do
+      // None of them could open — an account refused, a microphone another app is holding, a service
+      // having a bad moment. Nothing is guessed at: the change is put back exactly where it stood,
+      // every voice is offered the turn again, and the person is told plainly which voice refused and
+      // that their own tap is what tries again. A call is never left with nothing on the line and
+      // taps that do nothing.
       setLabel(pending.from.label);
+      setWaiting(true);
+      pendingRef.current = { next: pending.next, plan: pending.plan, from: pending.from };
+      triedRef.current = [];
       setNotice(
         refused
           ? `${refused} couldn't take the call — tap the phone to try again.`
@@ -312,7 +319,9 @@ export default function useHomeVoice() {
       if (startingRef.current) return false;
       if (callingRef.current) {
         if (pendingRef.current || turningRef.current) return resume();
-        return false;
+        // A call with nothing on the line — no voice open and no change waiting to be taken — is a
+        // call that went nowhere, so the tap opens a voice again instead of being swallowed.
+        if (talk.micActive || cartesia.micActive) return false;
       }
 
       startingRef.current = true;
@@ -349,7 +358,7 @@ export default function useHomeVoice() {
       setNotice("The call couldn't start — tap the phone and try again.");
       return false;
     },
-    [clearChange, openSeat, resume, setCurrent]
+    [cartesia, clearChange, openSeat, resume, setCurrent, talk]
   );
 
   const stop = useCallback(async () => {
