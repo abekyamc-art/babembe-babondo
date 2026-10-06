@@ -56,16 +56,16 @@ export default class CartesiaCall {
     this.endTimer = null;
     this.micLevel = 0;
     this.callId = "";
-    // The turn being answered right now, and the turns already counted. The service numbers every
-    // turn — the person's and his — in one strictly increasing line, so those numbers say which
-    // answers were given to the person, and no turn is ever counted twice.
+    // The turn being answered right now, and the last answer already counted: the service numbers
+    // every turn — the person's and his — in one strictly increasing line, so a number that has
+    // already been counted is never counted a second time.
     this.turn = 0;
     this.countedTurn = 0;
-    // the person's own turns: the one they spoke last, and the one already answered
+    // the person's own turn: the number it was given, and whether it has been heard out in full.
+    // An answer is counted only for a turn of theirs that was heard through, so the greeting he
+    // opens with, and anything he says on his own, is his own and never counts.
     this.userTurn = 0;
-    this.answerTurn = 0;
-    // whether the person has spoken at all, for a line that carries no turn numbering
-    this.personTurned = false;
+    this.userHeard = false;
     // whether his answer is still open — the service has not closed its turn yet
     this.answerOpen = false;
     // his answer as it is being written, kept while it arrives
@@ -191,9 +191,8 @@ export default class CartesiaCall {
     }
 
     if (msg.type === "turn_started") {
-      // the person's own turn: an answer given on a later turn is an answer to them
+      // the person's own turn: an answer given after it is an answer to them
       if (msg.role === "user") {
-        this.personTurned = true;
         if (typeof msg.turn === "number") this.userTurn = Math.max(this.userTurn, msg.turn);
         return;
       }
@@ -203,6 +202,10 @@ export default class CartesiaCall {
       this.draft = "";
       // his answer stays open until the service closes its turn, or until his voice has drained
       this.answerOpen = true;
+      // The answer is counted here, the moment he takes the turn that follows the person's own: it
+      // is the one report every answer carries, so a voice whose turns the service never closes —
+      // or whose voice is still sounding when the call is handed on — is still counted.
+      this.countAnswer(this.turn);
       return;
     }
 
@@ -215,8 +218,9 @@ export default class CartesiaCall {
 
     if (msg.type === "turn_ended") {
       if (msg.role === "user") {
-        this.personTurned = true;
         if (typeof msg.turn === "number") this.userTurn = Math.max(this.userTurn, msg.turn);
+        // the person's turn is heard out in full: an answer to it may be counted from here on
+        this.userHeard = true;
         const said = String(msg.text || "").trim();
         if (said) this.h.onUserText?.(said);
         // his answer is being worked out now
@@ -248,24 +252,17 @@ export default class CartesiaCall {
   }
 
   /**
-   * One answer given, counted against the turn it answered. The service numbers every turn — the
-   * person's and his — in one strictly increasing line, so an answer counts for the person's turn
-   * it follows and for that turn only: the greeting he opens with, and anything he says on his own,
-   * is his own and never counts. A turn whose end is reported more than once — and the same turn's
-   * voice draining after it — is still one answer.
+   * One answer given. An answer is counted for the person's own turn that it answers, whichever of
+   * the service's reports carries it here — the turn he takes, the text he writes, or his voice
+   * finishing — and the same answer is never counted twice. The person's turn must have been heard
+   * out first, so anything he says on his own, the greeting included, is his own and never counts.
    */
   countAnswer(turn) {
-    const n = typeof turn === "number" && turn > 0 ? turn : this.countedTurn + 1;
-    if (n <= this.countedTurn) return;
-    if (this.userTurn) {
-      if (this.userTurn >= n || this.userTurn <= this.answerTurn) return;
-      this.answerTurn = this.userTurn;
-    } else if (!this.personTurned) {
-      // a line that carries no turn numbering at all: only an answer following the person's turn
-      return;
-    }
-    this.personTurned = false;
-    this.countedTurn = n;
+    if (!this.userHeard) return;
+    const n = typeof turn === "number" && turn > 0 ? turn : 0;
+    if (n && n === this.countedTurn) return;
+    this.userHeard = false;
+    if (n) this.countedTurn = n;
     this.h.onAnswered?.();
   }
 

@@ -1,0 +1,175 @@
+import { KIBEMBE_GUIDE } from "./kibembeGuide.ts";
+import { keyText } from "./answerKey.ts";
+
+/**
+ * The rules the app keeps on its Cartesia agents.
+ *
+ * A Cartesia agent hears, writes and speaks on its own account: a call sends it sound and nothing
+ * else, so the one place the app can say anything to it is the agent itself. What it keeps there is
+ * a single marked block, written below the agent's own instructions and never mixed into them:
+ * Gloire's own current guide, the admin's answer key, and the confirmed words — so the agent answers
+ * a saved question with exactly the saved answer and nothing else, and speaks its Kibembe from the
+ * app's own bank.
+ *
+ * The block is written again only when it has changed, so a correction, a new saved answer or a word
+ * the admin has just put right is in force on the next call, and an unchanged one costs nothing.
+ */
+
+export const RULES_MARK =
+  "===== VILLAGE VOICE — THE APP'S OWN KIBEMBE RULES, KEPT HERE BY THE APP (EDIT ABOVE THIS LINE) =====";
+
+// The notice the app keeps at the very top of the agent's instructions. The agent's own instructions
+// are often very long, and the one thing that must never be lost inside them is how it answers — so
+// the shortest form of the rules is written where it is read first, with the whole of them at the end.
+export const TOP_MARK = "===== VILLAGE VOICE — THE APP'S OWN RULES STAND ABOVE ALL OF THIS =====";
+export const TOP_END = "===== END OF THE APP'S OWN NOTICE =====";
+
+const TOP_NOTICE = [
+  TOP_MARK,
+  "Your own instructions follow this notice, and the app's whole set of rules stands at the end of them.",
+  "Every answer obeys those rules, and they stand above every other instruction here.",
+  "- Say only the saved answer when one of them answers what the person asked, and then stop: nothing before it and nothing after it.",
+  "- Never speak on about anything they did not ask, and never fill a silence with talk.",
+  "- Speak Kibembe exactly as the confirmed bank writes it: a = ah, e = eh, i = ee, o = oh, u = oo. Never swallow the final vowel, and lift the last syllable of a line a little.",
+  TOP_END,
+].join("\n");
+
+// Raised whenever the block itself changes shape, so an agent carrying an older one is written
+// again on the next call even though nothing in the store has moved.
+export const RULES_VERSION = "3";
+
+// how much of the admin's own saved material rides with the rules
+const KEY_BUDGET = 4000;
+const NOTES_BUDGET = 6000;
+const WORDS_BUDGET = 8000;
+const MAX_LINE = 300;
+const MAX_NOTE = 600;
+
+const HEAD = [
+  "SHERIA ZA VILLAGE VOICE — the app's own rules for this call.",
+  "These rules stand above every other instruction you were given: where one of them and your own instructions, habit or guess disagree, the rule here wins.",
+  "",
+  "1. THE SAVED ANSWERS — ANSWER ONLY THE SAVED ANSWER",
+  "- When what the person asks is answered by one of the saved answers below — a saved question and its answer, a saved note, or a saved word they have just said — speak that saved answer word for word, and then stop. Nothing before it and nothing after it: no greeting, no explanation, no second sentence, no question of your own, and no rounding it off.",
+  "- The saved answer is the whole answer. Never shorten it, never lengthen it, never explain it, and never add anything that it does not say.",
+  "- Never say anything the person did not ask for. When nothing saved answers them, answer in one or two short Kibembe sentences, on their own subject only, and then be quiet: never speak on about what they did not ask, and never fill a silence with talk.",
+  "",
+  "2. KIBEMBE — SPEAK IT AS THE CONFIRMED BANK WRITES IT",
+  "- Build every Kibembe line from the confirmed words below, written exactly as they are written there. Never invent a word, a plural, a tense or a meaning, and never build one out of another word's ending.",
+  "- Say every letter the Kibembe way and never the English letter-name: a = ah, e = eh, i = ee, o = oh, u = oo. Never swallow the final vowel, and give the last syllable of a line a small lift.",
+  "- Read a bank word exactly as the bank writes it — accents, apostrophes, hyphens and spaces included — and let the guide below decide every sound the bank does not.",
+].join("\n");
+
+/** One saved line as the agent reads it: flattened, and never longer than a line may be. */
+function line(value: any): string {
+  return keyText(value).replace(/\s+/g, " ").trim().slice(0, MAX_LINE);
+}
+
+/** The admin's saved answers as the agent reads them, newest first, within the room given. */
+export function keyBlock(rows: any[]): string {
+  let body = "";
+  for (const row of rows || []) {
+    const question = line(row?.question);
+    const answer = line(row?.answer);
+    if (!question || !answer) continue;
+    const entry = `Q: ${question}\nA: ${answer}\n`;
+    if (body.length + entry.length > KEY_BUDGET) break;
+    body += entry;
+  }
+  return body
+    ? "\n# THE ADMIN'S ANSWER KEY — ONE OF THESE IS WHAT IS SPOKEN, WORD FOR WORD, WHEN IT MATCHES\n" +
+        body
+    : "";
+}
+
+/**
+ * The answers the admin saved as notes, as the agent reads them: the heading, then what the note
+ * says. One of these is spoken, as it stands, when it is what answers the person.
+ */
+export function notesBlock(rows: any[]): string {
+  let body = "";
+  for (const row of rows || []) {
+    const title = line(row?.title);
+    const text = keyText(row?.text).replace(/\s+/g, " ").trim().slice(0, MAX_NOTE);
+    if (!title && !text) continue;
+    const entry = `- ${title ? `${title}: ` : ""}${text}\n`;
+    if (body.length + entry.length > NOTES_BUDGET) break;
+    body += entry;
+  }
+  return body
+    ? "\n# THE ADMIN'S SAVED ANSWERS — ONE OF THESE IS THE ANSWER SPOKEN WHEN IT ANSWERS THE PERSON\n" +
+        body
+    : "";
+}
+
+/** Every confirmed Kibembe word the admin saved, as the agent reads them. */
+export function wordsBlock(rows: any[]): string {
+  let body = "";
+  for (const row of rows || []) {
+    const term = line(row?.term);
+    if (!term) continue;
+    const meaning = line(row?.meaning);
+    const entry = meaning ? `- ${term} = ${meaning}\n` : `- ${term}\n`;
+    if (body.length + entry.length > WORDS_BUDGET) break;
+    body += entry;
+  }
+  return body ? "\n# MANENO YA EBEMBE — the confirmed words, and nothing outside them\n" + body : "";
+}
+
+/**
+ * The app's own block for one agent: its own orders, Gloire's guide, the admin's saved answers and
+ * the confirmed words. The key line says what the store looked like when the block was built, so the
+ * next call can tell at a glance whether the block on the agent is still the current one.
+ */
+export function appRulesBlock(
+  saved: { keys?: any[]; notes?: any[]; words?: any[] },
+  stamp = ""
+): string {
+  return [
+    RULES_MARK,
+    `# key: ${RULES_VERSION}|${stamp}`,
+    HEAD,
+    KIBEMBE_GUIDE,
+    keyBlock(saved.keys || []),
+    notesBlock(saved.notes || []),
+    wordsBlock(saved.words || []),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/** The key the app's own block was last written with, or nothing when there is no block yet. */
+export function blockKey(current: any): string {
+  const had = String(current || "");
+  const at = had.indexOf(RULES_MARK);
+  if (at < 0) return "";
+  const found = had.slice(at).match(/^# key: (.+)$/m);
+  return found ? found[1].trim() : "";
+}
+
+/**
+ * The agent's instructions as the admin wrote them: everything outside the app's own marks. The
+ * admin's own text is never edited — the app only reads it out of whatever it is currently mixed in
+ * with, so it can be written back whole with the current rules around it.
+ */
+function ownText(current: any): string {
+  let text = String(current || "");
+  const top = text.indexOf(TOP_MARK);
+  if (top >= 0) {
+    const end = text.indexOf(TOP_END, top);
+    text =
+      end >= 0 ? text.slice(0, top) + text.slice(end + TOP_END.length) : text.slice(0, top);
+  }
+  const bottom = text.indexOf(RULES_MARK);
+  if (bottom >= 0) text = text.slice(0, bottom);
+  return text.trim();
+}
+
+/**
+ * The agent's instructions with the app's own notice at its top and its own block at its end, both
+ * replaced by the current ones. The admin's own instructions are never touched: they are read out
+ * and written back exactly as they were, with the app's rules around them.
+ */
+export function withAppRules(current: any, block: string): string {
+  return [TOP_NOTICE, ownText(current), block].filter(Boolean).join("\n\n");
+}

@@ -1,7 +1,14 @@
 import { secrets } from "base44:runtime";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+import { appRulesBlock, blockKey, RULES_MARK, RULES_VERSION, withAppRules } from "../../shared/cartesiaRules.ts";
+import { knowledgeStamp } from "../../shared/wordBank.ts";
+import { savedWords } from "../../shared/knowledgeWords.ts";
 
 const VERSION = "2026-08-14";
+
+// the admin's saved answers and saved notes, newest first: what the agent answers with
+const KEY_ROWS = 200;
+const NOTE_ROWS = 60;
 
 /**
  * The Cartesia accounts a home call's voices open on, each with its own key and its own agent.
@@ -19,6 +26,76 @@ function secretOr(name: string): string {
     return secrets.get(name) || "";
   } catch (err) {
     return "";
+  }
+}
+
+/**
+ * Where an agent keeps its own instructions, and what they say: the agents this app opens are the
+ * deployed ones and keep them as llm_system_prompt, while a managed agent keeps the same text under
+ * config.instructions. Whichever the agent has is the one read and the one written back.
+ */
+function promptOf(agent: any): { field: "llm_system_prompt" | "config"; text: string } {
+  const deployed = typeof agent?.llm_system_prompt === "string" ? agent.llm_system_prompt : "";
+  if (deployed) return { field: "llm_system_prompt", text: deployed };
+  return { field: "config", text: String(agent?.config?.instructions || "") };
+}
+
+/**
+ * The app's own rules kept on the agent: Gloire's current guide, the admin's answer key — the
+ * answers that are spoken word for word and nothing after them — and the confirmed words. They are
+ * written below the agent's own instructions, which are never touched, and the block is replaced
+ * only when the store has moved since it was written, so a correction, a new saved answer or a word
+ * the admin has just put right is in force on the very next call.
+ */
+async function keepRules(base44: any, apiKey: string, agentId: string, agent: any) {
+  try {
+    const { field, text: current } = promptOf(agent);
+    const stamp = await knowledgeStamp(base44);
+    // the block on the agent is the one the store holds and the one this code writes: nothing is
+    // read again and nothing is written, so an ordinary call costs one look at the agent
+    if (current.includes(RULES_MARK) && blockKey(current) === `${RULES_VERSION}|${stamp}`) return true;
+
+    const [keys, notes, words] = await Promise.all([
+      base44.asServiceRole.entities.AssistantKnowledge.filter(
+        { kind: "qa" },
+        { sort: "-created_date", limit: KEY_ROWS, fields: ["question", "answer"] }
+      ),
+      base44.asServiceRole.entities.AssistantKnowledge.filter(
+        { kind: "note" },
+        { sort: "-created_date", limit: NOTE_ROWS, fields: ["title", "text"] }
+      ),
+      savedWords(base44),
+    ]);
+
+    const saved = {
+      keys: Array.isArray(keys) ? keys : keys?.items || [],
+      notes: Array.isArray(notes) ? notes : notes?.items || [],
+      words,
+    };
+    const wanted = withAppRules(current, appRulesBlock(saved, stamp));
+    if (wanted === current) return true;
+
+    const res = await fetch(`https://api.cartesia.ai/agents/${encodeURIComponent(agentId)}`, {
+      method: "PATCH",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Cartesia-Version": VERSION,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(
+        field === "llm_system_prompt" ? { llm_system_prompt: wanted } : { config: { instructions: wanted } }
+      ),
+    });
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error("The app's rules could not be kept on the agent:", res.status, detail.slice(0, 300));
+      return false;
+    }
+    return true;
+  } catch (error: any) {
+    // the rules are never a reason a call fails to open: the agent answers as it already stood
+    console.error("The app's rules could not be kept on the agent:", error?.message);
+    return false;
   }
 }
 
@@ -84,6 +161,17 @@ export default async function (req: Request): Promise<Response> {
         { status: 502 }
       );
     }
+
+    // The agent answers out of its own instructions, so the app's rules are made sure of here,
+    // before the call opens: the answer key it must answer with, and the Kibembe it speaks from.
+    // Rules that cannot be written leave the agent as it stood and never stop the call.
+    let agent: any = null;
+    try {
+      agent = await check.json();
+    } catch (err) {
+      agent = null;
+    }
+    await keepRules(base44, apiKey, agentId, agent);
 
     const res = await fetch("https://api.cartesia.ai/access-token", {
       method: "POST",
