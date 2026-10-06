@@ -108,6 +108,21 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     []
   );
 
+  /**
+   * The person puts the app's own writing of their turn right. Cartesia AI hears the person itself,
+   * writes its own turn down and answers on its own account, and nothing of the app's is pushed into
+   * its call — so what the correction is kept for here is the app's own record of the talk and the
+   * app's own Word Bank, which the words they put right are read against exactly as any other turn
+   * of theirs is.
+   */
+  const correct = useCallback((text) => {
+    const said = String(text || "").trim();
+    if (!said) return false;
+    readHeardTurn(said, lastAgentRef.current);
+    setNotice("Your words are saved — Cartesia AI answers from what it heard.");
+    return true;
+  }, []);
+
   /** His turn, as the agent itself wrote it down. */
   const handleAgentText = useCallback((text) => {
     const line = String(text || "").trim();
@@ -261,5 +276,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     levelRef,
     start,
     stop,
+    // the person's own words put in place of the writing of their turn
+    correct,
   };
 }

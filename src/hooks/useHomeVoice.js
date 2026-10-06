@@ -68,6 +68,10 @@ export default function useHomeVoice() {
   const pendingRef = useRef(null);
   // the voices that could not open a call in this one: their turn is never offered to them twice
   const triedRef = useRef([]);
+  // the voices that have already taken their turn in this call: the ring goes right round every
+  // voice it still holds before it comes back to one of them, so a call never returns to a voice it
+  // has just left
+  const usedRef = useRef([]);
   // the hang-up the change is running right now: the person's tap waits on it before the next voice
   // is opened, so the voice standing down is released first and two voices are never on the line
   // at the same time
@@ -84,6 +88,9 @@ export default function useHomeVoice() {
     seatRef.current = next;
     setSeat(next);
     setLabel(next.label);
+    // this voice has had its turn: the ring will not offer it the call again until every other voice
+    // still in the ring has had a turn as well
+    if (!usedRef.current.includes(next.id)) usedRef.current = [...usedRef.current, next.id];
   }, []);
 
   /**
@@ -163,8 +170,11 @@ export default function useHomeVoice() {
     if (turningRef.current || pendingRef.current) return;
     turningRef.current = true;
     const from = seatRef.current;
-    // the voices that may take the call next, in the order the ring runs, each of them once
-    const plan = nextPlan(from.id, triedRef.current);
+    // the voices that may take the call next, in the order the ring runs, each of them once — the
+    // ones still waiting for their turn, so the call moves on to a voice that has not spoken yet
+    const { plan, fresh } = nextPlan(from.id, triedRef.current, usedRef.current);
+    // every voice the ring holds has taken its turn: the round is complete, and the ring starts over
+    if (!fresh) usedRef.current = [];
     // The voice taking the next turn is chosen and waiting from the moment the change begins — and
     // the count starts again from nothing, since the answers so far belonged to the voice standing
     // down. Choosing it here is what keeps a tap that lands while the call is being hung up from
@@ -307,6 +317,7 @@ export default function useHomeVoice() {
       turningRef.current = false;
       answersRef.current = 0;
       triedRef.current = [];
+      usedRef.current = [];
       clearChange();
       setNotice("");
       setWaiting(false);
@@ -347,6 +358,7 @@ export default function useHomeVoice() {
     // a call the person ended is a call with nothing waiting in it
     pendingRef.current = null;
     triedRef.current = [];
+    usedRef.current = [];
     setWaiting(false);
     setNotice("");
     await closeSeat(seatRef.current);
@@ -366,6 +378,24 @@ export default function useHomeVoice() {
       return talk.ask(text, onWritten);
     },
     [talk, onWritten]
+  );
+
+  /**
+   * The person puts the app's own writing of one of their turns right: what they really said takes
+   * the place of what the ears wrote for that turn, and the voice holding the call is handed those
+   * words, so the answer that comes is an answer to what they actually said.
+   */
+  const correctTurn = useCallback(
+    (at, text) => {
+      const said = String(text || "").trim();
+      if (!said) return;
+      setTurns((prev) =>
+        prev.map((turn, index) => (index === at ? { ...turn, text: said } : turn))
+      );
+      const live = seatRef.current.kind === "cartesia" ? cartesia : talk;
+      live.correct?.(said);
+    },
+    [cartesia, talk]
   );
 
   // whichever voice holds the call is the one whose state the screen reads
@@ -389,5 +419,7 @@ export default function useHomeVoice() {
     start,
     stop,
     ask,
+    // the person's own words put in place of the app's writing of their turn
+    correctTurn,
   };
 }

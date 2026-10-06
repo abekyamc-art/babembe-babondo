@@ -154,6 +154,28 @@ export default function useTalkVoice({ onTurn } = {}) {
     [handleUserText]
   );
 
+  /**
+   * The person puts the app's own writing of their turn right. What they really said is handed to the
+   * voice holding the call as the turn it is answering — the ears' writing is named for what it was,
+   * a writing, and the sound of the turn itself is never touched — and the words they put right are
+   * read against the app's own Word Bank exactly as any other turn of theirs is.
+   */
+  const correct = useCallback((text) => {
+    const said = String(text || "").trim();
+    const socket = socketRef.current;
+    if (!said || !socket?.connected) return false;
+    socket.sendMemory(
+      "The app's own ears wrote the person's turn down wrongly. Their own words were: " +
+        `"${said}". That turn is the one you answer: answer these words, in the language they are ` +
+        "said in, and not the earlier writing of them."
+    );
+    readHeardTurn(said, lastAgentRef.current).then((note) => {
+      if (note) socket.sendMemory(note);
+    });
+    setNotice("The voice has your words now.");
+    return true;
+  }, []);
+
   /** The AI's turn, as the agent itself wrote it down. */
   const handleAgentText = useCallback(
     (text) => {
@@ -399,5 +421,7 @@ export default function useTalkVoice({ onTurn } = {}) {
     start,
     stop,
     ask,
+    // the person's own words put in place of the ears' writing of their turn
+    correct,
   };
 }

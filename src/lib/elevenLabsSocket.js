@@ -43,9 +43,12 @@ const TURN_END_MS = 1000;
 const TURN_MAX_MS = 30000;
 // how long the sound is given to start before the person is asked to touch the screen for it
 const START_WAIT_MS = 1500;
-// The app's own ears are given this long to write a turn down. Ears that hang are ears the call
-// does without: the AI hears the person itself rather than the conversation sitting in silence.
-const HEAR_MS = 10000;
+// The app's own ears are given this long to write a turn down, and they are given it generously: a
+// Kibembe turn read properly is worth the wait, so the reading is allowed to take its time rather
+// than being cut short into a guess at another language. Ears that hang longer than this are ears
+// the call does without: the AI hears the person itself rather than the conversation sitting in
+// silence.
+const HEAR_MS = 20000;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

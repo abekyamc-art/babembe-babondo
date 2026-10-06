@@ -44,15 +44,26 @@ export const HOME_SEATS = RING.filter((seat) => !(seat.id === AI2_ID && ai2Resti
 /**
  * The voices that may take the call next: the ring from the voice on the call now, in order, each of
  * them once — Cartesia AI included, since the ring wraps round to it. A voice that could not open a
- * call earlier in this one is passed over; and when every voice in the ring has been passed over, the
- * one that follows in order is offered again rather than the call being left with nowhere to go.
+ * call earlier in this one is passed over for the rest of it.
+ *
+ * A voice that has already had its turn is passed over as well, however long ago it spoke: the ring
+ * goes right round every voice it still holds before it comes back to one that has spoken, so a call
+ * never hands itself back to a voice it has just left, and every voice set up in the app takes its
+ * turn in the order it stands in.
+ *
+ * `fresh` says whether these are voices still waiting for their turn. When it is false, the round is
+ * complete — every voice the ring holds has had one — and the ring simply starts over from the top.
  */
-export function nextPlan(fromId, tried = []) {
+export function nextPlan(fromId, tried = [], used = []) {
   const at = HOME_SEATS.findIndex((seat) => seat.id === fromId);
   const from = at < 0 ? HOME_SEATS.length - 1 : at;
   const ring = HOME_SEATS.map(
     (_, step) => HOME_SEATS[(from + step + 1) % HOME_SEATS.length]
-  ).filter((seat) => seat.id !== fromId);
-  const open = ring.filter((seat) => !tried.includes(seat.id));
-  return open.length ? open : ring.slice(0, 1);
+  ).filter((seat) => seat.id !== fromId && !tried.includes(seat.id));
+  const open = ring.filter((seat) => !used.includes(seat.id));
+  if (open.length) return { plan: open, fresh: true };
+  // Every voice in the ring has taken its turn: the round is over and the ring starts over. Nothing
+  // is left of the ring only when every other voice failed to open, and the voice on the call now is
+  // offered it again rather than the call being left with nowhere to go.
+  return { plan: ring.length ? ring : [HOME_SEATS[from]], fresh: false };
 }
