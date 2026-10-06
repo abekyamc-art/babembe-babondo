@@ -122,7 +122,7 @@ export function turnNote(heard: string, reading: any): string {
       "HOW TO HEAR THIS TURN\n" +
       `One turn was just said: "${said}"\n` +
       `It is the saved Kibembe phrase "${reading.term}", and the answer saved for it is: "${reading.answer}"\n` +
-      "Give that answer, in Kibembe, in your own voice.\n"
+      "Give that answer, in Kibembe, in your own voice — in fresh words, never the same sentence you have already used in this call.\n"
     );
   }
 
@@ -133,7 +133,7 @@ export function turnNote(heard: string, reading: any): string {
     "HOW TO HEAR THIS TURN\n" +
     `One turn was just said: "${said}"\n` +
     `The app's own Kibembe Word Bank already holds this word or phrase as "${reading.term}", written exactly as the bank writes it.${meaning}${usage}\n` +
-    "Keep the person's own words as they said them, answer naturally from the meaning above, and answer in Kibembe.\n"
+    "Keep the person's own words as they said them and answer in Kibembe, naturally, from the meaning above — in your own fresh words, never the same answer twice in one call. Where the turn is not clear, answer from the part that is clear and ask one short Kibembe question about the one thing you are not sure of.\n"
   );
 }
 

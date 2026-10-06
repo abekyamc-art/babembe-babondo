@@ -49,6 +49,29 @@ export const COORDINATOR_AGENT = "ELEVENLABS_COORDINATOR_AGENT_ID";
 export const TALK_ANSWERS = 2;
 
 /**
+ * AI 2 stands down for a month and comes back on its own. From today until November 6, 2026 the
+ * talk's ring passes over it — no signal can name it and no turn is handed to it, whichever order
+ * the ring is walked in — and on that date it takes its place in the ring again with nothing to
+ * change anywhere. Its own account, its own key and its own agent are left exactly as they are.
+ */
+export const AI2_ID = "talk2";
+export const AI2_BACK_ON = "2026-11-06";
+
+/** Whether AI 2 is still standing down: true before its return date, false from that date on. */
+export function ai2Resting(): boolean {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate()
+  ).padStart(2, "0")}`;
+  return today < AI2_BACK_ON;
+}
+
+/** Whether a talk AI may take a turn right now. */
+function onDuty(id: string): boolean {
+  return !(id === AI2_ID && ai2Resting());
+}
+
+/**
  * The talk AI the coordinator's answer named, or nothing at all when it named none of them. The
  * id and the name it is shown by are both read, and the one named first wins, so an answer that
  * lists several is never read as the last one by accident.
@@ -60,6 +83,8 @@ export function slotNamed(reply: string) {
   let named = null;
   let at = Infinity;
   for (const slot of TALK_SLOTS) {
+    // an AI that is standing down is never read as the destination, whatever the signal said
+    if (!onDuty(slot.id)) continue;
     for (const word of [slot.id, slot.label.toLowerCase()]) {
       const found = said.indexOf(word);
       if (found >= 0 && found < at) {
@@ -78,5 +103,7 @@ export function slotNamed(reply: string) {
 export function slotsAfter(fromId: string) {
   const at = TALK_SLOTS.findIndex((slot) => slot.id === fromId);
   const from = at < 0 ? TALK_SLOTS.length - 1 : at;
-  return TALK_SLOTS.map((_, step) => TALK_SLOTS[(from + step + 1) % TALK_SLOTS.length]);
+  return TALK_SLOTS.map((_, step) => TALK_SLOTS[(from + step + 1) % TALK_SLOTS.length]).filter(
+    (slot) => onDuty(slot.id)
+  );
 }

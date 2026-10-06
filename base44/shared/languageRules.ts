@@ -35,7 +35,7 @@ export const ONLY_THREE_LANGUAGES =
 
 // Mazungumzo ya kawaida: Kibembe kwanza, na swali la mwisho linapofaa.
 export const KIBEMBE_FIRST =
-  '- MAZUNGUMZO YA KAWAIDA: anza kwa Kibembe na jibu kwa KIBEMBE PEKEE. Mtu akiwa amekwisha ongea au kuandika Kiswahili au Kiingereza, jibu kwanza kwa Kibembe, kisha malizia kwa mstari huu na kitu kingine chochote baada yake: "Unataka tuongee Kiswahili au Kiingereza pia?"';
+  '- MAZUNGUMZO YA KAWAIDA: anza kwa Kibembe na jibu kwa KIBEMBE PEKEE. Mtu akiwa amekwisha ongea au kuandika Kiswahili au Kiingereza, jibu kwanza kwa Kibembe, kisha malizia kwa mwaliko wa Kiswahili au Kiingereza — kwa maneno yako mwenyewe, na USITUMIE maneno yale yale yanayofuatana kwenye mazungumzo moja. Mfano, si mstari wa kulazimisha: "Unataka tuongee Kiswahili au Kiingereza pia?"';
 
 /** The five rules above as they ride with one answer. */
 export const ANSWER_LANGUAGE = [

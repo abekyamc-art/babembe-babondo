@@ -1,5 +1,5 @@
 import { CARTESIA_AI, CARTESIA_AI1, MBEMBE_AI, MBONDO_AI, SADIKI_AI } from "@/lib/providerNames";
-import { CARTESIA_AI1_ANSWERS, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRotation";
+import { AI2_ID, ai2Resting, CARTESIA_AI1_ANSWERS, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRotation";
 
 /**
  * Who answers on the home page's calls, and in what order.
@@ -18,7 +18,7 @@ import { CARTESIA_AI1_ANSWERS, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talk
  * Only the voices that really speak with a person stand here: the Kibembe assistant and the app's
  * own written helpers answer on their own screens or in writing, so none of them is on this ring.
  */
-export const HOME_SEATS = [
+const RING = [
   { id: "cartesia", label: CARTESIA_AI, kind: "cartesia", account: "", answers: CARTESIA_ANSWERS },
   {
     id: "cartesia1",
@@ -34,6 +34,12 @@ export const HOME_SEATS = [
   { id: "mbondo", label: MBONDO_AI, kind: "talk", account: "third", answers: TALK_ANSWERS },
   { id: "sadiki", label: SADIKI_AI, kind: "talk", account: "fourth", answers: TALK_ANSWERS },
 ];
+
+// AI 2 is standing down until November 6, 2026 and comes back on its own on that date: while it is
+// resting, the ring simply does not hold it, so a call never offers it a turn and every handoff
+// passes it by. Nothing else about it changes, and no setting has to be touched on the day it
+// returns — see talkRotation.
+export const HOME_SEATS = RING.filter((seat) => !(seat.id === AI2_ID && ai2Resting()));
 
 /**
  * The voices that may take the call next: the ring from the voice on the call now, in order, each of

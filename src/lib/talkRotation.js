@@ -8,6 +8,8 @@ import { GLOIRE_AI } from "@/lib/providerNames";
  */
 export const TALK_IDS = ["gloire", "talk2", "talk3", "talk4"];
 
+// the ids the coordinator may be asked to name, with anyone standing down left out of them
+
 /** The AI every conversation opens on. */
 export const FIRST_TALK = { id: "gloire", label: GLOIRE_AI, account: "" };
 
@@ -26,9 +28,27 @@ export const CARTESIA_ANSWERS = 7;
  */
 export const CARTESIA_AI1_ANSWERS = 5;
 
+/**
+ * AI 2 stands down for a month and comes back on its own. From today until November 6, 2026 the
+ * ring of a home call passes over it — no signal names it and no turn is handed to it — and on that
+ * date it takes its place in the ring again with nothing to change anywhere.
+ */
+export const AI2_ID = "talk2";
+export const AI2_BACK_ON = "2026-11-06";
+
+/** Whether AI 2 is still standing down: true before its return date, false from that date on. */
+export function ai2Resting() {
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(
+    now.getDate()
+  ).padStart(2, "0")}`;
+  return today < AI2_BACK_ON;
+}
+
 /** The line the coordinator is handed: one signal, naming the AI whose turn comes next. */
 export function signalLine(fromLabel) {
-  const options = TALK_IDS.join(", ");
+  // an AI that is standing down is never offered to the signal, so it can never be named
+  const options = TALK_IDS.filter((id) => !(id === AI2_ID && ai2Resting())).join(", ");
   return (
     `Signal only. ${fromLabel} has answered its two questions and is taking its break now. ` +
     `Which talk AI takes the next two questions? Answer with one id and nothing else: ${options}. ` +
