@@ -164,6 +164,16 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
   const handleError = useCallback((message) => setError(message), []);
 
   /**
+   * A turn the app's own ears could not read. Nothing else writes it down — the app has one reader
+   * — so the person is simply asked for the turn again, and the words their answer is given from
+   * are always the app's own reading of what they said.
+   */
+  const handleReask = useCallback((message) => {
+    if (!activeRef.current) return;
+    setNotice(String(message || ""));
+  }, []);
+
+  /**
    * The call opens here. The key itself never reaches the phone: the app's own server is asked for a
    * short-lived token, and that is what opens the agent's calling socket. Returns an empty string
    * when the call opened, or the reason it could not, so whoever asked for it can say so plainly.
@@ -217,6 +227,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
       onAgentAudioEnd: handleAudioEnd,
       onAnswered: handleAnswered,
       onError: handleError,
+      onReask: handleReask,
     });
 
     try {
@@ -248,6 +259,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     handleAudioEnd,
     handleAudioStart,
     handleError,
+    handleReask,
     handleStatus,
     handleThinking,
     handleUserText,

@@ -1,5 +1,6 @@
+import { base44 } from "@/api/base44Client";
 import { primedAudio } from "@/lib/audioUnlock";
-import { bytesToBase64, floatToPcm16, resample } from "@/lib/pcmAudio";
+import { bytesToBase64, floatToPcm16, resample, wavBytes } from "@/lib/pcmAudio";
 
 /**
  * A call with the Cartesia agent.
@@ -19,6 +20,15 @@ const OPEN_MS = 20000;
 const ANSWER_GAP_MS = 900;
 // about 46ms of sound per chunk, at the short end of what the service asks for
 const CHUNK = 2048;
+// The app's own ears write the person's turn down — OpenAI, the one reader every voice feature
+// listens through — so the turn is kept here while it is being said and handed over when it is
+// over. Only sound above this floor opens a turn, a breath of quiet this long closes it, and no
+// turn is kept longer than one turn is allowed to run.
+const EARS_LEVEL = 0.02;
+const EARS_END_MS = 1200;
+const EARS_MAX_MS = 20000;
+// the rate the app's own ears are handed the turn in
+const EARS_RATE = 16000;
 
 function b64ToBytes(b64) {
   const bin = atob(b64);
@@ -56,6 +66,11 @@ export default class CartesiaCall {
     this.endTimer = null;
     this.micLevel = 0;
     this.callId = "";
+    // the person's turn as the app's own ears keep it while it is being said
+    this.earsOn = false;
+    this.earsFrames = [];
+    this.earsAt = 0;
+    this.earsHeardAt = 0;
     // The turn being answered right now, and the last answer already counted: the service numbers
     // every turn — the person's and his — in one strictly increasing line, so a number that has
     // already been counted is never counted a second time.
@@ -228,8 +243,11 @@ export default class CartesiaCall {
         if (typeof msg.turn === "number") this.userTurn = Math.max(this.userTurn, msg.turn);
         // the person's turn is heard out in full: an answer to it may be counted from here on
         this.userHeard = true;
-        const said = String(msg.text || "").trim();
-        if (said) this.h.onUserText?.(said);
+        // What the person said is written down by the app's own ears and never by the call's own
+        // service: the words shown on the screen are the app's one reading of the turn, the same
+        // reading every other voice feature is handed. The service's turn says only that it ended,
+        // and the turn is written down from here at once rather than waiting on the quiet.
+        if (this.earsOn) this.readTurn();
         // his answer is being worked out now
         this.h.onThinking?.(true);
         return;
@@ -320,6 +338,8 @@ export default class CartesiaCall {
       const pcm = floatToPcm16(sound);
       if (!pcm.length) return;
       this.send({ type: "audio_input", audio: bytesToBase64(new Uint8Array(pcm.buffer)) });
+      // the same sound is what the app's own ears read the turn from
+      this.hold(chunk);
     };
 
     // keep the processor alive without playing the microphone back
@@ -328,6 +348,78 @@ export default class CartesiaCall {
     this.source.connect(this.processor);
     this.processor.connect(this.sink);
     this.sink.connect(this.capture.destination);
+  }
+
+  /**
+   * The person's turn, kept while it is being said, so the app's own ears can write it down. Only
+   * sound above the floor opens a turn, and nothing is kept while his voice is playing: the
+   * microphone is open then, and what it hears is his own voice coming back out of the speaker.
+   */
+  hold(chunk) {
+    const now = performance.now();
+    if (this.speaking) {
+      this.earsOn = false;
+      this.earsFrames = [];
+      return;
+    }
+
+    const loud = this.micLevel > EARS_LEVEL;
+    if (loud) this.earsHeardAt = now;
+    if (!this.earsOn) {
+      if (!loud) return;
+      this.earsOn = true;
+      this.earsAt = now;
+      this.earsFrames = [];
+    }
+    // the sound arrives in chunks the audio system reuses, so the turn is kept as its own copy
+    this.earsFrames.push(chunk.slice());
+
+    // a turn is over once a breath of quiet has passed, or once it has run longer than one turn is
+    // allowed to — watched from here, since this is where the sound arrives
+    if (now - this.earsHeardAt >= EARS_END_MS || now - this.earsAt >= EARS_MAX_MS) this.readTurn();
+  }
+
+  /**
+   * The turn is over, so the app's own ears write it down. What comes back is the person's turn as
+   * the screen shows it and as the answer is given to them — one reading, in one hand, the same one
+   * every other voice feature is handed. A turn the ears could not read never stops the talk: it is
+   * simply asked for again, and no other service writes down what the person said.
+   */
+  async readTurn() {
+    if (!this.earsOn) return;
+    const frames = this.earsFrames;
+    const at = this.capture?.sampleRate || RATE;
+    this.earsOn = false;
+    this.earsFrames = [];
+
+    const total = frames.reduce((count, frame) => count + frame.length, 0);
+    // a tap, a cough or a door is not a turn
+    if (total < at * 0.3) return;
+
+    const joined = new Float32Array(total);
+    let put = 0;
+    frames.forEach((frame) => {
+      joined.set(frame, put);
+      put += frame.length;
+    });
+
+    let res;
+    try {
+      res = await base44.functions.invoke("helperListen", {
+        audio: bytesToBase64(wavBytes(floatToPcm16(resample(joined, at, EARS_RATE)), EARS_RATE)),
+      });
+    } catch (err) {
+      this.h.onReask?.("Didn't catch that — say it again.");
+      return;
+    }
+
+    const text = String(res?.data?.text || "").trim();
+    if (!text) {
+      this.h.onReask?.("Didn't catch that — say it again.");
+      return;
+    }
+    this.h.onReask?.("");
+    this.h.onUserText?.(text);
   }
 
   /** His answer, played as it arrives: each piece follows the one before it without a seam. */
@@ -400,6 +492,8 @@ export default class CartesiaCall {
   teardown() {
     this.calling = false;
     this.ready = false;
+    this.earsOn = false;
+    this.earsFrames = [];
     this.stopPlayback();
     [this.processor, this.source, this.sink].forEach((node) => {
       if (!node) return;

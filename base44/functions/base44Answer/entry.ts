@@ -9,6 +9,7 @@ import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
+import { correctEbembe, earsKnowledge, writeDown } from "../../shared/openAiEars.ts";
 
 /**
  * The Base44 AI call. What the person said is heard, the answer is written by the app's own
@@ -34,11 +35,6 @@ const SPEECH_VOICE = "honey";
 const SPEECH_LANG: Record<string, string> = { ebembe: "ms", swahili: "ms", english: "en" };
 // the model the Admin's Base44 AI mode answers on, pinned so every answer is written by it
 const ANSWER_MODEL = "gpt_6_sol";
-// The hearing service knows no Kibembe at all. Swahili is the nearest language it does know,
-// so the person's Kibembe comes back as Bantu sounds — the sounds the saved words are written
-// in — instead of being forced into English nobody spoke. Naming it also stops the service
-// from guessing at random.
-const HEARING_LANG = "swa";
 const MAX_ANSWER = 900;
 // about half a minute of speech: the voice line is closed at the last sentence that fits here
 const MAX_SPOKEN = 320;
@@ -225,20 +221,16 @@ function audioOf(value: any): { bytes: Uint8Array; type: string } | null {
   }
 }
 
-/** What was said, as the listening service heard it, in the nearest language it knows. */
-async function listen(apiKey: string, bytes: Uint8Array, type: string): Promise<string> {
-  const form = new FormData();
-  form.append("file", new Blob([bytes], { type: type || "audio/webm" }), "turn");
-  form.append("model_id", "scribe_v1");
-  form.append("language_code", HEARING_LANG);
-  const res = await fetch("https://api.elevenlabs.io/v1/speech-to-text", {
-    method: "POST",
-    headers: { "xi-api-key": apiKey },
-    body: form,
-  });
-  if (!res.ok) throw new Error("hear-" + res.status);
-  const data: any = await res.json();
-  return textOf(data?.text, MAX_QUESTION);
+/**
+ * What was said, written down by the app's own ears. OpenAI is the one reader of every voice
+ * feature here, so a turn on this call is written by the same reader the other calls listen
+ * through: it is pointed at the admin's saved words before it listens, and the turn comes back
+ * placed on the app's own spelling of them, so the Kibembe answered here is the confirmed Kibembe.
+ */
+async function listen(base44: any, apiKey: string, bytes: Uint8Array, type: string): Promise<string> {
+  const { terms, rows } = await earsKnowledge(base44);
+  const heard = await writeDown({ apiKey, bytes, type, terms });
+  return textOf(correctEbembe(heard, rows), MAX_QUESTION);
 }
 
 // The parts of every answer, in the app's own order: the Kibembe, how it sounds, Kiswahili,
@@ -329,9 +321,9 @@ export default async function (req: Request): Promise<Response> {
     // a spoken turn is heard first; a typed one is already in words
     let transcript = "";
     if (!typed) {
-      const apiKey = secrets.get("ELEVENLABS_API_KEY");
+      const apiKey = secrets.get("OPENAI_API_KEY");
       if (!apiKey) return Response.json({ error: "Sauti haisikiki kwa sasa." }, { status: 500 });
-      transcript = await listen(apiKey, audio.bytes, audio.type);
+      transcript = await listen(base44, apiKey, audio.bytes, audio.type);
       // a turn nothing was made of never closes the call: he asks again, quietly, and the
       // phone goes on listening. No words are put on screen as the person's own.
       if (!transcript) return Response.json({ reask: REASK, transcript: "" });

@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { secrets } from 'base44:runtime';
+import { earsKnowledge, earsPrompt } from '../../shared/openAiEars.ts';
 
 /**
  * The voice call's own credential. The browser never sees the account's OpenAI key: it asks here,
@@ -26,23 +27,53 @@ const INSTRUCTIONS = [
   'Add nothing, remove nothing, change nothing, and never speak in any other language.',
 ].join(' ');
 
-const SESSION = {
-  type: 'realtime',
-  model: MODEL,
-  instructions: INSTRUCTIONS,
-  audio: {
-    input: {
-      transcription: { model: 'whisper-1' },
-      turn_detection: {
-        type: 'server_vad',
-        create_response: false,
-        interrupt_response: false,
-        silence_duration_ms: 700,
+const SESSION_URL = 'https://api.openai.com/v1/realtime/client_secrets';
+
+// Every spoken turn of this call is written down by OpenAI too: the same reader the other voice
+// features listen through, pointed at the admin's own words before it listens. Kiswahili is the
+// nearest language the reader knows, so the person's Kibembe comes back as Bantu sounds — the
+// sounds the saved words are written in — instead of being forced into English nobody spoke.
+const TRANSCRIBE_MODEL = 'gpt-4o-transcribe';
+const TRANSCRIBE_FALLBACK = 'whisper-1';
+const TRANSCRIBE_LANG = 'sw';
+// as much of the app's own spelling as this session's own reader is handed
+const TRANSCRIBE_PROMPT_MAX = 400;
+
+function sessionFor(prompt: string, model: string) {
+  return {
+    type: 'realtime',
+    model: MODEL,
+    instructions: INSTRUCTIONS,
+    audio: {
+      input: {
+        transcription: {
+          model,
+          language: TRANSCRIBE_LANG,
+          ...(prompt ? { prompt } : {}),
+        },
+        turn_detection: {
+          type: 'server_vad',
+          create_response: false,
+          interrupt_response: false,
+          silence_duration_ms: 700,
+        },
       },
+      output: { voice: VOICE },
     },
-    output: { voice: VOICE },
-  },
-};
+  };
+}
+
+/** The credential the browser opens the call with: made from the account's key, never the key. */
+function makeSession(apiKey: string, prompt: string, model: string) {
+  return fetch(SESSION_URL, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${apiKey}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({ session: sessionFor(prompt, model) }),
+  });
+}
 
 const NO_KEY = 'The voice service is not connected yet — an admin needs to add the OpenAI key.';
 const REFUSED = 'The voice service refused to open a call.';
@@ -56,16 +87,19 @@ export default async function (req: Request): Promise<Response> {
     const apiKey = secrets.get('OPENAI_API_KEY');
     if (!apiKey) return Response.json({ error: NO_KEY });
 
-    const response = await fetch('https://api.openai.com/v1/realtime/client_secrets', {
-      method: 'POST',
-      headers: {
-        Authorization: `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ session: SESSION }),
-    });
+    // the reader is pointed at the admin's own words before it listens, so a Kibembe turn comes
+    // back in the app's own letters rather than as the English or Kiswahili word it sounds like
+    const { terms } = await earsKnowledge(base44).catch(() => ({ terms: [], rows: [] }));
+    const prompt = earsPrompt(terms).slice(0, TRANSCRIBE_PROMPT_MAX);
 
-    const data: any = await response.json().catch(() => ({}));
+    let response = await makeSession(apiKey, prompt, TRANSCRIBE_MODEL);
+    let data: any = await response.json().catch(() => ({}));
+    // An account not allowed the newer reader is read by the older one: the same turn written in
+    // the same letters, rather than a call that never opens over which model wrote it down.
+    if (!response.ok && /model|not found|unsupported|invalid/i.test(String(data?.error?.message || ''))) {
+      response = await makeSession(apiKey, prompt, TRANSCRIBE_FALLBACK);
+      data = await response.json().catch(() => ({}));
+    }
     if (!response.ok) {
       // the reason stays in the app's own logs, and only a short, key-free wording of it is passed on
       const detail = String(data?.error?.message || '').slice(0, 160);

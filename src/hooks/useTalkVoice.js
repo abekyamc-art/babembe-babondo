@@ -141,15 +141,15 @@ export default function useTalkVoice({ onTurn } = {}) {
         setNotice(TURN_NOT_DELIVERED);
         return;
       }
-      // The ears do not know Kibembe and write a Kibembe turn down like a Kiswahili one, so their
-      // own name for the language goes in as what they wrote — never as a command — and the answer
-      // that follows is still Kibembe where the person's own words are mixed or plainly Kibembe.
+      // The ears write the turn down in the app's own spelling of the person's own words, and the
+      // reader names no language for it: Kibembe is what is read here. So the note goes in as what
+      // the writing is, never as a command, and the answer that feeds on it stays Kibembe.
       const heard = heardLanguage(language);
-      if (heard) {
-        socket.sendMemory(
-          `The person's turn was written down by the app's own ears as ${heard}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${heard}, answer in ${heard} only — never in a mix; where their words mix Kibembe and Kiswahili, answer in Kibembe only; where they plainly ask for a language, answer in that one only.`
-        );
-      }
+      socket.sendMemory(
+        heard
+          ? `The person's turn was written down by the app's own ears, in the app's own spelling of their words, as ${heard}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${heard}, answer in ${heard} only — never in a mix; where their words mix Kibembe and Kiswahili, answer in Kibembe only; where they plainly ask for a language, answer in that one only.`
+          : "The person's turn was written down by the app's own ears, in the app's own spelling of the words they said. Kibembe is what is spoken here: read their own words and answer in Kibembe only, never in a mix — and where they plainly used Kiswahili or English, or plainly asked for a language, answer in that one only."
+      );
     },
     [handleUserText]
   );
