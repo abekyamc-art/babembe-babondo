@@ -16,6 +16,7 @@ export default function ReelFeed({
   onLike,
   onComments,
   onShare,
+  onCopy,
   onFollow,
   onBoost,
   onToggleMute,
@@ -63,6 +64,7 @@ export default function ReelFeed({
             onLike={() => onLike(reel)}
             onComments={() => onComments(reel)}
             onShare={() => onShare(reel)}
+            onCopy={() => onCopy(reel)}
             onFollow={() => onFollow(reel.author_email)}
             onBoost={() => onBoost(reel)}
             onToggleMute={onToggleMute}

@@ -37,10 +37,6 @@ export async function publicFile(file) {
   return file_url;
 }
 
-export function reelLink(id) {
-  return `${window.location.origin}/reels?reel=${id}`;
-}
-
 export function escapeRegex(text) {
   return text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }

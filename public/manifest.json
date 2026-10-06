@@ -1,0 +1,19 @@
+{
+  "name": "Babembe Babondo GS",
+  "short_name": "Babembe",
+  "description": "A Kibembe voice assistant that answers out loud in your own language, with reels, live rooms and a rap studio.",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#F9F8F6",
+  "theme_color": "#F9F8F6",
+  "icons": [
+    {
+      "src": "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/b64adf442_generated_image.png",
+      "sizes": "1024x1024",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

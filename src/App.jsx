@@ -30,6 +30,15 @@ const Chat = lazy(() => import('./pages/Chat'));
 const Rap = lazy(() => import('./pages/Rap'));
 const KibembeChat = lazy(() => import('./pages/KibembeChat'));
 
+// A page that needs signing in remembers where the person was headed, so a link someone shared
+// opens on what it pointed at — the reel it named — instead of on the app's first screen.
+const NeedsSignIn = () => {
+  const here = useLocation();
+  return (
+    <Navigate to={`/login?returnTo=${encodeURIComponent(here.pathname + here.search)}`} replace />
+  );
+};
+
 const AuthenticatedApp = () => {
   const { isLoadingAuth, isLoadingPublicSettings, authError, navigateToLogin } = useAuth();
   const location = useLocation();
@@ -86,7 +95,7 @@ const AuthenticatedApp = () => {
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
-                <Route element={<ProtectedRoute unauthenticatedElement={<Navigate to="/login" replace />} />}>
+                <Route element={<ProtectedRoute unauthenticatedElement={<NeedsSignIn />} />}>
                   <Route path="/rap" element={<Rap />} />
                   <Route path="/reels" element={<Reels />} />
                   <Route path="/markets" element={<Markets />} />

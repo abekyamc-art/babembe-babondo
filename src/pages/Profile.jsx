@@ -4,6 +4,7 @@ import { ArrowLeft, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { nowIso } from "@/lib/social";
 import { openThread } from "@/lib/chat";
+import usePageMeta from "@/lib/pageMeta";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileReels from "@/components/profile/ProfileReels";
 
@@ -18,6 +19,18 @@ export default function Profile() {
   const [following, setFollowing] = useState(null);
   const [busy, setBusy] = useState(false);
   const [ready, setReady] = useState(false);
+
+  // the page names the person it shows, and stays out of search results: a profile here is opened by
+  // whoever the link was sent to, and by nobody else
+  usePageMeta({
+    title: person?.username
+      ? `@${person.username} — Babembe Babondo GS`
+      : "Profile — Babembe Babondo GS",
+    description: person?.username
+      ? `@${person.username} on Babembe Babondo GS: Kibembe reels and voice.`
+      : "A profile on Babembe Babondo GS: Kibembe reels and voice.",
+    noindex: true,
+  });
 
   useEffect(() => {
     let alive = true;

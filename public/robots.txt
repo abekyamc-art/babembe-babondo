@@ -1,0 +1,14 @@
+# The app's own page is open to search engines. Everything inside it belongs to the people who are
+# signed in, so those screens are not offered to a crawler at all.
+User-agent: *
+Allow: /
+
+Disallow: /reels
+Disallow: /rap
+Disallow: /markets
+Disallow: /messages
+Disallow: /kibembe
+Disallow: /live/
+Disallow: /u/
+
+Sitemap: https://babembe.base44.app/sitemap.xml

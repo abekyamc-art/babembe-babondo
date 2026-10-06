@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Heart, MessageCircle, Send, Volume2, VolumeX } from "lucide-react";
+import { Heart, Link2, MessageCircle, Send, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Image } from "@/components/ui/image";
 
@@ -17,6 +17,7 @@ export default function ReelCard({
   onLike,
   onComments,
   onShare,
+  onCopy,
   onFollow,
   onBoost,
   onToggleMute,
@@ -94,6 +95,10 @@ export default function ReelCard({
         <button type="button" onClick={onShare} aria-label="Share" className="flex flex-col items-center gap-1">
           <Send className="h-7 w-7" />
           <span className="text-[11px] font-semibold">Share</span>
+        </button>
+        <button type="button" onClick={onCopy} aria-label="Copy link" className="flex flex-col items-center gap-1">
+          <Link2 className="h-7 w-7" />
+          <span className="text-[11px] font-semibold">Copy</span>
         </button>
       </div>
 

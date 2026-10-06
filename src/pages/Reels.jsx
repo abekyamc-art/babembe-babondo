@@ -4,7 +4,9 @@ import { ArrowLeft, Loader2, MessageCircle, Plus, Radio, Search } from "lucide-r
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { BOOST_COST, BOOST_HOURS, balanceOf, spendCoins } from "@/lib/coins";
-import { countMap, ensureProfile, escapeRegex, nowIso, reelLink } from "@/lib/social";
+import { countMap, ensureProfile, escapeRegex, nowIso } from "@/lib/social";
+import { copyLink, reelLink, reelShareText, shareLink } from "@/lib/appLinks";
+import usePageMeta from "@/lib/pageMeta";
 import LiveBar from "@/components/live/LiveBar";
 import GoLiveDialog from "@/components/live/GoLiveDialog";
 import ReelFeed from "@/components/reels/ReelFeed";
@@ -15,6 +17,14 @@ import PeoplePanel from "@/components/reels/PeoplePanel";
 export default function Reels() {
   const navigate = useNavigate();
   const { toast } = useToast();
+
+  // The page names itself, and stays out of search results: the feed belongs to the people who
+  // posted in it, and a reel is opened by whoever the link was sent to.
+  usePageMeta({
+    title: "Reels — Babembe Babondo GS",
+    description: "Short Kibembe videos: watch, comment and share a reel.",
+    noindex: true,
+  });
 
   const [me, setMe] = useState(null);
   const [profile, setProfile] = useState(null);
@@ -223,18 +233,34 @@ export default function Reels() {
     toast({ title: "Reel boosted", description: "It sits at the top of the feed for 24 hours." });
   };
 
+  // Handing a reel on: the phone's own share sheet where it opens, and the link copied where it
+  // doesn't — so a tap on Share always ends with the reel on its way somewhere.
   const handleShare = async (reel) => {
     const url = reelLink(reel.id);
-    try {
-      if (navigator.share) {
-        await navigator.share({ title: `@${reel.author_username || "reel"}`, url });
-        return;
-      }
-      await navigator.clipboard.writeText(url);
+    const result = await shareLink({
+      title: `@${reel.author_username || "reel"} — Babembe Babondo GS`,
+      text: reelShareText(reel),
+      url,
+    });
+    // the sheet was closed on purpose: nothing was sent, and nothing needs saying
+    if (result === "shared" || result === "dismissed") return;
+    if (result === "copied") {
       toast({ title: "Link copied", description: "Send it to a friend." });
-    } catch (err) {
-      // the share sheet was dismissed
+      return;
     }
+    // neither the sheet nor the clipboard was allowed to this page: the address is shown instead, so
+    // the reel can still be passed on by hand
+    toast({ title: "Couldn't copy the link", description: url });
+  };
+
+  const handleCopy = async (reel) => {
+    const url = reelLink(reel.id);
+    const done = await copyLink(url);
+    toast(
+      done
+        ? { title: "Link copied", description: "Send it to a friend." }
+        : { title: "Couldn't copy the link", description: url }
+    );
   };
 
   const handlePosted = (reel, scheduled) => {
@@ -316,6 +342,7 @@ export default function Reels() {
         onLike={handleLike}
         onComments={setCommentReel}
         onShare={handleShare}
+        onCopy={handleCopy}
         onFollow={followEmail}
         onBoost={handleBoost}
         onToggleMute={() => setMuted((prev) => !prev)}
