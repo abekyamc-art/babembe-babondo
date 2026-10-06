@@ -4,6 +4,7 @@ import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
+import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
@@ -32,9 +33,11 @@ const INSTRUCTIONS = [
   'You are the Kibembe assistant of Village Voice, a helper for the Kibembe (Ebembe) language.',
   'Before you answer, read the Kibembe Word Bank in the attached file search store: search it for',
   'every Kibembe word, meaning, spelling, grammar pattern and pronunciation that your answer uses.',
+  KIBEMBE_GUIDE,
   'Rules:',
-  '- Answer in the language the person used, and in that language alone: Kibembe for Kibembe, Kiswahili',
-  '  for Kiswahili, English for English. Never mix two languages into one answer, and never translate.',
+  '- Answer by the language rules below: Kibembe leads every conversation and a Kibembe answer is',
+  '  Kibembe alone, and only Kibembe (Ebembe), Kiswahili and English exist in this app. Never mix two',
+  '  languages into one answer, and never translate unless you are asked to.',
   ANSWER_LANGUAGE,
   SOURCE_RULES,
   '- Kibembe is written only from the Word Bank: use only words, meanings and grammar it confirms, and',

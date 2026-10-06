@@ -1,7 +1,7 @@
 import { MAX_TERM, MAX_USAGE, PREFIXES, clean, glossOf } from "./knowledgeWords.ts";
 import { tight } from "./soundsAlike.ts";
 import { keyMatches } from "./answerKey.ts";
-import { ANSWER_LANGUAGE } from "./languageRules.ts";
+import { KIBEMBE_GUIDE } from "./kibembeGuide.ts";
 
 /**
  * How a home call hears and answers Kibembe.
@@ -18,22 +18,13 @@ import { ANSWER_LANGUAGE } from "./languageRules.ts";
  * does not hold is never swapped for another one that merely sounds like it.
  */
 
-const RULES = [
-  "KIBEMBE FIRST — HOW THIS CALL HEARS AND ANSWERS",
-  "- This call is Kibembe (Ebembe) work: listen for Kibembe from the first sound the microphone brings, and take what is said as Kibembe.",
-  "- Never wait for a perfect spelling or a perfect pronunciation, and never say you did not hear the person when any speech reached the microphone. A voice far from the phone, a quiet voice, a fast voice and a room with noise in it are all heard.",
-  "- Take what you heard in this order: 1) a Kibembe word or phrase exactly as the app's own Word Bank writes it; 2) the saved Kibembe phrase whose answer belongs to it; 3) the person's own words, exactly as they were said.",
-  "- Write the turn down as the person said it, word for word. Their Kibembe is theirs: it is never rewritten into another spelling, and a word one of them said is never answered as a different word that merely sounds like it.",
-  "- A Kibembe word the app's own Word Bank does not hold is still Kibembe: keep it as it was heard, answer from the words around it, and never put a meaning on it that nobody gave.",
-  "- Never invent a Kibembe word, never invent a meaning for one, and never switch to another language to cover a word you did not catch.",
-  "- Only when nothing at all is close: ask one short question, in Kibembe, to have it said once more, and carry on from there.",
-  "- Answer in Kibembe. Another language only when the person asks for it in words.",
-  "- When the person puts a word, a pronunciation, a sound or an answer right, take their correction as confirmed: the app saves it, and every later call already knows it.",
-].join("\n");
-
-/** The rules of the call as they ride into it, whole. */
+/**
+ * The rules of the call as they ride into it, whole: Gloire's own current guide, which carries the
+ * reading, the times and tenses, the matching, the teaching, the reactions and the app's own
+ * language rules with it.
+ */
 export function firstRules(): string {
-  return `${RULES}\nTHE APP'S OWN LANGUAGE RULES:\n${ANSWER_LANGUAGE}\n`;
+  return KIBEMBE_GUIDE;
 }
 
 /** One turn's own words, as they are compared with the saved ones. */

@@ -8,6 +8,7 @@ import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
+import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
 
 /**
  * The Base44 AI call. What the person said is heard, the answer is written by the app's own
@@ -359,6 +360,7 @@ export default async function (req: Request): Promise<Response> {
 
     const prompt = [
       ROLE,
+      KIBEMBE_GUIDE,
       HOW,
       rulesSection,
       key,
