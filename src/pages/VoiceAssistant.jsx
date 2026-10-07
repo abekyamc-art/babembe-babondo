@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Languages, Loader2, Phone, PhoneOff, Radio, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import useHomeVoice from "@/hooks/useHomeVoice";
+import useStoryTurn from "@/hooks/useStoryTurn";
 import { noteKibembeSession } from "@/lib/kpiEvents";
 import {
   DAILY_LIMIT,
@@ -29,6 +30,7 @@ import ModeBadge from "@/components/voice/ModeBadge";
 import { CARTESIA_AI, CARTESIA_AI1, CARTESIA_AI2, KIBEMBE_CLASS } from "@/lib/providerNames";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
+import StorySheet from "@/components/story/StorySheet";
 
 // the outside voice the call hands over to on its own carries its own mark; the older talk AIs
 // carry the app's own, so who is answering is seen at a glance and not only read in the line
@@ -56,6 +58,10 @@ export default function VoiceAssistant() {
     leaveSave,
   } = useHomeVoice();
   const navigate = useNavigate();
+
+  // the admin's own story for what the person asks: it is brought on screen during the call, and
+  // playing what it carries ends the call
+  const { story, closeStory } = useStoryTurn(turns);
 
   const [user, setUser] = useState(null);
   const [stamps, setStamps] = useState([]);
@@ -430,6 +436,8 @@ export default function VoiceAssistant() {
         onSignOut={handleSignOut}
         onClose={() => setAccountOpen(false)}
       />
+
+      <StorySheet story={story} onClose={closeStory} onPlaybackEnd={stop} />
 
       <KnowledgeSheet open={knowledgeOpen} onClose={() => setKnowledgeOpen(false)} />
     </div>

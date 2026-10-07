@@ -3,6 +3,7 @@ import { secrets } from 'base44:runtime';
 import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
+import { bestStory, storyNote } from "../../shared/storyMatch.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
 
@@ -96,13 +97,26 @@ export default async function (req) {
     const words = wordListBlock(await bankRows(base44), message, WORD_BUDGET);
     const saved = rules || words ? `${RULES_HEAD}${rules}${words}` : '';
 
+    // The admin's own stories ride with a turn that asks for one: the telling they wrote is what
+    // the answer is given from, and the screen shows it with its picture, its video or its link as
+    // the answer comes. The matching lives in one place, so the story found here is the story the
+    // screen is given.
+    const storyPage = await base44.entities.Story.filter(
+      { published: true },
+      { sort: '-updated_date', limit: 200, fields: ['title', 'text', 'tags', 'links'] }
+    );
+    const story = bestStory(storyPage?.items || [], message);
+    const told = story ? storyNote(story) : '';
+
     // A request the saved knowledge does not answer — news, a story, who someone is — is looked up
     // on the internet before the answer is written, by the same lookup the app's other assistants
     // use, and the material rides with the message. A search that found nothing, or that could not
     // be made at all, is said plainly instead of being answered around.
     const lookup = await lookupForTurn(base44, message);
 
-    const input = [saved, lookup.material, `Mtu amesema: ${message}`].filter(Boolean).join('\n');
+    const input = [saved, told, lookup.material, `Mtu amesema: ${message}`]
+      .filter(Boolean)
+      .join('\n');
     console.log(
       'Saved knowledge handed over:',
       saved.length,

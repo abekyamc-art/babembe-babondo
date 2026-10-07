@@ -7,6 +7,7 @@ import KnowledgeTabs from "@/components/knowledge/KnowledgeTabs";
 import KnowledgeForm from "@/components/knowledge/KnowledgeForm";
 import KnowledgeEntry from "@/components/knowledge/KnowledgeEntry";
 import TextsPanel from "@/components/knowledge/TextsPanel";
+import StoriesPanel from "@/components/knowledge/StoriesPanel";
 import WordModeSwitch from "@/components/knowledge/WordModeSwitch";
 import WordListForm from "@/components/knowledge/WordListForm";
 import CleanWords from "@/components/knowledge/CleanWords";
@@ -53,7 +54,13 @@ export default function KnowledgeSheet({ open, onClose }) {
       return undefined;
     }
     let alive = true;
-    base44.entities.AssistantKnowledge.count({ kind })
+    // each tab states what its own store counts: the stories the admin has written, or the entries
+    // of the kind being shown
+    const counted =
+      kind === "story"
+        ? base44.entities.Story.count({})
+        : base44.entities.AssistantKnowledge.count({ kind });
+    counted
       .then((count) => {
         if (alive) setTotal(Number(count));
       })
@@ -178,6 +185,8 @@ export default function KnowledgeSheet({ open, onClose }) {
 
           {kind === "text" ? (
             <TextsPanel />
+          ) : kind === "story" ? (
+            <StoriesPanel />
           ) : (
             <>
               {kind === "word" && !editingId ? (

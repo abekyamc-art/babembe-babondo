@@ -19,6 +19,12 @@ export const KINDS = [
     empty: "No words saved yet — add an Ebembe word with its meaning and how it should be used.",
   },
   {
+    id: "story",
+    tab: "Stories",
+    empty:
+      "No stories saved yet — write the first one, give it its tags, and attach a picture, a video or a link.",
+  },
+  {
     id: "text",
     tab: "Long texts",
     empty:

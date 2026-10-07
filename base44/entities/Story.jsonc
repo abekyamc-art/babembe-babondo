@@ -1,0 +1,85 @@
+{
+  "name": "Story",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "What the story is called, shown beside it in the admin's list and at the head of it on screen."
+    },
+    "text": {
+      "type": "string",
+      "description": "The story itself, as the admin wrote it \u2014 the line or the whole telling. It is what the assistant answers from and what the person reads on screen."
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "The words the story is filed under, so a question about one of them finds it."
+    },
+    "media_kind": {
+      "type": "string",
+      "enum": [
+        "none",
+        "image",
+        "video",
+        "link"
+      ],
+      "default": "none",
+      "description": "The one thing the admin attached to the story: a picture, a video, or a link that is played outside the app."
+    },
+    "media_url": {
+      "type": "string",
+      "description": "Public address of the story's media when the admin attached a link rather than uploading a file. It is played outside the app."
+    },
+    "media_file_uri": {
+      "type": "string",
+      "description": "Private storage reference for the picture or video the admin uploaded. It is opened through a short-lived link, so it is never public."
+    },
+    "links": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Reference links the admin attached to the story \u2014 a source, a page, a place to read or watch more."
+    },
+    "published": {
+      "type": "boolean",
+      "default": true,
+      "description": "Published stories are shown to app users in a call or a written chat; an unpublished story is the admin's own draft and stays private to them."
+    }
+  },
+  "required": [
+    "title",
+    "text"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.published": true
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

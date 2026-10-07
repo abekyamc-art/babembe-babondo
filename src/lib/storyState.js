@@ -14,6 +14,11 @@ const FRESH_ASKS = /\b(nyingine|ingine|mpya|different|new|another)\b/i;
 
 const MAX_TOPIC = 90;
 
+/** Whether a turn is asking for a story, so the admin's own saved stories are looked for. */
+export function isStoryAsk(text) {
+  return STORY_ASKS.test(String(text || ""));
+}
+
 export function emptyStory() {
   return { open: false, parts: 0, topic: "" };
 }

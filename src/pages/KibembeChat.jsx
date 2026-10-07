@@ -5,6 +5,8 @@ import ChatBubble from "@/components/kibembe/ChatBubble";
 import ChatComposer from "@/components/kibembe/ChatComposer";
 import KibembeVoicePanel from "@/components/kibembe/KibembeVoicePanel";
 import useOpenAiAssistant from "@/hooks/useOpenAiAssistant";
+import useStoryTurn from "@/hooks/useStoryTurn";
+import StorySheet from "@/components/story/StorySheet";
 import { KIBEMBE_CLASS, SADIKI_AI } from "@/lib/providerNames";
 import { noteKibembeSession } from "@/lib/kpiEvents";
 
@@ -16,6 +18,9 @@ import { noteKibembeSession } from "@/lib/kpiEvents";
 export default function KibembeChat() {
   const { status, speaking, thinking, micActive, turns, error, notice, start, stop, ask } =
     useOpenAiAssistant();
+  // the admin's own story for what the person asks: it is shown on the same conversation, and
+  // playing what it carries ends the call it was asked on
+  const { story, closeStory } = useStoryTurn(turns);
   const [draft, setDraft] = useState("");
   const [voiceOpen, setVoiceOpen] = useState(false);
   const endRef = useRef(null);
@@ -115,6 +120,8 @@ export default function KibembeChat() {
       <div className="sticky bottom-0 border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
         <ChatComposer value={draft} busy={busy} onChange={setDraft} onSend={send} />
       </div>
+
+      <StorySheet story={story} onClose={closeStory} onPlaybackEnd={stop} />
     </div>
   );
 }
