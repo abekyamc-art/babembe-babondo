@@ -3,14 +3,30 @@ import { FileUp, Loader2, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isCompleteStory } from "@/lib/stories";
 
+// What kind of thing the chosen file is, so the story knows how to show it.
+const kindOfFile = (type) =>
+  type?.startsWith("video") ? "video" : type?.startsWith("audio") ? "audio" : "image";
+
+// A pasted address is read for what it carries: a picture, a video or an audio recording is shown
+// in the app, and anything else is opened where it already stands.
+const kindOfLink = (url) => {
+  if (/\.(png|jpe?g|gif|webp|avif|bmp)(\?|#|$)/i.test(url)) return "image";
+  if (/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(url)) return "video";
+  if (/\.(mp3|wav|m4a|aac|ogg|oga|opus|flac)(\?|#|$)/i.test(url)) return "audio";
+  return "link";
+};
+
+const MEDIA_WORD = { image: "Picture", video: "Video", audio: "Audio" };
+
 export default function StoryForm({ draft, editing, busy, onChange, onSave, onCancel }) {
   const inputRef = useRef(null);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const ready = isCompleteStory(draft);
 
-  // A picture or a video is uploaded to the app's own private storage: what is saved is a
-  // reference to it, and it is opened for a person through a short-lived link, never publicly.
+  // A picture, a video or an audio recording is uploaded to the app's own private storage: what is
+  // saved is a reference to it, and it is opened for a person through a short-lived link, never
+  // publicly.
   const take = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -22,7 +38,7 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
       const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
       onChange({
         media_file_uri: file_uri,
-        media_kind: file.type.startsWith("video") ? "video" : "image",
+        media_kind: kindOfFile(file.type),
         media_url: "",
       });
     } catch (err) {
@@ -38,12 +54,12 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
     const link = value.trim();
     onChange({
       media_url: link,
-      media_kind: link ? "link" : "none",
+      media_kind: link ? kindOfLink(link) : "none",
       media_file_uri: "",
     });
   };
 
-  const media = draft.media_file_uri ? `${draft.media_kind === "video" ? "Video" : "Picture"} uploaded` : "";
+  const media = draft.media_file_uri ? `${MEDIA_WORD[draft.media_kind] || "File"} uploaded` : "";
 
   return (
     <div className="knowledge-form">
@@ -78,7 +94,7 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
       </label>
 
       <div className="knowledge-field">
-        <span className="knowledge-label">Picture, video or link</span>
+        <span className="knowledge-label">Picture, video, audio or link</span>
         <div className="knowledge-upload-wrap">
           <button
             type="button"
@@ -91,12 +107,12 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
             ) : (
               <FileUp className="h-3.5 w-3.5" />
             )}
-            {uploading ? "Uploading…" : "Upload a picture or video"}
+            {uploading ? "Uploading…" : "Upload a picture, video or audio"}
           </button>
           <input
             ref={inputRef}
             type="file"
-            accept="image/*,video/*"
+            accept="image/*,video/*,audio/*"
             onChange={take}
             className="hidden"
           />

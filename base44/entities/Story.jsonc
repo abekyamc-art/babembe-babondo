@@ -23,18 +23,19 @@
         "none",
         "image",
         "video",
+        "audio",
         "link"
       ],
       "default": "none",
-      "description": "The one thing the admin attached to the story: a picture, a video, or a link that is played outside the app."
+      "description": "The one thing the admin attached to the story: a picture, a video, an audio recording, or a link that is played outside the app."
     },
     "media_url": {
       "type": "string",
-      "description": "Public address of the story's media when the admin attached a link rather than uploading a file. It is played outside the app."
+      "description": "Public address of the story's media when it stands at one: a link the admin pasted, or a picture, video or audio recording they gave an address for. It is played where it already stands."
     },
     "media_file_uri": {
       "type": "string",
-      "description": "Private storage reference for the picture or video the admin uploaded. It is opened through a short-lived link, so it is never public."
+      "description": "Private storage reference for the picture, video or audio recording the admin uploaded. It is opened through a short-lived link, so it is never public."
     },
     "links": {
       "type": "array",

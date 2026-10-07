@@ -31,6 +31,7 @@ import { CARTESIA_AI, CARTESIA_AI1, CARTESIA_AI2, KIBEMBE_CLASS } from "@/lib/pr
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 import StorySheet from "@/components/story/StorySheet";
+import StoryRail from "@/components/story/StoryRail";
 
 // the outside voice the call hands over to on its own carries its own mark; the older talk AIs
 // carry the app's own, so who is answering is seen at a glance and not only read in the line
@@ -71,6 +72,10 @@ export default function VoiceAssistant() {
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState(null);
+  // the story picked out of the middle strip, shown in the same sheet the assistant's own stories use
+  const [pickedStory, setPickedStory] = useState(null);
+  // a nudge to read the strip again once the admin has written a story
+  const [storiesKey, setStoriesKey] = useState(0);
   const pendingGate = useRef(false);
   // the session is counted once, on the first turn asked of it — the microphone or a written message
   const countedRef = useRef(false);
@@ -234,6 +239,17 @@ export default function VoiceAssistant() {
     await ask(text, spend);
   };
 
+  // a story picked out of the middle strip opens in the sheet the assistant's own stories use
+  const openStory = (next) => {
+    closeStory();
+    setPickedStory(next);
+  };
+
+  const shutStory = () => {
+    setPickedStory(null);
+    closeStory();
+  };
+
   const handleAccount = () => setAccountOpen(true);
 
   const handleKnowledge = () => {
@@ -369,6 +385,10 @@ export default function VoiceAssistant() {
           </div>
         </div>
 
+        {/* the admin's own stories stand in the middle of the screen, so what the app has been told
+            is met before it is asked for; a tap opens the story itself with its media */}
+        <StoryRail onOpen={openStory} refresh={storiesKey} />
+
         {/* one fixed band holds the conversation and the status line, so nothing on screen moves */}
         <div className="flex h-[104px] w-full max-w-md shrink-0 flex-col gap-1.5 overflow-hidden">
           <div className="min-h-0 flex-1">
@@ -437,9 +457,15 @@ export default function VoiceAssistant() {
         onClose={() => setAccountOpen(false)}
       />
 
-      <StorySheet story={story} onClose={closeStory} onPlaybackEnd={stop} />
+      <StorySheet story={pickedStory || story} onClose={shutStory} onPlaybackEnd={stop} />
 
-      <KnowledgeSheet open={knowledgeOpen} onClose={() => setKnowledgeOpen(false)} />
+      <KnowledgeSheet
+        open={knowledgeOpen}
+        onClose={() => {
+          setKnowledgeOpen(false);
+          setStoriesKey((count) => count + 1);
+        }}
+      />
     </div>
   );
 }

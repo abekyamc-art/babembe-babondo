@@ -3,9 +3,9 @@ import { base44 } from "@/api/base44Client";
 /**
  * The admin's own stories, on the app's side.
  *
- * A story is the admin's own telling with its filing words, one picture, video or link, and any
- * links they attached. The admin writes it in the knowledge panel; a person meets it on screen when
- * a call or a written chat turns to what they wrote.
+ * A story is the admin's own telling with its filing words, one picture, video, audio recording or
+ * link, and any links they attached. The admin writes it in the knowledge panel; a person meets it
+ * on screen when a call or a written chat turns to what they wrote.
  */
 
 /** The blank story the admin starts from. Tags and links are typed as lines, as in the rest of the panel. */
@@ -60,7 +60,7 @@ export function isCompleteStory(draft) {
   return !!(String(draft?.title || "").trim() && String(draft?.text || "").trim());
 }
 
-const MEDIA_NAMES = { none: "", image: "Picture", video: "Video", link: "Link" };
+const MEDIA_NAMES = { none: "", image: "Picture", video: "Video", audio: "Audio", link: "Link" };
 
 export function storyHeadline(row) {
   return row?.title || "";

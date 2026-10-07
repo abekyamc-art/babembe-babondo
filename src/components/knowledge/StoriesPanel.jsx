@@ -102,8 +102,9 @@ export default function StoriesPanel() {
     <>
       <p className="account-hint">
         A story you save here is your own telling: the assistant answers from it, and a person meets
-        it on screen — the telling, its picture or video, and your links — when a call turns to what
-        you wrote. Playing what you attached ends their call, so nothing is heard over it.
+        it on screen — the telling, its picture, video or audio recording, and your links — when a
+        call turns to what you wrote. Playing what you attached ends their call, so nothing is heard
+        over it.
       </p>
 
       <StoryForm
@@ -133,7 +134,7 @@ export default function StoriesPanel() {
         ) : (
           <p className="knowledge-empty">
             No stories saved yet — write the first one, give it its tags, and attach a picture, a
-            video or a link.
+            video, an audio recording or a link.
           </p>
         )}
       </div>

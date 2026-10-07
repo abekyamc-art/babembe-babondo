@@ -5,7 +5,8 @@ import { hostOf, storyMediaUrl } from "@/lib/stories";
 
 /**
  * The admin's story on screen: their own telling, its filing words, and whatever they attached —
- * a picture, a video, or a link that is played outside the app. What is attached is opened here,
+ * a picture, a video, an audio recording, or a link that is played outside the app. What is
+ * attached is opened here,
  * and anything that takes the person away from the talk hands the talk back: the call it was asked
  * on ends the moment the playing is over.
  */
@@ -92,6 +93,15 @@ export default function StoryCard({ story, onPlaybackEnd }) {
           playsInline
           onEnded={() => onPlaybackEnd?.()}
           className="w-full rounded-2xl border border-border bg-black"
+        />
+      ) : null}
+
+      {!loading && url && story.media_kind === "audio" ? (
+        <audio
+          src={url}
+          controls
+          onEnded={() => onPlaybackEnd?.()}
+          className="w-full rounded-2xl border border-border bg-card"
         />
       ) : null}
 

@@ -203,13 +203,14 @@
   }
 
   /* The shell is the orb's whole footprint: the face plus the room its halo and ring need.
-     It is measured from the height left between the header and the conversation band, so on a
-     short screen the orb shrinks instead of being squeezed up under the title. The clip on the
-     shell guarantees nothing it draws can ever reach the text above or below. */
+     It is measured from the height left between the header, the middle story strip and the
+     conversation band, so on a short screen the orb shrinks instead of being squeezed up under the
+     title. The clip on the shell guarantees nothing it draws can ever reach the text above or
+     below. */
   .orb-shell {
     --orb-size: clamp(
-      150px,
-      calc(100dvh - var(--tabbar-space) - 422px - env(safe-area-inset-top, 0px)),
+      120px,
+      calc(100dvh - var(--tabbar-space) - 544px - env(safe-area-inset-top, 0px)),
       min(84vmin, 420px)
     );
     position: relative;
