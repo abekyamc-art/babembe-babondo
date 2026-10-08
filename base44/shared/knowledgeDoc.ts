@@ -241,6 +241,11 @@ async function stateRow(base44: any) {
   return rowsOf(page)[0] || null;
 }
 
+/** One text of the document, read back out of its parts: the working copy, or the approved one. */
+export async function readDocText(base44: any, kind: string): Promise<string> {
+  return readParts(base44, kind);
+}
+
 /** One text of the document, read back out of its parts in their own order. */
 async function readParts(base44: any, kind: string) {
   const rows: any[] = [];

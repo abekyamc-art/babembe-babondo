@@ -3,6 +3,7 @@ import { createPortal } from "react-dom";
 import { X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import KnowledgeTabs from "@/components/knowledge/KnowledgeTabs";
+import KnowledgeSearch from "@/components/knowledge/KnowledgeSearch";
 import KnowledgeDocPanel from "@/components/knowledge/KnowledgeDocPanel";
 import StoriesPanel from "@/components/knowledge/StoriesPanel";
 
@@ -14,6 +15,9 @@ export default function KnowledgeSheet({ open, onClose }) {
   const [tab, setTab] = useState("doc");
   // what the server counts of the stories, read only while the stories are on screen
   const [stories, setStories] = useState(null);
+  // the place the search named, handed to the panel it belongs to so the match is opened where it
+  // stands — the line of the document, or the story itself
+  const [focus, setFocus] = useState(null);
 
   useEffect(() => {
     if (!open || tab !== "story") return undefined;
@@ -61,9 +65,20 @@ export default function KnowledgeSheet({ open, onClose }) {
         </div>
 
         <div className="account-panel">
+          <KnowledgeSearch
+            onPickDoc={(hit) => {
+              setTab("doc");
+              setFocus({ kind: "doc", line: hit.line, term: hit.term, at: Date.now() });
+            }}
+            onPickStory={(story) => {
+              setTab("story");
+              setFocus({ kind: "story", id: story.id, at: Date.now() });
+            }}
+          />
+
           <KnowledgeTabs kind={tab} onPick={setTab} />
 
-          {tab === "story" ? <StoriesPanel /> : <KnowledgeDocPanel />}
+          {tab === "story" ? <StoriesPanel focus={focus} /> : <KnowledgeDocPanel focus={focus} />}
         </div>
       </section>
     </div>,

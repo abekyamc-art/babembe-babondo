@@ -5,30 +5,17 @@ import { channelStale, syncStoryChannel } from "@/lib/channelSync";
 import StoryForm from "@/components/knowledge/StoryForm";
 import StoryEntry from "@/components/knowledge/StoryEntry";
 
-export default function StoriesPanel() {
+export default function StoriesPanel({ focus }) {
   const [rows, setRows] = useState([]);
   const [draft, setDraft] = useState(emptyStory);
   const [editingId, setEditingId] = useState(null);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
-  const [ask, setAsk] = useState("");
 
   // The list carries only what it shows: the telling itself stays on the server until it is opened.
-  // A search is put to the whole library on the server, so a story saved long ago is found by its
-  // title or by one of the words it is filed under, and can be opened in the form and put right.
-  const load = async (text) => {
-    const wanted = String(text || "").trim();
-    const query = wanted
-      ? {
-          $or: [
-            { title: { $regex: wanted, $options: "i" } },
-            { tags: { $regex: wanted, $options: "i" } },
-          ],
-        }
-      : {};
-
-    const page = await base44.entities.Story.filter(query, {
+  const load = async () => {
+    const page = await base44.entities.Story.filter({}, {
       sort: "-updated_date",
       limit: 50,
       fields: [
@@ -48,7 +35,7 @@ export default function StoriesPanel() {
 
   useEffect(() => {
     let alive = true;
-    load("")
+    load()
       .then((items) => {
         if (!alive) return;
         setRows(items);
@@ -63,6 +50,13 @@ export default function StoriesPanel() {
       alive = false;
     };
   }, []);
+
+  // A story the search found is opened in the form, wherever it stood in the library — so what is
+  // typed into the search above is a way of getting to the story itself and putting it right.
+  useEffect(() => {
+    if (focus?.kind !== "story" || !focus.id) return;
+    edit({ id: focus.id });
+  }, [focus]);
 
   const change = (patch) => setDraft((prev) => ({ ...prev, ...patch }));
 
@@ -82,33 +76,6 @@ export default function StoriesPanel() {
       setDraft(storyDraft(full));
     } catch (err) {
       setError("Could not open that story.");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const find = async () => {
-    if (busy) return;
-    setBusy("find");
-    setError("");
-    try {
-      setRows(await load(ask));
-    } catch (err) {
-      setError("Could not search your stories.");
-    } finally {
-      setBusy("");
-    }
-  };
-
-  const all = async () => {
-    setAsk("");
-    if (busy) return;
-    setBusy("find");
-    setError("");
-    try {
-      setRows(await load(""));
-    } catch (err) {
-      setError("Could not load your stories.");
     } finally {
       setBusy("");
     }
@@ -188,33 +155,6 @@ export default function StoriesPanel() {
       />
 
       {error ? <p className="knowledge-error">{error}</p> : null}
-
-      <div className="knowledge-field">
-        <span className="knowledge-label">Find an old story</span>
-        <div className="account-edit">
-          <input
-            value={ask}
-            placeholder="Its title, or one of its tags"
-            onChange={(event) => setAsk(event.target.value)}
-            onKeyDown={(event) => {
-              if (event.key === "Enter") find();
-            }}
-            className="account-input"
-          />
-          <button type="button" onClick={find} disabled={busy === "find"} className="account-save">
-            {busy === "find" ? "Finding…" : "Find"}
-          </button>
-        </div>
-        {ask.trim() ? (
-          <button type="button" onClick={all} className="knowledge-cancel">
-            Show all your stories again
-          </button>
-        ) : (
-          <span className="knowledge-meter-text">
-            Search the whole library — an old story opens in the form above and can be put right.
-          </span>
-        )}
-      </div>
 
       <div className="account-actions">
         {!ready ? (
