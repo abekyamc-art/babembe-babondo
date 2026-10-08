@@ -1,18 +1,18 @@
 import React from "react";
 import { ExternalLink } from "lucide-react";
 import StoryMedia from "@/components/story/StoryMedia";
-import { hostOf, mediaPlacement, storyLines } from "@/lib/stories";
+import { hostOf, mediaPlacement } from "@/lib/stories";
+import { storyBlocks } from "@/lib/storyMarks";
 
 /**
- * The admin's story on screen: their own telling, its filing words, and whatever they attached —
- * a picture, a video, an audio recording or a link — standing where the admin put it inside the
- * telling rather than only at its foot. What is attached is opened here, and anything that takes
- * the person away from the talk hands the talk back: the call it was asked on ends the moment the
- * playing is over.
+ * The admin's story on screen: their own telling, its filing words, and every picture, video, audio
+ * recording or link they put into it — each one standing exactly where they put it, in the order
+ * they wrote it. A story written before the marks keeps its one attachment at its own end.
+ *
+ * A link is opened where it stands, and anything that takes the person away from the talk hands the
+ * talk back: the call the story was asked on ends the moment the playing is over.
  */
 export default function StoryCard({ story, onPlaybackEnd }) {
-  // A link is played where it already stands, and the talk it was asked on ends as the person is
-  // handed over: nothing of the story is heard over a page that has the person's ear.
   const openLink = (target) => {
     window.open(target, "_blank", "noopener,noreferrer");
     onPlaybackEnd?.();
@@ -20,11 +20,19 @@ export default function StoryCard({ story, onPlaybackEnd }) {
 
   if (!story) return null;
 
-  const lines = storyLines(story.text);
+  const blocks = storyBlocks(story.text);
   const attached = !!story.media_kind && story.media_kind !== "none";
-  // where the attached thing stands in the telling: before it, after one of its lines, or at its end
-  const at = attached ? mediaPlacement(story, lines.length) : -1;
-  const media = attached ? <StoryMedia story={story} onPlaybackEnd={onPlaybackEnd} /> : null;
+  // where the one attachment of an older story stands: after its last line, as it always did
+  const at = attached ? mediaPlacement(story, blocks.length) : -1;
+  const older = attached ? (
+    <StoryMedia
+      kind={story.media_kind}
+      url={story.media_url}
+      uri={story.media_file_uri}
+      title={story.title}
+      onPlaybackEnd={onPlaybackEnd}
+    />
+  ) : null;
 
   return (
     <article className="flex flex-col gap-4">
@@ -41,16 +49,27 @@ export default function StoryCard({ story, onPlaybackEnd }) {
         </div>
       ) : null}
 
-      {lines.map((line, index) => (
+      {blocks.map((block, index) => (
         <React.Fragment key={index}>
-          {index === at ? media : null}
-          <p className="whitespace-pre-wrap font-body text-[15px] leading-relaxed text-foreground">
-            {line}
-          </p>
+          {index === at ? older : null}
+
+          {block.kind === "text" ? (
+            <p className="whitespace-pre-wrap font-body text-[15px] leading-relaxed text-foreground">
+              {block.text}
+            </p>
+          ) : (
+            <StoryMedia
+              kind={block.kind === "link" ? "link" : block.mediaKind}
+              url={block.url}
+              uri={block.uri}
+              title={story.title}
+              onPlaybackEnd={onPlaybackEnd}
+            />
+          )}
         </React.Fragment>
       ))}
 
-      {media && at >= lines.length ? media : null}
+      {older && at >= blocks.length ? older : null}
 
       {story.links?.length ? (
         <div className="flex flex-col gap-2 border-t border-border pt-3">

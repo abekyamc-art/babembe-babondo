@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { stripStoryMarks } from "@/lib/storyMarks";
 
 /**
  * The admin's own stories, on the app's side.
@@ -83,7 +84,7 @@ export function storyBody(row) {
   const about = [tags, media, links ? `${links} link${links > 1 ? "s" : ""}` : "", state]
     .filter(Boolean)
     .join(" · ");
-  const words = String(row?.text || "").replace(/\s+/g, " ").slice(0, 140);
+  const words = stripStoryMarks(row?.text).replace(/\s+/g, " ").slice(0, 140);
   return [about, words].filter(Boolean).join(" — ");
 }
 
@@ -110,33 +111,6 @@ export async function findStory(query) {
   } catch (err) {
     return null;
   }
-}
-
-/**
- * Where a story's own picture or video is opened from. An uploaded one lives in the app's private
- * storage, so it is opened through a short-lived link that only this device is given; a link the
- * admin pasted is opened where it already stands.
- */
-export async function storyMediaUrl(story) {
-  if (!story) return "";
-  if (story.media_url) return story.media_url;
-  if (!story.media_file_uri) return "";
-  try {
-    const { signed_url } = await base44.integrations.Core.CreateFileSignedUrl({
-      file_uri: story.media_file_uri,
-    });
-    return signed_url || "";
-  } catch (err) {
-    return "";
-  }
-}
-
-/** The telling's own lines, each one a place the attached thing can stand after. */
-export function storyLines(text) {
-  return String(text ?? "")
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
 }
 
 /**

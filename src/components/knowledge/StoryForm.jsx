@@ -1,14 +1,15 @@
 import React, { useRef, useState } from "react";
-import { FileUp, Loader2, X } from "lucide-react";
+import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { isCompleteStory, storyLines } from "@/lib/stories";
+import { isCompleteStory } from "@/lib/stories";
+import { linkMark, mediaMark } from "@/lib/storyMarks";
 
 // What kind of thing the chosen file is, so the story knows how to show it.
 const kindOfFile = (type) =>
   type?.startsWith("video") ? "video" : type?.startsWith("audio") ? "audio" : "image";
 
 // A pasted address is read for what it carries: a picture, a video or an audio recording is shown
-// in the app, and anything else is opened where it already stands.
+// inside the story itself, and anything else stands as a link opened where it already is.
 const kindOfLink = (url) => {
   if (/\.(png|jpe?g|gif|webp|avif|bmp)(\?|#|$)/i.test(url)) return "image";
   if (/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(url)) return "video";
@@ -16,17 +17,71 @@ const kindOfLink = (url) => {
   return "link";
 };
 
-const MEDIA_WORD = { image: "Picture", video: "Video", audio: "Audio" };
+const withScheme = (value) => {
+  const link = String(value || "").trim();
+  if (!link) return "";
+  return /^https?:\/\//i.test(link) ? link : `https://${link}`;
+};
+
+const MEDIA_WORD = { image: "Picture", video: "Video", audio: "Audio", link: "Link" };
 
 export default function StoryForm({ draft, editing, busy, onChange, onSave, onCancel }) {
   const inputRef = useRef(null);
+  const textRef = useRef(null);
+  // where the mark goes: the spot the sign was typed at, so a slow upload never moves it
+  const spotRef = useRef(null);
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [link, setLink] = useState("");
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState("");
   const ready = isCompleteStory(draft);
+  const older = draft.media_kind && draft.media_kind !== "none" ? draft.media_kind : "";
 
-  // A picture, a video or an audio recording is uploaded to the app's own private storage: what is
-  // saved is a reference to it, and it is opened for a person through a short-lived link, never
-  // publicly.
+  /** The writing keeps its place: a mark arriving late never pulls the caret away. */
+  const place = (spot) => {
+    const node = textRef.current;
+    if (!node) return;
+    requestAnimationFrame(() => {
+      node.focus();
+      node.setSelectionRange(spot, spot);
+    });
+  };
+
+  /** The mark stands exactly where its sign was typed, between the words around it. */
+  const putMark = (mark) => {
+    const current = String(draft.text || "");
+    const at = spotRef.current;
+    const spot = at === null || at === undefined ? current.length : Math.min(at, current.length);
+    onChange({ text: current.slice(0, spot) + mark + current.slice(spot) });
+    spotRef.current = null;
+    place(spot + mark.length);
+  };
+
+  // # calls the picker and * calls the link box. Neither sign is text: it is taken out as it is
+  // typed, and what it brought stands in its place — even before a file has been chosen.
+  const onStoryChange = (event) => {
+    const value = event.target.value;
+    const caret = event.target.selectionStart ?? value.length;
+    const sign = value[caret - 1];
+    // only a sign that was typed by hand calls anything: a paragraph pasted with a # in it stays text
+    const typed = value.length === String(draft.text || "").length + 1;
+    if (!typed || (sign !== "#" && sign !== "*")) {
+      onChange({ text: value });
+      return;
+    }
+    spotRef.current = caret - 1;
+    onChange({ text: value.slice(0, caret - 1) + value.slice(caret) });
+    place(caret - 1);
+    if (sign === "#") {
+      inputRef.current?.click();
+    } else {
+      setLink("");
+      setLinkOpen(true);
+    }
+  };
+
+  // A chosen picture, video or audio recording goes to the app's own private storage, and its mark
+  // is written where the # stood: it is opened later through a short-lived link, never publicly.
   const take = async (event) => {
     const file = event.target.files?.[0];
     event.target.value = "";
@@ -36,45 +91,26 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
     setError("");
     try {
       const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
-      onChange({
-        media_file_uri: file_uri,
-        media_kind: kindOfFile(file.type),
-        media_url: "",
-      });
+      putMark(mediaMark(kindOfFile(file.type), file_uri));
     } catch (err) {
-      setError("That file couldn't be uploaded — try again, or paste a link instead.");
+      setError("That file couldn't be uploaded — try again, or type * to paste a link instead.");
     } finally {
       setUploading(false);
     }
   };
 
-  const clearMedia = () => onChange({ media_file_uri: "", media_url: "", media_kind: "none" });
-
-  const takeLink = (value) => {
-    const link = value.trim();
-    onChange({
-      media_url: link,
-      media_kind: link ? kindOfLink(link) : "none",
-      media_file_uri: "",
-    });
+  const putLink = () => {
+    const url = withScheme(link);
+    if (!url) return;
+    const kind = kindOfLink(url);
+    putMark(kind === "link" ? linkMark(url) : mediaMark(kind, url));
+    setLink("");
+    setLinkOpen(false);
   };
 
-  const media = draft.media_file_uri ? `${MEDIA_WORD[draft.media_kind] || "File"} uploaded` : "";
-  const attached = !!draft.media_kind && draft.media_kind !== "none";
-
-  // Where the attached thing stands inside the telling, as the spots a person can point at: in
-  // front of it, after one of its lines, or at its end.
-  const lines = storyLines(draft.text);
-  const spots = [
-    { value: 0, label: "Before it" },
-    ...lines.slice(0, 12).map((line, index) => ({
-      value: index + 1,
-      label: `After ${index + 1}`,
-      hint: line.slice(0, 48),
-    })),
-    { value: null, label: "At the end" },
-  ];
-  const placed = draft.media_after ?? null;
+  // the one attachment an older story carries: it still shows at the story's end until it is taken out
+  const dropOlder = () =>
+    onChange({ media_kind: "none", media_url: "", media_file_uri: "", media_after: null });
 
   return (
     <div className="knowledge-form">
@@ -91,12 +127,73 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
       <label className="knowledge-field">
         <span className="knowledge-label">The story</span>
         <textarea
+          ref={textRef}
           value={draft.text || ""}
-          placeholder="Andika hadithi hapa — ndiyo inayosomwa na kuonyeshwa kwa mtu"
-          onChange={(event) => onChange({ text: event.target.value })}
+          placeholder={"Andika hadithi hapa — ndiyo inayosomwa na kuonyeshwa kwa mtu\n\n# hapa — picha, video au sauti\n* hapa — kiungo"}
+          onChange={onStoryChange}
           className="account-area knowledge-area"
         />
       </label>
+
+      <input
+        ref={inputRef}
+        type="file"
+        accept="image/*,video/*,audio/*"
+        onChange={take}
+        className="hidden"
+      />
+
+      <span className="knowledge-meter-text">
+        While writing: # puts a picture, video or audio where you type it · * pastes a link there.
+        You can do it as many times as you like in one story.
+      </span>
+
+      {uploading ? (
+        <p className="knowledge-meter-text">
+          <span className="inline-flex items-center gap-2">
+            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            Uploading — its mark stands where you typed #
+          </span>
+        </p>
+      ) : null}
+
+      {linkOpen ? (
+        <div className="knowledge-field">
+          <span className="knowledge-label">The link</span>
+          <div className="account-edit">
+            <input
+              autoFocus
+              value={link}
+              placeholder="https://…"
+              onChange={(event) => setLink(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter") putLink();
+              }}
+              className="account-input"
+            />
+            <button type="button" onClick={putLink} disabled={!link.trim()} className="account-save">
+              Add
+            </button>
+            <button type="button" onClick={() => setLinkOpen(false)} className="knowledge-cancel">
+              Cancel
+            </button>
+          </div>
+        </div>
+      ) : null}
+
+      {older ? (
+        <div className="knowledge-field">
+          <span className="knowledge-label">An earlier attachment</span>
+          <div className="account-edit">
+            <span className="knowledge-meter-text">
+              Its {MEDIA_WORD[older] || "file"} still shows at the end of the story.
+            </span>
+            <button type="button" onClick={dropOlder} className="knowledge-cancel">
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       <label className="knowledge-field">
         <span className="knowledge-label">Tags</span>
@@ -107,67 +204,6 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
           className="account-input"
         />
       </label>
-
-      <div className="knowledge-field">
-        <span className="knowledge-label">Picture, video, audio or link</span>
-        <div className="knowledge-upload-wrap">
-          <button
-            type="button"
-            onClick={() => inputRef.current?.click()}
-            disabled={busy || uploading}
-            className="knowledge-upload"
-          >
-            {uploading ? (
-              <Loader2 className="h-3.5 w-3.5 animate-spin" />
-            ) : (
-              <FileUp className="h-3.5 w-3.5" />
-            )}
-            {uploading ? "Uploading…" : "Upload a picture, video or audio"}
-          </button>
-          <input
-            ref={inputRef}
-            type="file"
-            accept="image/*,video/*,audio/*"
-            onChange={take}
-            className="hidden"
-          />
-          {media ? (
-            <button type="button" onClick={clearMedia} className="knowledge-cancel">
-              {media} — remove
-            </button>
-          ) : null}
-        </div>
-        <input
-          value={draft.media_url || ""}
-          placeholder="Or paste a link — https://…"
-          onChange={(event) => takeLink(event.target.value)}
-          className="account-input"
-        />
-      </div>
-
-      {attached ? (
-        <div className="knowledge-field">
-          <span className="knowledge-label">Where it stands in the story</span>
-          <div className="knowledge-switch">
-            {spots.map((spot) => (
-              <button
-                key={String(spot.value)}
-                type="button"
-                title={spot.hint || ""}
-                onClick={() => onChange({ media_after: spot.value })}
-                className={`knowledge-tab ${spot.value === placed ? "is-active" : ""}`}
-              >
-                {spot.label}
-              </button>
-            ))}
-          </div>
-          <span className="knowledge-meter-text">
-            {lines.length > 12
-              ? "It can stand after your first twelve lines, or at the end."
-              : "Choose the line your picture, video, audio or link should follow."}
-          </span>
-        </div>
-      ) : null}
 
       <label className="knowledge-field">
         <span className="knowledge-label">Reference links</span>
@@ -193,7 +229,12 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
       {error ? <p className="knowledge-error">{error}</p> : null}
 
       <div className="knowledge-form-actions">
-        <button type="button" onClick={onSave} disabled={busy || uploading || !ready} className="account-save">
+        <button
+          type="button"
+          onClick={onSave}
+          disabled={busy || uploading || !ready}
+          className="account-save"
+        >
           {busy ? "Saving…" : editing ? "Save changes" : "Add story"}
         </button>
         {editing ? (

@@ -28,6 +28,15 @@ const STORY_ASKS = /\b(hadithi|historia|stori|story|stories|habari|maelekezo|mae
 const ASK_BAR = 3;
 const PLAIN_BAR = 8;
 
+// The story text carries the marks the admin writes for their own pictures, videos, audio
+// recordings and links. What is matched, and what is told, is the telling itself.
+const MARK_RE = /\[\[(?:image|video|audio|link):[^\]]+\]\]/g;
+
+/** The telling without its marks: what a story is read for, and answered from. */
+function plainStoryText(value) {
+  return String(value ?? "").replace(MARK_RE, " ").replace(/\s{2,}/g, " ");
+}
+
 function tokens(value) {
   const found = String(value ?? "").toLowerCase().match(/[\p{L}\p{N}']+/gu) || [];
   return found.filter((token) => token.length > 2 && !STOPWORDS.has(token));
@@ -40,7 +49,7 @@ export function storyScore(story, query) {
 
   const title = String(story?.title ?? "").toLowerCase();
   const tags = (Array.isArray(story?.tags) ? story.tags : []).join(" ").toLowerCase();
-  const text = String(story?.text ?? "").toLowerCase();
+  const text = plainStoryText(story?.text).toLowerCase();
   const phrase = String(query ?? "").trim().toLowerCase();
 
   let score = 0;
@@ -84,7 +93,7 @@ const NOTE_TEXT = 4000;
 /** The admin's story as the note the assistant answers from, with nothing added to it. */
 export function storyNote(story) {
   const title = String(story?.title ?? "").trim();
-  const text = String(story?.text ?? "").trim().slice(0, NOTE_TEXT);
+  const text = plainStoryText(story?.text).trim().slice(0, NOTE_TEXT);
   if (!text) return "";
   return (
     "\nHADITHI YA MWENYEJI — a story the admin of this app has written and saved:\n" +
