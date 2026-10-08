@@ -23,6 +23,10 @@ const STOPWORDS = new Set([
 // The words a person uses to ask for a story, in every language the app serves.
 const STORY_ASKS = /\b(hadithi|historia|stori|story|stories|habari|maelekezo|maelezo|legend|tale|myth)\b/i;
 
+// The words a person uses to ask for a song or a video, in every language the app serves: a turn
+// carrying one of these can be met by the story the piece was saved with on its title alone.
+const MEDIA_ASKS = /\b(wimbo|nyimbo|muziki|muzikiwa|music|song|songs|video|videos|kanda|clip|album|playlist|play|watch)\b/i;
+
 // A turn that plainly asks for a story may be met by a story on one word alone; an ordinary turn
 // has to speak about the story much more before one is put in front of it.
 const ASK_BAR = 3;
@@ -49,6 +53,9 @@ export function storyScore(story, query) {
 
   const title = String(story?.title ?? "").toLowerCase();
   const tags = (Array.isArray(story?.tags) ? story.tags : []).join(" ").toLowerCase();
+  // the names the artist published with the story — a song, a video, the channel itself — find the
+  // story they were saved with exactly as its title does
+  const works = workNames(story).toLowerCase();
   const text = plainStoryText(story?.text).toLowerCase();
   const phrase = String(query ?? "").trim().toLowerCase();
 
@@ -57,16 +64,58 @@ export function storyScore(story, query) {
   for (const token of wanted) {
     if (title.includes(token)) score += 4;
     else if (tags.includes(token)) score += 4;
+    else if (works.includes(token)) score += 4;
     else if (text.includes(token)) inText += 1;
   }
   // a long telling mentions many words, so its own share is capped and never wins on length alone
   score += Math.min(inText, 4) * 1.5;
 
   if (phrase.length > 5) {
-    if (title.includes(phrase)) score += 8;
+    if (title.includes(phrase) || works.includes(phrase)) score += 8;
     else if (text.includes(phrase)) score += 4;
   }
   return score;
+}
+
+/** Every name published with a story: the artist's own pieces, and the channel they stand on. */
+function workNames(story) {
+  const names = (Array.isArray(story?.artist_links) ? story.artist_links : [])
+    .map((entry) => String(entry?.name ?? ""))
+    .filter(Boolean);
+  if (story?.channel_url) names.push(String(story.channel_url));
+  return names.join(" ");
+}
+
+/**
+ * The one piece of the artist's a turn names, when it names one: the song or video whose own name
+ * the turn carries. One shared word is not a name being asked for, so a match has to carry the whole
+ * name or most of it — and nothing at all comes back when the turn names no piece.
+ */
+export function matchedArtistLink(story, query) {
+  const wanted = Array.from(new Set(tokens(query)));
+  if (!wanted.length) return null;
+
+  const phrase = String(query ?? "").trim().toLowerCase();
+  let best = null;
+  let top = 0;
+
+  for (const entry of Array.isArray(story?.artist_links) ? story.artist_links : []) {
+    const name = String(entry?.name ?? "").trim();
+    if (!name) continue;
+    const lower = name.toLowerCase();
+    let score = 0;
+    for (const token of wanted) {
+      if (lower.includes(token)) score += 4;
+    }
+    if (phrase.length > 5 && lower.includes(phrase)) score += 8;
+    if (score > top) {
+      top = score;
+      best = entry;
+    }
+  }
+
+  if (!best || top < 8) return null;
+  return { name: String(best.name ?? ""), url: String(best.url ?? "") };
 }
 
 /** The nearest story to a turn, or null when none of them is close enough to be the one asked for. */
@@ -74,7 +123,10 @@ export function bestStory(rows, query) {
   const list = Array.isArray(rows) ? rows : [];
   if (!list.length) return null;
 
-  const asked = STORY_ASKS.test(String(query ?? ""));
+  // a turn that asks for a story, or that asks for a song or a video, may be met by a story on one
+  // word alone; an ordinary turn has to speak about the story much more before one is put in front of it
+  const said = String(query ?? "");
+  const asked = STORY_ASKS.test(said) || MEDIA_ASKS.test(said);
   let best = null;
   let top = 0;
   for (const row of list) {
@@ -84,7 +136,12 @@ export function bestStory(rows, query) {
       best = row;
     }
   }
-  return top >= (asked ? ASK_BAR : PLAIN_BAR) ? best : null;
+  if (top < (asked ? ASK_BAR : PLAIN_BAR)) return null;
+
+  // The one piece the turn named rides with the story, so the screen can put it in front of the
+  // person and play it there, instead of leaving them to find it among everything the artist published.
+  const named = matchedArtistLink(best, query);
+  return named ? { ...best, matched_media: named } : best;
 }
 
 // The longest telling handed to the assistant in one turn; the whole story stays saved in the app.
@@ -101,6 +158,45 @@ export function storyNote(story) {
     "language the person is using, and never invent a part the admin has not written. " +
     "The story as the admin saved it:\n" +
     (title ? `"${title}"\n` : "") +
-    `${text}\n`
+    `${text}\n` +
+    artistNote(story)
+  );
+}
+
+// How much of the artist's own work rides with the telling, and how many of their pieces it names.
+const ARTIST_ROOM = 1600;
+const ARTIST_ROWS = 16;
+
+/**
+ * The artist's own channel and the names they published, written under the telling.
+ *
+ * A person asking about a song, a video or the channel by its own name is asking about the same
+ * artist the story is about: these names are the artist's own, saved with the story, so the answer
+ * reaches them and never calls one of them unknown.
+ */
+function artistNote(story) {
+  const channel = String(story?.channel_url ?? "").trim();
+  const rows = (Array.isArray(story?.artist_links) ? story.artist_links : [])
+    .map((entry) => ({
+      name: String(entry?.name ?? "").trim(),
+      url: String(entry?.url ?? "").trim(),
+    }))
+    .filter((entry) => entry.name || entry.url)
+    .slice(0, ARTIST_ROWS);
+  if (!channel && !rows.length) return "";
+
+  let body = channel ? `- channel: ${channel}\n` : "";
+  for (const row of rows) {
+    const line = `- ${row.name || "a piece"}: ${row.url}\n`;
+    if (body.length + line.length > ARTIST_ROOM) break;
+    body += line;
+  }
+
+  return (
+    "\nKAZI ZA MWENYEJI — the channel and the names the artist has published, saved with this story:\n" +
+    body +
+    "A person who asks about any of these names — a song, a video, the channel itself — is asking " +
+    "about this same artist: answer from the story above, name the piece exactly as it is written " +
+    "here, and never say it is unknown.\n"
   );
 }

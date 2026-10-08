@@ -7,8 +7,10 @@
  * and the parts he has given since.
  */
 
-// the words a person uses to ask for a story, in the languages he serves
-const STORY_ASKS = /\b(hadithi|historia|stori|story|stories|habari|news|maelezo|description|salamu|greeting)\b/i;
+// the words a person uses to ask for a story, or for a song or a video the artist published, in the
+// languages he serves — a turn carrying one of these is put to the admin's own saved library
+const STORY_ASKS =
+  /\b(hadithi|historia|stori|story|stories|habari|news|maelezo|description|salamu|greeting|wimbo|nyimbo|muziki|music|song|songs|video|videos|kanda|clip)\b/i;
 // the words that ask for a different story rather than the next part of this one
 const FRESH_ASKS = /\b(nyingine|ingine|mpya|different|new|another)\b/i;
 

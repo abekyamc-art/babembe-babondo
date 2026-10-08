@@ -50,7 +50,7 @@
     },
     "channel_url": {
       "type": "string",
-      "description": "The artist's own channel \u2014 their YouTube channel address, or the address of the page where everything they publish is gathered. It stands in a place of its own in the story, apart from the telling and from every other link."
+      "description": "The artist's own channel \u2014 their YouTube channel address, or the address of the page where everything they publish is gathered. It is read to bring in the videos the artist has published, and it stands in a place of its own in the story, apart from the telling and from every other link."
     },
     "artist_links": {
       "type": "array",
@@ -65,12 +65,25 @@
           "url": {
             "type": "string",
             "description": "The address the entry opens: the video on YouTube, or the piece wherever it was published."
+          },
+          "source": {
+            "type": "string",
+            "enum": [
+              "channel",
+              "admin"
+            ],
+            "default": "admin",
+            "description": "Where the entry came from: \"channel\" means it was read from the artist's own channel and is kept in step with it, and \"admin\" means the admin wrote it in themselves, so it stays whatever the channel does."
           }
         },
         "required": [
           "url"
         ]
       }
+    },
+    "channel_synced_at": {
+      "type": "string",
+      "description": "ISO time the artist's channel was last read for its published videos. It is set when a channel is read and cleared when the address changes, so the list is read again rather than left standing from an older channel."
     },
     "published": {
       "type": "boolean",

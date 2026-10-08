@@ -1,6 +1,9 @@
 import React from "react";
 import { ExternalLink } from "lucide-react";
 import { hostOf } from "@/lib/stories";
+import { videoKey } from "@/lib/channelSync";
+import { youtubeVideo } from "@/lib/youtube";
+import YouTubePlayer from "@/components/story/YouTubePlayer";
 
 /**
  * The artist's own places: their channel, standing on its own, and every video or piece they have
@@ -11,9 +14,24 @@ import { hostOf } from "@/lib/stories";
  * other. An entry opens where it already stands, and what takes the person away from the talk hands
  * the talk back.
  */
-export default function ArtistLinks({ channel = "", links = [], onOpen }) {
-  const rows = (Array.isArray(links) ? links : []).filter((entry) => entry?.url);
+export default function ArtistLinks({
+  channel = "",
+  links = [],
+  matched = null,
+  onOpen,
+  onPlaybackEnd,
+}) {
+  const all = (Array.isArray(links) ? links : []).filter((entry) => entry?.url);
+  // the piece the person asked about stands first, so it is the one they meet
+  const named = matched?.url
+    ? all.find((entry) => videoKey(entry.url) === videoKey(matched.url))
+    : null;
+  const rows = named ? [named, ...all.filter((entry) => entry !== named)] : all;
   if (!channel && !rows.length) return null;
+
+  // when the piece that was asked for is a video it is played right here, with its own sound; the
+  // story is handed back the moment the playing is over. Anything else opens where it stands.
+  const told = named ? youtubeVideo(named.url) : null;
 
   const open = (url) => {
     if (onOpen) {
@@ -45,7 +63,23 @@ export default function ArtistLinks({ channel = "", links = [], onOpen }) {
       {rows.length ? (
         <div className="flex flex-col gap-2">
           <span className={head}>Published by the artist</span>
-          {rows.map((entry, index) => (
+
+          {named && told ? (
+            <div className="flex flex-col gap-2">
+              <span className="font-body text-[12px] text-muted-foreground">
+                {named.name || "The piece you asked about"} — playing here.
+              </span>
+              <YouTubePlayer
+                url={named.url}
+                title={named.name || ""}
+                onPlaybackEnd={onPlaybackEnd}
+              />
+            </div>
+          ) : null}
+
+          {rows
+            .filter((entry) => !(named && told && entry === named))
+            .map((entry, index) => (
             <button
               key={`${entry.url}-${index}`}
               type="button"

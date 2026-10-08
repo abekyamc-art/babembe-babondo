@@ -233,6 +233,7 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
 
       <StoryLinks
         channel={draft.channel}
+        syncedAt={draft.channel_synced_at}
         links={links}
         onChange={onChange}
       />

@@ -20,6 +20,7 @@ export function emptyStory() {
     media_file_uri: "",
     links: "",
     channel: "",
+    channel_synced_at: "",
     artist_links: [],
     published: true,
     // where the attached thing stands in the telling; unset keeps it at the end, as every story did
@@ -38,8 +39,13 @@ export function storyDraft(row) {
     media_file_uri: row?.media_file_uri || "",
     links: (Array.isArray(row?.links) ? row.links : []).join("\n"),
     channel: row?.channel_url || "",
+    channel_synced_at: row?.channel_synced_at || "",
     artist_links: (Array.isArray(row?.artist_links) ? row.artist_links : [])
-      .map((entry) => ({ name: entry?.name || "", url: entry?.url || "" }))
+      .map((entry) => ({
+        name: entry?.name || "",
+        url: entry?.url || "",
+        source: entry?.source === "channel" ? "channel" : "admin",
+      }))
       .filter((entry) => entry.url),
     published: row?.published !== false,
     media_after: row?.media_after ?? null,
@@ -63,10 +69,13 @@ export function storyFields(draft) {
       .map((link) => link.trim())
       .filter(Boolean),
     channel_url: String(draft?.channel || "").trim(),
+    channel_synced_at: String(draft?.channel_synced_at || "").trim(),
     artist_links: (Array.isArray(draft?.artist_links) ? draft.artist_links : [])
       .map((entry) => ({
         name: String(entry?.name || "").trim(),
         url: String(entry?.url || "").trim(),
+        // the channel's own entries are kept in step with it; anything written in by hand stays put
+        source: entry?.source === "channel" ? "channel" : "admin",
       }))
       .filter((entry) => entry.url),
     published: draft?.published !== false,

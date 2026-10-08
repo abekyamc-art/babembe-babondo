@@ -3,6 +3,7 @@ import { alikeTerms, skeleton, tight } from "../../shared/soundsAlike.ts";
 import { bankRows, knowledgeStamp, trimToLines } from "../../shared/wordBank.ts";
 import { docKnowledgeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
+import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { keyLine, keyMatches } from "../../shared/answerKey.ts";
 import { ANSWER_LANGUAGE } from "../../shared/languageRules.ts";
 
@@ -25,6 +26,12 @@ const RULES_ROOM = 9000;
 const DOC_ROOM = 6000;
 // a live turn asks on every sound, so the document rides lighter there than it does with a typed one
 const DOC_ROOM_LIVE = 3000;
+
+// The catalogue of the admin's own stories — each story's name, the artist's channel, and the names
+// of everything published with it — takes a small share of the note of its own, so a person who asks
+// about a song or a video by its own name is answered about that name instead of being told nothing
+// is held.
+const STORY_ROOM = 1500;
 
 // A turn's own language line, and the line a greeting is answered from, ride at the head of the
 // note, ahead of every other part.
@@ -680,17 +687,22 @@ export default async function (req: Request): Promise<Response> {
       const heard = payload.heard.trim().slice(0, MAX_QUERY);
       // the answer key comes first in the note, so the saved answer is what the turn opens with,
       // and the words closest to what was heard follow it
-      const [words, keys, known] = await Promise.all([
+      const [words, keys, known, tales] = await Promise.all([
         bankRows(base44),
         keyRowsFor(base44),
         docKnowledgeBlock(base44, DOC_ROOM_LIVE),
+        storyCatalogueBlock(base44, STORY_ROOM),
       ]);
       const liked = likeSection(words, heard);
       const lang = turnLanguage(heard, liked.near, false);
       const greeting = isGreeting(heard, liked.near);
       return Response.json({
         note:
-          turnHead(lang, greeting) + keySection([...keys, ...words], heard) + liked.text + known,
+          turnHead(lang, greeting) +
+          keySection([...keys, ...words], heard) +
+          liked.text +
+          known +
+          tales,
         lang,
         greeting,
         // a turn spoken in Kibembe that still left a place the saved words do not hold: the words
@@ -742,11 +754,13 @@ export default async function (req: Request): Promise<Response> {
     // have their own sections above, and this is everything else they wrote — their notes, their
     // questions and answers, and whatever they filed under a heading of their own name.
     const known = await docKnowledgeBlock(base44, DOC_ROOM);
+    // the catalogue of every story, and of every name published with one, rides with the question too
+    const tales = await storyCatalogueBlock(base44, STORY_ROOM);
 
     const body = like + qa.text + world.text + tally.section + say;
     let note =
-      body || key || rulesSection || head || known
-        ? OPENING + head + GUIDE + key + rulesSection + body + known + FALLBACK
+      body || key || rulesSection || head || known || tales
+        ? OPENING + head + GUIDE + key + rulesSection + body + known + tales + FALLBACK
         : "";
 
     // a question is answered from the admin's long texts too, through the few

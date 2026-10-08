@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Plus, X } from "lucide-react";
+import { Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { hostOf } from "@/lib/stories";
+import { fromChannel, syncStoryChannel } from "@/lib/channelSync";
 
 /**
  * The artist's own places, written into the story: the address of their channel, and then the videos
@@ -16,10 +17,53 @@ const withScheme = (value) => {
   return /^https?:\/\//i.test(link) ? link : `https://${link}`;
 };
 
-export default function StoryLinks({ channel = "", links = [], onChange }) {
+export default function StoryLinks({ channel = "", syncedAt = "", links = [], onChange }) {
   const [name, setName] = useState("");
   const [url, setUrl] = useState("");
+  const [syncing, setSyncing] = useState(false);
+  const [note, setNote] = useState("");
+  const [failed, setFailed] = useState(false);
   const rows = Array.isArray(links) ? links : [];
+
+  /**
+   * One reading of the artist's channel. Every video the channel has published comes in with the
+   * name the artist gave it, the videos you wrote in yourself stay exactly as they are, and a video
+   * the artist has taken down goes with it. A channel that could not be read changes nothing.
+   */
+  const sync = async () => {
+    const target = withScheme(channel);
+    if (!target) {
+      setFailed(true);
+      setNote("Write the channel address first.");
+      return;
+    }
+
+    setSyncing(true);
+    setFailed(false);
+    setNote("");
+    try {
+      const read = await syncStoryChannel({ channel: target, entries: rows });
+      if (!read.ok) {
+        setFailed(true);
+        setNote(
+          read.reason ||
+            "The channel could not be read just now — the videos you have stay as they are."
+        );
+        return;
+      }
+      onChange({ artist_links: read.entries, channel_synced_at: read.synced_at });
+      setNote(
+        read.count
+          ? `${read.count} video${read.count > 1 ? "s" : ""} came from the channel.`
+          : "The channel has no published videos yet."
+      );
+    } catch (err) {
+      setFailed(true);
+      setNote("The channel could not be read just now — the videos you have stay as they are.");
+    } finally {
+      setSyncing(false);
+    }
+  };
 
   const add = () => {
     const target = withScheme(url);
@@ -38,12 +82,32 @@ export default function StoryLinks({ channel = "", links = [], onChange }) {
       <input
         value={channel}
         placeholder="https://www.youtube.com/@jina-lako"
-        onChange={(event) => onChange({ channel: event.target.value })}
+        // a new address is read afresh: the time of the last reading is cleared with it
+        onChange={(event) => onChange({ channel: event.target.value, channel_synced_at: "" })}
         className="account-input"
       />
+      <div className="account-edit">
+        <button type="button" onClick={sync} disabled={syncing} className="account-save">
+          <span className="inline-flex items-center gap-1.5">
+            {syncing ? (
+              <Loader2 className="h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <RefreshCw className="h-3.5 w-3.5" />
+            )}
+            {syncing ? "Reading the channel…" : "Read the channel"}
+          </span>
+        </button>
+        <span className="knowledge-meter-text">
+          {syncedAt ? `Last read: ${new Date(syncedAt).toLocaleString()}` : "Not read yet"}
+        </span>
+      </div>
+      {note ? (
+        <span className={failed ? "knowledge-error" : "knowledge-meter-text"}>{note}</span>
+      ) : null}
       <span className="knowledge-meter-text">
         Where everything they do is gathered — the channel opens on its own, apart from the story and
-        from its reference links.
+        from its reference links. Read it and every video the artist has published comes in by itself,
+        with the name they gave it, and is kept in step with the channel.
       </span>
 
       <span className="knowledge-label">Videos and pieces published</span>
@@ -76,7 +140,9 @@ export default function StoryLinks({ channel = "", links = [], onChange }) {
         </button>
       </div>
       <span className="knowledge-meter-text">
-        One at a time: name it, paste its address, and it takes its own place in the story.
+        One at a time: name it, paste its address, and it takes its own place in the story. What the
+        channel has published comes in by itself; anything you write in here stays beside it, whatever
+        the channel does.
       </span>
 
       {rows.length ? (
@@ -87,7 +153,10 @@ export default function StoryLinks({ channel = "", links = [], onChange }) {
                 <span className="knowledge-title">
                   {entry.name || hostOf(entry.url)}
                 </span>
-                <span className="knowledge-text">{hostOf(entry.url)}</span>
+                <span className="knowledge-text">
+                  {hostOf(entry.url)}
+                  {fromChannel(entry) ? " · read from the channel" : " · written in by you"}
+                </span>
               </span>
               <span className="knowledge-tools">
                 <button

@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { emptyStory, storyDraft, storyFields } from "@/lib/stories";
+import { channelStale, syncStoryChannel } from "@/lib/channelSync";
 import StoryForm from "@/components/knowledge/StoryForm";
 import StoryEntry from "@/components/knowledge/StoryEntry";
 
@@ -11,30 +12,46 @@ export default function StoriesPanel() {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [ready, setReady] = useState(false);
+  const [ask, setAsk] = useState("");
+
+  // The list carries only what it shows: the telling itself stays on the server until it is opened.
+  // A search is put to the whole library on the server, so a story saved long ago is found by its
+  // title or by one of the words it is filed under, and can be opened in the form and put right.
+  const load = async (text) => {
+    const wanted = String(text || "").trim();
+    const query = wanted
+      ? {
+          $or: [
+            { title: { $regex: wanted, $options: "i" } },
+            { tags: { $regex: wanted, $options: "i" } },
+          ],
+        }
+      : {};
+
+    const page = await base44.entities.Story.filter(query, {
+      sort: "-updated_date",
+      limit: 50,
+      fields: [
+        "title",
+        "text",
+        "tags",
+        "media_kind",
+        "links",
+        "channel_url",
+        "channel_synced_at",
+        "artist_links",
+        "published",
+      ],
+    });
+    return page?.items || [];
+  };
 
   useEffect(() => {
     let alive = true;
-    // the list carries only what it shows: the telling itself stays on the server until it is opened
-    base44.entities.Story.filter(
-      {},
-      {
-        sort: "-updated_date",
-        limit: 50,
-        fields: [
-          "title",
-          "text",
-          "tags",
-          "media_kind",
-          "links",
-          "channel_url",
-          "artist_links",
-          "published",
-        ],
-      }
-    )
-      .then((page) => {
+    load("")
+      .then((items) => {
         if (!alive) return;
-        setRows(page?.items || []);
+        setRows(items);
         setReady(true);
       })
       .catch(() => {
@@ -70,9 +87,36 @@ export default function StoriesPanel() {
     }
   };
 
+  const find = async () => {
+    if (busy) return;
+    setBusy("find");
+    setError("");
+    try {
+      setRows(await load(ask));
+    } catch (err) {
+      setError("Could not search your stories.");
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const all = async () => {
+    setAsk("");
+    if (busy) return;
+    setBusy("find");
+    setError("");
+    try {
+      setRows(await load(""));
+    } catch (err) {
+      setError("Could not load your stories.");
+    } finally {
+      setBusy("");
+    }
+  };
+
   const save = async () => {
     if (busy) return;
-    const fields = storyFields(draft);
+    let fields = storyFields(draft);
     if (!fields.title || !fields.text) {
       setError("A story needs a title and the telling itself.");
       return;
@@ -81,6 +125,19 @@ export default function StoriesPanel() {
     setBusy("save");
     setError("");
     try {
+      // A story whose channel has never been read — or was last read more than a day ago — has the
+      // artist's published videos brought in again before it is saved, so the list on screen is the
+      // channel's own list. A channel that could not be read leaves the saved list exactly as it is.
+      if (fields.channel_url && channelStale(draft.channel_synced_at)) {
+        const read = await syncStoryChannel({
+          channel: fields.channel_url,
+          entries: fields.artist_links,
+        });
+        if (read.ok) {
+          fields = { ...fields, artist_links: read.entries, channel_synced_at: read.synced_at };
+        }
+      }
+
       if (editingId) {
         const saved = await base44.entities.Story.update(editingId, fields);
         setRows((prev) => prev.map((row) => (row.id === editingId ? saved : row)));
@@ -117,7 +174,8 @@ export default function StoriesPanel() {
         A story you save here is your own telling: the assistant answers from it, and a person meets
         it on screen — the telling, its picture, video or audio recording, and your links — when a
         call turns to what you wrote. Playing what you attached ends their call, so nothing is heard
-        over it.
+        over it. Give a story the artist's channel and the videos they have published come in by
+        themselves and are kept in step. Every story you have saved stays editable, however old.
       </p>
 
       <StoryForm
@@ -130,6 +188,33 @@ export default function StoriesPanel() {
       />
 
       {error ? <p className="knowledge-error">{error}</p> : null}
+
+      <div className="knowledge-field">
+        <span className="knowledge-label">Find an old story</span>
+        <div className="account-edit">
+          <input
+            value={ask}
+            placeholder="Its title, or one of its tags"
+            onChange={(event) => setAsk(event.target.value)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter") find();
+            }}
+            className="account-input"
+          />
+          <button type="button" onClick={find} disabled={busy === "find"} className="account-save">
+            {busy === "find" ? "Finding…" : "Find"}
+          </button>
+        </div>
+        {ask.trim() ? (
+          <button type="button" onClick={all} className="knowledge-cancel">
+            Show all your stories again
+          </button>
+        ) : (
+          <span className="knowledge-meter-text">
+            Search the whole library — an old story opens in the form above and can be put right.
+          </span>
+        )}
+      </div>
 
       <div className="account-actions">
         {!ready ? (

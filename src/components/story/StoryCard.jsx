@@ -75,7 +75,9 @@ export default function StoryCard({ story, onPlaybackEnd }) {
       <ArtistLinks
         channel={story.channel_url}
         links={story.artist_links}
+        matched={story.matched_media}
         onOpen={openLink}
+        onPlaybackEnd={onPlaybackEnd}
       />
 
       {story.links?.length ? (

@@ -5,6 +5,7 @@ import { docKnowledgeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { bestStory, storyNote } from "../../shared/storyMatch.ts";
+import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
 
@@ -22,6 +23,9 @@ const RULES_BUDGET = 7000;
 const WORD_BUDGET = 7000;
 // and the rest of the admin's one document — what is not a word and not a rule — rides with them
 const DOC_BUDGET = 6000;
+// and the catalogue of every story — its name and the names published with it — so a person who asks
+// about a song or a video by its own name is answered about that name
+const STORY_ROOM = 1500;
 
 // The admin's own rule book, handed over ahead of the words: how Kibembe is read, pronounced,
 // written and used is decided by it, and every answer follows it.
@@ -109,10 +113,17 @@ export default async function (req) {
     // screen is given.
     const storyPage = await base44.entities.Story.filter(
       { published: true },
-      { sort: '-updated_date', limit: 200, fields: ['title', 'text', 'tags', 'links'] }
+      {
+        sort: '-updated_date',
+        limit: 200,
+        fields: ['title', 'text', 'tags', 'links', 'channel_url', 'artist_links'],
+      }
     );
     const story = bestStory(storyPage?.items || [], message);
     const told = story ? storyNote(story) : '';
+    // the catalogue of every story, and of every name published with one, rides with the message:
+    // a question about a song, a video or a channel is answered from its own name
+    const tales = await storyCatalogueBlock(base44, STORY_ROOM);
 
     // A request the saved knowledge does not answer — news, a story, who someone is — is looked up
     // on the internet before the answer is written, by the same lookup the app's other assistants
@@ -120,7 +131,7 @@ export default async function (req) {
     // be made at all, is said plainly instead of being answered around.
     const lookup = await lookupForTurn(base44, message);
 
-    const input = [saved, told, lookup.material, `Mtu amesema: ${message}`]
+    const input = [saved, told, tales, lookup.material, `Mtu amesema: ${message}`]
       .filter(Boolean)
       .join('\n');
     console.log(
