@@ -40,6 +40,22 @@
     "merged_at": {
       "type": "string",
       "description": "ISO time the older, separate entries and long texts were gathered into the document. It is set once, so what the admin has since written here is never overwritten by that gathering again."
+    },
+    "source_file_name": {
+      "type": "string",
+      "description": "Name of the document the working copy was last imported from, so the admin can see which file it came out of."
+    },
+    "source_file_uri": {
+      "type": "string",
+      "description": "Private storage reference for that imported document, opened through a short-lived link. It is the whole original file, kept for the admin alone and never read by an AI."
+    },
+    "source_chars": {
+      "type": "number",
+      "description": "How many characters of that file were written into the working copy, so the admin knows how much of a long file the document took."
+    },
+    "source_at": {
+      "type": "string",
+      "description": "ISO time that document was imported."
     }
   },
   "required": [

@@ -119,6 +119,21 @@ export function storyBody(row) {
   return [about, words].filter(Boolean).join(" — ");
 }
 
+// how many of a story's own reference links are drawn under it
+const LINK_ROWS = 12;
+
+/**
+ * The links a story carries, as addresses only: a line that is not one — a note, a scrap of a page,
+ * a heading that was saved in its place — is never drawn as a link, because opening it is an error
+ * and nothing else. What is left is drawn once each, up to the few the story shows.
+ */
+export function storyLinks(links) {
+  const kept = (Array.isArray(links) ? links : [])
+    .map((link) => String(link ?? "").trim())
+    .filter((link) => /^https?:\/\/\S+$/i.test(link));
+  return Array.from(new Set(kept)).slice(0, LINK_ROWS);
+}
+
 /** The host of a link, which is the name it is shown under. */
 export function hostOf(url) {
   try {

@@ -311,6 +311,14 @@ async function view(service: any, state: any, gathered?: any) {
     draft,
     published,
     draft_at: textOf(state?.draft_at),
+    // the file the working copy was last imported from, kept for the admin's own reference: only a
+    // part of a long document fits here, and the whole of it stays openable beside this one
+    source: {
+      name: textOf(state?.source_file_name),
+      uri: textOf(state?.source_file_uri),
+      chars: Number(state?.source_chars) || 0,
+      at: textOf(state?.source_at),
+    },
     published_at: textOf(state?.published_at),
     published_by: textOf(state?.published_by),
     merged_at: textOf(state?.merged_at),
@@ -390,6 +398,31 @@ export default async function (req: Request): Promise<Response> {
       const at = now();
       await service.entities.KnowledgeDoc.update(state.id, { draft_at: at });
       return Response.json(await view(service, { ...state, draft_at: at }));
+    }
+
+    // The document a working copy was imported from, kept on the document's own state row: the file
+    // is stored privately and opened through a short-lived link, so it is never public and is only
+    // ever read by the admin who put it there.
+    if (action === "source") {
+      const source = payload?.source || {};
+      const name = textOf(source?.name).replace(/\s+/g, " ").trim().slice(0, 200);
+      const uri = textOf(source?.file_uri).trim();
+      const chars = Math.max(0, Number(source?.chars) || 0);
+      // a stored file only: this never keeps a web address a caller handed it
+      if (!name || !uri || /^https?:/i.test(uri)) {
+        return Response.json({ error: "That file could not be kept." }, { status: 400 });
+      }
+      const at = now();
+      await service.entities.KnowledgeDoc.update(state.id, {
+        source_file_name: name,
+        source_file_uri: uri,
+        source_chars: chars,
+        source_at: at,
+      });
+      return Response.json({
+        ...(await view(service, state)),
+        source: { name, uri, chars, at },
+      });
     }
 
     if (action === "open") return Response.json(await view(service, state));

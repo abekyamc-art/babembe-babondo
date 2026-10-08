@@ -1,7 +1,8 @@
-import React, { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { Loader2 } from "lucide-react";
 import useKnowledgeDoc from "@/hooks/useKnowledgeDoc";
 import DocStatus from "@/components/knowledge/DocStatus";
+import DocImport from "@/components/knowledge/DocImport";
 
 /**
  * The one knowledge document: everything the AIs must know, in one text, under its own headings.
@@ -13,6 +14,9 @@ import DocStatus from "@/components/knowledge/DocStatus";
 export default function KnowledgeDocPanel({ focus }) {
   const doc = useKnowledgeDoc();
   const areaRef = useRef(null);
+  // while a document is being imported nothing else writes to the working copy: a save or a publish
+  // made in the middle of one would act on half of it
+  const [importing, setImporting] = useState(false);
 
   /**
    * Opening the document where the search found a thing, with the words themselves chosen: the line
@@ -60,6 +64,7 @@ export default function KnowledgeDocPanel({ focus }) {
           ref={areaRef}
           value={doc.text}
           spellCheck={false}
+          readOnly={importing}
           onChange={(event) => doc.setText(event.target.value)}
           placeholder={
             "# WORDS\nole (oh-leh) = hello | greeting said on arriving\n\n# RULES\na = ah, e = eh, i = ee, o = oh, u = oo"
@@ -75,6 +80,8 @@ export default function KnowledgeDocPanel({ focus }) {
         knowledge.
       </span>
 
+      <DocImport doc={doc} onState={setImporting} />
+
       {doc.error ? <p className="knowledge-error">{doc.error}</p> : null}
 
       {doc.busy === "publish" ? (
@@ -88,7 +95,7 @@ export default function KnowledgeDocPanel({ focus }) {
 
       <DocStatus
         doc={doc.doc}
-        busy={doc.busy}
+        busy={importing ? "import" : doc.busy}
         unsaved={doc.unsaved}
         unpublished={doc.unpublished}
         onSave={doc.saveDraft}

@@ -54,6 +54,30 @@ export default function useKnowledgeDoc() {
     }
   };
 
+  // A working copy written back as it stands. An import writes the document this way, a bounded
+  // piece at a time, so a long file is never sent in one lump and each piece that has gone in stays
+  // in even if a later one fails.
+  const writeDraft = async (next) => {
+    const res = await base44.functions.invoke("knowledgeDoc", {
+      action: "saveDraft",
+      draft: next,
+    });
+    const data = res?.data || {};
+    if (data.error) throw new Error(data.error);
+    setDoc(data);
+    setText(String(data.draft || ""));
+    return data;
+  };
+
+  // The document an import came from, kept beside the document for the admin's own reference.
+  const recordSource = async (source) => {
+    const res = await base44.functions.invoke("knowledgeDoc", { action: "source", source });
+    const data = res?.data || {};
+    if (data.error) throw new Error(data.error);
+    setDoc(data);
+    return data;
+  };
+
   return {
     doc,
     text,
@@ -63,6 +87,8 @@ export default function useKnowledgeDoc() {
     ready,
     reload: open,
     saveDraft: () => send("saveDraft"),
+    writeDraft,
+    recordSource,
     publish: () => send("publish"),
     restore: () => send("restore"),
     // what has been typed but not yet saved, and what is saved but not yet approved

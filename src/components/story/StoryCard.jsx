@@ -1,8 +1,8 @@
 import React from "react";
-import { ExternalLink } from "lucide-react";
 import StoryMedia from "@/components/story/StoryMedia";
+import StoryLinks from "@/components/story/StoryLinks";
 import ArtistLinks from "@/components/story/ArtistLinks";
-import { hostOf, mediaPlacement } from "@/lib/stories";
+import { mediaPlacement, storyLinks } from "@/lib/stories";
 import { storyBlocks } from "@/lib/storyMarks";
 
 /**
@@ -80,24 +80,14 @@ export default function StoryCard({ story, onPlaybackEnd }) {
         onPlaybackEnd={onPlaybackEnd}
       />
 
-      {story.links?.length ? (
-        <div className="flex flex-col gap-2 border-t border-border pt-3">
-          <span className="font-body text-[10px] uppercase tracking-[0.16em] text-muted-foreground">
-            Links
-          </span>
-          {story.links.map((link) => (
-            <button
-              key={link}
-              type="button"
-              onClick={() => openLink(link)}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-left font-body text-[13px] text-foreground transition hover:border-accent/50"
-            >
-              <span className="truncate">{hostOf(link)}</span>
-              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            </button>
-          ))}
-        </div>
-      ) : null}
+      {/* only the story's real addresses stand here: a stray line saved among them is not a link,
+          and opening one is an error rather than anything the admin meant to attach */}
+      <StoryLinks
+        links={storyLinks(story.links)}
+        title={story.title}
+        onOpen={openLink}
+        onPlaybackEnd={onPlaybackEnd}
+      />
     </article>
   );
 }

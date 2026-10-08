@@ -6,6 +6,13 @@
  * there. The rule for what a heading is mirrors the one the server reads the document by.
  */
 
+/**
+ * How much the document takes, in characters. It is the same ceiling the server keeps: a document
+ * larger than this is one no AI could read in a turn, so an import is bounded by it — a longer file
+ * is written in up to this point, and the file itself is kept beside it for the admin.
+ */
+export const DOC_MAX = 600000;
+
 const NAMES = [
   /^(?:the )?(?:words?|phrases?|rules?|knowledge|word list|vocabulary|grammar|reading|reading key|notes?|questions?|questions and answers|maarifa|maelezo|maswali|maneno|misemo|sheria|kanuni|sarufi|matamshi)$/i,
 ];
