@@ -30,8 +30,10 @@ export function youtubeVideo(url) {
     return {
       id,
       cover: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-      // sound is left on: the player is only ever opened by a tap, so it may speak straight away
-      embed: `https://www.youtube.com/embed/${id}?autoplay=1&playsinline=1&rel=0`,
+      // No autoplay is ever asked for: a player told to start by itself is the one browsers silence,
+      // and YouTube obeys them by starting it muted. The person presses the play sign on the video
+      // itself — a gesture inside the player — and it speaks from there, with its own volume control.
+      embed: `https://www.youtube.com/embed/${id}?playsinline=1&rel=0`,
       watch: `https://www.youtube.com/watch?v=${id}`,
     };
   }

@@ -10,8 +10,10 @@ import { hostOf } from "@/lib/stories";
  * It rests as its own cover — the picture YouTube itself uses — with a play sign on it, and the
  * address it came from written underneath. Tapping the cover starts the video right here, in the
  * story's own place, with its sound, without sending anyone to YouTube. The player YouTube puts on
- * top of it pauses and plays as always, and the stop beside the link takes it away completely, so
- * the telling keeps the place it had.
+ * The player carries its own play sign and its own volume, and it is started from there — a press
+ * inside the player itself — because a player made to start on its own is the very one browsers
+ * silence. Started that way it speaks with its sound, and the stop beside the link takes it away
+ * completely, so the telling keeps the place it had.
  *
  * The link underneath is the only way out: it is opened only when it is deliberately tapped, and
  * what took the person away from the talk hands the talk back.
@@ -50,7 +52,7 @@ export default function YouTubePlayer({ url, title = "", onPlaybackEnd }) {
         <button
           type="button"
           onClick={() => setPlaying(true)}
-          aria-label="Play the YouTube video here"
+          aria-label="Show the YouTube video here"
           className="group relative block w-full overflow-hidden rounded-2xl border border-border bg-black"
         >
           <Image
@@ -88,6 +90,12 @@ export default function YouTubePlayer({ url, title = "", onPlaybackEnd }) {
           </button>
         ) : null}
       </div>
+
+      {playing ? (
+        <span className="font-body text-[11px] leading-snug text-muted-foreground">
+          Press play on the video itself — it plays here with its sound, and its own volume.
+        </span>
+      ) : null}
     </div>
   );
 }
