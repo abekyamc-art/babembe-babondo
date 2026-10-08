@@ -398,10 +398,7 @@ export default async function (req: Request): Promise<Response> {
   } catch (error: any) {
     console.error("The knowledge document could not be handled:", error?.message);
     return Response.json(
-      {
-        error: "The document could not be handled just now. Try again.",
-        why: String(error?.message).slice(0, 300),
-      },
+      { error: "The document could not be handled just now. Try again." },
       { status: 500 }
     );
   }
