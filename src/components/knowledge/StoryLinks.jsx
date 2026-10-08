@@ -1,7 +1,9 @@
 import React, { useState } from "react";
-import { Loader2, Plus, RefreshCw, X } from "lucide-react";
+import { Loader2, Play, Plus, RefreshCw, Trash2, X } from "lucide-react";
 import { hostOf } from "@/lib/stories";
 import { fromChannel, syncStoryChannel } from "@/lib/channelSync";
+import { youtubeVideo } from "@/lib/youtube";
+import YouTubePlayer from "@/components/story/YouTubePlayer";
 
 /**
  * The artist's own places, written into the story: the address of their channel, and then the videos
@@ -23,6 +25,8 @@ export default function StoryLinks({ channel = "", syncedAt = "", links = [], on
   const [syncing, setSyncing] = useState(false);
   const [note, setNote] = useState("");
   const [failed, setFailed] = useState(false);
+  // which published piece is standing open in the panel right now, so only one plays at a time
+  const [openAt, setOpenAt] = useState(-1);
   const rows = Array.isArray(links) ? links : [];
 
   /**
@@ -145,31 +149,60 @@ export default function StoryLinks({ channel = "", syncedAt = "", links = [], on
         the channel does.
       </span>
 
+      <span className="knowledge-meter-text">
+        A video from the channel stands here with the name it goes by: tap the play sign on its row and
+        it plays right here in the panel, exactly as a video link plays in the story.
+      </span>
+
       {rows.length ? (
         <div className="flex flex-col">
-          {rows.map((entry, index) => (
-            <div key={`${entry.url}-${index}`} className="knowledge-row">
-              <span className="knowledge-body">
-                <span className="knowledge-title">
-                  {entry.name || hostOf(entry.url)}
-                </span>
-                <span className="knowledge-text">
-                  {hostOf(entry.url)}
-                  {fromChannel(entry) ? " · read from the channel" : " · written in by you"}
-                </span>
-              </span>
-              <span className="knowledge-tools">
-                <button
-                  type="button"
-                  onClick={() => drop(index)}
-                  aria-label="Take this entry out"
-                  className="knowledge-tool knowledge-tool-danger"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </span>
-            </div>
-          ))}
+          {rows.map((entry, index) => {
+            const video = youtubeVideo(entry.url);
+            const shown = !!video && openAt === index;
+            return (
+              <div key={`${entry.url}-${index}`}>
+                <div className="knowledge-row">
+                  <span className="knowledge-body">
+                    <span className="knowledge-title">
+                      {entry.name || hostOf(entry.url)}
+                    </span>
+                    <span className="knowledge-text">
+                      {hostOf(entry.url)}
+                      {fromChannel(entry) ? " · read from the channel" : " · written in by you"}
+                    </span>
+                  </span>
+                  <span className="knowledge-tools">
+                    {video ? (
+                      <button
+                        type="button"
+                        onClick={() => setOpenAt(shown ? -1 : index)}
+                        aria-label={shown ? "Put this video away" : "Play this video here"}
+                        className="knowledge-tool"
+                      >
+                        {shown ? <X className="h-4 w-4" /> : <Play className="h-4 w-4" />}
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      onClick={() => drop(index)}
+                      aria-label="Take this entry out"
+                      className="knowledge-tool knowledge-tool-danger"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </button>
+                  </span>
+                </div>
+
+                {shown ? (
+                  // the panel's own dark room is given to the player, so the video rests as its cover
+                  // and plays in place without taking the admin away from the story they are writing
+                  <div className="dark mb-3 rounded-2xl border border-border bg-card p-2">
+                    <YouTubePlayer url={entry.url} title={entry.name || ""} />
+                  </div>
+                ) : null}
+              </div>
+            );
+          })}
         </div>
       ) : null}
     </div>

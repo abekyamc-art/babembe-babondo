@@ -1,5 +1,5 @@
-import React from "react";
-import { ExternalLink } from "lucide-react";
+import React, { useState } from "react";
+import { ExternalLink, Play } from "lucide-react";
 import { hostOf } from "@/lib/stories";
 import { videoKey } from "@/lib/channelSync";
 import { youtubeVideo } from "@/lib/youtube";
@@ -21,6 +21,8 @@ export default function ArtistLinks({
   onOpen,
   onPlaybackEnd,
 }) {
+  // which published piece is standing open right now, so only one is played at a time
+  const [openAt, setOpenAt] = useState(-1);
   const all = (Array.isArray(links) ? links : []).filter((entry) => entry?.url);
   // the piece the person asked about stands first, so it is the one they meet
   const named = matched?.url
@@ -79,24 +81,61 @@ export default function ArtistLinks({
 
           {rows
             .filter((entry) => !(named && told && entry === named))
-            .map((entry, index) => (
-            <button
-              key={`${entry.url}-${index}`}
-              type="button"
-              onClick={() => open(entry.url)}
-              className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-left transition hover:border-accent/50"
-            >
-              <span className="min-w-0">
-                <span className="block truncate font-body text-[13px] text-foreground">
-                  {entry.name || hostOf(entry.url)}
-                </span>
-                <span className="block truncate font-body text-[11px] text-muted-foreground">
-                  {hostOf(entry.url)}
-                </span>
-              </span>
-              <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-            </button>
-          ))}
+            .map((entry, index) => {
+              // a video the artist has published is played right here, with its own sound, as a
+              // video link inside the telling is; anything else still opens where it stands
+              const video = youtubeVideo(entry.url);
+              const shown = !!video && openAt === index;
+
+              if (video) {
+                return (
+                  <div key={`${entry.url}-${index}`} className="flex flex-col gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setOpenAt(shown ? -1 : index)}
+                      className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-left transition hover:border-accent/50"
+                    >
+                      <span className="min-w-0">
+                        <span className="block truncate font-body text-[13px] text-foreground">
+                          {entry.name || hostOf(entry.url)}
+                        </span>
+                        <span className="block truncate font-body text-[11px] text-muted-foreground">
+                          {shown ? "Playing here · tap to put it away" : "Plays here · YouTube"}
+                        </span>
+                      </span>
+                      <Play className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                    </button>
+
+                    {shown ? (
+                      <YouTubePlayer
+                        url={entry.url}
+                        title={entry.name || ""}
+                        onPlaybackEnd={onPlaybackEnd}
+                      />
+                    ) : null}
+                  </div>
+                );
+              }
+
+              return (
+                <button
+                  key={`${entry.url}-${index}`}
+                  type="button"
+                  onClick={() => open(entry.url)}
+                  className="flex items-center justify-between gap-3 rounded-xl border border-border px-3 py-2 text-left transition hover:border-accent/50"
+                >
+                  <span className="min-w-0">
+                    <span className="block truncate font-body text-[13px] text-foreground">
+                      {entry.name || hostOf(entry.url)}
+                    </span>
+                    <span className="block truncate font-body text-[11px] text-muted-foreground">
+                      {hostOf(entry.url)}
+                    </span>
+                  </span>
+                  <ExternalLink className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                </button>
+              );
+            })}
         </div>
       ) : null}
     </div>
