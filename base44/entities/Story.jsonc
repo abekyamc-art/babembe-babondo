@@ -48,6 +48,30 @@
       },
       "description": "Reference links the admin attached to the story \u2014 a source, a page, a place to read or watch more."
     },
+    "channel_url": {
+      "type": "string",
+      "description": "The artist's own channel \u2014 their YouTube channel address, or the address of the page where everything they publish is gathered. It stands in a place of its own in the story, apart from the telling and from every other link."
+    },
+    "artist_links": {
+      "type": "array",
+      "description": "The videos and other pieces the artist has published, each one its own entry with the name it goes by and the address it stands at. Every entry keeps its own place in the story, one under the other, so a person meets them one at a time.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "What the entry is called, as the artist wrote it \u2014 the name of the video or the piece. It is what the person reads on the button."
+          },
+          "url": {
+            "type": "string",
+            "description": "The address the entry opens: the video on YouTube, or the piece wherever it was published."
+          }
+        },
+        "required": [
+          "url"
+        ]
+      }
+    },
     "published": {
       "type": "boolean",
       "default": true,

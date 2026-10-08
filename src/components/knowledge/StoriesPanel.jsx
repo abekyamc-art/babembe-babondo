@@ -17,7 +17,20 @@ export default function StoriesPanel() {
     // the list carries only what it shows: the telling itself stays on the server until it is opened
     base44.entities.Story.filter(
       {},
-      { sort: "-updated_date", limit: 50, fields: ["title", "text", "tags", "media_kind", "links", "published"] }
+      {
+        sort: "-updated_date",
+        limit: 50,
+        fields: [
+          "title",
+          "text",
+          "tags",
+          "media_kind",
+          "links",
+          "channel_url",
+          "artist_links",
+          "published",
+        ],
+      }
     )
       .then((page) => {
         if (!alive) return;

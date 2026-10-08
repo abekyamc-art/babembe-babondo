@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { isCompleteStory } from "@/lib/stories";
 import { linkMark, mediaMark } from "@/lib/storyMarks";
 import { youtubeVideo } from "@/lib/youtube";
+import StoryLinks from "@/components/knowledge/StoryLinks";
 import StoryPreview from "@/components/story/StoryPreview";
 
 // What kind of thing the chosen file is, so the story knows how to show it.
@@ -41,7 +42,9 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
   const ready = isCompleteStory(draft);
   const older = draft.media_kind && draft.media_kind !== "none" ? draft.media_kind : "";
   // the studio draws the story back as it is being written, so a mark can be played and checked
-  const showsAnything = !!String(draft.text || "").trim() || !!older;
+  const links = Array.isArray(draft.artist_links) ? draft.artist_links : [];
+  const showsAnything =
+    !!String(draft.text || "").trim() || !!older || !!draft.channel || links.length > 0;
 
   /** The writing keeps its place: a mark arriving late never pulls the caret away. */
   const place = (spot) => {
@@ -198,6 +201,8 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
           <StoryPreview
             text={draft.text}
             title={draft.title}
+            channel={draft.channel}
+            artistLinks={links}
             media={
               older
                 ? {
@@ -225,6 +230,12 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
           </div>
         </div>
       ) : null}
+
+      <StoryLinks
+        channel={draft.channel}
+        links={links}
+        onChange={onChange}
+      />
 
       <label className="knowledge-field">
         <span className="knowledge-label">Tags</span>

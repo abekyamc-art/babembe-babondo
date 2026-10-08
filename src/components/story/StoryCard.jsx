@@ -1,6 +1,7 @@
 import React from "react";
 import { ExternalLink } from "lucide-react";
 import StoryMedia from "@/components/story/StoryMedia";
+import ArtistLinks from "@/components/story/ArtistLinks";
 import { hostOf, mediaPlacement } from "@/lib/stories";
 import { storyBlocks } from "@/lib/storyMarks";
 
@@ -70,6 +71,12 @@ export default function StoryCard({ story, onPlaybackEnd }) {
       ))}
 
       {older && at >= blocks.length ? older : null}
+
+      <ArtistLinks
+        channel={story.channel_url}
+        links={story.artist_links}
+        onOpen={openLink}
+      />
 
       {story.links?.length ? (
         <div className="flex flex-col gap-2 border-t border-border pt-3">

@@ -19,6 +19,8 @@ export function emptyStory() {
     media_url: "",
     media_file_uri: "",
     links: "",
+    channel: "",
+    artist_links: [],
     published: true,
     // where the attached thing stands in the telling; unset keeps it at the end, as every story did
     media_after: null,
@@ -35,6 +37,10 @@ export function storyDraft(row) {
     media_url: row?.media_url || "",
     media_file_uri: row?.media_file_uri || "",
     links: (Array.isArray(row?.links) ? row.links : []).join("\n"),
+    channel: row?.channel_url || "",
+    artist_links: (Array.isArray(row?.artist_links) ? row.artist_links : [])
+      .map((entry) => ({ name: entry?.name || "", url: entry?.url || "" }))
+      .filter((entry) => entry.url),
     published: row?.published !== false,
     media_after: row?.media_after ?? null,
   };
@@ -56,6 +62,13 @@ export function storyFields(draft) {
       .split("\n")
       .map((link) => link.trim())
       .filter(Boolean),
+    channel_url: String(draft?.channel || "").trim(),
+    artist_links: (Array.isArray(draft?.artist_links) ? draft.artist_links : [])
+      .map((entry) => ({
+        name: String(entry?.name || "").trim(),
+        url: String(entry?.url || "").trim(),
+      }))
+      .filter((entry) => entry.url),
     published: draft?.published !== false,
     // the spot the attached thing was placed at, kept as the count of lines it stands after
     media_after:
@@ -80,8 +93,17 @@ export function storyBody(row) {
   const tags = Array.isArray(row?.tags) ? row.tags.join(", ") : "";
   const media = MEDIA_NAMES[row?.media_kind] || "";
   const links = Array.isArray(row?.links) ? row.links.length : 0;
+  const videos = Array.isArray(row?.artist_links) ? row.artist_links.length : 0;
+  const channel = row?.channel_url ? "channel" : "";
   const state = row?.published === false ? "Draft" : "Published";
-  const about = [tags, media, links ? `${links} link${links > 1 ? "s" : ""}` : "", state]
+  const about = [
+    tags,
+    media,
+    videos ? `${videos} video${videos > 1 ? "s" : ""}` : "",
+    channel,
+    links ? `${links} link${links > 1 ? "s" : ""}` : "",
+    state,
+  ]
     .filter(Boolean)
     .join(" · ");
   const words = stripStoryMarks(row?.text).replace(/\s+/g, " ").slice(0, 140);

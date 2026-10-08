@@ -1,5 +1,6 @@
 import React from "react";
 import StoryMedia from "@/components/story/StoryMedia";
+import ArtistLinks from "@/components/story/ArtistLinks";
 import { mediaPlacement } from "@/lib/stories";
 import { storyBlocks } from "@/lib/storyMarks";
 
@@ -11,7 +12,13 @@ import { storyBlocks } from "@/lib/storyMarks";
  * The studio's own dark room is given to the parts it is made of, so a picture, a player or a link
  * sits here as it will sit there. Nothing played here ends anyone's talk: this is the studio.
  */
-export default function StoryPreview({ text, title = "", media = null }) {
+export default function StoryPreview({
+  text,
+  title = "",
+  media = null,
+  channel = "",
+  artistLinks = [],
+}) {
   const blocks = storyBlocks(text);
   const held = media && media.kind && media.kind !== "none" && (media.url || media.uri) ? media : null;
   // a story written before the marks keeps its one attachment at its own end
@@ -20,7 +27,8 @@ export default function StoryPreview({ text, title = "", media = null }) {
     <StoryMedia kind={held.kind} url={held.url} uri={held.uri} title={title} />
   ) : null;
 
-  if (!blocks.length && !heldEl) return null;
+  const artist = !!(channel || (Array.isArray(artistLinks) && artistLinks.length));
+  if (!blocks.length && !heldEl && !artist) return null;
 
   return (
     <div className="dark flex flex-col gap-3 rounded-2xl border border-border bg-card p-3">
@@ -44,6 +52,8 @@ export default function StoryPreview({ text, title = "", media = null }) {
       ))}
 
       {heldEl && at >= blocks.length ? heldEl : null}
+
+      <ArtistLinks channel={channel} links={artistLinks} />
     </div>
   );
 }

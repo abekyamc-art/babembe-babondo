@@ -15,6 +15,8 @@ const FIELDS = [
   "media_file_uri",
   "media_after",
   "links",
+  "channel_url",
+  "artist_links",
 ];
 
 /**
