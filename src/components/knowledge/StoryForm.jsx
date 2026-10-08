@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isCompleteStory } from "@/lib/stories";
 import { linkMark, mediaMark } from "@/lib/storyMarks";
+import StoryPreview from "@/components/story/StoryPreview";
 
 // What kind of thing the chosen file is, so the story knows how to show it.
 const kindOfFile = (type) =>
@@ -36,6 +37,8 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
   const [error, setError] = useState("");
   const ready = isCompleteStory(draft);
   const older = draft.media_kind && draft.media_kind !== "none" ? draft.media_kind : "";
+  // the studio draws the story back as it is being written, so a mark can be played and checked
+  const showsAnything = !!String(draft.text || "").trim() || !!older;
 
   /** The writing keeps its place: a mark arriving late never pulls the caret away. */
   const place = (spot) => {
@@ -64,14 +67,15 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
     const caret = event.target.selectionStart ?? value.length;
     const sign = value[caret - 1];
     // only a sign that was typed by hand calls anything: a paragraph pasted with a # in it stays text
-    const typed = value.length === String(draft.text || "").length + 1;
+    const typed = value.length <= String(draft.text || "").length + 1;
     if (!typed || (sign !== "#" && sign !== "*")) {
       onChange({ text: value });
       return;
     }
+    // The sign goes as it is typed, and the caret is left where it is: the picker or the link box
+    // must keep the place it is being given, or what is written next lands in the telling instead.
     spotRef.current = caret - 1;
     onChange({ text: value.slice(0, caret - 1) + value.slice(caret) });
-    place(caret - 1);
     if (sign === "#") {
       inputRef.current?.click();
     } else {
@@ -178,6 +182,29 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
               Cancel
             </button>
           </div>
+        </div>
+      ) : null}
+
+      {showsAnything ? (
+        <div className="knowledge-field">
+          <span className="knowledge-label">In the story</span>
+          <span className="knowledge-meter-text">
+            What people will meet, standing where you put it — play each one to check it is good.
+          </span>
+          <StoryPreview
+            text={draft.text}
+            title={draft.title}
+            media={
+              older
+                ? {
+                    kind: draft.media_kind,
+                    url: draft.media_url,
+                    uri: draft.media_file_uri,
+                    after: draft.media_after,
+                  }
+                : null
+            }
+          />
         </div>
       ) : null}
 

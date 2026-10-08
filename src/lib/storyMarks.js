@@ -62,6 +62,17 @@ export function storyBlocks(text) {
   return blocks;
 }
 
+/** What the telling carries, counted by kind, so the studio's list can say it at a glance. */
+export function storyMarkCounts(text) {
+  const counts = { image: 0, video: 0, audio: 0, link: 0 };
+  const mark = new RegExp(MARK_RE.source, "g");
+  let found;
+  while ((found = mark.exec(String(text ?? "")))) {
+    if (counts[found[1]] !== undefined) counts[found[1]] += 1;
+  }
+  return counts;
+}
+
 /** The telling alone, without the marks: what the admin's list shows, and what the assistant reads. */
 export function stripStoryMarks(text) {
   return String(text ?? "")
