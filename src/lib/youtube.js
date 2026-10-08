@@ -18,8 +18,15 @@ const SHAPES = [
 
 const YOUTUBE_HOST = /^(?:https?:\/\/)?(?:[a-z0-9-]+\.)*(?:youtube\.com|youtu\.be|youtube-nocookie\.com)\//i;
 
-/** The video a YouTube address points at, or null when the address is not one. */
-export function youtubeVideo(url) {
+/**
+ * The video a YouTube address points at, or null when the address is not one.
+ *
+ * `origin` is the page the player will stand in. When it is given it is handed to YouTube with the
+ * rest, because that is how the player is told where it is standing: a player that arrives without
+ * it is the one YouTube turns away with a configuration error, and it is asked for from the plain
+ * embedding address rather than the cookie-free one, which is the address YouTube checks it against.
+ */
+export function youtubeVideo(url, origin = "") {
   const value = String(url || "").trim();
   if (!value || !YOUTUBE_HOST.test(value)) return null;
 
@@ -27,15 +34,17 @@ export function youtubeVideo(url) {
     const found = value.match(shape);
     if (!found) continue;
     const id = found[1];
+    // The player is asked for in its plainest form: the video's own validated id, full controls that
+    // keep their place on a phone, and the page it stands in. No autoplay and no mute is ever asked
+    // for, because a player told to start by itself is the one browsers silence — the person presses
+    // the play sign inside the player instead, and it speaks from there with its own volume.
+    const asked = [`controls=1`, `playsinline=1`, `rel=0`];
+    if (origin) asked.push(`origin=${encodeURIComponent(origin)}`);
+
     return {
       id,
       cover: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-      // The player is asked for in its plainest form, from the address YouTube names for embedding:
-      // the video's own validated id, and nothing else beyond full controls that keep their place on
-      // a phone. No autoplay and no mute is ever asked for, because a player told to start by itself
-      // is the one browsers silence — the person presses the play sign inside the player instead, and
-      // it speaks from there with its own volume.
-      embed: `https://www.youtube-nocookie.com/embed/${id}?controls=1&playsinline=1&rel=0`,
+      embed: `https://www.youtube.com/embed/${id}?${asked.join("&")}`,
       watch: `https://www.youtube.com/watch?v=${id}`,
     };
   }

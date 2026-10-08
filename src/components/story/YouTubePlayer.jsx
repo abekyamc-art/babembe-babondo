@@ -9,8 +9,10 @@ import { hostOf } from "@/lib/stories";
  *
  * It rests as its own cover — the picture YouTube itself uses — with a play sign on it, and the
  * address it came from written underneath. Tapping the cover brings the player in right here, in the
- * story's own place, with no autoplay asked for at all: YouTube is handed nothing but the video's own
- * id and full controls. The player carries its own play sign and its own volume, and it is started
+ * story's own place, with no autoplay asked for at all: YouTube is handed the video's own id, full
+ * controls, and the page the player is standing in, because a player that arrives without that page
+ * is the one YouTube turns away with a configuration error. The player carries its own play sign and
+ * its own volume, and it is started
  * from there — a press inside the player itself — because a player made to start on its own is the
  * very one browsers silence. Started that way it speaks with its sound, and the stop beside the link
  * takes it away completely, so the telling keeps the place it had.
@@ -22,7 +24,8 @@ import { hostOf } from "@/lib/stories";
  * what took the person away from the talk hands the talk back.
  */
 export default function YouTubePlayer({ url, title = "", onPlaybackEnd }) {
-  const video = youtubeVideo(url);
+  // the player is told which page it is standing in, so YouTube can recognise the address it is on
+  const video = youtubeVideo(url, typeof window === "undefined" ? "" : window.location.origin);
   const [playing, setPlaying] = useState(false);
 
   if (!video) return null;
@@ -98,7 +101,9 @@ export default function YouTubePlayer({ url, title = "", onPlaybackEnd }) {
 
       {playing ? (
         <span className="font-body text-[11px] leading-snug text-muted-foreground">
-          Press play on the video itself — it plays here with its sound, and its own volume.
+          Press play on the video itself — it plays here with its sound, and its own volume. If
+          YouTube keeps it from playing here, the Watch on YouTube line above opens the same video
+          where it does play.
         </span>
       ) : null}
     </div>
