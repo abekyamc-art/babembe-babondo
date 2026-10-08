@@ -39,7 +39,7 @@ const TOP_NOTICE = [
 
 // Raised whenever the block itself changes shape, so an agent carrying an older one is written
 // again on the next call even though nothing in the store has moved.
-export const RULES_VERSION = "5";
+export const RULES_VERSION = "6";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
@@ -122,12 +122,23 @@ export function wordsBlock(rows: any[]): string {
 }
 
 /**
+ * The admin's whole knowledge document, as the agent reads it: every word, every phrase, every rule
+ * of the language and everything else they wrote, exactly as they last approved it. It is handed
+ * over whole, so a voice answering on its own account — where a call can only speak to it through
+ * the agent itself — answers from all of what the admin approved and never from a part of it.
+ */
+export function docBlock(doc: any): string {
+  const body = String(doc || "").trim();
+  return body ? "\n" + body + "\n" : "";
+}
+
+/**
  * The app's own block for one agent: its own orders, Gloire's guide, the admin's saved answers and
  * the confirmed words. The key line says what the store looked like when the block was built, so the
  * next call can tell at a glance whether the block on the agent is still the current one.
  */
 export function appRulesBlock(
-  saved: { keys?: any[]; notes?: any[]; words?: any[] },
+  saved: { keys?: any[]; notes?: any[]; words?: any[]; doc?: string },
   stamp = ""
 ): string {
   return [
@@ -138,6 +149,7 @@ export function appRulesBlock(
     keyBlock(saved.keys || []),
     notesBlock(saved.notes || []),
     wordsBlock(saved.words || []),
+    docBlock(saved.doc || ""),
   ]
     .filter(Boolean)
     .join("\n");

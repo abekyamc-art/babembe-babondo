@@ -36,7 +36,7 @@ const HELD_LIMIT = 4000;
 const STUCK_MS = 4000;
 
 // a turn nothing could be read from: no note, no language said, no greeting, nothing left open
-const EMPTY_READ = { note: "", lang: "", greeting: false, missing: false };
+const EMPTY_READ = { note: "", docStamp: "", lang: "", greeting: false, missing: false };
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
@@ -76,6 +76,11 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const heardRef = useRef({ text: "", timer: 0 });
   // knowledge that landed while he was answering, waiting for his voice to stop
   const heldRef = useRef("");
+  // the admin's knowledge document as the session in hand already carries it: the whole document is
+  // handed over as a call opens, and this is the stamp that says which one it was given, so the same
+  // document is never pushed at it again on every turn — and a new stamp is what carries a document
+  // the admin has just published into a call already in progress
+  const docStampRef = useRef("");
   // the last turn the person took that no answer followed: the next call opens by
   // answering it
   const pendingRef = useRef("");
@@ -152,6 +157,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
     const engine = socketRef.current;
     socketRef.current = null;
     heldRef.current = "";
+    // the session that carried the knowledge document goes with the mode, so the session that opens
+    // next is handed the whole of the admin's document again
+    docStampRef.current = "";
     // the turn being waited on belonged to the mode just switched away from
     clearTimeout(stuckTimerRef.current);
     stuckTimerRef.current = 0;
@@ -212,14 +220,22 @@ export default function useVoiceAgent({ videoRef } = {}) {
     if (said === state.text && state.read) return state.read;
 
     try {
-      const res = await base44.functions.invoke("assistantKnowledge", { heard: said });
+      // The document the session in hand already carries is named with the turn: the whole of the
+      // admin's knowledge rides with the first turn of a call, and again the moment they publish,
+      // and never on turn after turn in between.
+      const res = await base44.functions.invoke("assistantKnowledge", {
+        heard: said,
+        seen: docStampRef.current,
+      });
       const data = res?.data || {};
       const read = {
         note: String(data.note || ""),
+        docStamp: String(data.doc_stamp || ""),
         lang: String(data.lang || ""),
         greeting: !!data.greeting,
         missing: !!data.missing,
       };
+      if (read.docStamp) docStampRef.current = read.docStamp;
       state.text = said;
       state.read = read;
       return read;
@@ -624,6 +640,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
         loadKnowledgeNote(opening, !withMic),
         wantsLookup && opening ? materialFor(opening) : Promise.resolve(""),
       ]);
+      // the note handed over here carries the whole knowledge document, so the session it opens on
+      // is known to hold that document from its first turn
+      docStampRef.current = read.docStamp || docStampRef.current;
       // a question put to the original outside voice in writing is asked of the words helper as
       // well, so the words its answer should stand on are in hand before it answers
       const wordNote = openingMode === "agent" ? await wordsNote(opening) : "";

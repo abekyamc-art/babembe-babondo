@@ -3,6 +3,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { appRulesBlock, blockKey, RULES_MARK, RULES_VERSION, withAppRules } from "../../shared/cartesiaRules.ts";
 import { knowledgeStamp } from "../../shared/wordBank.ts";
 import { savedWords } from "../../shared/knowledgeWords.ts";
+import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 
 const VERSION = "2026-08-14";
 
@@ -57,7 +58,7 @@ async function keepRules(base44: any, apiKey: string, agentId: string, agent: an
     // read again and nothing is written, so an ordinary call costs one look at the agent
     if (current.includes(RULES_MARK) && blockKey(current) === `${RULES_VERSION}|${stamp}`) return true;
 
-    const [keys, notes, words] = await Promise.all([
+    const [keys, notes, words, doc] = await Promise.all([
       base44.asServiceRole.entities.AssistantKnowledge.filter(
         { kind: "qa" },
         { sort: "-created_date", limit: KEY_ROWS, fields: ["question", "answer"] }
@@ -67,12 +68,15 @@ async function keepRules(base44: any, apiKey: string, agentId: string, agent: an
         { sort: "-created_date", limit: NOTE_ROWS, fields: ["title", "text"] }
       ),
       savedWords(base44),
+      // the admin's one knowledge document, whole: the agent answers from all of what they approved
+      docWholeBlock(base44),
     ]);
 
     const saved = {
       keys: Array.isArray(keys) ? keys : keys?.items || [],
       notes: Array.isArray(notes) ? notes : notes?.items || [],
       words,
+      doc,
     };
     const wanted = withAppRules(current, appRulesBlock(saved, stamp));
     if (wanted === current) return true;

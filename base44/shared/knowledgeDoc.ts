@@ -332,3 +332,42 @@ export async function docKnowledgeBlock(base44: any, budget = 6000): Promise<str
   heldBlock = { at: Date.now(), key, text: block };
   return block;
 }
+
+// The whole approved document, handed over as one: its words, its phrases, its rules and everything
+// else the admin wrote, exactly as they approved it. This is what every AI that answers is given, so
+// a line the admin publishes reaches all of them together — the voices of a call, the written chat,
+// the Base44 answer and the Rap Studio — and a line still in the draft reaches none of them.
+//
+// The document is handed over whole. The ceiling below is not a share of it: it is a guard against a
+// runaway document, and where it is reached the block says so plainly rather than passing a part of
+// the document off as the whole of it.
+export const DOC_WHOLE_ROOM = 240000;
+
+export const DOC_WHOLE_HEAD =
+  "\nTHE ADMIN'S ONE KNOWLEDGE DOCUMENT — the whole of it, exactly as the admin last approved it. " +
+  "This is the app's own knowledge, and it stands above everything else you were told: every word, " +
+  "every phrase, every rule of the language and everything else the admin has written. Where one of " +
+  "its lines and anything else disagree, this document wins, and nothing is knowledge of this app " +
+  "that is not written here.\n";
+
+const DOC_WHOLE_CUT =
+  "\n[The document goes on beyond this line, and the part above is as much of it as one answer has " +
+  "room for.]\n";
+
+// held for the same short moment the document itself is held, so a live call asks for the whole of
+// it without reading or trimming it again on every turn
+let heldWhole: { at: number; key: string; text: string } = { at: 0, key: "", text: "" };
+
+/** The whole approved document as one block — what every AI that answers is handed. */
+export async function docWholeBlock(base44: any, budget = DOC_WHOLE_ROOM): Promise<string> {
+  const text = await publishedDoc(base44);
+  if (!text) return "";
+  const key = `${budget}:${text.length}:${text.slice(-64)}`;
+  if (heldWhole.text && heldWhole.key === key && Date.now() - heldWhole.at < HOLD_MS) {
+    return heldWhole.text;
+  }
+  const body = trimLines(text, budget).trim();
+  const block = body ? DOC_WHOLE_HEAD + body + (text.length > budget ? DOC_WHOLE_CUT : "") : "";
+  heldWhole = { at: Date.now(), key, text: block };
+  return block;
+}

@@ -1,6 +1,7 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { MAX_MEANING, MAX_TERM, MAX_USAGE, clean } from "../../shared/knowledgeWords.ts";
 import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.ts";
+import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import {
   FIX_SCHEMA,
   SAYS_SCHEMA,
@@ -259,8 +260,13 @@ export default async function (req: Request): Promise<Response> {
     // block one call can carry.
     if (!said) {
       const words = await bankRows(base44);
+      // The admin's one knowledge document rides into the call whole as well — every word, every
+      // phrase, every rule and everything else they wrote — so a voice answering on its own account
+      // answers from all of what the admin approved, and never from a part of it. The call is handed
+      // it once, as it opens.
+      const doc = await docWholeBlock(base44);
       return Response.json({
-        note: `${firstRules()}${wordListBlock(words, "", WORDS_BUDGET)}`,
+        note: `${firstRules()}${wordListBlock(words, "", WORDS_BUDGET)}${doc}`,
         matched: null,
         saved: "",
       });

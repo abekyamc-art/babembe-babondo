@@ -4,7 +4,7 @@ import { alikeTerms } from "../../shared/soundsAlike.ts";
 import { glossOf, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { knowledgeStamp } from "../../shared/wordBank.ts";
-import { docKnowledgeBlock } from "../../shared/knowledgeDoc.ts";
+import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
@@ -51,8 +51,8 @@ const MAX_AUDIO_CHARS = 2500000;
 const WORDS_CEILING = 26000;
 // how many of the saved words closest to what was heard ride ahead of the whole list
 const LIKE_LIMIT = 6;
-// the rest of the admin's one document — what is not a word and not a rule — rides with every answer
-const DOC_BUDGET = 7000;
+// The admin's one knowledge document rides with every answer whole — its words, its phrases, its
+// rules and everything else they wrote — so no part of what they approved is left out of an answer.
 // the catalogue of the admin's own stories, and of every name published with them, rides with the
 // answer so a question about a song, a video or a channel is answered from its own name
 const STORY_ROOM = 1500;
@@ -356,7 +356,7 @@ export default async function (req: Request): Promise<Response> {
     // the rest of the admin's one document rides with the answer: the words and the rules have their
     // own sections above, and this is everything else they wrote — their notes, their questions and
     // answers, and whatever they filed under a heading of their own name
-    const doc = await docKnowledgeBlock(base44, DOC_BUDGET);
+    const doc = await docWholeBlock(base44);
     const tales = await storyCatalogueBlock(base44, STORY_ROOM);
 
     const memory = textOf(payload?.memory, MAX_MEMORY);

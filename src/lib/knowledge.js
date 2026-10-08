@@ -138,7 +138,7 @@ export function entryBody(row) {
  * it left a place the saved words do not hold, which is the place the words helper reviews twice.
  */
 export async function loadKnowledgeNote(query = "", typed = false) {
-  const none = { note: "", lang: "", greeting: false, missing: false };
+  const none = { note: "", docStamp: "", lang: "", greeting: false, missing: false };
   try {
     const asked = String(query || "").trim();
     // A typed message carries no ears, so the function is told it was written: the language the
@@ -150,6 +150,9 @@ export async function loadKnowledgeNote(query = "", typed = false) {
     const data = res?.data || {};
     return {
       note: String(data.note || ""),
+      // which version of the admin's document this note carries, so the call it is handed to is
+      // never handed the same document again
+      docStamp: String(data.doc_stamp || ""),
       lang: String(data.lang || ""),
       greeting: !!data.greeting,
       missing: !!data.missing,

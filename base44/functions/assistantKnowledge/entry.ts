@@ -1,7 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { alikeTerms, skeleton, tight } from "../../shared/soundsAlike.ts";
 import { bankRows, knowledgeStamp, trimToLines } from "../../shared/wordBank.ts";
-import { docKnowledgeBlock } from "../../shared/knowledgeDoc.ts";
+import { docStamp, docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { keyLine, keyMatches } from "../../shared/answerKey.ts";
@@ -21,11 +21,11 @@ const WORDS_SHARE = 24000;
 // book, where its general rules and its reading key stand.
 const RULES_ROOM = 9000;
 
-// The rest of the admin's one knowledge document — what they filed under the knowledge heading, and
-// under any heading of their own name — takes a share of the note of its own.
-const DOC_ROOM = 6000;
-// a live turn asks on every sound, so the document rides lighter there than it does with a typed one
-const DOC_ROOM_LIVE = 3000;
+// The admin's one knowledge document is handed over whole — its words, its phrases, its rules and
+// everything else they wrote — so no AI answers from a part of it. The note carries the document's
+// own stamp: a session is handed the document as it opens, the same document is never handed over
+// again on turn after turn, and the stamp moves the moment the admin publishes, so the whole
+// document rides with the very next turn of a call already in progress.
 
 // The catalogue of the admin's own stories — each story's name, the artist's channel, and the names
 // of everything published with it — takes a small share of the note of its own, so a person who asks
@@ -685,14 +685,19 @@ export default async function (req: Request): Promise<Response> {
     // like a saved one is answered from its meaning instead of being called unknown
     if (typeof payload?.heard === "string" && payload.heard.trim()) {
       const heard = payload.heard.trim().slice(0, MAX_QUERY);
+      // what the session in hand already carries: the stamp of the document it was handed, so the
+      // whole document is given once as the call opens and again the moment the admin publishes,
+      // and never handed over again on every turn in between
+      const stamp = await docStamp(base44);
+      const seen = textOf(payload?.seen);
       // the answer key comes first in the note, so the saved answer is what the turn opens with,
       // and the words closest to what was heard follow it
-      const [words, keys, known, tales] = await Promise.all([
+      const [words, keys, tales] = await Promise.all([
         bankRows(base44),
         keyRowsFor(base44),
-        docKnowledgeBlock(base44, DOC_ROOM_LIVE),
         storyCatalogueBlock(base44, STORY_ROOM),
       ]);
+      const known = seen && seen === stamp ? "" : await docWholeBlock(base44);
       const liked = likeSection(words, heard);
       const lang = turnLanguage(heard, liked.near, false);
       const greeting = isGreeting(heard, liked.near);
@@ -703,6 +708,7 @@ export default async function (req: Request): Promise<Response> {
           liked.text +
           known +
           tales,
+        doc_stamp: stamp,
         lang,
         greeting,
         // a turn spoken in Kibembe that still left a place the saved words do not hold: the words
@@ -750,10 +756,12 @@ export default async function (req: Request): Promise<Response> {
     left -= qa.text.length;
     const world = fill(HEADS.note, linesOfKind("note"), left);
 
-    // The rest of the admin's one knowledge document rides with the note: the words and the rules
-    // have their own sections above, and this is everything else they wrote — their notes, their
-    // questions and answers, and whatever they filed under a heading of their own name.
-    const known = await docKnowledgeBlock(base44, DOC_ROOM);
+    // The admin's one knowledge document rides with the note whole — every word, every phrase,
+    // every rule and everything else they wrote — so a question is answered from all of it. Its own
+    // stamp goes back with the note, so a call handing it to a session is not handed it again on
+    // every turn that follows.
+    const stamp = await docStamp(base44);
+    const known = await docWholeBlock(base44);
     // the catalogue of every story, and of every name published with one, rides with the question too
     const tales = await storyCatalogueBlock(base44, STORY_ROOM);
 
@@ -775,6 +783,7 @@ export default async function (req: Request): Promise<Response> {
 
     return Response.json({
       note,
+      doc_stamp: stamp,
       lang,
       greeting,
       // a turn written in Kibembe that still left a place the saved words do not hold: the words

@@ -13,6 +13,7 @@ import {
   unverified,
 } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
+import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 
 // the admin's own rules, saved in the knowledge panel: every take obeys them
 const RULES_INTRO =
@@ -256,7 +257,8 @@ function planPrompt(
   avoid: string[],
   language: RapLang,
   store: boolean,
-  rules: string
+  rules: string,
+  doc: string
 ) {
   return [
     "You are preparing a rap in " +
@@ -274,6 +276,8 @@ function planPrompt(
       ? "Some saved entries are not words at all: a pronunciation fragment, a spelling guide, a rule, a heading or a note about grammar. Never plan or rap one — every word you plan has to be a real Ebembe word whose meaning is a short translation."
       : "",
     rules ? RULES_INTRO + "\n" + rules : "",
+    // the admin's one knowledge document rides whole with the plan as well
+    doc,
     avoid.length
       ? "These words were used in this person's recent takes — leave them for another time and build on the others: " +
         avoid.join(", ")
@@ -323,7 +327,8 @@ function writePrompt(
   flow: any,
   language: RapLang,
   store: boolean,
-  rules: string
+  rules: string,
+  doc: string
 ) {
   // a short take is a hook and a short body; a longer one is hook, body, hook
   const structure =
@@ -352,6 +357,8 @@ function writePrompt(
       : "",
     store ? wordList(words) : "",
     rules ? RULES_INTRO + "\n" + rules : "",
+    // the admin's one knowledge document rides whole with the take as well
+    doc,
     "Rules, all of them strict:",
     ...languageRules(language, store),
     "- Each line is one bar of the beat. The hook itself comes back, and call-and-answer with the voice behind the lead is welcome, but the body never repeats a line: every body bar carries its own words and its own thought.",
@@ -784,8 +791,20 @@ export default async function (req: Request): Promise<Response> {
         : { list: [] as any[], avoid: Array.from(recent.used).slice(0, 40) };
 
       const rules = await rulesText(base44);
+      const doc = await docWholeBlock(base44);
       const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
-        prompt: planPrompt(window.list, bpm, topic, flow, recent.titles, window.avoid, language, store, rules),
+        prompt: planPrompt(
+          window.list,
+          bpm,
+          topic,
+          flow,
+          recent.titles,
+          window.avoid,
+          language,
+          store,
+          rules,
+          doc
+        ),
         response_json_schema: IDEAS_SCHEMA,
       });
 
@@ -831,6 +850,7 @@ export default async function (req: Request): Promise<Response> {
     // as its bars need instead of the handful of words one angle happened to name
 
     const rules = await rulesText(base44);
+    const doc = await docWholeBlock(base44);
     const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
       prompt: writePrompt(
         words,
@@ -845,7 +865,8 @@ export default async function (req: Request): Promise<Response> {
         flow,
         language,
         store,
-        rules
+        rules,
+        doc
       ),
       response_json_schema: LINES_SCHEMA,
     });
