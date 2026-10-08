@@ -235,7 +235,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
         greeting: !!data.greeting,
         missing: !!data.missing,
       };
-      if (read.docStamp) docStampRef.current = read.docStamp;
+      // the stamp is recorded by whoever actually hands the note over — the two places below, and
+      // the opening of a call — because a note held back while he is answering is cut to the room
+      // waiting may take, and a document cut that way is not one the session holds
       state.text = said;
       state.read = read;
       return read;
@@ -270,6 +272,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
           return;
         }
         engine.sendMemory?.(read.note);
+        // the note reached the session whole, so this is the document it now holds
+        if (read.docStamp) docStampRef.current = read.docStamp;
       }, 350);
     },
     [readTurn]
@@ -521,6 +525,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
           return;
         }
         engine.sendMemory(memory);
+        // handed over whole, so this is the document the session now holds; one that had to be
+        // held back was cut to the room waiting may take, so its stamp is left behind and the whole
+        // document is handed over again on the next turn that finds him free
+        if (read.docStamp) docStampRef.current = read.docStamp;
       },
       onAgentAnswered: () => {
         // an answer has come, so the turn was never stuck
@@ -640,9 +648,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
         loadKnowledgeNote(opening, !withMic),
         wantsLookup && opening ? materialFor(opening) : Promise.resolve(""),
       ]);
-      // the note handed over here carries the whole knowledge document, so the session it opens on
-      // is known to hold that document from its first turn
-      docStampRef.current = read.docStamp || docStampRef.current;
+      // the note carried here holds the whole knowledge document, and the stamp is recorded at the
+      // opening itself — once a session has really taken it — so a call that fails to open never
+      // leaves the document recorded as held when nothing holds it
       // a question put to the original outside voice in writing is asked of the words helper as
       // well, so the words its answer should stand on are in hand before it answers
       const wordNote = openingMode === "agent" ? await wordsNote(opening) : "";
@@ -706,6 +714,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
         setMicActive(withMic);
         try {
           await call.open({ withMic, silent, memory: knowledge });
+          if (read.docStamp) docStampRef.current = read.docStamp;
           if (opening) call.sendText(opening, { speak: withMic });
           return true;
         } catch (err) {
@@ -740,6 +749,7 @@ export default function useVoiceAgent({ videoRef } = {}) {
             resuming,
           });
           setAvatarLive(true);
+          if (read.docStamp) docStampRef.current = read.docStamp;
           if (opening) call.sendText(opening);
           return true;
         } catch (err) {
@@ -769,6 +779,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
           // for Mbondo, the fourth for Sadiki, and the standing one otherwise
           account,
         });
+        // the session took the note, so this is the document it holds from its first turn
+        if (read.docStamp) docStampRef.current = read.docStamp;
         if (opening) {
           // a typed question goes in once the note has settled, not the moment the
           // session opens; a question carried over from the last call is answered
