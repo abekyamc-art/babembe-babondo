@@ -3,6 +3,8 @@ import { Loader2, Play } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { base44 } from "@/api/base44Client";
 import { hostOf } from "@/lib/stories";
+import { youtubeVideo } from "@/lib/youtube";
+import YouTubePlayer from "@/components/story/YouTubePlayer";
 
 /**
  * One picture, video, audio recording or link, drawn in the place the admin gave it inside a story.
@@ -78,6 +80,12 @@ export default function StoryMedia({
         className="w-full rounded-2xl border border-border"
       />
     );
+  }
+
+  // A YouTube address is played right here in the story, with its own sound, whether the admin put
+  // it in as a video or as a link: either way it is watched inside the app, never sent away.
+  if ((kind === "video" || kind === "link") && youtubeVideo(src)) {
+    return <YouTubePlayer url={src} title={title} onPlaybackEnd={onPlaybackEnd} />;
   }
 
   if (kind === "video") {

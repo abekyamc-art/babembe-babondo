@@ -3,6 +3,7 @@ import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isCompleteStory } from "@/lib/stories";
 import { linkMark, mediaMark } from "@/lib/storyMarks";
+import { youtubeVideo } from "@/lib/youtube";
 import StoryPreview from "@/components/story/StoryPreview";
 
 // What kind of thing the chosen file is, so the story knows how to show it.
@@ -12,6 +13,8 @@ const kindOfFile = (type) =>
 // A pasted address is read for what it carries: a picture, a video or an audio recording is shown
 // inside the story itself, and anything else stands as a link opened where it already is.
 const kindOfLink = (url) => {
+  // a YouTube address is a video, played right inside the story and never sent away
+  if (youtubeVideo(url)) return "video";
   if (/\.(png|jpe?g|gif|webp|avif|bmp)(\?|#|$)/i.test(url)) return "image";
   if (/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(url)) return "video";
   if (/\.(mp3|wav|m4a|aac|ogg|oga|opus|flac)(\?|#|$)/i.test(url)) return "audio";
@@ -149,7 +152,8 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
 
       <span className="knowledge-meter-text">
         While writing: # puts a picture, video or audio where you type it · * pastes a link there.
-        You can do it as many times as you like in one story.
+        You can do it as many times as you like in one story. A YouTube link becomes a video that
+        plays right here in the story, with its sound.
       </span>
 
       {uploading ? (
