@@ -37,6 +37,10 @@
       "type": "string",
       "description": "Private storage reference for the picture, video or audio recording the admin uploaded. It is opened through a short-lived link, so it is never public."
     },
+    "media_after": {
+      "type": "number",
+      "description": "How many of the story's lines the attached picture, video, audio recording or link stands after: 0 puts it before the telling, 1 after its first line, and so on. Unset means the story keeps it at the end, after everything \u2014 which is where every story written before this stood."
+    },
     "links": {
       "type": "array",
       "items": {

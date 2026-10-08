@@ -1,7 +1,7 @@
 import React, { useRef, useState } from "react";
 import { FileUp, Loader2, X } from "lucide-react";
 import { base44 } from "@/api/base44Client";
-import { isCompleteStory } from "@/lib/stories";
+import { isCompleteStory, storyLines } from "@/lib/stories";
 
 // What kind of thing the chosen file is, so the story knows how to show it.
 const kindOfFile = (type) =>
@@ -60,6 +60,21 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
   };
 
   const media = draft.media_file_uri ? `${MEDIA_WORD[draft.media_kind] || "File"} uploaded` : "";
+  const attached = !!draft.media_kind && draft.media_kind !== "none";
+
+  // Where the attached thing stands inside the telling, as the spots a person can point at: in
+  // front of it, after one of its lines, or at its end.
+  const lines = storyLines(draft.text);
+  const spots = [
+    { value: 0, label: "Before it" },
+    ...lines.slice(0, 12).map((line, index) => ({
+      value: index + 1,
+      label: `After ${index + 1}`,
+      hint: line.slice(0, 48),
+    })),
+    { value: null, label: "At the end" },
+  ];
+  const placed = draft.media_after ?? null;
 
   return (
     <div className="knowledge-form">
@@ -129,6 +144,30 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
           className="account-input"
         />
       </div>
+
+      {attached ? (
+        <div className="knowledge-field">
+          <span className="knowledge-label">Where it stands in the story</span>
+          <div className="knowledge-switch">
+            {spots.map((spot) => (
+              <button
+                key={String(spot.value)}
+                type="button"
+                title={spot.hint || ""}
+                onClick={() => onChange({ media_after: spot.value })}
+                className={`knowledge-tab ${spot.value === placed ? "is-active" : ""}`}
+              >
+                {spot.label}
+              </button>
+            ))}
+          </div>
+          <span className="knowledge-meter-text">
+            {lines.length > 12
+              ? "It can stand after your first twelve lines, or at the end."
+              : "Choose the line your picture, video, audio or link should follow."}
+          </span>
+        </div>
+      ) : null}
 
       <label className="knowledge-field">
         <span className="knowledge-label">Reference links</span>

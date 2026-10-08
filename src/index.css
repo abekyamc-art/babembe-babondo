@@ -917,9 +917,11 @@
     cursor: default;
   }
 
-  /* the paste-a-list switch sits above the word form, shorter than the kind tabs */
+  /* the small switches inside a panel — the paste-a-list one, and the spots a story's picture,
+     video, audio or link can stand at — wrap rather than squeeze on a narrow screen */
   .knowledge-switch {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
   }
 

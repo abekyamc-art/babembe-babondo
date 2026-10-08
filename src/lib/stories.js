@@ -19,6 +19,8 @@ export function emptyStory() {
     media_file_uri: "",
     links: "",
     published: true,
+    // where the attached thing stands in the telling; unset keeps it at the end, as every story did
+    media_after: null,
   };
 }
 
@@ -33,6 +35,7 @@ export function storyDraft(row) {
     media_file_uri: row?.media_file_uri || "",
     links: (Array.isArray(row?.links) ? row.links : []).join("\n"),
     published: row?.published !== false,
+    media_after: row?.media_after ?? null,
   };
 }
 
@@ -53,6 +56,11 @@ export function storyFields(draft) {
       .map((link) => link.trim())
       .filter(Boolean),
     published: draft?.published !== false,
+    // the spot the attached thing was placed at, kept as the count of lines it stands after
+    media_after:
+      draft?.media_after === null || draft?.media_after === undefined
+        ? null
+        : Number(draft.media_after),
   };
 }
 
@@ -121,4 +129,25 @@ export async function storyMediaUrl(story) {
   } catch (err) {
     return "";
   }
+}
+
+/** The telling's own lines, each one a place the attached thing can stand after. */
+export function storyLines(text) {
+  return String(text ?? "")
+    .split(/\n+/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+}
+
+/**
+ * Which gap of the telling the attached thing stands in: 0 in front of it, 1 after its first line,
+ * and so on up to the line count, which is the end. A story that has never been given a spot keeps
+ * its attachment at the end, exactly where it stood before.
+ */
+export function mediaPlacement(story, count) {
+  const after = story?.media_after;
+  if (after === null || after === undefined || after === "") return count;
+  const spot = Number(after);
+  if (!Number.isFinite(spot) || spot < 0) return count;
+  return Math.min(spot, count);
 }

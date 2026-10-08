@@ -6,7 +6,16 @@ const MAX_STORIES = 200;
 const MAX_QUERY = 600;
 
 // Only what the screen shows: the story, its filing words, and its own media.
-const FIELDS = ["title", "text", "tags", "media_kind", "media_url", "media_file_uri", "links"];
+const FIELDS = [
+  "title",
+  "text",
+  "tags",
+  "media_kind",
+  "media_url",
+  "media_file_uri",
+  "media_after",
+  "links",
+];
 
 /**
  * The story the admin wrote that a turn is asking for, if there is one.
