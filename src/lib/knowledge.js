@@ -1,7 +1,27 @@
 import { base44 } from "@/api/base44Client";
 
-/** The three kinds of entry the admin writes, in the order they are shown. */
+/**
+ * What the knowledge panel holds, in the order it is shown: the one document everything is written
+ * in — words, phrases, rules and the rest, under its own headings — and the stories, which stay a
+ * collection of their own.
+ */
 export const KINDS = [
+  {
+    id: "doc",
+    tab: "The document",
+    empty:
+      "Nothing in the document yet — write your words, your phrases, your rules and the rest under their headings, then publish it.",
+  },
+  {
+    id: "story",
+    tab: "Stories",
+    empty:
+      "No stories saved yet — write the first one, give it its tags, and attach a picture, a video or a link.",
+  },
+];
+
+/** The kinds the older, separate entries were written in — kept for the panels that still read them. */
+export const LEGACY_KINDS = [
   {
     id: "qa",
     tab: "Questions",
@@ -89,7 +109,7 @@ export function isComplete(draft) {
 }
 
 export function kindHint(kind) {
-  const found = KINDS.find((item) => item.id === kind);
+  const found = [...KINDS, ...LEGACY_KINDS].find((item) => item.id === kind);
   return found ? found.empty : "";
 }
 

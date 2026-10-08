@@ -1,8 +1,12 @@
 /**
- * The admin's own rules, saved in the knowledge panel as a text. Both AIs read them: the
- * assistant carries the rule book ahead of the rest of its knowledge, and the Rap Studio's
- * writer obeys it on every take.
+ * The admin's own rules: the rules part of the one knowledge document, or — for a rule book saved
+ * before that document existed — the text holding them. Both AIs read them: the assistant carries
+ * the rule book ahead of the rest of its knowledge, and the Rap Studio's writer obeys it on every
+ * take. The published document is the one in force: it is what the admin has just approved, and it
+ * replaces whatever the older text holds.
  */
+
+import { docRulesText } from "./knowledgeDoc.ts";
 
 // a text whose title mentions rules is the rule book
 const RULE_TITLE = /(rule|sheria|kanuni)/i;
@@ -34,6 +38,10 @@ function partOf(title: any): number {
  *  ahead of every other kind of knowledge, the writer of every take. */
 export async function rulesText(base44: any): Promise<string> {
   try {
+    // the rules the admin keeps in the one document are the rule book in force, read whole
+    const stated = await docRulesText(base44);
+    if (stated) return stated.slice(0, MAX_RULES);
+
     const page = await base44.asServiceRole.entities.KnowledgeText.filter(
       {},
       { sort: "-created_date", limit: MAX_TEXTS, fields: ["title", "text"] }

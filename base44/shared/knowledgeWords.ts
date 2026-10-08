@@ -1,8 +1,11 @@
 /**
  * The admin's saved words, and the rules a rapped word is held to. The Rap Studio and the
- * voice assistant both read their vocabulary from here — the admin's word entries plus the
- * words the saved documents spell out themselves — so the two can never drift apart.
+ * voice assistant both read their vocabulary from here — the admin's one knowledge document, the
+ * word entries saved before it existed, and the words the saved documents spell out themselves — so
+ * the two can never drift apart.
  */
+
+import { docWordRows, publishedDoc } from "./knowledgeDoc.ts";
 
 export const MAX_TERM = 40;
 export const MAX_MEANING = 110;
@@ -295,11 +298,27 @@ function minedLines(text: any): any[] {
   return out;
 }
 
-/** Every saved word entry, a page at a time, plus every word the saved documents spell out
- *  themselves. One spelling of a word is only ever taken once. */
+/**
+ * Every word the app holds. The admin's one knowledge document stands first, because what it says a
+ * word is, is what the word is — it is the newest thing they have written and the only thing every
+ * AI is promised. A spelling the document does not carry is then taken from the word entries saved
+ * before it existed, and from the words the saved documents spell out themselves, so nothing that
+ * was saved earlier is lost. One spelling of a word is only ever taken once.
+ */
 export async function knowledgeWordRows(base44: any): Promise<any[]> {
   const rows: any[] = [];
   const seen = new Set<string>();
+
+  const add = (row: any) => {
+    const key = clean(row?.term, MAX_TERM).toLowerCase();
+    if (!key || seen.has(key)) return;
+    seen.add(key);
+    rows.push(row);
+  };
+
+  const doc = await publishedDoc(base44);
+  if (doc) docWordRows(doc).forEach(add);
+
   let cursor: string | undefined;
 
   while (rows.length < MAX_WORDS_READ) {
@@ -312,32 +331,20 @@ export async function knowledgeWordRows(base44: any): Promise<any[]> {
     const fresh = (Array.isArray(page) ? page : page?.items || []).filter(
       (row: any) => row?.term
     );
-    fresh.forEach((row: any) => {
-      const key = clean(row.term, MAX_TERM).toLowerCase();
-      if (!key || seen.has(key)) return;
-      seen.add(key);
-      rows.push(row);
-    });
+    fresh.forEach(add);
 
     const next = page?.has_more ? page?.next_cursor : "";
     if (!next) break;
     cursor = next;
   }
 
-  const addMined = (row: any) => {
-    const key = clean(row.term, MAX_TERM).toLowerCase();
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    rows.push(row);
-  };
-
   const texts = await base44.asServiceRole.entities.KnowledgeText.list({
     limit: MAX_DOCS,
     fields: ["text", "passages"],
   });
   (texts?.items || []).forEach((doc: any) => {
-    minedLines(doc?.text).forEach(addMined);
-    (doc?.passages || []).forEach((passage: any) => minedLines(passage).forEach(addMined));
+    minedLines(doc?.text).forEach(add);
+    (doc?.passages || []).forEach((passage: any) => minedLines(passage).forEach(add));
   });
 
   return rows;

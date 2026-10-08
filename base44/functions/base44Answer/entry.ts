@@ -4,6 +4,7 @@ import { alikeTerms } from "../../shared/soundsAlike.ts";
 import { glossOf, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { knowledgeStamp } from "../../shared/wordBank.ts";
+import { docKnowledgeBlock } from "../../shared/knowledgeDoc.ts";
 import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
@@ -49,6 +50,8 @@ const MAX_AUDIO_CHARS = 2500000;
 const WORDS_CEILING = 26000;
 // how many of the saved words closest to what was heard ride ahead of the whole list
 const LIKE_LIMIT = 6;
+// the rest of the admin's one document — what is not a word and not a rule — rides with every answer
+const DOC_BUDGET = 7000;
 // a turn nothing could be made of: he asks again and the call goes on listening
 const REASK = "Sema tena, nakusikiliza.";
 
@@ -346,6 +349,10 @@ export default async function (req: Request): Promise<Response> {
     // the answer key stands between the rules and the word list, so the saved answer is read
     // before the whole vocabulary is
     const key = keySection([...loaded.keys, ...loaded.rows], asked);
+    // the rest of the admin's one document rides with the answer: the words and the rules have their
+    // own sections above, and this is everything else they wrote — their notes, their questions and
+    // answers, and whatever they filed under a heading of their own name
+    const doc = await docKnowledgeBlock(base44, DOC_BUDGET);
 
     const memory = textOf(payload?.memory, MAX_MEMORY);
     const history = textOf(payload?.history, MAX_HISTORY);
@@ -358,6 +365,7 @@ export default async function (req: Request): Promise<Response> {
       key,
       words,
       like,
+      doc,
       lookup.material,
       memory ? KNOWLEDGE_HEAD + "\n" + memory : "",
       history ? "The talk so far, oldest first:\n" + history : "",

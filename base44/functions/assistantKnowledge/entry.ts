@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { alikeTerms, skeleton, tight } from "../../shared/soundsAlike.ts";
 import { bankRows, knowledgeStamp, trimToLines } from "../../shared/wordBank.ts";
+import { docKnowledgeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { keyLine, keyMatches } from "../../shared/answerKey.ts";
 import { ANSWER_LANGUAGE } from "../../shared/languageRules.ts";
@@ -18,6 +19,12 @@ const WORDS_SHARE = 24000;
 // guide pasted in, say — can never crowd the vocabulary out of it. What rides in is the head of the
 // book, where its general rules and its reading key stand.
 const RULES_ROOM = 9000;
+
+// The rest of the admin's one knowledge document — what they filed under the knowledge heading, and
+// under any heading of their own name — takes a share of the note of its own.
+const DOC_ROOM = 6000;
+// a live turn asks on every sound, so the document rides lighter there than it does with a typed one
+const DOC_ROOM_LIVE = 3000;
 
 // A turn's own language line, and the line a greeting is answered from, ride at the head of the
 // note, ahead of every other part.
@@ -673,12 +680,17 @@ export default async function (req: Request): Promise<Response> {
       const heard = payload.heard.trim().slice(0, MAX_QUERY);
       // the answer key comes first in the note, so the saved answer is what the turn opens with,
       // and the words closest to what was heard follow it
-      const [words, keys] = await Promise.all([bankRows(base44), keyRowsFor(base44)]);
+      const [words, keys, known] = await Promise.all([
+        bankRows(base44),
+        keyRowsFor(base44),
+        docKnowledgeBlock(base44, DOC_ROOM_LIVE),
+      ]);
       const liked = likeSection(words, heard);
       const lang = turnLanguage(heard, liked.near, false);
       const greeting = isGreeting(heard, liked.near);
       return Response.json({
-        note: turnHead(lang, greeting) + keySection([...keys, ...words], heard) + liked.text,
+        note:
+          turnHead(lang, greeting) + keySection([...keys, ...words], heard) + liked.text + known,
         lang,
         greeting,
         // a turn spoken in Kibembe that still left a place the saved words do not hold: the words
@@ -726,10 +738,15 @@ export default async function (req: Request): Promise<Response> {
     left -= qa.text.length;
     const world = fill(HEADS.note, linesOfKind("note"), left);
 
+    // The rest of the admin's one knowledge document rides with the note: the words and the rules
+    // have their own sections above, and this is everything else they wrote — their notes, their
+    // questions and answers, and whatever they filed under a heading of their own name.
+    const known = await docKnowledgeBlock(base44, DOC_ROOM);
+
     const body = like + qa.text + world.text + tally.section + say;
     let note =
-      body || key || rulesSection || head
-        ? OPENING + head + GUIDE + key + rulesSection + body + FALLBACK
+      body || key || rulesSection || head || known
+        ? OPENING + head + GUIDE + key + rulesSection + body + known + FALLBACK
         : "";
 
     // a question is answered from the admin's long texts too, through the few

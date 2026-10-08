@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { secrets } from 'base44:runtime';
 import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
+import { docKnowledgeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { lookupForTurn } from "../../shared/freshLookup.ts";
 import { bestStory, storyNote } from "../../shared/storyMatch.ts";
@@ -19,6 +20,8 @@ const MAX_REPLY_TOKENS = 400;
 // minute ago answers now.
 const RULES_BUDGET = 7000;
 const WORD_BUDGET = 7000;
+// and the rest of the admin's one document — what is not a word and not a rule — rides with them
+const DOC_BUDGET = 6000;
 
 // The admin's own rule book, handed over ahead of the words: how Kibembe is read, pronounced,
 // written and used is decided by it, and every answer follows it.
@@ -95,7 +98,10 @@ export default async function (req) {
     // then every word they hold. Both are read here on the server and never sent to the app.
     const rules = trimToLines(await rulesText(base44), RULES_BUDGET);
     const words = wordListBlock(await bankRows(base44), message, WORD_BUDGET);
-    const saved = rules || words ? `${RULES_HEAD}${rules}${words}` : '';
+    // the rest of the document — the admin's notes, their questions and answers, and anything they
+    // filed under a heading of their own — rides with the turn too
+    const doc = await docKnowledgeBlock(base44, DOC_BUDGET);
+    const saved = rules || words || doc ? `${RULES_HEAD}${rules}${words}${doc}` : '';
 
     // The admin's own stories ride with a turn that asks for one: the telling they wrote is what
     // the answer is given from, and the screen shows it with its picture, its video or its link as

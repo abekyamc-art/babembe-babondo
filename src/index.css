@@ -861,6 +861,117 @@
     min-height: 210px;
   }
 
+  /* The one knowledge document. Its box is the room a whole language needs, and the search over it
+     names, for every match, the part of the document the match belongs to. */
+  .doc-editor {
+    min-height: 380px;
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    line-height: 1.7;
+    tab-size: 2;
+  }
+
+  .doc-state {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 7px;
+  }
+
+  .doc-chip {
+    padding: 7px 11px;
+    border: 1px solid #293654;
+    border-radius: 999px;
+    background: #141c32;
+    color: #9ba9c6;
+    font: 600 11px/1.25 system-ui, -apple-system, "Segoe UI", sans-serif;
+  }
+
+  /* what every AI is reading right now */
+  .doc-chip.is-live {
+    color: #8ff0c8;
+    border-color: #275c4b;
+    background: #0f241f;
+  }
+
+  /* written, but not yet approved */
+  .doc-chip.is-dirty {
+    color: #ffd9a8;
+    border-color: #5c4a2c;
+    background: #241d10;
+  }
+
+  /* nothing published at all */
+  .doc-chip.is-quiet {
+    color: #ffb6bd;
+    border-color: #5c2c33;
+    background: #241014;
+  }
+
+  .doc-search {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .doc-search-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .doc-hits {
+    display: flex;
+    flex-direction: column;
+    max-height: 240px;
+    overflow-y: auto;
+    border: 1px solid #1c2440;
+    border-radius: 12px;
+  }
+
+  .doc-hit {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+    padding: 10px 12px;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    border-bottom: 1px solid #1c2440;
+    cursor: pointer;
+  }
+
+  .doc-hit:hover {
+    background: rgba(107, 168, 255, 0.06);
+  }
+
+  .doc-hit-head {
+    color: #8ebaff;
+    font: 700 9.5px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+  }
+
+  .doc-hit-line {
+    color: #e6ecfa;
+    font: 600 12.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+    overflow-wrap: anywhere;
+  }
+
+  /* the version the AIs are reading, read back exactly as it was approved */
+  .doc-published {
+    max-height: 260px;
+    overflow: auto;
+    margin: 0;
+    padding: 12px 14px;
+    white-space: pre-wrap;
+    color: #c3cde2;
+    background: #101728;
+    border: 1px solid #1c2440;
+    border-radius: 12px;
+    font: 600 12px/1.6 ui-monospace, SFMono-Regular, Menlo, monospace;
+  }
+
   .knowledge-meter {
     display: flex;
     align-items: center;

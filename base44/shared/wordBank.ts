@@ -1,4 +1,5 @@
 import { MAX_MEANING, MAX_TERM, knowledgeWordRows } from "./knowledgeWords.ts";
+import { docStamp } from "./knowledgeDoc.ts";
 
 /**
  * The saved knowledge as a live assistant reads it.
@@ -17,15 +18,18 @@ const MAX_HELD_MS = 60000;
 /** What the saved knowledge looks like right now: how much of it there is, and its newest write. */
 export async function knowledgeStamp(base44: any): Promise<string> {
   try {
-    const [count, newest] = await Promise.all([
+    const [count, newest, doc] = await Promise.all([
       base44.asServiceRole.entities.AssistantKnowledge.count({}),
       base44.asServiceRole.entities.AssistantKnowledge.filter(
         {},
         { sort: "-updated_date", limit: 1, fields: ["updated_date", "created_date"] }
       ),
+      // the one knowledge document is part of what the stamp is made of, so publishing it drops
+      // every held copy of the knowledge at once and the next turn is answered from it
+      docStamp(base44),
     ]);
     const row = (Array.isArray(newest) ? newest : newest?.items || [])[0] || {};
-    return `${Number(count) || 0}:${row.id || ""}:${row.updated_date || row.created_date || ""}`;
+    return `${Number(count) || 0}:${row.id || ""}:${row.updated_date || row.created_date || ""}:${doc}`;
   } catch (error: any) {
     // a stamp that could not be read never holds a stale list: the caller reads the store whole
     console.error("The knowledge stamp could not be read:", error?.message);
