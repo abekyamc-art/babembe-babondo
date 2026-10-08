@@ -8,12 +8,15 @@ import { hostOf } from "@/lib/stories";
  * A YouTube video standing inside a story.
  *
  * It rests as its own cover — the picture YouTube itself uses — with a play sign on it, and the
- * address it came from written underneath. Tapping the cover starts the video right here, in the
- * story's own place, with its sound, without sending anyone to YouTube. The player YouTube puts on
- * The player carries its own play sign and its own volume, and it is started from there — a press
- * inside the player itself — because a player made to start on its own is the very one browsers
- * silence. Started that way it speaks with its sound, and the stop beside the link takes it away
- * completely, so the telling keeps the place it had.
+ * address it came from written underneath. Tapping the cover brings the player in right here, in the
+ * story's own place, with no autoplay asked for at all: YouTube is handed nothing but the video's own
+ * id and full controls. The player carries its own play sign and its own volume, and it is started
+ * from there — a press inside the player itself — because a player made to start on its own is the
+ * very one browsers silence. Started that way it speaks with its sound, and the stop beside the link
+ * takes it away completely, so the telling keeps the place it had.
+ *
+ * If YouTube still refuses to play it here — a video its owner has kept off other pages, or a browser
+ * that will not allow it — the link underneath opens the same video on YouTube, where it plays.
  *
  * The link underneath is the only way out: it is opened only when it is deliberately tapped, and
  * what took the person away from the talk hands the talk back.
@@ -43,8 +46,10 @@ export default function YouTubePlayer({ url, title = "", onPlaybackEnd }) {
           <iframe
             src={video.embed}
             title={title || "YouTube video"}
-            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share"
+            allow="autoplay; encrypted-media; picture-in-picture; web-share"
             allowFullScreen
+            // the player is told where it is standing, so a page that asks for a known address is given one
+            referrerPolicy="strict-origin-when-cross-origin"
             className="aspect-video w-full"
           />
         </div>

@@ -30,10 +30,12 @@ export function youtubeVideo(url) {
     return {
       id,
       cover: `https://i.ytimg.com/vi/${id}/hqdefault.jpg`,
-      // No autoplay is ever asked for: a player told to start by itself is the one browsers silence,
-      // and YouTube obeys them by starting it muted. The person presses the play sign on the video
-      // itself — a gesture inside the player — and it speaks from there, with its own volume control.
-      embed: `https://www.youtube.com/embed/${id}?playsinline=1&rel=0`,
+      // The player is asked for in its plainest form, from the address YouTube names for embedding:
+      // the video's own validated id, and nothing else beyond full controls that keep their place on
+      // a phone. No autoplay and no mute is ever asked for, because a player told to start by itself
+      // is the one browsers silence — the person presses the play sign inside the player instead, and
+      // it speaks from there with its own volume.
+      embed: `https://www.youtube-nocookie.com/embed/${id}?controls=1&playsinline=1&rel=0`,
       watch: `https://www.youtube.com/watch?v=${id}`,
     };
   }
