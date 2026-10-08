@@ -1,10 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { Loader2, Play } from "lucide-react";
+import { ExternalLink, Loader2, Play } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { base44 } from "@/api/base44Client";
 import { hostOf } from "@/lib/stories";
 import { youtubeVideo } from "@/lib/youtube";
 import YouTubePlayer from "@/components/story/YouTubePlayer";
+
+/**
+ * The address a picture, a recording or a video came from, standing directly under it and opened
+ * only when it is deliberately tapped — so the source is one tap away, and the talk the story was
+ * asked on is handed back the moment the person goes there. An uploaded file has no public address
+ * of its own, so nothing stands under it.
+ */
+function SourceLine({ url, onOpen }) {
+  if (!url) return null;
+  return (
+    <button
+      type="button"
+      onClick={() => {
+        window.open(url, "_blank", "noopener,noreferrer");
+        onOpen?.();
+      }}
+      className="flex max-w-full items-center gap-1.5 self-start font-body text-[12px] text-muted-foreground underline decoration-border underline-offset-2 transition hover:text-foreground"
+    >
+      <span className="truncate">Open the source · {hostOf(url)}</span>
+      <ExternalLink className="h-3.5 w-3.5 shrink-0" />
+    </button>
+  );
+}
 
 /**
  * One picture, video, audio recording or link, drawn in the place the admin gave it inside a story.
@@ -73,12 +96,15 @@ export default function StoryMedia({
 
   if (kind === "image") {
     return (
-      <Image
-        src={src}
-        alt={title}
-        fittingType="fit"
-        className="w-full rounded-2xl border border-border"
-      />
+      <div className="flex flex-col gap-1.5">
+        <Image
+          src={src}
+          alt={title}
+          fittingType="fit"
+          className="w-full rounded-2xl border border-border"
+        />
+        <SourceLine url={url} onOpen={onPlaybackEnd} />
+      </div>
     );
   }
 
@@ -90,24 +116,30 @@ export default function StoryMedia({
 
   if (kind === "video") {
     return (
-      <video
-        src={src}
-        controls
-        playsInline
-        onEnded={() => onPlaybackEnd?.()}
-        className="w-full rounded-2xl border border-border bg-black"
-      />
+      <div className="flex flex-col gap-1.5">
+        <video
+          src={src}
+          controls
+          playsInline
+          onEnded={() => onPlaybackEnd?.()}
+          className="w-full rounded-2xl border border-border bg-black"
+        />
+        <SourceLine url={url} onOpen={onPlaybackEnd} />
+      </div>
     );
   }
 
   if (kind === "audio") {
     return (
-      <audio
-        src={src}
-        controls
-        onEnded={() => onPlaybackEnd?.()}
-        className="w-full rounded-2xl border border-border bg-card"
-      />
+      <div className="flex flex-col gap-1.5">
+        <audio
+          src={src}
+          controls
+          onEnded={() => onPlaybackEnd?.()}
+          className="w-full rounded-2xl border border-border bg-card"
+        />
+        <SourceLine url={url} onOpen={onPlaybackEnd} />
+      </div>
     );
   }
 
