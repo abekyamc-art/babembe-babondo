@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
+import BulkApprove from "@/components/knowledge/BulkApprove";
 import ImageUploader from "@/components/knowledge/ImageUploader";
 import PictureAudit from "@/components/knowledge/PictureAudit";
 import MatchReview from "@/components/knowledge/MatchReview";
@@ -183,6 +184,16 @@ export default function ImageReviewPanel() {
       <PictureAudit onDone={open} />
 
       <ImageUploader words={words} setWords={setWords} onDone={open} onSay={say} />
+
+      <BulkApprove
+        suggested={suggested}
+        confirmed={confirmed}
+        busy={busy}
+        ask={ask}
+        onDone={open}
+        onNote={setNote}
+        onError={setError}
+      />
 
       <MatchReview
         suggested={suggested}
