@@ -1,0 +1,48 @@
+{
+  "name": "KnowledgeImage",
+  "type": "object",
+  "properties": {
+    "term": {
+      "type": "string",
+      "description": "The word or phrase in the knowledge document this picture stands beside, exactly as it is written there."
+    },
+    "name": {
+      "type": "string",
+      "description": "What the picture is called \u2014 the name of the file it came out of, shown beside it in the panel."
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "Private storage reference for the picture. It is opened through a short-lived link, so it is never public and is only ever read by the admin who put it there."
+    },
+    "how": {
+      "type": "string",
+      "description": "How the picture was found for the word \u2014 it stood beside it in the document, its file is named after it, or the admin chose it by hand."
+    }
+  },
+  "required": [
+    "term",
+    "file_uri"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

@@ -3,6 +3,7 @@ import { FileText, FileUp, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { DOC_MAX } from "@/lib/knowledgeDoc";
 import { isPlainTextFile } from "@/lib/knowledgeTexts";
+import ImportReview from "@/components/knowledge/ImportReview";
 
 // How much of a file is read at a time, and how much imported text is written back in one go: a file
 // larger than the device's memory is never held whole, and a write never carries more than the store
@@ -14,6 +15,10 @@ const KEEP = 50 * 1024 * 1024;
 // The room an import takes of the document, kept a little short of the whole of it so the joins
 // between its own pieces always fit inside what the document takes.
 const ROOM = DOC_MAX - 240;
+// A package — a ZIP, or a Word file — is handed to the app whole so it can be read through its own
+// index: the words it holds, and the pictures standing beside them. What is handed over is bounded here.
+const PACKAGE_MAX = 40 * 1024 * 1024;
+const PACKAGE = /\.(zip|docx)$/i;
 
 /**
  * The text of one file, handed over a piece at a time. A plain text file is read right here on the
@@ -60,6 +65,9 @@ export default function DocImport({ doc, onState }) {
   const [percent, setPercent] = useState(0);
   const [note, setNote] = useState("");
   const [error, setError] = useState("");
+  // what a ZIP or a Word file turned out to hold: the words found in it, and the pictures beside
+  // them, waiting for the admin to say which of it goes into the working copy
+  const [review, setReview] = useState(null);
 
   const source = doc?.doc?.source || {};
 
@@ -83,6 +91,10 @@ export default function DocImport({ doc, onState }) {
     setError("");
     setNote("");
     setPercent(0);
+    setReview(null);
+
+    // a ZIP, or a Word file, is read as a package rather than as a document of plain text
+    const packed = PACKAGE.test(file.name);
 
     let text = String(doc.text || "");
     const from = text.length;
@@ -91,6 +103,22 @@ export default function DocImport({ doc, onState }) {
     let whole = true;
 
     try {
+      if (packed) {
+        if (file.size > PACKAGE_MAX) throw new Error("big");
+        setPercent(15);
+        const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
+        setPercent(45);
+        const res = await base44.functions.invoke("knowledgeImport", {
+          file_uri,
+          name: file.name,
+        });
+        const found = res?.data || {};
+        if (found.error) throw new Error(found.error);
+        setPercent(100);
+        setReview({ ...found, file_uri, name: found.name || file.name });
+        return;
+      }
+
       if (room <= 0) throw new Error("full");
 
       let pending = "";
@@ -156,12 +184,17 @@ export default function DocImport({ doc, onState }) {
         );
       }
     } catch (err) {
+      const said = String(err?.message || "");
       setError(
-        err?.message === "full"
+        said === "full"
           ? "The document is already full — take a part of it out, then import."
-          : err?.message === "nothing"
+          : said === "nothing"
             ? "No readable text was found in that document."
-            : "That document could not be imported. A plain text file (.txt) is read right here; anything else is lifted out by the app — try again, or paste the text into the box."
+            : said === "big"
+              ? `That file is larger than ${Math.round(PACKAGE_MAX / (1024 * 1024))} MB — a ZIP of the words and their pictures is what is read here. Try a smaller one.`
+              : packed && said
+                ? said
+                : "That document could not be imported. A plain text file (.txt) is read right here; anything else is lifted out by the app — try again, or paste the text into the box."
       );
     } finally {
       setBusy(false);
@@ -184,22 +217,36 @@ export default function DocImport({ doc, onState }) {
           ) : (
             <FileUp className="h-3.5 w-3.5" />
           )}
-          {busy ? "Importing…" : "Import a document into the working copy"}
+          {busy ? "Importing…" : "Import a document, a Word file or a ZIP"}
         </button>
         <input
           ref={inputRef}
           type="file"
-          accept=".txt,.md,.markdown,.csv,.json,.srt,.vtt,.pdf,.doc,.docx,text/plain"
+          accept=".txt,.md,.markdown,.csv,.json,.srt,.vtt,.pdf,.doc,.docx,.zip,text/plain,application/zip"
           onChange={take}
           className="hidden"
         />
         <span className="knowledge-meter-text">
-          A plain text file is read on your device, a piece at a time, so even a very large one is
-          taken as it is — and what it holds is written straight into the working copy. The document
-          itself takes up to {DOC_MAX.toLocaleString()} characters, so a longer file comes in up to
-          that point, and the whole of it stays kept beside the document for you.
+          A plain text file is read on your device, a piece at a time, and what it holds is written
+          straight into the working copy. A ZIP, or a Word file, is read as a package instead: the
+          words in it are found, each picture is set beside the word it stood next to, and you choose
+          what goes in before anything is written. The document takes up to{" "}
+          {DOC_MAX.toLocaleString()} characters, and the whole file stays kept beside it for you.
         </span>
       </div>
+
+      {review ? (
+        <ImportReview
+          result={review}
+          doc={doc}
+          onState={onState}
+          onClose={() => setReview(null)}
+          onDone={(said) => {
+            setReview(null);
+            setNote(said);
+          }}
+        />
+      ) : null}
 
       {busy ? (
         <div className="knowledge-field">
