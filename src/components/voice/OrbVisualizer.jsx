@@ -49,16 +49,16 @@ export default function OrbVisualizer({ levelRef, status, speaking, thinking, vi
     return startOrbScene({
       avatarEl: videoRef?.current,
       backdropEl: backdropRef.current,
-      canvas,
+      canvas
     });
   }, [videoRef]);
 
   return (
     <div
       className={`orb-shell${status === "connecting" ? " is-connecting" : ""}${
-        thinking ? " is-thinking" : ""
-      }`}
-    >
+      thinking ? " is-thinking" : ""}`
+      }>
+      
       <div className="orb-halo" />
       <div className="orb-ring" ref={ringRef} />
       <div className="orb-face" ref={faceRef}>
@@ -72,28 +72,28 @@ export default function OrbVisualizer({ levelRef, status, speaking, thinking, vi
           playsInline
           preload="auto"
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-0"
-        />
-        {videoRef ? (
-          // the raw avatar stream is read by the painter, and stays the element the
-          // assistant's own voice comes out of — so it is hidden, never muted
-          <video
-            ref={videoRef}
-            autoPlay
-            playsInline
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-0 h-full w-full opacity-0"
-          />
-        ) : null}
+          className="pointer-events-none absolute inset-0 h-full w-full object-cover opacity-0" />
+        
+        {videoRef ?
+        // the raw avatar stream is read by the painter, and stays the element the
+        // assistant's own voice comes out of — so it is hidden, never muted
+        <video
+          ref={videoRef}
+          autoPlay
+          playsInline
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-0 h-full w-full opacity-0" /> :
+
+        null}
         <canvas
           ref={canvasRef}
           width={CANVAS}
           height={CANVAS}
           aria-hidden="true"
-          className="pointer-events-none absolute inset-0 h-full w-full"
-        />
-        {faceOn ? null : <div className="orb-sheen" />}
+          className="pointer-events-none absolute inset-0 h-full w-full" />
+        
+        {faceOn ? null : <div className="orb-sheen rounded" />}
       </div>
-    </div>
-  );
+    </div>);
+
 }
