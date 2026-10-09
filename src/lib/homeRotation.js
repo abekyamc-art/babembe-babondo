@@ -10,11 +10,13 @@ import { AI2_ID, ai2Resting, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRo
  * and comes back to the Cartesia voice when the ring is complete. The Cartesia voice answers seven
  * finished answers before standing aside, and every other voice two.
  *
- * The Cartesia voice is one seat, not three. The three Cartesia accounts the app is set up with —
- * the app's own, then the admin's second and third — stand behind that one seat, each with its own
- * key and its own agent, and a call opens on whichever of them can take it. An account that fails
- * stands aside for a while, and a later call tries the primary again first, so a recovered account
- * takes its place back on its own. They are never turns of this ring: no call walks from one Cartesia
+ * The Cartesia voice is one seat, not three. The three Cartesia AIs the app is set up with — the
+ * app's own account, then the admin's second and third — stand behind that one seat, each with its
+ * own key and its own agent and each with the one backup account paired with it. A call opens on
+ * whichever account can take it: an account that cannot falls through to the backup paired with it,
+ * and only then to the next Cartesia AI. An account that fails stands aside for a while, and a later
+ * call tries it again first, so a recovered one takes its place back on its own. The admin's other
+ * accounts are never used here. They are never turns of this ring: no call walks from one Cartesia
  * account to the next the way it walks from one voice to another.
  *
  * GLOIRE AI is not on this ring: its own account stays set up exactly as it is, but a home call never

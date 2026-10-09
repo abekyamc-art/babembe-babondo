@@ -1,19 +1,33 @@
-import { CARTESIA_AI, CARTESIA_AI1, CARTESIA_AI2 } from "@/lib/providerNames";
+import {
+  CARTESIA_AI,
+  CARTESIA_AI1,
+  CARTESIA_AI2,
+  CARTESIA_AI_B,
+  CARTESIA_AI1_B,
+  CARTESIA_AI2_B,
+} from "@/lib/providerNames";
 
 /**
- * The three Cartesia accounts the one Cartesia voice on a home call speaks through, in the order
- * they are tried: the app's own account first, then the admin's second and third.
+ * The Cartesia AIs the one Cartesia voice on a home call speaks through, each with the single backup
+ * paired with it: the app's own account, then the admin's second and third, and behind each of them
+ * the account kept for that one AI alone.
  *
- * Each one is a whole account of its own — its own key and its own agent — so when the account ahead
- * of it cannot take the call the next one answers instead and the person on the phone is never left
- * without a voice. They are not turns of the same rotation: only one of them is ever on the line,
- * and the call opens on whichever of them is healthy rather than walking from one to the next.
+ * Each one is a whole account of its own — its own key and its own agent — and a backup stands behind
+ * the AI it was paired with and nobody else: an account that cannot take the call falls through to
+ * its own backup, and only then does the call move on to the next Cartesia AI. The admin's remaining
+ * accounts are never used here, so the spares they are keeping are left untouched.
  */
-const ACCOUNTS = [
-  { account: "", label: CARTESIA_AI },
-  { account: "one", label: CARTESIA_AI1 },
-  { account: "two", label: CARTESIA_AI2 },
+const PAIRS = [
+  { account: "", label: CARTESIA_AI, backup: "bak", backupLabel: CARTESIA_AI_B },
+  { account: "one", label: CARTESIA_AI1, backup: "onebak", backupLabel: CARTESIA_AI1_B },
+  { account: "two", label: CARTESIA_AI2, backup: "twobak", backupLabel: CARTESIA_AI2_B },
 ];
+
+/** Every account in the order it is tried: each AI's own account, then the backup paired with it. */
+const ACCOUNTS = PAIRS.flatMap((pair) => [
+  { account: pair.account, label: pair.label },
+  { account: pair.backup, label: pair.backupLabel },
+]);
 
 // How long an account that could not take a call stands aside. Short enough that a passing refusal
 // is over by the next call, long enough that a call is not spent trying an account that is down.

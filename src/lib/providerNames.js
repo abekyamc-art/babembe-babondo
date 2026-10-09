@@ -45,6 +45,15 @@ export const CARTESIA_AI1 = "Cartesia AI 1";
  */
 export const CARTESIA_AI2 = "Cartesia AI 2";
 
+/**
+ * The account kept as the one backup of each Cartesia AI, on its own separate account with its own
+ * key and its own agent: the backup of the app's own account, and the backup of each of the admin's
+ * two. A backup answers only for the AI it is paired with, and the admin's spares are never touched.
+ */
+export const CARTESIA_AI_B = "Cartesia AI B";
+export const CARTESIA_AI1_B = "Cartesia AI 1B";
+export const CARTESIA_AI2_B = "Cartesia AI 2B";
+
 /** What the provider behind a mode is called on screen. */
 export function providerName(mode) {
   return NAMES[mode] || GLOIRE_AI;

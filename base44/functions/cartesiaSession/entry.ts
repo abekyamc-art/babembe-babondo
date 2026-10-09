@@ -14,13 +14,27 @@ const NOTE_ROWS = 60;
 /**
  * The Cartesia accounts a home call's voices open on, each with its own key and its own agent.
  * Cartesia AI answers on the account the app already had; Cartesia AI 1 answers on the admin's own
- * second account, and Cartesia AI 2 on their third. None of the accounts' own settings are touched
- * from here.
+ * second account, and Cartesia AI 2 on their third. Behind each of those stands the one backup kept
+ * for that AI alone — its own separate account, with its own key and its own agent — so an account
+ * that cannot take a call hands it to the backup paired with it and never to anybody else's. The
+ * admin's remaining accounts are not listed here and are never used. None of the accounts' own
+ * settings are touched from here.
  */
 const ACCOUNTS: Record<string, { name: string; key: string; agent: string }> = {
   "": { name: "Cartesia AI", key: "CARTESIA_API_KEY", agent: "CARTESIA_AGENT_ID" },
+  bak: { name: "Cartesia AI B", key: "CARTESIA_BACKUP_API_KEY", agent: "CARTESIA_BACKUP_AGENT_ID" },
   one: { name: "Cartesia AI 1", key: "CARTESIA_AI1_API_KEY", agent: "CARTESIA_AI1_AGENT_ID" },
+  onebak: {
+    name: "Cartesia AI 1B",
+    key: "CARTESIA_AI1_BACKUP_API_KEY",
+    agent: "CARTESIA_AI1_BACKUP_AGENT_ID",
+  },
   two: { name: "Cartesia AI 2", key: "CARTESIA_AI2_API_KEY", agent: "CARTESIA_AI2_AGENT_ID" },
+  twobak: {
+    name: "Cartesia AI 2B",
+    key: "CARTESIA_AI2_BACKUP_API_KEY",
+    agent: "CARTESIA_AI2_BACKUP_AGENT_ID",
+  },
 };
 
 /** A secret's value, or nothing at all when it has not been saved yet. */
