@@ -14,5 +14,17 @@
   "required": [
     "follower_email",
     "following_email"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.follower_email": "{{user.email}}"
+    },
+    "read": null,
+    "update": {
+      "data.follower_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.follower_email": "{{user.email}}"
+    }
+  }
 }

@@ -31,5 +31,26 @@
     "author_email",
     "video_url",
     "publish_at"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.author_email": "{{user.email}}"
+    },
+    "read": null,
+    "update": {
+      "data.author_email": "{{user.email}}"
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.author_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }

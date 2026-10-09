@@ -49,5 +49,26 @@
     "host_email",
     "status",
     "started_at"
-  ]
+  ],
+  "rls": {
+    "create": {
+      "data.host_email": "{{user.email}}"
+    },
+    "read": null,
+    "update": {
+      "data.host_email": "{{user.email}}"
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.host_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
 }
