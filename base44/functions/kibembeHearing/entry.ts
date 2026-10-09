@@ -24,6 +24,10 @@ const PATTERNS = 300;
 // how much of the confirmed word bank rides into a call as it opens: the whole bank where it fits,
 // and the words the call can carry where it does not
 const WORDS_BUDGET = 6000;
+// and how much of the admin's document rides with them: the document runs to hundreds of thousands
+// of characters, and a voice given more than it can hold reads none of the rules that stand past its
+// room — so the call is handed the document's rules whole and the parts that matter, and no more
+const DOC_BUDGET = 8000;
 
 const READ_FAILED = "That turn could not be read just now.";
 
@@ -260,11 +264,11 @@ export default async function (req: Request): Promise<Response> {
     // block one call can carry.
     if (!said) {
       const words = await bankRows(base44);
-      // The admin's one knowledge document rides into the call whole as well — every word, every
-      // phrase, every rule and everything else they wrote — so a voice answering on its own account
-      // answers from all of what the admin approved, and never from a part of it. The call is handed
-      // it once, as it opens.
-      const doc = await docWholeBlock(base44);
+      // The admin's one knowledge document rides into the call too — its rules whole, the parts that
+      // matter and a slice of every other part — so a voice answering on its own account answers
+      // from what the admin approved, inside the room a voice can hold. The call is handed it once,
+      // as it opens.
+      const doc = await docWholeBlock(base44, DOC_BUDGET);
       return Response.json({
         note: `${firstRules()}${wordListBlock(words, "", WORDS_BUDGET)}${doc}`,
         matched: null,

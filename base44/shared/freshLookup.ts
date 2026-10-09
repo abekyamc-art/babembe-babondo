@@ -1,4 +1,6 @@
 import { keyMatches } from "./answerKey.ts";
+import { bankRows } from "./wordBank.ts";
+import { docWordRows, publishedDoc } from "./knowledgeDoc.ts";
 
 /**
  * The material a turn needs from outside the admin's saved knowledge — a story, the news, who
@@ -493,6 +495,55 @@ async function savedAnswer(base44: any, query: string) {
   }
 }
 
+/** The words a line is made of, as they are compared with the confirmed bank. */
+function turnWords(value: any): string[] {
+  return String(value ?? "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .split(/[^\p{L}\p{N}']+/u)
+    .map((word) => word.replace(/^['’]+|['’]+$/g, ""))
+    .filter((word) => word.length > 2);
+}
+
+/** Whether one confirmed term is said in a turn: the word itself, or every word of a phrase. */
+function saysTerm(term: string, said: string[]): boolean {
+  const want = turnWords(term);
+  if (!want.length) return false;
+  if (want.length === 1) return said.includes(want[0]);
+  return want.every((word) => said.includes(word));
+}
+
+/**
+ * Whether the app's own knowledge already holds a word this turn is made of: one of the confirmed
+ * words of the Word Bank, or a word the admin's own document writes.
+ *
+ * A turn about a word the admin has confirmed is answered from the app's own Kibembe, and nothing is
+ * looked up for it — the open web answers over the bank every time, and somebody asking what "ole"
+ * means ends up with a name, a song or a piece of software that happens to be spelled the same. A
+ * turn that asks for more outright still reaches the search, and so does a turn about somebody.
+ */
+async function holdsWord(base44: any, query: string): Promise<boolean> {
+  const said = turnWords(query);
+  if (!said.length) return false;
+
+  try {
+    const bank = rowsOf(await bankRows(base44));
+    if (bank.some((row: any) => saysTerm(String(row?.term || ""), said))) return true;
+  } catch (error: any) {
+    console.error("The Word Bank could not be read:", error?.message);
+  }
+
+  try {
+    const doc = await publishedDoc(base44);
+    if (!doc) return false;
+    return docWordRows(doc).some((row: any) => saysTerm(String(row?.term || ""), said));
+  } catch (error: any) {
+    console.error("The words of the document could not be read:", error?.message);
+    return false;
+  }
+}
+
 /**
  * What one turn needs from outside the saved knowledge.
  *
@@ -524,7 +575,12 @@ export async function lookupForTurn(
     if (query.length < 4 || !(WANTS.test(query) || ASKS_ABOUT.test(query))) return nothing();
     // the admin's own answer stands first: where they have already saved this question, its
     // answer is the one to give, so nothing is looked up — unless more was asked for outright
-    if (!MORE.test(query) && (await savedAnswer(base44, query))) return nothing();
+    if (!MORE.test(query)) {
+      if (await savedAnswer(base44, query)) return nothing();
+      // and the app's own Kibembe stands with it: a turn about a word the admin has confirmed is
+      // answered from the Word Bank, and the search is left closed for it
+      if (await holdsWord(base44, query)) return nothing();
+    }
   }
 
   // Google's own results, and the open web's, for this request ride with it into the search, so the

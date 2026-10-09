@@ -12,6 +12,16 @@ const KEY_ROWS = 200;
 const NOTE_ROWS = 60;
 
 /**
+ * How much of the admin's document rides onto the agent. The document is far larger than any voice
+ * can carry — it runs to hundreds of thousands of characters — and an agent whose instructions are
+ * longer than it can read loses the app's own rules entirely, which is heard as a voice that repeats
+ * one line or says nothing at all. So the agent is given the document's rules whole and the parts
+ * that matter, inside a room a voice can hold; the whole of the document stands in the app, and the
+ * turns that need it are answered from it there.
+ */
+const AGENT_DOC_ROOM = 6000;
+
+/**
  * The Cartesia accounts a home call's voices open on, each with its own key and its own agent.
  * Cartesia AI answers on the account the app already had; Cartesia AI 1 answers on the admin's own
  * second account, and Cartesia AI 2 on their third. Behind each of those stands the one backup kept
@@ -82,8 +92,9 @@ async function keepRules(base44: any, apiKey: string, agentId: string, agent: an
         { sort: "-created_date", limit: NOTE_ROWS, fields: ["title", "text"] }
       ),
       savedWords(base44),
-      // the admin's one knowledge document, whole: the agent answers from all of what they approved
-      docWholeBlock(base44),
+      // the admin's one knowledge document, as much of it as a voice can carry: its rules whole,
+      // the parts that matter, and a slice of every other part
+      docWholeBlock(base44, AGENT_DOC_ROOM),
     ]);
 
     const saved = {

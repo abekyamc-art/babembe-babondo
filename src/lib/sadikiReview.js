@@ -17,8 +17,12 @@ const ACCOUNT = "fourth";
 /** A reading is one written answer: it is waited for for a moment and never held on to. */
 const REVIEW_WAIT_MS = 25000;
 
-/** How much of a reading is ever taken: a rewritten answer is not an essay. */
-const MAX_REVIEW = 600;
+/**
+ * How much of a reading is ever taken: a rewritten answer is not an essay — and it has to have room
+ * for the whole of an answer, a source named and its address written out with it, so nothing of what
+ * the assistant said is lost on the way to the screen.
+ */
+const MAX_REVIEW = 1400;
 
 const INSTRUCTIONS = [
   "You are checking one answer of the Kibembe assistant of Village Voice before a person is given it.",
@@ -82,7 +86,13 @@ export async function reviewAnswer(question, draft) {
       const line = [INSTRUCTIONS, `Swali: ${asked}`, `Jibu: ${answer}`].join("\n\n");
       if (!socket.sendText(line)) settle("");
     });
-    return asAnswer(reply);
+    const reading = asAnswer(reply);
+    if (!reading) return "";
+    // The reading is a check of the answer and not a shortening of it: where it comes back carrying
+    // less of the answer than the assistant wrote — its tail cut off, or the answer trimmed to a
+    // line — the answer the assistant really wrote stands whole instead, so the person is shown
+    // everything it says and the source it named.
+    return reading.length < answer.length ? answer.slice(0, MAX_REVIEW) : reading;
   } catch (err) {
     // the account is not set up, or the service could not be reached: the answer stands as written
     return "";

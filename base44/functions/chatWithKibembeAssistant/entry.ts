@@ -13,9 +13,13 @@ import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
-const MODEL = 'gpt-4o-mini';
+// The model is the one that reads the rules before it writes: the smaller one answered from whatever
+// came back from the search and asked the person which language to use, which is what the rules
+// forbid. The reply is given room for the whole of an answer — three to six sentences with a source
+// named and its address written out — rather than for a line of it.
+const MODEL = 'gpt-4.1-mini';
 const MAX_MESSAGE = 2000;
-const MAX_REPLY_TOKENS = 400;
+const MAX_REPLY_TOKENS = 900;
 
 // How much of the app's own saved knowledge rides with one turn: the rule book the admin keeps in
 // force, and the words they have saved. The file search store is searched as before — this is the
@@ -32,6 +36,13 @@ const TRANSLATE_WORD_BUDGET = 22000;
 // and the catalogue of every story — its name and the names published with it — so a person who asks
 // about a song or a video by its own name is answered about that name
 const STORY_ROOM = 1500;
+
+// How much of the admin's document rides with one written turn. The document is hundreds of
+// thousands of characters long, and a turn handed more than the model reads is answered from
+// whatever the file search happened to bring rather than from the rules — so the document rides as
+// the parts this turn names, its rules whole, and a slice of every other part, inside a room the
+// answer is written from.
+const DOC_ROOM = 30000;
 
 // The admin's own rule book, handed over ahead of the words: how Kibembe is read, pronounced,
 // written and used is decided by it, and every answer follows it.
@@ -123,7 +134,7 @@ export default async function (req) {
     // filed under a heading of their own — rides with the turn too
     // the document is handed over as the parts this message needs: its rules whole, the parts the
     // message itself names, and a slice of every other part — a document longer than one turn reads
-    const doc = await docWholeBlock(base44, undefined, message);
+    const doc = await docWholeBlock(base44, DOC_ROOM, message);
     const saved = rules || words || doc ? `${RULES_HEAD}${rules}${words}${doc}` : '';
 
     // The admin's own stories ride with a turn that asks for one: the telling they wrote is what

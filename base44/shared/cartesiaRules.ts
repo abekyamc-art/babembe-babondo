@@ -39,7 +39,7 @@ const TOP_NOTICE = [
 
 // Raised whenever the block itself changes shape, so an agent carrying an older one is written
 // again on the next call even though nothing in the store has moved.
-export const RULES_VERSION = "6";
+export const RULES_VERSION = "7";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
@@ -47,6 +47,19 @@ const NOTES_BUDGET = 6000;
 const WORDS_BUDGET = 8000;
 const MAX_LINE = 300;
 const MAX_NOTE = 600;
+
+/**
+ * The room the whole block may take on one agent.
+ *
+ * The voice standing on the agent reads this block on every call, and a block larger than the voice
+ * can hold stops being an instruction at all: it is read from the front, so everything past its
+ * room is lost — the answer key, the confirmed words, the whole of the app's own rules. The
+ * document is the one part that can be longer than the room allows, so it is written last and gives
+ * way: what does not fit is left out, with a plain line saying so, and never passed off as the whole
+ * of it. Everything ahead of it — the notice, the rules, the guide, the answer key, the saved
+ * answers and the confirmed words — is always written whole.
+ */
+export const AGENT_ROOM = 48000;
 
 const HEAD = [
   "SHERIA ZA VILLAGE VOICE — the app's own rules for this call.",
@@ -139,9 +152,10 @@ export function docBlock(doc: any): string {
  */
 export function appRulesBlock(
   saved: { keys?: any[]; notes?: any[]; words?: any[]; doc?: string },
-  stamp = ""
+  stamp = "",
+  room = AGENT_ROOM
 ): string {
-  return [
+  const built = [
     RULES_MARK,
     `# key: ${RULES_VERSION}|${stamp}`,
     HEAD,
@@ -153,6 +167,20 @@ export function appRulesBlock(
   ]
     .filter(Boolean)
     .join("\n");
+
+  if (built.length <= room) return built;
+
+  // the document is what gave way, and the block says so plainly rather than passing a part of it
+  // off as the whole of it: what stands above is every rule, the guide, the saved answers and the
+  // confirmed words, whole, and as much of the document as the voice has room for
+  const cut = built.lastIndexOf("\n", room);
+  const kept = built.slice(0, cut > room / 2 ? cut : room);
+  return (
+    kept +
+    "\n\nThe admin's document is longer than one agent can carry, and what is not written above is not " +
+    "shown here. Answer from what is written above — its rules, its saved answers and its confirmed " +
+    "words stand whole — and never say something was not found when it stands here.\n"
+  );
 }
 
 /** The key the app's own block was last written with, or nothing when there is no block yet. */
