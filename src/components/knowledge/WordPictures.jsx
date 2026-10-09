@@ -7,13 +7,16 @@ import PictureThumb from "@/components/knowledge/PictureThumb";
  * The pictures saved beside the words of the knowledge document.
  *
  * An imported package brings its pictures with it, and each one stays here beside the word it was
- * found with, so the admin can see at a glance which words have a picture and which do not. The
- * pictures are kept privately, shown through short-lived links, and a word's own line in the
- * document reads exactly as it always did — the picture is not written into the knowledge the AIs read.
+ * found with, so the admin can see at a glance which words have a picture and which do not. A picture
+ * that was found with no word beside it is not thrown away: it stands here until the admin gives it
+ * the word it is of, and the publishing waits for that. The pictures are kept privately and shown
+ * through short-lived links, and a word's own line in the document reads exactly as it always did —
+ * the picture is not written into the knowledge the AIs read.
  */
 export default function WordPictures() {
   const [rows, setRows] = useState(null);
   const [busy, setBusy] = useState("");
+  const [words, setWords] = useState({});
 
   useEffect(() => {
     let alive = true;
@@ -39,6 +42,20 @@ export default function WordPictures() {
     }
   };
 
+  // a picture found with no word beside it is given one here, by the admin's own hand
+  const keep = async (row) => {
+    const term = String(words[row.id] || "").trim();
+    if (!term) return;
+    setBusy(row.id);
+    try {
+      const how = "chosen by hand";
+      await base44.entities.KnowledgeImage.update(row.id, { term, how });
+      setRows((prev) => (prev || []).map((item) => (item.id === row.id ? { ...item, term, how } : item)));
+    } finally {
+      setBusy("");
+    }
+  };
+
   if (!rows || !rows.length) {
     return (
       <span className="knowledge-meter-text">
@@ -48,41 +65,69 @@ export default function WordPictures() {
     );
   }
 
+  const unnamed = rows.filter((row) => !String(row.term || "").replace(/[?\s]/g, "")).length;
+  const busyHere = (id) => busy === id || busy === `drop:${id}`;
+
   return (
     <div className="knowledge-field">
       <span className="knowledge-label">
         Pictures saved beside words · {rows.length}
+        {unnamed ? ` · ${unnamed} still with no word` : ""}
       </span>
       <div className="flex flex-col">
-        {rows.map((row) => (
-          <div key={row.id} className="knowledge-row">
-            <div className="knowledge-body flex items-center gap-3">
-              <PictureThumb picture={row} />
-              <div className="flex min-w-0 flex-col">
-                <span className="knowledge-title">{row.term}</span>
-                <span className="knowledge-meter-text">
-                  {row.name}
-                  {row.how ? ` · ${row.how}` : ""}
-                </span>
+        {rows.map((row) => {
+          const named = !!String(row.term || "").replace(/[?\s]/g, "");
+          return (
+            <div key={row.id} className="knowledge-row">
+              <div className="knowledge-body flex items-center gap-3">
+                <PictureThumb picture={row} />
+                <div className="flex min-w-0 flex-col">
+                  <span className="knowledge-title">{named ? row.term : "No word beside it yet"}</span>
+                  <span className="knowledge-meter-text">
+                    {row.name}
+                    {row.how ? ` · ${row.how}` : ""}
+                  </span>
+                  {named ? null : (
+                    <div className="account-edit mt-2">
+                      <input
+                        value={words[row.id] || ""}
+                        onChange={(event) =>
+                          setWords((prev) => ({ ...prev, [row.id]: event.target.value }))
+                        }
+                        placeholder="the word this picture is of"
+                        aria-label={`The word the picture ${row.name || ""} is of`}
+                        className="account-input"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => keep(row)}
+                        disabled={busyHere(row.id) || !String(words[row.id] || "").trim()}
+                        className="account-save"
+                      >
+                        {busyHere(row.id) ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              </div>
+              <div className="knowledge-tools">
+                <button
+                  type="button"
+                  onClick={() => drop(row.id)}
+                  disabled={busyHere(row.id)}
+                  aria-label={`Take away the picture of ${row.term || "this word"}`}
+                  className="knowledge-tool knowledge-tool-danger"
+                >
+                  {busyHere(row.id) ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Trash2 className="h-4 w-4" />
+                  )}
+                </button>
               </div>
             </div>
-            <div className="knowledge-tools">
-              <button
-                type="button"
-                onClick={() => drop(row.id)}
-                disabled={busy === row.id}
-                aria-label={`Take away the picture of ${row.term || "this word"}`}
-                className="knowledge-tool knowledge-tool-danger"
-              >
-                {busy === row.id ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Trash2 className="h-4 w-4" />
-                )}
-              </button>
-            </div>
-          </div>
-        ))}
+          );
+        })}
       </div>
     </div>
   );

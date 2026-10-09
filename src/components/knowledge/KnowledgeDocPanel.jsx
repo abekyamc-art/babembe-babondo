@@ -83,6 +83,34 @@ export default function KnowledgeDocPanel({ focus }) {
 
       <DocImport doc={doc} onState={setImporting} />
 
+      <div className="knowledge-field">
+        <span className="knowledge-label">Arranging it for the AIs</span>
+        <span className="knowledge-meter-text">
+          A master file is written for a person: tables, picture cards, numbered lists, its own headings.
+          Arranging it writes the document the AIs read instead — the rules first, one line for each word,
+          then the phrases and the rest. Nothing is thrown away but a part that is provably a copy of one
+          already kept, and whatever the sources left unsettled is marked [not confirmed].
+        </span>
+        <button
+          type="button"
+          onClick={doc.shape}
+          disabled={!!doc.busy}
+          className="account-save"
+        >
+          {doc.busy === "shape" ? "Arranging…" : "Arrange it for the AIs"}
+        </button>
+        {doc.doc?.shaped ? (
+          <span className="knowledge-meter-text">
+            Arranged: {doc.doc.shaped.wordsLines} word lines · {doc.doc.shaped.phraseLines} phrases ·{" "}
+            {doc.doc.shaped.rulesLines} rule lines · {doc.doc.shaped.knowledgeLines} lines of knowledge ·{" "}
+            {doc.doc.shaped.notConfirmed} lines marked not confirmed
+            {doc.doc.shaped.droppedChars
+              ? ` · ${doc.doc.shaped.droppedChars} characters of exact copies left out`
+              : ""}
+          </span>
+        ) : null}
+      </div>
+
       <WordPictures />
 
       {doc.error ? <p className="knowledge-error">{doc.error}</p> : null}
@@ -98,6 +126,7 @@ export default function KnowledgeDocPanel({ focus }) {
 
       <DocStatus
         doc={doc.doc}
+        audit={doc.doc?.audit}
         busy={importing ? "import" : doc.busy}
         unsaved={doc.unsaved}
         unpublished={doc.unpublished}

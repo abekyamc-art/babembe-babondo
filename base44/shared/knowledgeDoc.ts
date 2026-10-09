@@ -358,16 +358,137 @@ const DOC_WHOLE_CUT =
 // it without reading or trimming it again on every turn
 let heldWhole: { at: number; key: string; text: string } = { at: 0, key: "", text: "" };
 
+// The words a question is made of: what a turn is answered from is chosen by these, so the words
+// that carry the meaning of a question are kept and the ones every question carries are set aside.
+const PLAIN = new Set([
+  "the", "and", "for", "with", "that", "this", "these", "those", "what", "when", "where", "which",
+  "who", "how", "why", "you", "your", "yours", "his", "her", "hers", "him", "she", "they", "them",
+  "are", "was", "were", "does", "did", "doing", "not", "can", "could", "would", "should", "please",
+  "tell", "say", "says", "said", "about", "word", "words", "meaning", "means", "translate", "again",
+  "kwa", "na", "ya", "wa", "ni", "je", "hii", "hilo", "yake", "yangu", "mimi", "wewe", "sisi", "habari",
+  "kibembe", "ebembe", "english", "swahili", "kiswahili", "bemba", "asante", "tafadhali",
+]);
+
+/** The words a question is made of, as the parts of the document are looked for by them. */
+function askedWords(question: string): string[] {
+  const out: string[] = [];
+  String(question || "")
+    .toLowerCase()
+    .replace(/[^\p{L}\p{N}'’ ]/gu, " ")
+    .split(/\s+/)
+    .forEach((raw) => {
+      const word = raw.replace(/^['’]+|['’]+$/g, "").trim();
+      if (word.length < 3 || PLAIN.has(word) || out.includes(word)) return;
+      out.push(word);
+    });
+  return out.slice(0, 24);
+}
+
+/** How much one part of the document answers a question: the words of the question it holds. */
+function answersOf(body: string, words: string[]): number {
+  const text = String(body || "").toLowerCase();
+  let score = 0;
+  words.forEach((word) => {
+    if (text.indexOf(word) < 0) return;
+    score += 1;
+    // a word of the question standing in the part as a word of its own weighs more than a mention
+    if (new RegExp(`(?:^|[^\\p{L}])${word}(?:$|[^\\p{L}])`, "u").test(text)) score += 3;
+  });
+  return score;
+}
+
+/**
+ * What one turn is handed out of a document larger than the room it has.
+ *
+ * The rules ride first, whole, because they are the law of the language. Then the parts the question
+ * itself names, the fullest first — the part of a word, the line that holds the phrase, the note the
+ * question is about. What is left of the room is given to the parts the question did not name, a slice
+ * each, so no part of the document is ever passed off as absent from what an AI was handed; and the
+ * block says plainly how many of the document's parts it is holding.
+ */
+function piecesForQuestion(text: string, question: string, room: number) {
+  const sections = docSections(text);
+  const pieces = sections.map((section, at) => ({
+    at,
+    rules: section.id === "rules",
+    body: `${section.title ? `## ${section.title}\n` : ""}${section.body.trim()}`,
+  }));
+  const picked = new Map<number, string>();
+  let used = 0;
+
+  const add = (piece: { at: number; body: string }) => {
+    if (!piece.body.trim() || used + piece.body.length > room) return false;
+    picked.set(piece.at, piece.body);
+    used += piece.body.length;
+    return true;
+  };
+
+  pieces.filter((piece) => piece.rules).forEach(add);
+
+  const words = askedWords(question);
+  if (words.length) {
+    pieces
+      .filter((piece) => !piece.rules)
+      .map((piece) => ({ piece, score: answersOf(piece.body, words) }))
+      .filter((row) => row.score > 0)
+      // a part that is a copy of an older file answers only when nothing else does
+      .map((row) => ({
+        ...row,
+        score: row.piece.body.indexOf("[older source file]") >= 0 ? row.score / 4 : row.score,
+      }))
+      .sort((a, b) => b.score - a.score || a.piece.at - b.piece.at)
+      .forEach((row) => add(row.piece));
+  }
+
+  // the room that is left goes to the parts the question did not name, so all of the document stands
+  const left = pieces.filter((piece) => !picked.has(piece.at));
+  const roomLeft = room - used;
+  const each = left.length ? Math.max(240, Math.floor(roomLeft / left.length)) : 0;
+  left.forEach((piece) => {
+    if (used >= room || each <= 0) return;
+    if (piece.body.length <= each) {
+      add(piece);
+      return;
+    }
+    const slice = piece.body.slice(0, each);
+    picked.set(piece.at, `${slice}\n[the rest of this part stands in the document, unread here]\n`);
+    used += slice.length;
+  });
+
+  return {
+    body: [...picked.entries()]
+      .sort((a, b) => a[0] - b[0])
+      .map(([, body]) => body)
+      .join("\n"),
+    shown: picked.size,
+    total: pieces.length,
+  };
+}
+
 /** The whole approved document as one block — what every AI that answers is handed. */
-export async function docWholeBlock(base44: any, budget = DOC_WHOLE_ROOM): Promise<string> {
+export async function docWholeBlock(
+  base44: any,
+  budget = DOC_WHOLE_ROOM,
+  question = ""
+): Promise<string> {
   const text = await publishedDoc(base44);
   if (!text) return "";
-  const key = `${budget}:${text.length}:${text.slice(-64)}`;
+  const key = `${budget}:${text.length}:${text.slice(-64)}:${question.slice(0, 120)}`;
   if (heldWhole.text && heldWhole.key === key && Date.now() - heldWhole.at < HOLD_MS) {
     return heldWhole.text;
   }
-  const body = trimLines(text, budget).trim();
-  const block = body ? DOC_WHOLE_HEAD + body + (text.length > budget ? DOC_WHOLE_CUT : "") : "";
+
+  let body = "";
+  let note = "";
+  if (text.length <= budget) {
+    body = text.trim();
+  } else {
+    const picked = piecesForQuestion(text, question, budget - 1600);
+    body = picked.body.trim();
+    note = `\n[${picked.shown} of the ${picked.total} parts of the admin's document are shown above: its rules whole, the parts this turn names, and a slice of every other part.]\n`;
+  }
+
+  const block = body ? DOC_WHOLE_HEAD + body + (note || (text.length > budget ? DOC_WHOLE_CUT : "")) : "";
   heldWhole = { at: Date.now(), key, text: block };
   return block;
 }

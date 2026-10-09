@@ -6,6 +6,7 @@ import {
   rowsOf,
   textOf,
 } from "../../shared/knowledgeDoc.ts";
+import { shapeCorpus } from "../../shared/corpusShape.ts";
 
 /**
  * The one knowledge document: opened, saved as a draft, and published.
@@ -26,7 +27,7 @@ const DOC_KEY = "main";
 // enough to stay well inside what a record carries.
 const PART = 12000;
 const MAX_PARTS = 200;
-const MAX_DOC = 600000;
+const MAX_DOC = 1200000;
 
 // The shape a new document is opened with: the parts it is made of, and how a line is written in
 // each of them. A line beginning with # is a note to the admin alone, and is never read as knowledge.
@@ -324,9 +325,45 @@ async function view(service: any, state: any, gathered?: any) {
     merged_at: textOf(state?.merged_at),
     draft_counts: countsOf(draft),
     published_counts: countsOf(published),
+    pictures: await service.entities.KnowledgeImage.count({}).catch(() => 0),
   };
   if (gathered) shown.gathered = gathered;
   return shown;
+}
+
+/**
+ * What an audit of the document finds: how much of the file it came from stands in it, what every AI
+ * is reading, what is written but not settled — and whether every picture has a word beside it.
+ */
+async function auditOf(service: any, state: any) {
+  const [draft, published, picturePage] = await Promise.all([
+    readText(service, "draft"),
+    readText(service, "published"),
+    service.entities.KnowledgeImage
+      .list({ limit: 500, fields: ["term", "name"] })
+      .catch(() => ({ items: [] })),
+  ]);
+  const pictures = rowsOf(picturePage);
+  const unnamed = pictures.filter((row: any) => !textOf(row?.term).replace(/[?\s]/g, "")).length;
+  const marks = (text: string, mark: string) => text.split(mark).length - 1;
+
+  return {
+    source_chars: Number(state?.source_chars) || 0,
+    draft_chars: draft.length,
+    published_chars: published.length,
+    words: docWordRows(draft).length,
+    rules: docRules(draft).split("\n").filter(Boolean).length,
+    knowledge_chars: docKnowledge(draft).length,
+    unconfirmed: marks(draft, "[not confirmed]"),
+    other_form: marks(draft, "[another form]"),
+    older_file: marks(draft, "[older source file]"),
+    pictures: pictures.length,
+    pictures_named: pictures.length - unnamed,
+    pictures_unnamed: unnamed,
+    blockers: unnamed
+      ? [`${unnamed} ${unnamed === 1 ? "picture stands" : "pictures stand"} with no word beside them`]
+      : [],
+  };
 }
 
 export default async function (req: Request): Promise<Response> {
@@ -380,6 +417,18 @@ export default async function (req: Request): Promise<Response> {
     }
 
     if (action === "publish") {
+      // what is about to be published is read over first: how much stands in it, what is not settled,
+      // and whether every picture the panel holds has a word beside it
+      const audit = await auditOf(service, state);
+      if (audit.blockers.length && payload?.force !== true) {
+        return Response.json(
+          {
+            error: `Not published yet: ${audit.blockers.join(", ")}. Give each picture its word, or take the picture away, and then publish.`,
+            audit,
+          },
+          { status: 400 }
+        );
+      }
       const draft = await readText(service, "draft");
       await writeText(service, "published", draft);
       const at = now();
@@ -387,9 +436,10 @@ export default async function (req: Request): Promise<Response> {
         published_at: at,
         published_by: user.email,
       });
-      return Response.json(
-        await view(service, { ...state, published_at: at, published_by: user.email })
-      );
+      return Response.json({
+        ...(await view(service, { ...state, published_at: at, published_by: user.email })),
+        audit,
+      });
     }
 
     if (action === "restore") {
@@ -425,7 +475,36 @@ export default async function (req: Request): Promise<Response> {
       });
     }
 
-    if (action === "open") return Response.json(await view(service, state));
+    // The master file, written for a person, arranged into the document the AIs read: the rules, one
+    // line for each word, the phrases, and everything else. Nothing is thrown away but a part that is
+    // provably a copy of one already kept, and what the sources had not settled is marked as such.
+    if (action === "shape") {
+      const draft = await readText(service, "draft");
+      if (!draft.trim()) {
+        return Response.json(
+          { error: "The working copy is empty — import the file first, then arrange it." },
+          { status: 400 }
+        );
+      }
+      const shaped = shapeCorpus(draft);
+      if (shaped.text.length > MAX_DOC) {
+        return Response.json(
+          { error: "This is larger than one document may hold. Take a part of it out, then arrange it." },
+          { status: 400 }
+        );
+      }
+      await writeText(service, "draft", shaped.text);
+      const at = now();
+      await service.entities.KnowledgeDoc.update(state.id, { draft_at: at });
+      return Response.json({
+        ...(await view(service, { ...state, draft_at: at })),
+        shaped: shaped.stats,
+      });
+    }
+
+    if (action === "audit" || action === "open") {
+      return Response.json({ ...(await view(service, state)), audit: await auditOf(service, state) });
+    }
 
     return Response.json({ error: "Unknown action." }, { status: 400 });
   } catch (error: any) {

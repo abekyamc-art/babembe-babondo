@@ -104,7 +104,9 @@ export default async function (req) {
     const words = wordListBlock(await bankRows(base44), message, WORD_BUDGET);
     // the rest of the document — the admin's notes, their questions and answers, and anything they
     // filed under a heading of their own — rides with the turn too
-    const doc = await docWholeBlock(base44);
+    // the document is handed over as the parts this message needs: its rules whole, the parts the
+    // message itself names, and a slice of every other part — a document longer than one turn reads
+    const doc = await docWholeBlock(base44, undefined, message);
     const saved = rules || words || doc ? `${RULES_HEAD}${rules}${words}${doc}` : '';
 
     // The admin's own stories ride with a turn that asks for one: the telling they wrote is what

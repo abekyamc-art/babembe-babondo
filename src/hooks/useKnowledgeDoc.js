@@ -34,21 +34,23 @@ export default function useKnowledgeDoc() {
     open();
   }, [open]);
 
-  const send = async (action) => {
-    if (busy) return;
+  const send = async (action, extra = {}) => {
+    if (busy) return null;
     setBusy(action);
     setError("");
     try {
-      const res = await base44.functions.invoke("knowledgeDoc", { action, draft: text });
+      const res = await base44.functions.invoke("knowledgeDoc", { action, draft: text, ...extra });
       const data = res?.data || {};
       if (data.error) {
         setError(data.error);
-        return;
+        return null;
       }
       setDoc(data);
       setText(String(data.draft || ""));
+      return data;
     } catch (err) {
       setError("That could not be done just now. Try again.");
+      return null;
     } finally {
       setBusy("");
     }
@@ -89,8 +91,10 @@ export default function useKnowledgeDoc() {
     saveDraft: () => send("saveDraft"),
     writeDraft,
     recordSource,
-    publish: () => send("publish"),
+    publish: (force) => send("publish", force ? { force: true } : {}),
     restore: () => send("restore"),
+    // the master file arranged into the document the AIs read, in place of the working copy
+    shape: () => send("shape"),
     // what has been typed but not yet saved, and what is saved but not yet approved
     unsaved: !!doc && text !== String(doc.draft || ""),
     unpublished: !!doc && String(doc.draft || "") !== String(doc.published || ""),

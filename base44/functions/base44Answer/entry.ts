@@ -356,7 +356,9 @@ export default async function (req: Request): Promise<Response> {
     // the rest of the admin's one document rides with the answer: the words and the rules have their
     // own sections above, and this is everything else they wrote — their notes, their questions and
     // answers, and whatever they filed under a heading of their own name
-    const doc = await docWholeBlock(base44);
+    // the document is handed over as the parts this question needs: its rules whole, the parts the
+    // question itself names, and a slice of every other part
+    const doc = await docWholeBlock(base44, undefined, asked);
     const tales = await storyCatalogueBlock(base44, STORY_ROOM);
 
     const memory = textOf(payload?.memory, MAX_MEMORY);

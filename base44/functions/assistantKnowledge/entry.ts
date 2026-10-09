@@ -697,7 +697,8 @@ export default async function (req: Request): Promise<Response> {
         keyRowsFor(base44),
         storyCatalogueBlock(base44, STORY_ROOM),
       ]);
-      const known = seen && seen === stamp ? "" : await docWholeBlock(base44);
+      // what is heard decides which parts of the document that turn is handed, the rules first
+      const known = seen && seen === stamp ? "" : await docWholeBlock(base44, undefined, heard);
       const liked = likeSection(words, heard);
       const lang = turnLanguage(heard, liked.near, false);
       const greeting = isGreeting(heard, liked.near);
@@ -761,7 +762,9 @@ export default async function (req: Request): Promise<Response> {
     // stamp goes back with the note, so a call handing it to a session is not handed it again on
     // every turn that follows.
     const stamp = await docStamp(base44);
-    const known = await docWholeBlock(base44);
+    // the document is handed over as the parts this question needs: its rules whole, the parts the
+    // question itself names, and a slice of every other part
+    const known = await docWholeBlock(base44, undefined, query);
     // the catalogue of every story, and of every name published with one, rides with the question too
     const tales = await storyCatalogueBlock(base44, STORY_ROOM);
 
