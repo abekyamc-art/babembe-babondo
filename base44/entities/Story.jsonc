@@ -8,7 +8,7 @@
     },
     "text": {
       "type": "string",
-      "description": "The story itself, as the admin wrote it \u2014 the line or the whole telling. It is what the assistant answers from and what the person reads on screen."
+      "description": "The story itself, as the admin wrote it \u2014 the line or the whole telling. It is what the assistant answers from and what the person reads on screen. A picture, video, audio recording or link written into it as a mark stands exactly where it was typed, and an address simply written into a line stands at that very point."
     },
     "tags": {
       "type": "array",
@@ -16,6 +16,45 @@
         "type": "string"
       },
       "description": "The words the story is filed under, so a question about one of them finds it."
+    },
+    "media": {
+      "type": "array",
+      "description": "The pictures, videos, audio recordings and links the admin added to the story from the panel, each one its own entry with the place it stands in the telling. They are what the admin gave a place to by hand: a mark written into the telling, or an address written into a line, stands of itself and is not listed here.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "enum": [
+              "image",
+              "video",
+              "audio",
+              "link"
+            ],
+            "default": "image",
+            "description": "What the entry is: a picture, a video, an audio recording, or a link that is played outside the app."
+          },
+          "url": {
+            "type": "string",
+            "description": "Public address of the entry, when it stands at one \u2014 a video or picture link the admin pasted. It is played where it already stands."
+          },
+          "file_uri": {
+            "type": "string",
+            "description": "Private storage reference for the picture, video or audio recording the admin uploaded. It is opened through a short-lived link, so it is never public."
+          },
+          "name": {
+            "type": "string",
+            "description": "What the entry is called \u2014 the name of the uploaded file, or a name the admin gave it. It is what the telling is read for when the entry's place is found, and what the entry is listed as in the panel."
+          },
+          "after": {
+            "type": "number",
+            "description": "How many of the story's own lines the entry stands after: 0 puts it before the first line, 1 after the first line, and so on. The line count keeps it at the end. Unset means the entry keeps to the end."
+          }
+        },
+        "required": [
+          "kind"
+        ]
+      }
     },
     "media_kind": {
       "type": "string",
@@ -27,19 +66,19 @@
         "link"
       ],
       "default": "none",
-      "description": "The one thing the admin attached to the story: a picture, a video, an audio recording, or a link that is played outside the app."
+      "description": "The one thing an older story was attached: a picture, a video, an audio recording, or a link that is played outside the app. New stories keep everything they carry in the media list."
     },
     "media_url": {
       "type": "string",
-      "description": "Public address of the story's media when it stands at one: a link the admin pasted, or a picture, video or audio recording they gave an address for. It is played where it already stands."
+      "description": "Public address of that older attachment when it stands at one: a link the admin pasted, or a picture, video or audio recording they gave an address for. It is played where it already stands."
     },
     "media_file_uri": {
       "type": "string",
-      "description": "Private storage reference for the picture, video or audio recording the admin uploaded. It is opened through a short-lived link, so it is never public."
+      "description": "Private storage reference for the picture, video or audio recording of that older attachment. It is opened through a short-lived link, so it is never public."
     },
     "media_after": {
       "type": "number",
-      "description": "How many of the story's lines the attached picture, video, audio recording or link stands after: 0 puts it before the telling, 1 after its first line, and so on. Unset means the story keeps it at the end, after everything \u2014 which is where every story written before this stood."
+      "description": "How many of the story's lines that older attachment stands after: 0 puts it before the telling, 1 after its first line, and so on. Unset means the story keeps it at the end, after everything \u2014 which is where every story written before this stood."
     },
     "links": {
       "type": "array",

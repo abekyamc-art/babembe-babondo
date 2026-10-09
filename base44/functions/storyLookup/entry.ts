@@ -10,6 +10,7 @@ const FIELDS = [
   "title",
   "text",
   "tags",
+  "media",
   "media_kind",
   "media_url",
   "media_file_uri",

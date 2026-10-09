@@ -1,12 +1,14 @@
 import { base44 } from "@/api/base44Client";
 import { stripStoryMarks } from "@/lib/storyMarks";
+import { storyMediaItems } from "@/lib/storyPlacement";
 
 /**
  * The admin's own stories, on the app's side.
  *
- * A story is the admin's own telling with its filing words, one picture, video, audio recording or
- * link, and any links they attached. The admin writes it in the knowledge panel; a person meets it
- * on screen when a call or a written chat turns to what they wrote.
+ * A story is the admin's own telling with its filing words, the pictures, videos, audio recordings
+ * and links they placed in it — each one standing where they gave it its place — and any links they
+ * attached. The admin writes it in the knowledge panel; a person meets it on screen when a call or a
+ * written chat turns to what they wrote.
  */
 
 /** The blank story the admin starts from. Tags and links are typed as lines, as in the rest of the panel. */
@@ -15,6 +17,8 @@ export function emptyStory() {
     title: "",
     text: "",
     tags: "",
+    // the things the admin gave a place to by hand, each keeping the line it stands after
+    media: [],
     media_kind: "none",
     media_url: "",
     media_file_uri: "",
@@ -34,6 +38,7 @@ export function storyDraft(row) {
     title: row?.title || "",
     text: row?.text || "",
     tags: (Array.isArray(row?.tags) ? row.tags : []).join(", "),
+    media: storyMediaItems(row),
     media_kind: row?.media_kind || "none",
     media_url: row?.media_url || "",
     media_file_uri: row?.media_file_uri || "",
@@ -61,6 +66,15 @@ export function storyFields(draft) {
       .split(",")
       .map((tag) => tag.trim())
       .filter(Boolean),
+    // the things placed by hand keep the line each stands after; a thing nobody placed keeps to the
+    // end, exactly where a story's own attachment has always stood
+    media: storyMediaItems({ media: draft?.media }).map((thing) => ({
+      kind: thing.kind,
+      url: thing.url,
+      file_uri: thing.uri,
+      name: thing.name,
+      after: thing.after === null ? undefined : thing.after,
+    })),
     media_kind: draft?.media_kind || "none",
     media_url: String(draft?.media_url || "").trim(),
     media_file_uri: String(draft?.media_file_uri || "").trim(),
@@ -101,6 +115,7 @@ export function storyHeadline(row) {
 export function storyBody(row) {
   const tags = Array.isArray(row?.tags) ? row.tags.join(", ") : "";
   const media = MEDIA_NAMES[row?.media_kind] || "";
+  const placed = storyMediaItems(row).length;
   const links = Array.isArray(row?.links) ? row.links.length : 0;
   const videos = Array.isArray(row?.artist_links) ? row.artist_links.length : 0;
   const channel = row?.channel_url ? "channel" : "";
@@ -108,6 +123,7 @@ export function storyBody(row) {
   const about = [
     tags,
     media,
+    placed ? `${placed} placed` : "",
     videos ? `${videos} video${videos > 1 ? "s" : ""}` : "",
     channel,
     links ? `${links} link${links > 1 ? "s" : ""}` : "",
@@ -157,17 +173,4 @@ export async function findStory(query) {
   } catch (err) {
     return null;
   }
-}
-
-/**
- * Which gap of the telling the attached thing stands in: 0 in front of it, 1 after its first line,
- * and so on up to the line count, which is the end. A story that has never been given a spot keeps
- * its attachment at the end, exactly where it stood before.
- */
-export function mediaPlacement(story, count) {
-  const after = story?.media_after;
-  if (after === null || after === undefined || after === "") return count;
-  const spot = Number(after);
-  if (!Number.isFinite(spot) || spot < 0) return count;
-  return Math.min(spot, count);
 }

@@ -22,6 +22,7 @@ export default function StoriesPanel({ focus }) {
         "title",
         "text",
         "tags",
+        "media",
         "media_kind",
         "links",
         "channel_url",
@@ -139,9 +140,9 @@ export default function StoriesPanel({ focus }) {
     <>
       <p className="account-hint">
         A story you save here is your own telling: the assistant answers from it, and a person meets
-        it on screen — the telling, its picture, video or audio recording, and your links — when a
-        call turns to what you wrote. Playing what you attached ends their call, so nothing is heard
-        over it. Give a story the artist's channel and the videos they have published come in by
+        it on screen — the telling, and every picture, video, audio recording and link it carries
+        standing where you put it — when a call turns to what you wrote. Playing what you attached
+        ends their call, so nothing is heard over it. Give a story the artist's channel and the videos they have published come in by
         themselves and are kept in step. Every story you have saved stays editable, however old.
       </p>
 

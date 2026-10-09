@@ -3,30 +3,10 @@ import { Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { isCompleteStory } from "@/lib/stories";
 import { linkMark, mediaMark } from "@/lib/storyMarks";
-import { youtubeVideo } from "@/lib/youtube";
+import { kindOfFile, kindOfLink, withScheme } from "@/lib/storyPlacement";
 import StoryLinks from "@/components/knowledge/StoryLinks";
+import StoryMediaItems from "@/components/knowledge/StoryMediaItems";
 import StoryPreview from "@/components/story/StoryPreview";
-
-// What kind of thing the chosen file is, so the story knows how to show it.
-const kindOfFile = (type) =>
-  type?.startsWith("video") ? "video" : type?.startsWith("audio") ? "audio" : "image";
-
-// A pasted address is read for what it carries: a picture, a video or an audio recording is shown
-// inside the story itself, and anything else stands as a link opened where it already is.
-const kindOfLink = (url) => {
-  // a YouTube address is a video, played right inside the story and never sent away
-  if (youtubeVideo(url)) return "video";
-  if (/\.(png|jpe?g|gif|webp|avif|bmp)(\?|#|$)/i.test(url)) return "image";
-  if (/\.(mp4|webm|mov|m4v|ogv)(\?|#|$)/i.test(url)) return "video";
-  if (/\.(mp3|wav|m4a|aac|ogg|oga|opus|flac)(\?|#|$)/i.test(url)) return "audio";
-  return "link";
-};
-
-const withScheme = (value) => {
-  const link = String(value || "").trim();
-  if (!link) return "";
-  return /^https?:\/\//i.test(link) ? link : `https://${link}`;
-};
 
 const MEDIA_WORD = { image: "Picture", video: "Video", audio: "Audio", link: "Link" };
 
@@ -43,8 +23,14 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
   const older = draft.media_kind && draft.media_kind !== "none" ? draft.media_kind : "";
   // the studio draws the story back as it is being written, so a mark can be played and checked
   const links = Array.isArray(draft.artist_links) ? draft.artist_links : [];
+  // the things the admin gave a place to by hand, each standing after the line it was put behind
+  const items = Array.isArray(draft.media) ? draft.media : [];
   const showsAnything =
-    !!String(draft.text || "").trim() || !!older || !!draft.channel || links.length > 0;
+    !!String(draft.text || "").trim() ||
+    !!older ||
+    items.length > 0 ||
+    !!draft.channel ||
+    links.length > 0;
 
   /** The writing keeps its place: a mark arriving late never pulls the caret away. */
   const place = (spot) => {
@@ -192,6 +178,8 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
         </div>
       ) : null}
 
+      <StoryMediaItems text={draft.text} items={items} onChange={onChange} />
+
       {showsAnything ? (
         <div className="knowledge-field">
           <span className="knowledge-label">In the story</span>
@@ -201,6 +189,7 @@ export default function StoryForm({ draft, editing, busy, onChange, onSave, onCa
           <StoryPreview
             text={draft.text}
             title={draft.title}
+            items={items}
             channel={draft.channel}
             artistLinks={links}
             media={

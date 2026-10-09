@@ -2,19 +2,23 @@ import React, { useEffect, useState } from "react";
 import { ExternalLink, Music } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
+import { storyFace } from "@/lib/storyPlacement";
 
 // How many of the admin's stories stand in the strip at once.
 const LIMIT = 8;
 
-/** One story's own face: its picture, the first frame of its video, or the mark of what it carries. */
+/** One story's own face: the first picture it carries, the first frame of its first video, or the
+ *  mark of what else it carries — wherever in the telling the admin gave it its place. */
 function StoryFace({ story }) {
-  if (story.media_kind === "image" && story.media_url) {
-    return <Image src={story.media_url} alt={story.title} className="h-full w-full" />;
+  const face = storyFace(story);
+
+  if (face?.kind === "image") {
+    return <Image src={face.url} alt={story.title} className="h-full w-full" />;
   }
-  if (story.media_kind === "video" && story.media_url) {
+  if (face?.kind === "video") {
     return (
       <video
-        src={story.media_url}
+        src={face.url}
         muted
         playsInline
         preload="metadata"
@@ -24,9 +28,9 @@ function StoryFace({ story }) {
   }
   return (
     <span className="grid h-full w-full place-items-center bg-accent/10 text-accent">
-      {story.media_kind === "audio" ? (
+      {face?.kind === "audio" ? (
         <Music className="h-4 w-4" />
-      ) : story.media_kind === "link" ? (
+      ) : face?.kind === "link" ? (
         <ExternalLink className="h-4 w-4" />
       ) : null}
     </span>
