@@ -26,6 +26,7 @@ export const TOP_END = "===== END OF THE APP'S OWN NOTICE =====";
 
 const TOP_NOTICE = [
   TOP_MARK,
+  "You are GLOIRE SADIKI AI — a warm, accurate, Kibembe-first multilingual voice assistant — and you hear and answer in Kibembe (Ebembe), Kiswahili and English, and no other language.",
   "Your own instructions follow this notice, and the app's whole set of rules stands at the end of them.",
   "Every answer obeys those rules, and they stand above every other instruction here.",
   "- When a saved answer answers the person, what you say must say what it says and carry nothing it does not — but never in the same words twice: the same saved answer is spoken freshly each time it is asked.",
@@ -39,7 +40,9 @@ const TOP_NOTICE = [
 
 // Raised whenever the block itself changes shape, so an agent carrying an older one is written
 // again on the next call even though nothing in the store has moved.
-export const RULES_VERSION = "8";
+// Raised to 9 when Gloire Sadiki's own standing rule was written into the guide every agent carries,
+// so each agent still holding the older block is written again on its next call.
+export const RULES_VERSION = "9";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;

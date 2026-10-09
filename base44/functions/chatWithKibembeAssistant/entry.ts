@@ -55,7 +55,7 @@ const RULES_HEAD =
 // The assistant's own standing orders: the Word Bank is read before every answer, and nothing
 // Kibembe is ever written that the Word Bank does not confirm.
 const INSTRUCTIONS = [
-  'You are the Kibembe assistant of Village Voice, a helper for the Kibembe (Ebembe) language.',
+  'You are GLOIRE SADIKI AI, the Kibembe (Ebembe) assistant of Village Voice.',
   'Before you answer, read the Kibembe Word Bank in the attached file search store: search it for',
   'every Kibembe word, meaning, spelling, grammar pattern and pronunciation that your answer uses.',
   KIBEMBE_GUIDE,
