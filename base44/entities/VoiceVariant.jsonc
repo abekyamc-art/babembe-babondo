@@ -1,0 +1,97 @@
+{
+  "name": "VoiceVariant",
+  "type": "object",
+  "properties": {
+    "term": {
+      "type": "string",
+      "description": "The confirmed Kibembe word or phrase this recording is of, written exactly as the Word Bank holds it. A recording never carries a spelling of its own: it is always this one word coming out another way."
+    },
+    "condition": {
+      "type": "string",
+      "enum": [
+        "normal",
+        "quiet",
+        "distant",
+        "fast",
+        "noisy",
+        "interrupted"
+      ],
+      "default": "normal",
+      "description": "How the recording was made: spoken normally, softly, far from the phone, quickly, in a noisy place, or with the syllables broken up. It is what makes a quiet or a distant turn of the same word findable."
+    },
+    "heard": {
+      "type": "string",
+      "description": "What the app's own ears wrote down for this recording, when one was read back before it was saved. It is the way this word comes out written by the ears, and it is kept as recognition evidence only."
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "Private storage reference for the recording itself. It is opened through a short-lived link, so a personal recording never stands at a public address."
+    },
+    "seconds": {
+      "type": "number",
+      "description": "How long the recording runs, in seconds."
+    },
+    "approved": {
+      "type": "boolean",
+      "default": false,
+      "description": "Only an approved recording is used as recognition evidence. A recording still waiting for approval is heard by nobody."
+    },
+    "approved_at": {
+      "type": "string",
+      "description": "ISO time the recording was approved."
+    },
+    "recorded_by": {
+      "type": "string",
+      "description": "Email of the person whose voice the recording is."
+    },
+    "note": {
+      "type": "string",
+      "description": "Anything the person wrote about the recording."
+    }
+  },
+  "required": [
+    "term",
+    "file_uri"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.recorded_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "data.recorded_by": "{{user.email}}"
+    },
+    "update": {
+      "$or": [
+        {
+          "data.recorded_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "delete": {
+      "$or": [
+        {
+          "data.recorded_by": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

@@ -1,0 +1,87 @@
+{
+  "name": "KnowledgeFile",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "What the file is called, as it was uploaded. It is the name the pairs taken out of it are filed under, so what a word came from is never lost."
+    },
+    "kind": {
+      "type": "string",
+      "enum": [
+        "corpus",
+        "dictionary_en_kb",
+        "dictionary_kb_en"
+      ],
+      "default": "dictionary_en_kb",
+      "description": "What the file is: the language corpus itself, the English to Kibembe dictionary, or the Kibembe to English dictionary. It decides which side of a written pair is the Kibembe word."
+    },
+    "file_uri": {
+      "type": "string",
+      "description": "Private storage reference for the uploaded file. It is opened through a short-lived link, so the file never stands at a public address."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "draft",
+        "approved"
+      ],
+      "default": "draft",
+      "description": "A draft file changes nothing: nothing out of it reaches an answer until the admin approves it. Only an approved file's pairs are used."
+    },
+    "chars": {
+      "type": "number",
+      "description": "How many characters of readable text were found in the file when it was read."
+    },
+    "entry_count": {
+      "type": "number",
+      "description": "How many word pairs were taken out of the file and saved when it was approved."
+    },
+    "uploaded_by": {
+      "type": "string",
+      "description": "Email of the admin who uploaded the file."
+    },
+    "uploaded_at": {
+      "type": "string",
+      "description": "ISO time the file was uploaded."
+    },
+    "approved_at": {
+      "type": "string",
+      "description": "ISO time the file was approved. Its pairs are used in every answer from this moment on."
+    },
+    "approved_by": {
+      "type": "string",
+      "description": "Email of the admin who approved the file."
+    },
+    "note": {
+      "type": "string",
+      "description": "Anything the admin wrote about the file."
+    }
+  },
+  "required": [
+    "name",
+    "kind"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

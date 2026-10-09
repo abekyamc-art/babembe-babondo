@@ -30,7 +30,7 @@
     },
     "term": {
       "type": "string",
-      "description": "The Ebembe word or expression, on word entries."
+      "description": "The Ebembe word or expression, on word entries. It is the newest confirmed form: a correction replaces it, and every older form it had waits in the record beside it."
     },
     "guide": {
       "type": "string",
@@ -49,7 +49,39 @@
       "items": {
         "type": "string"
       },
-      "description": "The other ways this same word comes out when people say it \u2014 an accent, a spelling, a syllable, a sound the ears wrote \u2014 each one confirmed by the person. They all belong to this one word and are never words of their own."
+      "description": "The other ways this same word comes out when people say it \u2014 an accent, a spelling, a syllable, a sound the ears wrote, or the way one of the person's own recordings was written down. They all belong to this one word and are never words of their own, and they are used for hearing only: nothing here is ever written or spoken as the word itself."
+    },
+    "revisions": {
+      "type": "array",
+      "description": "What this entry was before it was corrected, oldest first: the form that stood, its meaning, and the ways it was said at that time. The entry itself is always the newest confirmed form, so a correction is never lost and an older one can still be traced back to.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "at": {
+            "type": "string",
+            "description": "ISO time the correction that replaced this form was made."
+          },
+          "term": {
+            "type": "string",
+            "description": "The form that stood before the correction."
+          },
+          "meaning": {
+            "type": "string",
+            "description": "The meaning it carried at that time."
+          },
+          "heard": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "The ways it was known to be said at that time."
+          }
+        }
+      }
+    },
+    "source": {
+      "type": "string",
+      "description": "Where this entry came from: a correction the person confirmed in a call, a recording of their own voice that was approved into the voice bank, or the name of the dictionary or corpus file it was taken out of. It is what a word is traced back by, and it is how everything a file brought in is taken out again when that file is removed."
     }
   },
   "required": [
