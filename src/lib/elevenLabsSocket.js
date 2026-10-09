@@ -923,8 +923,31 @@ export default class VoiceSocket {
         return;
       }
       const now = performance.now();
+
+      // A written turn that gets no answer is put to him once more, exactly as a spoken turn is: one
+      // quiet miss never loses the question, and the same words are simply asked again once — never
+      // twice, and never as a second question. Once that has been done the session waits only a
+      // short while longer, so a question that is not going to be answered ends the wait here
+      // instead of leaving the words on the screen with nothing after them.
+      if (this.awaiting && !this.answered && this.lastUserText) {
+        const waited = now - this.turnAt;
+        if (!this.recovered && waited >= RECOVER_MS) {
+          this.recovered = true;
+          this.turnAt = now;
+          this.silentWaitAt = now;
+          this.send({ type: "user_message", text: this.lastUserText });
+        } else if (waited >= GIVE_UP_MS) {
+          this.setAwaiting(false);
+        }
+      }
+
+      const waitFor = this.answered
+        ? WRITTEN_CLOSE_MS
+        : this.recovered
+          ? RECOVER_MS
+          : WRITTEN_WAIT_MS;
       const idleSince = Math.max(this.silentWaitAt, this.answerEndAt || 0);
-      if (now - idleSince >= (this.answered ? WRITTEN_CLOSE_MS : WRITTEN_WAIT_MS)) {
+      if (now - idleSince >= waitFor) {
         this.autoEnd(this.answered ? "done" : "silence");
         return;
       }

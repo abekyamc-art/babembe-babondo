@@ -23,6 +23,9 @@ const NO_REACH = "That voice couldn't be reached. Please try again.";
 const TOUCH_TO_HEAR = "Tap the screen to let the sound through.";
 const COULD_NOT_ASK = "That voice couldn't answer just now. Please try again.";
 const TURN_NOT_DELIVERED = "That turn didn't reach the voice — say it again.";
+// a written question that ends with no answer at all is said plainly: the words would otherwise sit
+// on the screen with nothing after them, which reads as the app having gone quiet
+const NO_WRITTEN_ANSWER = "That voice didn't answer — try again in a moment.";
 
 export default function useTalkVoice({ onTurn } = {}) {
   const [active, setActive] = useState(false);
@@ -353,6 +356,9 @@ export default function useTalkVoice({ onTurn } = {}) {
       setStatus("thinking");
 
       let done = false;
+      // what the written turn ends in: the answer itself, or the plain fact that none came
+      let replied = false;
+      let failed = false;
       let settle = () => {};
       const answered = new Promise((resolve) => {
         settle = () => {
@@ -364,6 +370,7 @@ export default function useTalkVoice({ onTurn } = {}) {
 
       const socket = new VoiceSocket({
         onAgentText: (reply) => {
+          replied = true;
           push("assistant", reply);
           writtenAnsweredRef.current?.();
           settle();
@@ -372,8 +379,12 @@ export default function useTalkVoice({ onTurn } = {}) {
           if (next === "closed" || next === "ended") settle();
         },
         onError: (message) => {
+          failed = true;
           setError(message);
           settle();
+        },
+        onReask: (message) => {
+          if (message) setNotice(message);
         },
       });
 
@@ -387,6 +398,7 @@ export default function useTalkVoice({ onTurn } = {}) {
         });
         if (!socket.sendText(said)) throw new Error(COULD_NOT_ASK);
         await answered;
+        if (!replied && !failed) setError(NO_WRITTEN_ANSWER);
       } catch (err) {
         setError(err?.response?.data?.error || err?.message || COULD_NOT_ASK);
       } finally {

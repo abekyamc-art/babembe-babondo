@@ -134,6 +134,15 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({ error: "No pictures are saved beside words yet." }, { status: 400 });
     }
 
+    // How many pictures are saved in all. A folder is built from a bounded run of them, so the number
+    // said here is the whole of what the panel holds, and whatever did not fit is counted out plainly
+    // rather than quietly left behind.
+    const whole = Math.max(
+      rows.length,
+      await base44.entities.KnowledgeImage.count({}).catch(() => rows.length)
+    );
+    const beyond = Math.max(0, whole - rows.length);
+
     // One folder of every picture, built here and kept privately, handed over as a link that lives
     // only long enough to be downloaded.
     if (action === "zip") {
@@ -175,8 +184,8 @@ export default async function (req: Request): Promise<Response> {
         url: link.signed_url,
         file_name: name,
         included: items.length,
-        total: rows.length,
-        failed: missed + over,
+        total: whole,
+        failed: missed + over + beyond,
       });
     }
 
@@ -196,7 +205,7 @@ export default async function (req: Request): Promise<Response> {
 
     return Response.json({
       items,
-      total: all.length,
+      total: whole,
       next: from + slice.length,
       more: from + slice.length < all.length,
       failed: missed,

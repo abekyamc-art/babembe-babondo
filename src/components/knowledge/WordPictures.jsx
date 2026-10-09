@@ -8,6 +8,14 @@ import { findInDoc } from "@/lib/knowledgeDoc";
 const tidy = (value) => String(value || "").trim();
 const named = (row) => tidy(row?.term).replace(/[?\s]/g, "") !== "";
 
+/**
+ * How many pictures the document itself names — a picture written into a line as a markdown picture,
+ * or as the mark the app writes for one. A plain text or Markdown file carries the names and never
+ * the pictures themselves, and saying how many it names is what explains an empty panel.
+ */
+const namedInDoc = (text) =>
+  (String(text || "").match(/!\[[^\]]*\]\([^)]*\)|\[\[\s*image\s*:[^\]]+\]\]/gi) || []).length;
+
 /** The word a line of the document is of: what stands before the = , without its reading. */
 const termOfLine = (line) =>
   String(line || "")
@@ -30,6 +38,9 @@ const termOfLine = (line) =>
  */
 export default function WordPictures({ text = "" }) {
   const [rows, setRows] = useState(null);
+  // how many pictures are saved in all: the list on screen is one page of them, and the count the
+  // panel writes — and the folder it hands over — is the whole of what is saved
+  const [total, setTotal] = useState(0);
   const [busy, setBusy] = useState("");
   const [words, setWords] = useState({});
   const checking = typeof text === "string" && text.length > 0;
@@ -38,11 +49,19 @@ export default function WordPictures({ text = "" }) {
     let alive = true;
     base44.entities.KnowledgeImage.list({ sort: "-created_date", limit: 100 })
       .then((page) => {
-        if (alive) setRows(Array.isArray(page) ? page : page?.items || []);
+        if (!alive) return;
+        const items = Array.isArray(page) ? page : page?.items || [];
+        setRows(items);
+        setTotal(items.length);
       })
       .catch(() => {
         if (alive) setRows([]);
       });
+    base44.entities.KnowledgeImage.count({})
+      .then((count) => {
+        if (alive && typeof count === "number") setTotal(count);
+      })
+      .catch(() => {});
     return () => {
       alive = false;
     };
@@ -69,6 +88,7 @@ export default function WordPictures({ text = "" }) {
     try {
       await base44.entities.KnowledgeImage.delete(id);
       setRows((prev) => (prev || []).filter((row) => row.id !== id));
+      setTotal((count) => Math.max(0, count - 1));
     } finally {
       setBusy("");
     }
@@ -89,13 +109,27 @@ export default function WordPictures({ text = "" }) {
   };
 
   if (!rows || !rows.length) {
+    const named = namedInDoc(text);
     return (
       <>
         <span className="knowledge-meter-text">
           Pictures saved beside words stand here, each one beside the line of your document that holds its
-          word. Import a ZIP or a Word file and every picture it carries is kept beside the word it stood
-          next to.
+          word.
         </span>
+
+        {named ? (
+          <span className="knowledge-meter-text is-over">
+            Your document names {named} {named === 1 ? "picture" : "pictures"}, and not one of them is
+            saved — a plain text or Markdown file carries the words and the names, never the pictures
+            themselves. Put the document and its pictures folder into one ZIP and import that: every
+            picture in it is then kept, each one beside the word it stood with.
+          </span>
+        ) : (
+          <span className="knowledge-meter-text">
+            No picture is saved yet. Import a ZIP, or a Word file, that carries them — every picture it
+            holds is kept beside the word it stood next to.
+          </span>
+        )}
 
         <PictureDownload count={0} />
       </>
@@ -111,7 +145,8 @@ export default function WordPictures({ text = "" }) {
   return (
     <div className="knowledge-field">
       <span className="knowledge-label">
-        Pictures saved beside words · {rows.length}
+        Pictures saved beside words · {total}
+        {rows.length < total ? ` · ${rows.length} shown here` : ""}
         {unnamed ? ` · ${unnamed} still with no word` : ""}
         {missing ? ` · ${missing} whose word is not in the document` : ""}
       </span>
@@ -188,7 +223,7 @@ export default function WordPictures({ text = "" }) {
         })}
       </div>
 
-      <PictureDownload count={rows.length} />
+      <PictureDownload count={total} />
     </div>
   );
 }
