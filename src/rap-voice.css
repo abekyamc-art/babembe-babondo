@@ -327,3 +327,92 @@
     height: 18px;
   }
 }
+
+/* --------------------------------------------- the dock: one icon for each of the studio's rooms */
+
+.rap-dock {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: rap-fi 0.8s 0.4s ease both;
+}
+
+.rap-dock-bar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 8px;
+  background: #17181d;
+  border: 1px solid #2a2b33;
+  border-radius: 10px;
+}
+
+.rap-dock-tab {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 14px;
+  color: #8d90a0;
+  background: #202127;
+  border: 1px solid #3a3b45;
+  border-radius: 8px;
+  font: 700 11.5px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.05em;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.rap-dock-tab svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rap-dock-tab:hover {
+  background: #2c2d36;
+  color: #e9eaf0;
+}
+
+.rap-dock-tab:active {
+  background: #363744;
+}
+
+.rap-dock-tab.is-active {
+  color: #101116;
+  background: #c7f400;
+  border-color: #c7f400;
+  box-shadow: 0 0 18px rgba(199, 244, 0, 0.25);
+}
+
+.rap-dock-tab:focus-visible {
+  outline: 2px solid #15d8d0;
+  outline-offset: 2px;
+}
+
+/* the sections stay standing where they are: only the one that is open is drawn */
+.rap-dock-pane {
+  animation: rap-fi 0.45s ease both;
+}
+
+.rap-dock-pane[hidden] {
+  display: none;
+}
+
+.rap-dock-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.rap-dock-one {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  max-width: 520px;
+}
+
+@media (max-width: 1080px) {
+  .rap-dock-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
