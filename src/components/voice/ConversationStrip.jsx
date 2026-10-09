@@ -1,6 +1,8 @@
 import React, { useEffect, useRef } from "react";
 import ThinkingLine from "@/components/voice/ThinkingLine";
 import HeardTurn from "@/components/voice/HeardTurn";
+import AnswerText from "@/components/kibembe/AnswerText";
+import AnswerPictures from "@/components/kibembe/AnswerPictures";
 
 // only the newest lines stay on screen: ten at most, both sides counted together
 const SHOWN = 10;
@@ -40,9 +42,26 @@ export default function ConversationStrip({ turns, pending, onCorrectTurn }) {
                   onCorrect={(text) => onCorrectTurn(at, text, turn.text)}
                 />
               ) : (
-                <p className="conversation-text max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-2 text-[13px] leading-snug text-foreground">
-                  {turn.text}
-                </p>
+                // an answer the admin gave a picture to stands with that picture at its own word, and
+                // again in the strip beneath the words
+                <div className="max-w-[85%] rounded-2xl rounded-bl-md border border-border bg-card px-3.5 py-2 text-[13px] leading-snug text-foreground">
+                  <p className="conversation-text">
+                    <AnswerText text={turn.text} pictures={turn.pictures} />
+                  </p>
+                  <AnswerPictures pictures={turn.pictures} />
+                  {/* where an answer was given from something looked up on the internet, where it
+                      came from is named with its own address, so it can be read and followed */}
+                  {turn.source?.url ? (
+                    <a
+                      href={turn.source.url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="mt-1.5 block truncate text-[11px] text-muted-foreground underline decoration-dotted underline-offset-2"
+                    >
+                      Source: {turn.source.label || "online"} — {turn.source.url}
+                    </a>
+                  ) : null}
+                </div>
               )}
             </div>
           );

@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { base44 } from "@/api/base44Client";
 import VoiceSocket from "@/lib/elevenLabsSocket";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { primeMic } from "@/lib/micAccess";
 import { FIRST_TALK } from "@/lib/talkRotation";
 import { openHearingNote, readHeardTurn } from "@/lib/homeHearing";
+import { loadFreshMaterial, loadTurnPictures } from "@/lib/knowledge";
 import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
 import { heardLanguage } from "@/lib/heardLanguage";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
@@ -26,8 +28,12 @@ const TURN_NOT_DELIVERED = "That turn didn't reach the voice — say it again.";
 // a written question that ends with no answer at all is said plainly: the words would otherwise sit
 // on the screen with nothing after them, which reads as the app having gone quiet
 const NO_WRITTEN_ANSWER = "That voice didn't answer — try again in a moment.";
+// A written turn is answered by the app's own assistant, which is only reachable by a signed-in
+// person: a guest is told plainly rather than left with a line nobody answered.
+const UNAUTHORIZED = "Unauthorized";
+const SIGN_IN_TO_ASK = "Sign in and I'll answer you in writing — the call still answers out loud.";
 
-export default function useTalkVoice({ onTurn } = {}) {
+export default function useTalkVoice({ onTurn, onPictures } = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -35,7 +41,6 @@ export default function useTalkVoice({ onTurn } = {}) {
   const levelRef = useRef(0);
 
   const socketRef = useRef(null);
-  const writtenRef = useRef(null);
   const activeRef = useRef(false);
   const speakingRef = useRef(false);
   // a call is opening right now: a tap that lands on it never opens a second one
@@ -57,8 +62,16 @@ export default function useTalkVoice({ onTurn } = {}) {
   const endedRef = useRef(null);
   const turnRef = useRef(onTurn);
   turnRef.current = onTurn;
+  // the pictures of an answer are handed over through here the moment they are found
+  const picturesRef = useRef(onPictures);
+  picturesRef.current = onPictures;
+  // the person's own last turn, so the answer it brings is read against the admin's own pictures
+  const lastUserRef = useRef("");
 
-  const push = useCallback((role, text) => turnRef.current?.(role, text), []);
+  const push = useCallback(
+    (role, text, pictures, source) => turnRef.current?.(role, text, pictures, source),
+    []
+  );
 
   const backToListening = useCallback(() => {
     if (!activeRef.current) return;
@@ -112,6 +125,7 @@ export default function useTalkVoice({ onTurn } = {}) {
         return;
       }
       setNotice("");
+      lastUserRef.current = said;
       push("user", said);
       // The app's own reading of the turn rides with it: the confirmed Kibembe word or phrase the
       // sound belongs to is handed to the voice before it answers, so a sound the ears were unsure
@@ -135,12 +149,20 @@ export default function useTalkVoice({ onTurn } = {}) {
    * own saved words and expressions instead, so the letters come back as the app already holds them.
    */
   const handleHeard = useCallback(
-    (text, language, socket) => {
+    async (text, language, socket) => {
       const said = String(text || "").trim();
       if (!said) return;
       // the turn is shown exactly as the app's own ears wrote it, and the app's own reading of it
       // rides with it, so a word the Word Bank holds is answered from its own meaning
       handleUserText(said);
+      // A turn that asks about the world — who someone is, their songs, their history, a piece of
+      // news, a story — is looked up before it is put to the voice, and what was found rides into
+      // the call with the words. So the voice answers from what was really found, names where it
+      // came from, and says plainly what could not be confirmed, instead of answering that it does
+      // not know the person. The lookup decides for itself whether a turn needs one, so ordinary
+      // talk waits for nothing.
+      const fresh = await loadFreshMaterial(said);
+      if (fresh.material) socket.sendMemory(fresh.material);
       if (!socket.sendText(said)) {
         setNotice(TURN_NOT_DELIVERED);
         return;
@@ -186,6 +208,14 @@ export default function useTalkVoice({ onTurn } = {}) {
       const line = String(text || "").trim();
       if (line) lastAgentRef.current = line;
       push("assistant", text);
+      // The words this answer is made of are read against the admin's pictures as the answer is
+      // shown, and the pictures of the words it carries join it a moment later: the answer itself
+      // is never held back while they are found, and most answers carry none.
+      const asked = lastUserRef.current;
+      if (!asked) return;
+      loadTurnPictures(asked, line).then((pictures) => {
+        if (pictures.length) picturesRef.current?.(text, pictures);
+      });
     },
     [push]
   );
@@ -329,15 +359,15 @@ export default function useTalkVoice({ onTurn } = {}) {
   useEffect(
     () => () => {
       socketRef.current?.stop();
-      writtenRef.current?.stop();
     },
     []
   );
 
   /**
-   * A written question. It is sent into the call that is open, so it is answered in the same
-   * conversation; with no call running, the talk AI answers it on a short session of its own — opened
-   * for this one turn and hung up the moment the answer lands.
+   * A written question. Sent into the call that is open, it is answered in that same conversation by
+   * whoever holds it. With no call running it is answered by the app's own assistant — the one the
+   * Kibembe screen asks — so a written turn is always answered, is answered from what was looked up
+   * for it, and comes back with the pictures the admin saved beside the words it is made of.
    */
   const ask = useCallback(
     async (text, onAnswered) => {
@@ -353,57 +383,34 @@ export default function useTalkVoice({ onTurn } = {}) {
       }
 
       setError("");
+      setNotice("");
       setStatus("thinking");
-
-      let done = false;
-      // what the written turn ends in: the answer itself, or the plain fact that none came
-      let replied = false;
-      let failed = false;
-      let settle = () => {};
-      const answered = new Promise((resolve) => {
-        settle = () => {
-          if (done) return;
-          done = true;
-          resolve();
-        };
-      });
-
-      const socket = new VoiceSocket({
-        onAgentText: (reply) => {
-          replied = true;
-          push("assistant", reply);
-          writtenAnsweredRef.current?.();
-          settle();
-        },
-        onStatus: (next) => {
-          if (next === "closed" || next === "ended") settle();
-        },
-        onError: (message) => {
-          failed = true;
-          setError(message);
-          settle();
-        },
-        onReask: (message) => {
-          if (message) setNotice(message);
-        },
-      });
-
-      writtenRef.current = socket;
       try {
-        await socket.open({
-          withMic: false,
-          silent: true,
-          laterTurn: true,
-          account: slotRef.current.account,
-        });
-        if (!socket.sendText(said)) throw new Error(COULD_NOT_ASK);
-        await answered;
-        if (!replied && !failed) setError(NO_WRITTEN_ANSWER);
+        const res = await base44.functions.invoke("chatWithKibembeAssistant", { message: said });
+        const data = res?.data || {};
+        if (data.error) {
+          setError(data.error === UNAUTHORIZED ? SIGN_IN_TO_ASK : data.error);
+          return;
+        }
+        const reply = String(data.reply || "").trim();
+        if (!reply) {
+          setError(NO_WRITTEN_ANSWER);
+          return;
+        }
+        push(
+          "assistant",
+          reply,
+          Array.isArray(data.pictures) ? data.pictures : [],
+          data.source || null
+        );
+        writtenAnsweredRef.current?.();
       } catch (err) {
-        setError(err?.response?.data?.error || err?.message || COULD_NOT_ASK);
+        setError(
+          err?.response?.status === 401
+            ? SIGN_IN_TO_ASK
+            : err?.response?.data?.error || err?.message || COULD_NOT_ASK
+        );
       } finally {
-        if (writtenRef.current === socket) writtenRef.current = null;
-        await socket.stop();
         setStatus(activeRef.current ? "listening" : "idle");
       }
     },

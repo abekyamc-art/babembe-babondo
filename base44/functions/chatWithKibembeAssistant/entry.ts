@@ -82,6 +82,20 @@ function replyText(data) {
   return '';
 }
 
+/**
+ * The source the looked-up material names, and its own address, exactly as the lookup wrote them
+ * down: the line it puts beside what it saved, or the first address the material carries. Nothing is
+ * read from the answer itself, and material that names no address carries no source.
+ */
+function citationOf(material) {
+  const text = String(material || '');
+  const named = text.match(/Chanzo:\s*([^\n(]{2,80}?)\s*[—-]\s*(https?:\/\/\S+)/i);
+  if (named) return { label: named[1].trim(), url: named[2].replace(/[),.\]]+$/, '') };
+  const any = text.match(/https?:\/\/\S+/);
+  if (!any) return null;
+  return { label: 'mtandaoni', url: any[0].replace(/[),.\]]+$/, '') };
+}
+
 export default async function (req) {
   try {
     const base44 = createClientFromRequest(req);
@@ -134,7 +148,27 @@ export default async function (req) {
     // be made at all, is said plainly instead of being answered around.
     const lookup = await lookupForTurn(base44, message);
 
-    const input = [saved, told, tales, lookup.material, `Mtu amesema: ${message}`]
+    // A turn that needed the internet is answered from what was found, and given the room to be
+    // answered properly: the whole of what the search brought — who the person is, their songs, their
+    // history — with the source named and its link written out, and with what could not be confirmed
+    // said plainly. Only the one or two sentences rule is lifted here; every other rule stands.
+    const FOUND =
+      '- This turn was answered from a search of the internet, and what was found is handed to you ' +
+      'above. Give the whole of what was found — who the person is, where they are from, their songs ' +
+      'or their work by name, what is known about them — in three to six plain sentences rather than ' +
+      'one, name the source you took it from as it is written (YouTube, Facebook, a news site), write ' +
+      'its full address (link) as plain text, and say plainly where the sources do not settle a thing. ' +
+      'Never say you do not know the person, and never say nothing was found, when the material above ' +
+      'carries them.';
+
+    const input = [
+      saved,
+      told,
+      tales,
+      lookup.material,
+      lookup.material ? FOUND : '',
+      `Mtu amesema: ${message}`,
+    ]
       .filter(Boolean)
       .join('\n');
     console.log(
@@ -179,7 +213,10 @@ export default async function (req) {
     // admin gave a picture to is answered with that picture and not with words alone. An answer whose
     // words carry no picture comes back with none, which is most of them.
     const pictures = await turnPictures(base44, message, reply);
-    return Response.json({ reply, pictures });
+    // And where this answer stands on something looked up on the internet, where it came from goes
+    // back with it — named, with its own address — so the screen can show the source of what it says
+    // instead of the person having to take the answer on trust.
+    return Response.json({ reply, pictures, source: citationOf(lookup.material) });
   } catch (error) {
     console.error('The Kibembe assistant failed:', error?.message);
     return Response.json({ error: NO_REPLY }, { status: 500 });

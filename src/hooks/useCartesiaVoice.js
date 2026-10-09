@@ -4,6 +4,7 @@ import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import CartesiaCall from "@/lib/cartesiaCall";
 import { readHeardTurn } from "@/lib/homeHearing";
+import { loadTurnPictures } from "@/lib/knowledge";
 import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
 import { CARTESIA_AI } from "@/lib/providerNames";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
@@ -23,7 +24,13 @@ const NO_REACH = (who) => `${who} couldn't be reached. Please try again.`;
 const ENDED = (who) => `${who}'s call ended. Tap the phone to talk again.`;
 const TOUCH_TO_HEAR = "Touch the screen to let the sound through.";
 
-export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEnded } = {}) {
+export default function useCartesiaVoice({
+  onTurn,
+  onPictures,
+  onAnswered,
+  onAnswerEnd,
+  onEnded,
+} = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -51,6 +58,11 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
   endedRef.current = onEnded;
   // the line he said last, so a correction on the next turn is read against it
   const lastAgentRef = useRef("");
+  // the person's own last turn, so his answer is read against the admin's own pictures
+  const lastUserRef = useRef("");
+  // the pictures of an answer are handed over through here the moment they are found
+  const picturesRef = useRef(onPictures);
+  picturesRef.current = onPictures;
   // while the phone is holding the sound back, this waits for the touch that starts it
   const offTouchRef = useRef(null);
 
@@ -100,6 +112,7 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
         return;
       }
       setNotice("");
+      lastUserRef.current = said;
       turnRef.current?.("user", said);
       // Cartesia AI hears, answers and speaks on its own account, and its own settings are left
       // exactly as they are — so no reading is handed to it. What the reading is still used for is
@@ -130,6 +143,14 @@ export default function useCartesiaVoice({ onTurn, onAnswered, onAnswerEnd, onEn
     const line = String(text || "").trim();
     if (line) lastAgentRef.current = line;
     turnRef.current?.("assistant", text);
+    // The words this answer is made of are read against the admin's pictures as the answer is shown,
+    // and the pictures of the words it carries join it a moment later: the answer is never held back
+    // while they are found, and most answers carry none.
+    const asked = lastUserRef.current;
+    if (!asked) return;
+    loadTurnPictures(asked, line).then((pictures) => {
+      if (pictures.length) picturesRef.current?.(text, pictures);
+    });
   }, []);
 
   /** An answer is complete and read out: it is counted against the turn this AI is on. */

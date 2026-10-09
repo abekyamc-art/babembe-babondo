@@ -82,8 +82,25 @@ export default function useHomeVoice() {
 
   // the whole talk is kept here, so a call that hands over carries the conversation with it and
   // nothing said before the change is lost from the screen
-  const onTurn = useCallback((role, text) => {
-    setTurns((prev) => [...prev, { role, text }]);
+  const onTurn = useCallback((role, text, pictures, source) => {
+    setTurns((prev) => [...prev, { role, text, pictures: pictures || [], source: source || null }]);
+  }, []);
+
+  /**
+   * The pictures the admin saved beside the words of an answer, arriving a moment after the answer
+   * itself: the newest line of the talk that answer is found by, and the pictures are added to it. So
+   * the words are never held back while a picture is found, and an answer whose words carry no
+   * picture is left exactly as it stands.
+   */
+  const patchPictures = useCallback((text, pictures) => {
+    setTurns((prev) => {
+      let at = -1;
+      prev.forEach((turn, index) => {
+        if (turn.role === "assistant" && turn.text === text) at = index;
+      });
+      if (at < 0) return prev;
+      return prev.map((turn, index) => (index === at ? { ...turn, pictures } : turn));
+    });
   }, []);
 
   /** The voice on the call right now, named on screen and read by the handlers sent out with it. */
@@ -127,9 +144,10 @@ export default function useHomeVoice() {
     dueTimerRef.current = setTimeout(dueHandoff, DRAIN_MAX_MS);
   }, [dueHandoff]);
 
-  const talk = useTalkVoice({ onTurn });
+  const talk = useTalkVoice({ onTurn, onPictures: patchPictures });
   const cartesia = useCartesiaVoice({
     onTurn,
+    onPictures: patchPictures,
     onAnswered,
     onAnswerEnd: dueHandoff,
     onEnded: () => endedRef.current?.(),

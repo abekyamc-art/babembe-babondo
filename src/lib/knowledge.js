@@ -182,6 +182,26 @@ export function withKnowledge(memory, note) {
  * to say plainly that nothing could be confirmed. Whoever asks for it waits for it, so the turn
  * it belongs to is never answered before it arrives.
  */
+/**
+ * The pictures the admin saved beside the words one turn is made of, for an answer written by a
+ * voice on the home page. A voice answers on its own account, so its words are read against the
+ * admin's pictures on the app's own server, and only the pictures of the words this turn really
+ * carries come back — most answers carry none.
+ */
+export async function loadTurnPictures(question = "", answer = "") {
+  const said = String(question || "").trim();
+  const wrote = String(answer || "").trim();
+  if (!said && !wrote) return [];
+  try {
+    const res = await base44.functions.invoke("turnPictures", { question: said, answer: wrote });
+    const list = res?.data?.pictures;
+    return Array.isArray(list) ? list : [];
+  } catch (err) {
+    // a picture is a help with an answer, never a reason it fails to appear
+    return [];
+  }
+}
+
 export async function loadFreshMaterial(query = "") {
   const asked = String(query || "").trim();
   const none = { material: "", needed: false, found: false };
