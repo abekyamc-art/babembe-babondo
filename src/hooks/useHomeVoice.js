@@ -32,6 +32,13 @@ import { handoffNotice, resumeNotice, waitNotice } from "@/lib/talkRotation";
 // sitting on a voice that has already taken its turn.
 const DRAIN_MAX_MS = 30000;
 
+/**
+ * The ring's seat, named by whoever really took the call rather than by who it was expected to be.
+ * The Cartesia seat is three accounts behind one name, so which of them answered is only known from
+ * the seat itself once the call has opened.
+ */
+const liveSeat = (next, opened) => (opened?.label ? { ...next, label: opened.label } : next);
+
 export default function useHomeVoice() {
   const [turns, setTurns] = useState([]);
   // the voice holding the call, and the name the screen writes — which after a handoff already names
@@ -156,19 +163,22 @@ export default function useHomeVoice() {
     onEnded: () => endedRef.current?.(),
   });
 
-  /** The voice one seat stands for opens the call, and says plainly whether it did. */
+  /**
+   * The voice one seat stands for opens the call, and says plainly whether it did — and, where the
+   * seat is made of more than one account, which of them really answered. The Cartesia seat is three
+   * accounts behind one name, so what it reports back is the voice on the line and not the one the
+   * call was expected to open on.
+   */
   const openSeat = useCallback(
     async (next) => {
-      const why =
-        next.kind === "cartesia"
-          ? await cartesia.start({ account: next.account, label: next.label })
-          : await talk.start({
-              account: next.account,
-              label: next.label,
-              onAnswered,
-              onAnswerEnd: dueHandoff,
-              onEnded: () => endedRef.current?.(),
-            });
+      if (next.kind === "cartesia") return cartesia.start({ label: next.label });
+      const why = await talk.start({
+        account: next.account,
+        label: next.label,
+        onAnswered,
+        onAnswerEnd: dueHandoff,
+        onEnded: () => endedRef.current?.(),
+      });
       return why ? { ok: false, why } : { ok: true, why: "" };
     },
     [cartesia, talk, onAnswered, dueHandoff]
@@ -267,12 +277,15 @@ export default function useHomeVoice() {
       for (const next of order) {
         const opened = await openSeat(next);
         if (!opened.ok) {
-          refused = next.label;
+          refused = opened.label || next.label;
           if (!triedRef.current.includes(next.id)) triedRef.current = [...triedRef.current, next.id];
           continue;
         }
-        setCurrent(next);
-        setNotice(handoffNotice(pending.from.label, next.label, pending.from.answers));
+        // the seat is written up as the voice that really answered, so the screen names the one on
+        // the line — Cartesia AI 1 where the app's own account could not take it, and so on
+        const live = liveSeat(next, opened);
+        setCurrent(live);
+        setNotice(handoffNotice(pending.from.label, live.label, pending.from.answers));
         return true;
       }
 
@@ -363,9 +376,12 @@ export default function useHomeVoice() {
         const opened = await openSeat(next);
         if (opened.ok) {
           startingRef.current = false;
-          setCurrent(next);
+          // the seat is written up as the voice that really answered, so a call that opened on one of
+          // the Cartesia seat's own backup accounts is named for the account that took it
+          const live = liveSeat(next, opened);
+          setCurrent(live);
           if (next.id !== HOME_SEATS[0].id) {
-            setNotice(`${HOME_SEATS[0].label} couldn't take the call — ${next.label} is on it.`);
+            setNotice(`${HOME_SEATS[0].label} couldn't take the call — ${live.label} is on it.`);
           }
           return true;
         }

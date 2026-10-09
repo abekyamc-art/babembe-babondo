@@ -17,22 +17,12 @@ export const FIRST_TALK = { id: "gloire", label: GLOIRE_AI, account: "" };
 export const TALK_ANSWERS = 2;
 
 /**
- * How many answers Cartesia AI gives on a home call before the ring of voices moves on to the next
- * one. Every answer given spends one credit.
+ * How many answers the Cartesia voice gives on a home call before the ring of voices moves on to the
+ * next one. Every answer given spends one credit. The Cartesia voice is one seat on that ring with
+ * three accounts standing behind it, so this is how long the seat holds the call, whichever of them
+ * opened it.
  */
 export const CARTESIA_ANSWERS = 7;
-
-/**
- * How many answers Cartesia AI 1 gives on a home call — the admin's own second Cartesia account,
- * which takes the call straight after Cartesia AI and answers five before standing aside.
- */
-export const CARTESIA_AI1_ANSWERS = 5;
-
-/**
- * How many answers Cartesia AI 2 gives on a home call — the admin's own third Cartesia account, which
- * takes the call straight after Cartesia AI 1 and answers five before standing aside.
- */
-export const CARTESIA_AI2_ANSWERS = 5;
 
 /**
  * AI 2 stands down for a month and comes back on its own. From today until November 6, 2026 the

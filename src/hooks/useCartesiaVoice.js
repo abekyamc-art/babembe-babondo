@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
+import { cartesiaFailed, cartesiaOpened, cartesiaOrder } from "@/lib/cartesiaBackup";
 import CartesiaCall from "@/lib/cartesiaCall";
 import { readHeardTurn } from "@/lib/homeHearing";
 import { loadTurnPictures } from "@/lib/knowledge";
@@ -38,6 +39,8 @@ export default function useCartesiaVoice({
   const levelRef = useRef(0);
   // the Cartesia voice the call is open on, named on screen and in anything said about it
   const labelRef = useRef(CARTESIA_AI);
+  // and the account behind that voice, one of the three the Cartesia seat is made of
+  const liveAccountRef = useRef("");
 
   const callRef = useRef(null);
   const activeRef = useRef(false);
@@ -198,96 +201,127 @@ export default function useCartesiaVoice({
   }, []);
 
   /**
-   * The call opens here. The key itself never reaches the phone: the app's own server is asked for a
-   * short-lived token, and that is what opens the agent's calling socket. Returns an empty string
-   * when the call opened, or the reason it could not, so whoever asked for it can say so plainly.
+   * The call opens here, on the first of the seat's three accounts that can take it. The keys
+   * themselves never reach the phone: the app's own server is asked for a short-lived token for one
+   * account, and that is what opens the agent's calling socket. What comes back is whether the call
+   * opened, the reason it could not, and which account really answered, so whoever asked for it can
+   * say so plainly and name the voice that is on the line.
    */
-  const start = useCallback(async ({ account = "", label = CARTESIA_AI } = {}) => {
-    // a call is opening or already open: a tap that lands on it never opens a second one
-    if (activeRef.current || startingRef.current) return "";
-    startingRef.current = true;
-    // the Cartesia voice this call is opened on, which is the one every message below names
-    labelRef.current = label || CARTESIA_AI;
+  const start = useCallback(
+    async ({ label = CARTESIA_AI } = {}) => {
+      // a call is opening or already open: a tap that lands on it never opens a second one
+      if (activeRef.current || startingRef.current) {
+        return { ok: true, why: "", account: liveAccountRef.current, label: labelRef.current };
+      }
+      startingRef.current = true;
 
-    setError("");
-    setNotice("");
-    setStatus("connecting");
+      setError("");
+      setNotice("");
+      setStatus("connecting");
 
-    // the microphone and the sound are asked for inside the tap that began the call, and the sound
-    // the tap started is the one this call plays through: a call never closes it, so the voice
-    // standing down can never take the sound away from the voice that follows it
-    primeMic();
-    const audio = primeAudio();
+      // the sound the tap started is the one this call plays through, whichever account answers, and
+      // a call never closes it — so the voice standing down can never take the sound away from the
+      // voice that follows it
+      const audio = primeAudio();
 
-    let stream;
-    try {
-      stream = await claimMic();
-    } catch (err) {
+      const handlers = {
+        onStatus: handleStatus,
+        onUserText: handleUserText,
+        onAgentText: handleAgentText,
+        onThinking: handleThinking,
+        onAgentAudioStart: handleAudioStart,
+        onAgentAudioEnd: handleAudioEnd,
+        onAnswered: handleAnswered,
+        onError: handleError,
+        onReask: handleReask,
+      };
+
+      // The accounts behind this one seat are tried in their own order — the app's own account first,
+      // then the admin's second and third — so the call opens on whichever of them the app has
+      // available. An account that could not take it stands aside for a while, and a real call on it
+      // clears that at once, so a recovered account takes its place back on a later call by itself.
+      let why = "";
+      let refused = label || CARTESIA_AI;
+      for (const one of cartesiaOrder()) {
+        refused = one.label;
+        labelRef.current = one.label;
+
+        // the microphone is asked for inside the tap that began the call, and every account is given
+        // its own: an account that could not take the call releases the one it was handed before the
+        // next one is tried, so no two accounts are ever listening at once
+        primeMic();
+        let stream;
+        try {
+          stream = await claimMic();
+        } catch (err) {
+          startingRef.current = false;
+          setStatus("idle");
+          return { ok: false, why: micMessage(err), account: "", label: one.label };
+        }
+
+        let session;
+        try {
+          const res = await base44.functions.invoke("cartesiaSession", { account: one.account });
+          session = res?.data || {};
+        } catch (err) {
+          session = {};
+        }
+        if (!session.token || !session.agent_id) {
+          stream.getTracks().forEach((track) => track.stop());
+          cartesiaFailed(one.account);
+          why = session.error || NO_REACH(one.label);
+          continue;
+        }
+
+        const call = new CartesiaCall(handlers);
+        try {
+          await call.open({ stream, token: session.token, agentId: session.agent_id, audio });
+        } catch (err) {
+          await call.stop();
+          stream.getTracks().forEach((track) => track.stop());
+          cartesiaFailed(one.account);
+          why = err?.message || NO_REACH(one.label);
+          continue;
+        }
+
+        callRef.current = call;
+        liveAccountRef.current = one.account;
+        activeRef.current = true;
+        startingRef.current = false;
+        // a real call opened on it: it is healthy again, whatever it did before
+        cartesiaOpened(one.account);
+        setActive(true);
+        setStatus("listening");
+
+        // the phone's hold on the sound: nothing above is heard until it is started, and a touch is
+        // what starts it
+        if (primedAudio()?.state !== "running") {
+          setNotice(TOUCH_TO_HEAR);
+          offTouchRef.current = resumeAudioOnTouch(() => setNotice(""));
+        }
+        return { ok: true, why: "", account: one.account, label: one.label };
+      }
+
+      // None of the accounts could take the call — a key refused, an agent not set up, a service
+      // having a bad moment. The microphone is closed and the seat is passed over, so the ring moves
+      // on to the app's other voices instead of a call nobody can hear being shown as live.
       startingRef.current = false;
       setStatus("idle");
-      return micMessage(err);
-    }
-
-    let session;
-    try {
-      const res = await base44.functions.invoke("cartesiaSession", { account });
-      session = res?.data || {};
-    } catch (err) {
-      session = {};
-    }
-    if (!session.token || !session.agent_id) {
-      stream.getTracks().forEach((track) => track.stop());
-      startingRef.current = false;
-      setStatus("idle");
-      return session.error || NO_REACH(labelRef.current);
-    }
-
-    const call = new CartesiaCall({
-      onStatus: handleStatus,
-      onUserText: handleUserText,
-      onAgentText: handleAgentText,
-      onThinking: handleThinking,
-      onAgentAudioStart: handleAudioStart,
-      onAgentAudioEnd: handleAudioEnd,
-      onAnswered: handleAnswered,
-      onError: handleError,
-      onReask: handleReask,
-    });
-
-    try {
-      await call.open({ stream, token: session.token, agentId: session.agent_id, audio });
-    } catch (err) {
-      await call.stop();
-      stream.getTracks().forEach((track) => track.stop());
-      startingRef.current = false;
-      setStatus("idle");
-      return err?.message || NO_REACH(labelRef.current);
-    }
-
-    callRef.current = call;
-    activeRef.current = true;
-    startingRef.current = false;
-    setActive(true);
-    setStatus("listening");
-
-    // the phone's hold on the sound: nothing above is heard until it is started, and a touch is
-    // what starts it
-    if (primedAudio()?.state !== "running") {
-      setNotice(TOUCH_TO_HEAR);
-      offTouchRef.current = resumeAudioOnTouch(() => setNotice(""));
-    }
-    return "";
-  }, [
-    handleAnswered,
-    handleAgentText,
-    handleAudioEnd,
-    handleAudioStart,
-    handleError,
-    handleReask,
-    handleStatus,
-    handleThinking,
-    handleUserText,
-  ]);
+      labelRef.current = refused;
+      return { ok: false, why: why || NO_REACH(refused), account: "", label: refused };
+    },
+    [
+      handleAnswered,
+      handleAgentText,
+      handleAudioEnd,
+      handleAudioStart,
+      handleError,
+      handleReask,
+      handleStatus,
+      handleThinking,
+      handleUserText,
+    ]
+  );
 
   const stop = useCallback(async () => {
     const call = callRef.current;

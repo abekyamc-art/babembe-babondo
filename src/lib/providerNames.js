@@ -32,14 +32,16 @@ export const KIBEMBE_CLASS = "mode-kibembe";
 export const CARTESIA_AI = "Cartesia AI";
 
 /**
- * The admin's own second Cartesia account, with its own key and its own agent: it answers on the
- * account the app's first Cartesia voice does not use, and is named on screen as Cartesia AI 1.
+ * The admin's own second Cartesia account, with its own key and its own agent: it is the first
+ * account standing behind the Cartesia voice, and a call opens on it when the app's own account
+ * cannot take it. Named on screen as Cartesia AI 1.
  */
 export const CARTESIA_AI1 = "Cartesia AI 1";
 
 /**
- * The admin's own third Cartesia account, with its own key and its own agent: it answers on an
- * account neither of the app's other Cartesia voices uses, and is named on screen as Cartesia AI 2.
+ * The admin's own third Cartesia account, with its own key and its own agent: it is the last account
+ * standing behind the Cartesia voice, and a call opens on it when neither of the two ahead of it can
+ * take it. Named on screen as Cartesia AI 2.
  */
 export const CARTESIA_AI2 = "Cartesia AI 2";
 
