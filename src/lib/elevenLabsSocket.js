@@ -27,6 +27,11 @@ const CLOSE_QUIET_MS = 15000;
 // the person is left watching a working line while nothing is said.
 const RECOVER_MS = 8000;
 const GIVE_UP_MS = 45000;
+// A turn the voice on the line has taken and never begun answering is given this long to speak. An
+// answer that has not begun this long after the words were handed over is not on its way, so the turn
+// is handed on to the next voice service rather than the person watching a working line: the same
+// words, so the answer comes to what they really asked.
+const STUCK_MS = 6000;
 // A soft voice at arm's length is a turn as much as a loud one, and no two phones report the same
 // voice the same way, so the bar for hearing one is set low: what is captured is only ever read
 // once it has been written down, and a sound with no words in it comes back empty and is dropped.
@@ -196,6 +201,8 @@ export default class VoiceSocket {
     // put to him a second time
     this.lastUserText = "";
     this.recovered = false;
+    // whether this voice has already been asked to hand its quiet turn to another voice service
+    this.stuckTried = false;
     // a question carried over from the last call is being answered now: nothing is held
     this.resuming = false;
     // the app's own ears: the sound of the person's turn is kept here and written down, and
@@ -418,6 +425,9 @@ export default class VoiceSocket {
     this.sentText = text;
     this.turnAt = performance.now();
     this.recovered = false;
+    // a fresh turn of the person's is its own: a voice that went quiet on the turn before is given its
+    // short opportunity again on this one
+    this.stuckTried = false;
     // a fresh message is its own turn, so its answer is its own to spend
     this.answered = false;
     this.spent = false;
@@ -772,6 +782,20 @@ export default class VoiceSocket {
       if (this.ears && this.captureOn && !answering) {
         const quietFor = now - Math.max(this.lastVoiceAt, this.captureFrom);
         if (quietFor >= TURN_END_MS || now - this.captureFrom >= TURN_MAX_MS) this.readTurn();
+      }
+
+      // A turn taken and never begun answering: the voice holding the call is given its short
+      // opportunity to speak, and a line that has said nothing by then has the turn handed on to the
+      // next voice service — with the very words the person said, so the answer is given to what they
+      // really asked. The handover is what this call is now: waiting here would only leave the turn
+      // sitting on a voice that has gone quiet. Where no other voice can take it, nothing is handed
+      // over and the turn waits on exactly as it always has.
+      if (this.awaiting && !answering && !this.stuckTried) {
+        const said = String(this.lastUserText || "").trim();
+        if (said && now - this.turnAt >= STUCK_MS) {
+          this.stuckTried = true;
+          if (this.h.onStuck?.(said)) return;
+        }
       }
 
       // a turn that gets no answer is put to him once more; only if that brings nothing

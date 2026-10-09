@@ -69,6 +69,12 @@ export default function useCartesiaVoice({
   const lastAgentRef = useRef("");
   // the person's own last turn, so his answer is read against the admin's own pictures
   const lastUserRef = useRef("");
+  // the turn he has taken since the last answer he gave: where he never begins answering it, these
+  // are the words handed on to the next voice service
+  const takenTurnRef = useRef("");
+  // a turn this voice took and never began answering is reported through here, so it can be handed
+  // on to the next voice service instead of the person waiting on a line that has gone quiet
+  const stuckRef = useRef(null);
   // the pictures of an answer are handed over through here the moment they are found
   const picturesRef = useRef(onPictures);
   picturesRef.current = onPictures;
@@ -91,6 +97,7 @@ export default function useCartesiaVoice({
     levelRef.current = 0;
     // a call that is gone holds nothing: the writing waiting on the person's own word goes with it
     checkRef.current = null;
+    takenTurnRef.current = "";
     setCheck(null);
     if (offTouchRef.current) {
       offTouchRef.current();
@@ -128,6 +135,7 @@ export default function useCartesiaVoice({
   const takeTurn = useCallback((said) => {
     setNotice("");
     lastUserRef.current = said;
+    takenTurnRef.current = said;
     turnRef.current?.("user", said);
     readHeardTurn(said, lastAgentRef.current).then(({ mode }) => {
       if (mode) saveLangMode(mode);
@@ -213,7 +221,11 @@ export default function useCartesiaVoice({
   }, []);
 
   /** An answer is complete and read out: it is counted against the turn this AI is on. */
-  const handleAnswered = useCallback(() => answeredRef.current?.(), []);
+  const handleAnswered = useCallback(() => {
+    // the turn he was given has been answered: nothing of it is waiting to be handed anywhere
+    takenTurnRef.current = "";
+    answeredRef.current?.();
+  }, []);
 
   const handleThinking = useCallback(
     (on) => {
@@ -264,6 +276,12 @@ export default function useCartesiaVoice({
    */
   const handleNoAnswer = useCallback(() => {
     if (!activeRef.current) return;
+    // A turn he has taken and never begun answering: the voice has had its short opportunity to
+    // speak, so the same turn is handed on to the next voice service — on the words the app's own
+    // ears wrote for it — rather than the person sitting on a working line. Where no other voice can
+    // take it, nothing is handed over and the call is ended here as it always was.
+    const said = takenTurnRef.current;
+    if (said && stuckRef.current?.(said) === true) return;
     const call = callRef.current;
     finish();
     setNotice(NO_ANSWER(labelRef.current));
@@ -280,7 +298,8 @@ export default function useCartesiaVoice({
    * say so plainly and name the voice that is on the line.
    */
   const start = useCallback(
-    async ({ label = CARTESIA_AI } = {}) => {
+    async ({ label = CARTESIA_AI, onStuck } = {}) => {
+      stuckRef.current = onStuck || null;
       // a call is opening or already open: a tap that lands on it never opens a second one
       if (activeRef.current || startingRef.current) {
         return { ok: true, why: "", account: liveAccountRef.current, label: labelRef.current };

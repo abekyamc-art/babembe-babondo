@@ -66,6 +66,9 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
   // a call the service ended by itself is reported through here, so the turn it leaves behind is
   // never lost
   const endedRef = useRef(null);
+  // a turn this voice took and never began answering is reported through here, so it can be handed
+  // on to the next voice service instead of the person waiting on a line that has gone quiet
+  const stuckRef = useRef(null);
   const turnRef = useRef(onTurn);
   turnRef.current = onTurn;
   // the turn held for the person's own word, kept in a ref because the handlers that read it were
@@ -379,13 +382,14 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
    * refused it, so what to put right is never left to be guessed at.
    */
   const start = useCallback(
-    async ({ account, label, onAnswered, onAnswerEnd, onEnded } = {}) => {
+    async ({ account, label, onAnswered, onAnswerEnd, onEnded, onStuck } = {}) => {
       // a call is opening or already open: a tap that lands on it never opens a second one
       if (activeRef.current || startingRef.current) return "";
       startingRef.current = true;
       if (onAnswered) liveAnsweredRef.current = onAnswered;
       if (onAnswerEnd) liveSpokeRef.current = onAnswerEnd;
       if (onEnded) endedRef.current = onEnded;
+      stuckRef.current = onStuck || null;
       // the AI this call is opened on, named on screen and used for every turn that follows it
       slotRef.current = {
         account: account === undefined ? FIRST_TALK.account : account,
@@ -413,6 +417,9 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
         onAgentAnswered: handleAnswered,
         onError: handleError,
         onReask: handleReask,
+        // the voice has kept a turn it never began answering: whoever is running the call is asked
+        // here and now whether another voice service takes it
+        onStuck: (text) => stuckRef.current?.(text) === true,
       });
 
       try {
@@ -489,11 +496,13 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
    * for it, and comes back with the pictures the admin saved beside the words it is made of.
    */
   const ask = useCallback(
-    async (text, onAnswered) => {
+    async (text, onAnswered, { replay = false } = {}) => {
       const said = String(text || "").trim();
       if (!said) return;
       if (onAnswered) writtenAnsweredRef.current = onAnswered;
-      push("user", said);
+      // A turn handed over from a voice that went quiet is already standing on the screen as the
+      // person's own: it is not written there a second time, it is only put to the new voice.
+      if (!replay) push("user", said);
 
       const live = socketRef.current;
       if (live?.connected) {

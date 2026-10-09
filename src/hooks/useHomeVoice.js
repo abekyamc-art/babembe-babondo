@@ -3,7 +3,7 @@ import useTalkVoice from "@/hooks/useTalkVoice";
 import useCartesiaVoice from "@/hooks/useCartesiaVoice";
 import { HOME_SEATS, nextPlan } from "@/lib/homeRotation";
 import { keepHeard, proposeHeard } from "@/lib/homeHearing";
-import { handoffNotice, resumeNotice, waitNotice } from "@/lib/talkRotation";
+import { handoffNotice, resumeNotice, stuckNotice, waitNotice } from "@/lib/talkRotation";
 
 /**
  * The home page's call, and who is on it.
@@ -73,6 +73,10 @@ export default function useHomeVoice() {
   // a call the service ended by itself is reported through here, so the turn it leaves behind is
   // never lost
   const endedRef = useRef(null);
+  // A turn the voice on the line took and never began answering is reported through here. It is kept
+  // in a ref because the calls were handed the handler as they opened, and the voice that reports it
+  // is not the one that decides what takes it next.
+  const stuckRef = useRef(null);
   // the voices waiting to take the call, and the voice they are taking it from — held while the
   // person's own tap is what opens the next one
   const pendingRef = useRef(null);
@@ -178,13 +182,18 @@ export default function useHomeVoice() {
    */
   const openSeat = useCallback(
     async (next) => {
-      if (next.kind === "cartesia") return cartesia.start({ label: next.label });
+      if (next.kind === "cartesia")
+        return cartesia.start({
+          label: next.label,
+          onStuck: (text) => stuckRef.current?.(text) === true,
+        });
       const why = await talk.start({
         account: next.account,
         label: next.label,
         onAnswered,
         onAnswerEnd: dueHandoff,
         onEnded: () => endedRef.current?.(),
+        onStuck: (text) => stuckRef.current?.(text) === true,
       });
       return why ? { ok: false, why } : { ok: true, why: "" };
     },
@@ -427,6 +436,84 @@ export default function useHomeVoice() {
   const onWritten = useCallback(() => {
     chargeRef.current?.();
   }, []);
+
+  /**
+   * A turn the voice on the line took and never began answering. The voice has had its short
+   * opportunity to speak, so the very same turn is handed on to the next voice service: the call on
+   * air is hung up, the next voice opens at once — no tap, since the person has already asked their
+   * question once — and the words they said are put to it, so the answer that comes is an answer to
+   * what they really asked. Returns whether another voice is taking the turn.
+   *
+   * Only a voice that can be given the words themselves can take a turn that was never answered in
+   * speech, so the ring is walked for the first one that can. Where none of them can open, nothing is
+   * guessed at: the call is ended here and the person is told plainly rather than left holding a turn
+   * nobody is answering.
+   */
+  const switchOnSilence = useCallback(
+    (text) => {
+      const said = String(text || "").trim();
+      if (!said) return false;
+      // a change is already running, or the next voice is already waiting behind the person's tap
+      if (!callingRef.current || turningRef.current || pendingRef.current) return false;
+      const from = seatRef.current;
+      const { plan, fresh } = nextPlan(from.id, triedRef.current, usedRef.current);
+      // every voice the ring holds has taken its turn: the round is complete and the ring starts over
+      if (!fresh) usedRef.current = [];
+      const order = plan.filter((seat) => seat.kind === "talk");
+      if (!order.length) return false;
+
+      turningRef.current = true;
+      answersRef.current = 0;
+      setWaiting(false);
+      setNotice(stuckNotice(from.label, order[0].label));
+
+      (async () => {
+        try {
+          // the voice that went quiet is hung up before the next one opens, so no two voices are ever
+          // on the line at once and the microphone is free for the one taking the turn
+          try {
+            await closeSeat(from);
+          } catch (err) {
+            // the hang-up was given up on: the call still moves on rather than sitting still
+          }
+          if (!callingRef.current) return;
+
+          for (const next of order) {
+            const opened = await openSeat(next);
+            if (!opened.ok) {
+              if (!triedRef.current.includes(next.id)) {
+                triedRef.current = [...triedRef.current, next.id];
+              }
+              continue;
+            }
+            const live = liveSeat(next, opened);
+            setCurrent(live);
+            setNotice(stuckNotice(from.label, live.label));
+            // the very words of the turn ride into the new call — and the turn already stands on the
+            // screen as the person's own, so it is put to the voice without being written twice
+            await talk.ask(said, onWritten, { replay: true });
+            return;
+          }
+
+          // none of the other voices could take the call: it is ended here rather than left holding a
+          // turn nobody is answering
+          callingRef.current = false;
+          setWaiting(false);
+          setNotice("The call couldn't carry on — tap the phone and ask again.");
+        } finally {
+          turningRef.current = false;
+        }
+      })();
+
+      return true;
+    },
+    [closeSeat, onWritten, openSeat, setCurrent, talk]
+  );
+
+  // the turn a voice went quiet on is reported by the voice itself, so it is reachable from there
+  useEffect(() => {
+    stuckRef.current = switchOnSilence;
+  }, [switchOnSilence]);
 
   const ask = useCallback(
     async (text, charge) => {

@@ -121,45 +121,50 @@ export default async function (req) {
 
     // What the admin has saved in this app rides with the message: the rule book in force first,
     // then every word they hold. Both are read here on the server and never sent to the app.
-    const rules = trimToLines(await rulesText(base44), RULES_BUDGET);
+    // Everything this turn is answered from is gathered at once, never one piece after another. The
+    // rule book, the Word Bank, the document, the stories and the internet lookup are independent of
+    // each other, and reading them one after the other is what left a written turn standing on the
+    // screen for seconds before its answer was even begun. Nothing is dropped and nothing is read in
+    // less: they simply no longer wait on each other, so the answer starts the moment the last of
+    // them lands rather than the moment all of their waits are added together.
     // a translation into Kibembe is built from the Word Bank itself: the whole of what the admin has
     // reviewed rides with that turn rather than the part an ordinary turn carries
     const translating = wantsEbembeTranslation(message);
-    const words = wordListBlock(
-      await bankRows(base44),
-      message,
-      translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET
-    );
-    // the rest of the document — the admin's notes, their questions and answers, and anything they
-    // filed under a heading of their own — rides with the turn too
-    // the document is handed over as the parts this message needs: its rules whole, the parts the
-    // message itself names, and a slice of every other part — a document longer than one turn reads
-    const doc = await docWholeBlock(base44, DOC_ROOM, message);
+    const [rules, words, doc, storyPage, tales, lookup] = await Promise.all([
+      rulesText(base44).then((rows) => trimToLines(rows, RULES_BUDGET)),
+      bankRows(base44).then((rows) =>
+        wordListBlock(rows, message, translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET)
+      ),
+      // the rest of the document — the admin's notes, their questions and answers, and anything they
+      // filed under a heading of their own — rides with the turn too
+      // the document is handed over as the parts this message needs: its rules whole, the parts the
+      // message itself names, and a slice of every other part — a document longer than one turn reads
+      docWholeBlock(base44, DOC_ROOM, message),
+      // The admin's own stories ride with a turn that asks for one: the telling they wrote is what
+      // the answer is given from, and the screen shows it with its picture, its video or its link as
+      // the answer comes.
+      base44.entities.Story.filter(
+        { published: true },
+        {
+          sort: '-updated_date',
+          limit: 200,
+          fields: ['title', 'text', 'tags', 'links', 'channel_url', 'artist_links'],
+        }
+      ),
+      // the catalogue of every story, and of every name published with one, rides with the message:
+      // a question about a song, a video or a channel is answered from its own name
+      storyCatalogueBlock(base44, STORY_ROOM),
+      // A request the saved knowledge does not answer — news, a story, who someone is — is looked up
+      // on the internet, by the same lookup the app's other assistants use, and the material rides
+      // with the message. A search that found nothing, or that could not be made at all, is said
+      // plainly instead of being answered around. The lookup decides for itself whether a turn needs
+      // one, so ordinary talk is not held by it.
+      lookupForTurn(base44, message, asked),
+    ]);
     const saved = rules || words || doc ? `${RULES_HEAD}${rules}${words}${doc}` : '';
-
-    // The admin's own stories ride with a turn that asks for one: the telling they wrote is what
-    // the answer is given from, and the screen shows it with its picture, its video or its link as
-    // the answer comes. The matching lives in one place, so the story found here is the story the
-    // screen is given.
-    const storyPage = await base44.entities.Story.filter(
-      { published: true },
-      {
-        sort: '-updated_date',
-        limit: 200,
-        fields: ['title', 'text', 'tags', 'links', 'channel_url', 'artist_links'],
-      }
-    );
+    // The matching lives in one place, so the story found here is the story the screen is given.
     const story = bestStory(storyPage?.items || [], message);
     const told = story ? storyNote(story) : '';
-    // the catalogue of every story, and of every name published with one, rides with the message:
-    // a question about a song, a video or a channel is answered from its own name
-    const tales = await storyCatalogueBlock(base44, STORY_ROOM);
-
-    // A request the saved knowledge does not answer — news, a story, who someone is — is looked up
-    // on the internet before the answer is written, by the same lookup the app's other assistants
-    // use, and the material rides with the message. A search that found nothing, or that could not
-    // be made at all, is said plainly instead of being answered around.
-    const lookup = await lookupForTurn(base44, message, asked);
 
     // A turn that needed the internet is answered from what was found, and given the room to be
     // answered properly: the whole of what the search brought — who the person is, their songs, their
