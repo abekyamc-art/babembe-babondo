@@ -119,6 +119,35 @@ export default function DictionaryPanel() {
     }
   }, [note, preview, refresh]);
 
+  /**
+   * A file that was read earlier and left waiting is approved from the list — the app takes the
+   * file, its name and its kind from the draft it already holds, so the same file is never chosen
+   * a second time.
+   */
+  const approveSaved = useCallback(
+    async (row) => {
+      setBusy(row.id);
+      setError("");
+      try {
+        const res = await base44.functions.invoke("knowledgeFiles", {
+          action: "approve",
+          id: row.id,
+        });
+        const data = res?.data || {};
+        if (data.error) {
+          setError(data.error);
+          return;
+        }
+        await refresh();
+      } catch (err) {
+        setError("That approval could not be saved just now.");
+      } finally {
+        setBusy("");
+      }
+    },
+    [refresh]
+  );
+
   const remove = useCallback(
     async (row) => {
       setBusy(row.id);
@@ -259,6 +288,17 @@ export default function DictionaryPanel() {
                 </div>
               </div>
               <div className="knowledge-tools">
+                {row.status === "approved" ? null : (
+                  <button
+                    type="button"
+                    onClick={() => approveSaved(row)}
+                    disabled={!!busy}
+                    aria-label={`Approve ${row.name}`}
+                    className="knowledge-tool"
+                  >
+                    <Check className="h-4 w-4" />
+                  </button>
+                )}
                 <button
                   type="button"
                   onClick={() => remove(row)}

@@ -171,17 +171,25 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({ removed: true, name, words_taken_back: taken });
     }
 
-    const fileUri = typeof payload?.file_uri === "string" ? payload.file_uri.trim() : "";
+    // A file that was read once already keeps its own stored copy, so a draft that was left waiting
+    // is approved from the saved list: the file, its name and its kind are taken from the draft
+    // itself, and the admin never has to choose the same file a second time.
+    const id = clean(payload?.id, 60);
+    const draft = id ? await service.entities.KnowledgeFile.get(id).catch(() => null) : null;
+    const fileUri =
+      (typeof payload?.file_uri === "string" ? payload.file_uri.trim() : "") ||
+      clean(draft?.file_uri, 300);
     // a stored file only: this endpoint never fetches a web address for a caller
     if (!fileUri || /^https?:/i.test(fileUri)) {
       return Response.json({ error: "No file to read." }, { status: 400 });
     }
 
-    const name = clean(payload?.name, 160) || "the dictionary";
-    const kind = ["corpus", "dictionary_en_kb", "dictionary_kb_en"].includes(payload?.kind)
-      ? payload.kind
+    const name = clean(payload?.name, 160) || clean(draft?.name, 160) || "the dictionary";
+    const wanted = clean(payload?.kind, 30) || clean(draft?.kind, 30);
+    const kind = ["corpus", "dictionary_en_kb", "dictionary_kb_en"].includes(wanted)
+      ? wanted
       : "dictionary_en_kb";
-    const note = clean(payload?.note, 200);
+    const note = clean(payload?.note, 200) || clean(draft?.note, 200);
 
     const read = await textOf(base44, fileUri);
     if ("error" in read) return Response.json({ error: read.error }, { status: 400 });
@@ -217,9 +225,7 @@ export default async function (req: Request): Promise<Response> {
 
     // the first reading only shows what the file holds: it is saved as a draft and changes nothing
     if (action !== "approve") {
-      const existing = clean(payload?.id, 60)
-        ? await service.entities.KnowledgeFile.get(clean(payload.id, 60)).catch(() => null)
-        : null;
+      const existing = draft;
       let row: any = null;
       if (existing) row = await service.entities.KnowledgeFile.update(existing.id, { ...state, status: "draft" });
       else row = await service.entities.KnowledgeFile.create({ ...state, status: "draft" });
@@ -257,9 +263,7 @@ export default async function (req: Request): Promise<Response> {
       saved += Array.isArray(made) ? made.length : slice.length;
     }
 
-    const existing = clean(payload?.id, 60)
-      ? await service.entities.KnowledgeFile.get(clean(payload.id, 60)).catch(() => null)
-      : null;
+    const existing = draft;
     const approved = {
       ...state,
       status: "approved",

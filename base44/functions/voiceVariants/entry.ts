@@ -26,6 +26,44 @@ const MAX_NOTE = 200;
 const UNAUTHORIZED = "Ingia kwenye akaunti kwanza.";
 const NOT_ADMIN = "Ni admin tu anayeweza kuhifadhi sauti hizi.";
 
+/**
+ * Take one written form back out of the word a recording had attached it to.
+ *
+ * A recording that has been thrown away or set aside stops informing the hearing, so the spelling it
+ * brought in goes out with it and is not left behind in the word. It is only taken back when no other
+ * approved recording of the same word still writes the word that way: a spelling another recording
+ * accounts for stands, and nothing the admin confirmed by hand is ever withdrawn with a recording.
+ */
+async function withdrawForm(base44: any, term: string, written: string): Promise<string> {
+  if (!term || !written) return "";
+
+  const rows = await knowledgeWordRows(base44);
+  // the bank's own spelling decides which word this is, however the recording was labelled
+  const word = savedEntry(rows, term);
+  const canonical = clean(word?.term, MAX_TERM) || term;
+
+  // the recording itself is already gone or already set aside when this is called, so whatever this
+  // read finds is another recording, still approved, and its word is the one the form belongs to
+  const others = await base44.asServiceRole.entities.VoiceVariant.filter(
+    { term: { $in: [term, canonical] }, approved: true },
+    { limit: 100, fields: ["heard"] }
+  );
+  const stillWritten = (others?.items || []).some(
+    (one: any) => clean(one?.heard, MAX_TERM).toLowerCase() === written.toLowerCase()
+  );
+  if (stillWritten) return "";
+
+  if (!word?.id) return "";
+  const had = Array.isArray(word.heard) ? word.heard : [];
+  const kept = had.filter(
+    (one: string) => clean(one, MAX_TERM).toLowerCase() !== written.toLowerCase()
+  );
+  if (kept.length === had.length) return "";
+
+  await base44.asServiceRole.entities.AssistantKnowledge.update(word.id, { heard: kept });
+  return written;
+}
+
 export default async function (req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -49,13 +87,23 @@ export default async function (req: Request): Promise<Response> {
     if (!variant) return Response.json({ error: "That recording is no longer saved." }, { status: 404 });
 
     if (action === "remove") {
+      const was = variant.approved === true;
+      const held = clean(variant.term, MAX_TERM);
+      const wrote = clean(variant.heard, MAX_TERM);
+      // the recording goes first, so what the withdrawal reads afterwards is the recordings that
+      // are still standing and never this one
       await service.entities.VoiceVariant.delete(id);
-      return Response.json({ removed: true, term: clean(variant.term, MAX_TERM) });
+      const withdrew = was ? await withdrawForm(base44, held, wrote) : "";
+      return Response.json({ removed: true, term: held, withdrew });
     }
 
     if (action === "dismiss") {
+      const was = variant.approved === true;
+      const held = clean(variant.term, MAX_TERM);
+      const wrote = clean(variant.heard, MAX_TERM);
       await service.entities.VoiceVariant.update(id, { approved: false, approved_at: "" });
-      return Response.json({ approved: false, term: clean(variant.term, MAX_TERM) });
+      const withdrew = was ? await withdrawForm(base44, held, wrote) : "";
+      return Response.json({ approved: false, term: held, withdrew });
     }
 
     // Approving a recording: the way the person says the word, and the form the ears wrote for this
