@@ -264,6 +264,84 @@
   width: 100%;
 }
 
+/* the + that stands beside a lane's name: the way that lane is filled — the beat, or a voice */
+.rap-th-add {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: #101116;
+  background: #c7f400;
+  border: 1px solid #c7f400;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.rap-th-add:hover:not(:disabled) {
+  box-shadow: 0 0 0 3px rgba(199, 244, 0, 0.22), 0 0 14px rgba(199, 244, 0, 0.3);
+}
+
+.rap-th-add:active:not(:disabled) {
+  background: #b6e000;
+}
+
+.rap-th-add:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.rap-th-add svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rap-th-add:focus-visible,
+.rap-lane-add:focus-visible {
+  outline: 2px solid #15d8d0;
+  outline-offset: 2px;
+}
+
+/* the whole of an empty lane is the way in: the strip itself adds the beat or the voice */
+.rap-lane-add {
+  position: absolute;
+  inset: 7px 10px 7px 6px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 12px;
+  color: #c7f400;
+  background: rgba(199, 244, 0, 0.05);
+  border: 1px dashed rgba(199, 244, 0, 0.45);
+  border-radius: 8px;
+  font: 800 11px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: background 0.2s, border-color 0.2s;
+}
+
+.rap-lane-add:hover:not(:disabled) {
+  background: rgba(199, 244, 0, 0.1);
+  border-color: #c7f400;
+}
+
+.rap-lane-add:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.rap-lane-add svg {
+  width: 15px;
+  height: 15px;
+}
+
+/* the beat's own strip is read as the beat, under whatever stands on it */
+.rap-row.is-beat .rap-lane {
+  background-color: rgba(199, 244, 0, 0.035);
+}
+
 .rap-lane {
   position: relative;
   flex: none;

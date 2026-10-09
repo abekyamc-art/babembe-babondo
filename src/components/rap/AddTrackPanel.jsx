@@ -33,8 +33,14 @@ const ICON = "mr-2 inline h-4 w-4 align-[-3px]";
  * laid out by hand in the grid — and the voices follow one after another, lane by lane, until the
  * studio is full.
  */
-export default function AddTrackPanel({ studio, voiceTracks, beatMaker, ready }) {
-  const [slot, setSlot] = useState("beat");
+export default function AddTrackPanel({ studio, voiceTracks, beatMaker, ready, slot: given, onSlot }) {
+  // the slot that stands open: the one the timeline's own + asked for, or the panel's own
+  const [own, setOwn] = useState("beat");
+  const slot = given || own;
+  const choose = (id) => {
+    setOwn(id);
+    onSlot?.(id);
+  };
   // which of the beat's own tools is open under its buttons
   const [tool, setTool] = useState("");
   // the mic open for a sound of the person's own, and the one keeping what it caught
@@ -125,7 +131,7 @@ export default function AddTrackPanel({ studio, voiceTracks, beatMaker, ready })
             className={`rap-pill ${slot === id ? "is-active" : ""}`}
             aria-pressed={slot === id}
             onClick={() => {
-              setSlot(id);
+              choose(id);
               setTool("");
               setError("");
             }}

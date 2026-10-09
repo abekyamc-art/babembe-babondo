@@ -46,6 +46,8 @@ export default function Rap() {
   const ready = !!studio.user;
   // which of the studio's own sections is open under the timeline
   const [tab, setTab] = useState("song");
+  // which slot of the add panel stands open, so a lane's own + opens the right one
+  const [addSlot, setAddSlot] = useState("beat");
   const title = settings.topic?.trim() || lines[0]?.ebembe?.slice(0, 40) || "Take yangu";
 
   // the studio's own voice tracks — recorded on the spot, brought in as a file, or sung by a voice
@@ -72,6 +74,13 @@ export default function Rap() {
     bpm: settings.bpm,
     onUse: ({ bytes, name, bpm, style }) => studio.useMadeBeat(bytes, { name, bpm, style }),
   });
+
+  /** A lane's own +: the add panel comes up on the slot that lane stands for. */
+  const openAdd = (want) => {
+    const had = voiceTracks.tracks.length;
+    setAddSlot(want === "voice" ? (had === 0 ? "one" : had === 1 ? "two" : "more") : "beat");
+    setTab("add");
+  };
   // a generation run brings its own steps; every other job keeps the studio's running line
   const running = studio.steps.some((step) => step.state === "running");
   // the running line names the step the one tap is on: the words, the bars, then the voice
@@ -158,6 +167,7 @@ export default function Rap() {
             onPause={voiceTracks.pauseMix}
             onStop={voiceTracks.stopMix}
             onSeek={voiceTracks.seek}
+            onAdd={openAdd}
             mic={<RapMicBar studio={voiceTracks} off={!ready || !!voiceTracks.busy} showCount />}
             selectedId={voiceTracks.selectedId}
             onSelect={voiceTracks.select}
@@ -211,6 +221,8 @@ export default function Rap() {
           ready={ready}
           tab={tab}
           onTab={setTab}
+          addSlot={addSlot}
+          onAddSlot={setAddSlot}
         />
       </div>
     </div>

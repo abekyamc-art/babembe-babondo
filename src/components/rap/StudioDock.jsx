@@ -28,7 +28,17 @@ export const STUDIO_TABS = [
  * icons. Every section stays standing where it is, so work in progress — a lane being shaped, a
  * beat being built, a take being played — is never thrown away by switching to another one.
  */
-export default function StudioDock({ studio, songwriter, voiceTracks, beatMaker, ready, tab, onTab }) {
+export default function StudioDock({
+  studio,
+  songwriter,
+  voiceTracks,
+  beatMaker,
+  ready,
+  tab,
+  onTab,
+  addSlot,
+  onAddSlot,
+}) {
   const { settings, lines, take, busy, beat } = studio;
   const working = !!busy || !ready;
 
@@ -68,6 +78,8 @@ export default function StudioDock({ studio, songwriter, voiceTracks, beatMaker,
             voiceTracks={voiceTracks}
             beatMaker={beatMaker}
             ready={ready}
+            slot={addSlot}
+            onSlot={onAddSlot}
           />
         </div>
 

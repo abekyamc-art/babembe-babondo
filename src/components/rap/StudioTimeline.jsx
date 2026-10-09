@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { Plus } from "lucide-react";
 import RapTempo from "@/components/rap/RapTempo";
 import StudioTransport from "@/components/rap/StudioTransport";
 import TrackHead from "@/components/rap/TrackHead";
@@ -44,6 +45,7 @@ export default function StudioTimeline({
   onStop,
   onSeek,
   mic,
+  onAdd,
   selectedId,
   onSelect,
   onStart,
@@ -116,9 +118,16 @@ export default function StudioTimeline({
   }
 
   const rows = [
-    { id: "beat", name: "Beat", hint: "Hakuna beat", clips: beatClips },
+    { id: "beat", name: "Beat", hint: "Hakuna beat", clips: beatClips, add: "beat", addLabel: "Ongeza beat" },
     { id: "bars", name: "Mistari", hint: "Hakuna mistari", clips: barClips },
-    { id: "voice", name: "Sauti", hint: "Hakuna take bado", clips: voiceClips },
+    {
+      id: "voice",
+      name: "Sauti",
+      hint: "Hakuna take bado",
+      clips: voiceClips,
+      add: "voice",
+      addLabel: "Ongeza sauti",
+    },
   ];
 
   // a lane of its own for every voice track, its clip standing where it was placed
@@ -226,13 +235,17 @@ export default function StudioTimeline({
           return (
             <div
               key={row.id}
-              className={`rap-row ${folded ? "is-folded" : ""} ${drag?.id === row.id ? "is-moving" : ""}`}
+              className={`rap-row ${row.id === "beat" ? "is-beat" : ""} ${folded ? "is-folded" : ""} ${
+                drag?.id === row.id ? "is-moving" : ""
+              }`}
             >
               <TrackHead
                 name={row.name}
                 hint={row.hint}
                 track={row.track}
                 busy={busy}
+                addLabel={row.add ? row.addLabel : ""}
+                onAdd={row.add && onAdd ? () => onAdd(row.add) : undefined}
                 onPatch={(changes) => onPatch?.(row.track.id, changes)}
                 onFold={onFold}
               />
@@ -256,7 +269,14 @@ export default function StudioTimeline({
                 )}
 
                 {!folded && !row.clips.length ? (
-                  <span className="rap-trk-empty">{row.hint}</span>
+                  row.add && onAdd ? (
+                    <button type="button" className="rap-lane-add" onClick={() => onAdd(row.add)} disabled={off}>
+                      <Plus aria-hidden="true" />
+                      {row.addLabel}
+                    </button>
+                  ) : (
+                    <span className="rap-trk-empty">{row.hint}</span>
+                  )
                 ) : null}
                 {playhead}
               </div>

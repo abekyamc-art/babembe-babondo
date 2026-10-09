@@ -1,17 +1,30 @@
 import React from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import { ChevronDown, ChevronUp, Plus } from "lucide-react";
 
 /**
  * The head of one lane: what the lane is called, and everything that is done to the lane itself
  * rather than to its clip — silenced, put forward on its own, turned up or down, or folded away.
  * A lane that holds no track of its own keeps its name and a line saying what it is waiting for.
  */
-export default function TrackHead({ name, hint, track, busy, onPatch, onFold }) {
+export default function TrackHead({ name, hint, track, busy, addLabel, onAdd, onPatch, onFold }) {
   const off = !!busy;
 
   return (
     <div className="rap-th">
       <div className="rap-th-top">
+        {onAdd ? (
+          <button
+            type="button"
+            className="rap-th-add"
+            aria-label={addLabel}
+            title={addLabel}
+            onClick={onAdd}
+            disabled={off}
+          >
+            <Plus aria-hidden="true" />
+          </button>
+        ) : null}
+
         <span className="rap-th-name">{name}</span>
 
         {track ? (
