@@ -1,4 +1,5 @@
 import { ANSWER_LANGUAGE } from "./languageRules.ts";
+import { PRONUNCIATION_HEAD } from "./pronunciation.ts";
 import { TRANSLATE_RULES } from "./ebembeTranslation.ts";
 
 /**
@@ -176,6 +177,7 @@ export const KIBEMBE_GUIDE =
     "THE APP'S OWN LANGUAGE RULES:",
     ANSWER_LANGUAGE,
     READING,
+    PRONUNCIATION_HEAD,
     TIME,
     MATCH,
     TEACH,

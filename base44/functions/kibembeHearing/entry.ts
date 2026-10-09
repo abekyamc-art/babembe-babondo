@@ -2,6 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { MAX_MEANING, MAX_TERM, MAX_USAGE, clean } from "../../shared/knowledgeWords.ts";
 import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
+import { pronunciationBlock, recordedEvidence } from "../../shared/pronunciation.ts";
 import {
   FIX_SCHEMA,
   SAYS_SCHEMA,
@@ -44,6 +45,9 @@ const WORDS_BUDGET = 6000;
 // of characters, and a voice given more than it can hold reads none of the rules that stand past its
 // room — so the call is handed the document's rules whole and the parts that matter, and no more
 const DOC_BUDGET = 8000;
+// how much of the readings of the confirmed words the call carries: the words the person has given a
+// reading to, and the ways their own approved recordings were written down
+const PRONUNCIATION_BUDGET = 2600;
 
 const READ_FAILED = "That turn could not be read just now.";
 
@@ -265,14 +269,23 @@ export default async function (req: Request): Promise<Response> {
     // taken for it inside the call itself. The bank stays whole on the server: what rides in is the
     // block one call can carry.
     if (!said) {
-      const words = await bankRows(base44);
-      // The admin's one knowledge document rides into the call too — its rules whole, the parts that
-      // matter and a slice of every other part — so a voice answering on its own account answers
-      // from what the admin approved, inside the room a voice can hold. The call is handed it once,
-      // as it opens.
-      const doc = await docWholeBlock(base44, DOC_BUDGET);
+      // The call is handed three things as it opens, read together rather than one after the other:
+      // the confirmed words, the admin's one knowledge document, and how those words are really said.
+      const [words, doc, evidence] = await Promise.all([
+        bankRows(base44),
+        docWholeBlock(base44, DOC_BUDGET),
+        recordedEvidence(base44),
+      ]);
       return Response.json({
-        note: `${firstRules()}\n\n${langLine(mode)}${wordListBlock(words, "", WORDS_BUDGET)}${doc}`,
+        // The readings of the confirmed words ride with them: the corrections the person themselves
+        // confirmed lead, and the ways their own approved recordings were written down stand behind
+        // them as evidence — so the voice says the Kibembe the way it is really said here.
+        note: `${firstRules()}\n\n${langLine(mode)}${wordListBlock(words, "", WORDS_BUDGET)}${pronunciationBlock(
+          words,
+          "",
+          PRONUNCIATION_BUDGET,
+          evidence
+        )}${doc}`,
         matched: null,
         // nothing has been said yet: there is no reading to be sure or unsure of
         sure: true,

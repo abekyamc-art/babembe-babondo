@@ -327,6 +327,10 @@ export default async function (req) {
       pictures,
       source: asking ? null : lookupSource(lookup.material),
       candidates: lookup.candidates,
+      // The artist's own videos, the most watched first, when the turn was about an artist: the reply
+      // already names them and writes their addresses in its own words, and the same five ride back
+      // here so the screen can stand them under that answer as well.
+      videos: Array.isArray(lookup.videos) ? lookup.videos : [],
     });
   } catch (error) {
     console.error('The Kibembe assistant failed:', error?.message);

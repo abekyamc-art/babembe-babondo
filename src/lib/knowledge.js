@@ -216,7 +216,7 @@ export async function loadTurnPictures(question = "", answer = "") {
 
 export async function loadFreshMaterial(query = "", offered = []) {
   const asked = String(query || "").trim();
-  const none = { material: "", needed: false, found: false, source: null, candidates: [] };
+  const none = { material: "", needed: false, found: false, source: null, candidates: [], videos: [] };
   if (!asked) return none;
   try {
     // The names the app put before the person on the turn before — the several people or artists that
@@ -234,6 +234,9 @@ export async function loadFreshMaterial(query = "", offered = []) {
       // the several different people or artists the search found under names that look alike: they
       // stand on the answer for the person to choose between, and ride back in with their answer
       candidates: Array.isArray(data.candidates) ? data.candidates : [],
+      // the artist's own most watched videos, found for a turn about them: the answer names them in
+      // its own words, and the screen stands the same five under that answer
+      videos: Array.isArray(data.videos) ? data.videos : [],
     };
   } catch (err) {
     // the answer carries on from what is already saved

@@ -1,5 +1,6 @@
 import { KIBEMBE_GUIDE } from "./kibembeGuide.ts";
 import { keyText } from "./answerKey.ts";
+import { pronunciationBlock } from "./pronunciation.ts";
 
 /**
  * The rules the app keeps on its Cartesia agents.
@@ -42,12 +43,17 @@ const TOP_NOTICE = [
 // again on the next call even though nothing in the store has moved.
 // Raised to 9 when Gloire Sadiki's own standing rule was written into the guide every agent carries,
 // so each agent still holding the older block is written again on its next call.
-export const RULES_VERSION = "9";
+// Raised to 10 when the readings of the confirmed words — the corrections Gloire himself confirmed,
+// and the ways his own approved recordings were written down — were added to the block, so every
+// agent is written again on its next call with the words said the way they are really said.
+export const RULES_VERSION = "10";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
 const NOTES_BUDGET = 6000;
 const WORDS_BUDGET = 8000;
+// how much of the readings of the confirmed words rides with the rules
+const BUDGET = 2600;
 const MAX_LINE = 300;
 const MAX_NOTE = 600;
 
@@ -154,7 +160,16 @@ export function docBlock(doc: any): string {
  * next call can tell at a glance whether the block on the agent is still the current one.
  */
 export function appRulesBlock(
-  saved: { keys?: any[]; notes?: any[]; words?: any[]; doc?: string },
+  saved: {
+    keys?: any[];
+    notes?: any[];
+    words?: any[];
+    doc?: string;
+    /** the confirmed words as the bank itself holds them, with their readings and known ways */
+    bank?: any[];
+    /** the ways the person's own approved recordings were written down, per word */
+    evidence?: Map<string, string[]>;
+  },
   stamp = "",
   room = AGENT_ROOM
 ): string {
@@ -166,6 +181,9 @@ export function appRulesBlock(
     keyBlock(saved.keys || []),
     notesBlock(saved.notes || []),
     wordsBlock(saved.words || []),
+    // how the confirmed words are really said: the corrections Gloire himself gave first, then the
+    // ways his own approved recordings were written down — the word itself always as the bank writes it
+    pronunciationBlock(saved.bank || [], "", BUDGET, saved.evidence || new Map()),
     docBlock(saved.doc || ""),
   ]
     .filter(Boolean)

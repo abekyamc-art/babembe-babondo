@@ -1,7 +1,8 @@
 import { secrets } from "base44:runtime";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { appRulesBlock, blockKey, RULES_MARK, RULES_VERSION, withAppRules } from "../../shared/cartesiaRules.ts";
-import { knowledgeStamp } from "../../shared/wordBank.ts";
+import { bankRows, knowledgeStamp } from "../../shared/wordBank.ts";
+import { recordedEvidence } from "../../shared/pronunciation.ts";
 import { savedWords } from "../../shared/knowledgeWords.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { agentKeywords } from "../../shared/hearingKeywords.ts";
@@ -115,7 +116,7 @@ async function keepRules(base44: any, apiKey: string, agentId: string, agent: an
     const body: any = {};
 
     if (!rulesKept) {
-      const [keys, notes, words, doc] = await Promise.all([
+      const [keys, notes, words, doc, bank, evidence] = await Promise.all([
         base44.asServiceRole.entities.AssistantKnowledge.filter(
           { kind: "qa" },
           { sort: "-created_date", limit: KEY_ROWS, fields: ["question", "answer"] }
@@ -128,6 +129,10 @@ async function keepRules(base44: any, apiKey: string, agentId: string, agent: an
         // the admin's one knowledge document, as much of it as a voice can carry: its rules whole,
         // the parts that matter, and a slice of every other part
         docWholeBlock(base44, AGENT_DOC_ROOM),
+        // and how the confirmed words are really said: the readings the person's own corrections
+        // carry, and the ways their approved recordings were written down
+        bankRows(base44),
+        recordedEvidence(base44),
       ]);
 
       const saved = {
@@ -135,6 +140,8 @@ async function keepRules(base44: any, apiKey: string, agentId: string, agent: an
         notes: Array.isArray(notes) ? notes : notes?.items || [],
         words,
         doc,
+        bank: Array.isArray(bank) ? bank : bank?.items || [],
+        evidence,
       };
       const wanted = withAppRules(current, appRulesBlock(saved, stamp));
       if (wanted !== current) {

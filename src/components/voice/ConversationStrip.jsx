@@ -4,6 +4,7 @@ import HeardTurn from "@/components/voice/HeardTurn";
 import AnswerText from "@/components/kibembe/AnswerText";
 import AnswerPictures from "@/components/kibembe/AnswerPictures";
 import AskNames from "@/components/kibembe/AskNames";
+import AnswerVideos from "@/components/voice/AnswerVideos";
 
 // only the newest lines stay on screen: ten at most, both sides counted together
 const SHOWN = 10;
@@ -50,6 +51,9 @@ export default function ConversationStrip({ turns, pending, onCorrectTurn, onPic
                     <AnswerText text={turn.text} pictures={turn.pictures} />
                   </p>
                   <AnswerPictures pictures={turn.pictures} />
+                  {/* the artist's own videos, when the answer named them: the same five links the
+                      answer gives in its own words, standing here to be followed with a tap */}
+                  <AnswerVideos videos={turn.videos} />
                   {/* several people or artists came back under names that look alike: the names stand
                       here, and a tap names the one the person means */}
                   <AskNames names={turn.choices} onPick={onPick} />

@@ -1,6 +1,8 @@
 import { keyMatches } from "./answerKey.ts";
 import { bankRows } from "./wordBank.ts";
 import { docWordRows, publishedDoc } from "./knowledgeDoc.ts";
+import { artistVideosBlock, artistVideosFor } from "./artistVideos.ts";
+import type { ArtistVideo } from "./artistVideos.ts";
 
 /**
  * The material a turn needs from outside the admin's saved knowledge — a story, the news, who
@@ -559,9 +561,11 @@ export type Lookup = {
   needed: boolean;
   found: boolean;
   candidates: Candidate[];
+  /** the artist's own videos, the most watched first, when this turn was about an artist */
+  videos?: ArtistVideo[];
 };
 
-export async function lookupForTurn(
+async function lookUp(
   base44: any,
   rawQuery: any,
   offered?: Candidate[]
@@ -723,4 +727,36 @@ export async function lookupForTurn(
   if (!material) return miss();
   // only the material for this answer goes back; the entry itself stays on the server
   return { material: material.slice(0, MAX_MATERIAL), needed: true, found: true, candidates: [] };
+}
+
+/**
+ * What one turn needs from outside the saved knowledge, and the artist's own videos when the turn is
+ * about an artist.
+ *
+ * The two are resolved together, never one after the other: what the search finds and who the artist
+ * is have nothing to do with each other, so a turn about an artist is answered with the five most
+ * watched of their own videos whether or not the search brings anything, and neither waits on the
+ * other. The list is read only for a turn that may be about an artist at all — ordinary talk and
+ * ordinary questions never pay for a channel — and it goes back two ways: written into the material,
+ * so the answer names the videos and their addresses in its own words, and as the list itself, so the
+ * screen can stand the same five under that answer. A turn no story answers, and a turn with no videos
+ * to stand, changes nothing about the lookup.
+ */
+export async function lookupForTurn(
+  base44: any,
+  rawQuery: any,
+  offered?: Candidate[]
+): Promise<Lookup> {
+  const query = textOf(rawQuery).slice(0, MAX_QUERY);
+  const [base, artist] = await Promise.all([
+    lookUp(base44, rawQuery, offered),
+    artistVideosFor(base44, query).catch(() => null),
+  ]);
+  if (!artist) return base;
+
+  return {
+    ...base,
+    videos: artist.videos,
+    material: `${base.material}${artistVideosBlock(artist)}`.slice(0, MAX_MATERIAL),
+  };
 }

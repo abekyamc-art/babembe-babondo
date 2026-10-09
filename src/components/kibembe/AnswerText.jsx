@@ -1,5 +1,6 @@
 import React from "react";
 import { Image } from "@/components/ui/image";
+import TextLinks from "@/components/kibembe/TextLinks";
 
 /**
  * An answer with the admin's own pictures standing in it.
@@ -12,7 +13,9 @@ import { Image } from "@/components/ui/image";
 export default function AnswerText({ text, pictures = [] }) {
   const body = String(text || "");
   const standing = (Array.isArray(pictures) ? pictures : []).filter((pic) => pic?.url && pic?.term);
-  if (!body || !standing.length) return body;
+  // an answer carrying no picture is still read for its addresses: a link written into the answer is
+  // followed with a tap, whether or not a picture stands in it
+  if (!body || !standing.length) return <TextLinks text={body} />;
 
   // each picture takes the place of the first time its word is said, one after another
   const parts = [];
@@ -40,10 +43,12 @@ export default function AnswerText({ text, pictures = [] }) {
             className="mx-1 inline-block h-6 w-6 rounded-md border border-border object-cover align-text-bottom"
           />
         ) : (
-          <React.Fragment key={`read-${index}`}>{part.read}</React.Fragment>
+          <React.Fragment key={`read-${index}`}>
+            <TextLinks text={part.read} />
+          </React.Fragment>
         )
       )}
-      {rest}
+      <TextLinks text={rest} />
     </>
   );
 }

@@ -85,6 +85,8 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
   const lastUserRef = useRef("");
   // where the material looked up for a turn came from, waiting for the answer that stands on it
   const freshSourceRef = useRef(null);
+  // the artist's own most watched videos found for a turn, waiting for the answer that names them
+  const videosRef = useRef([]);
   // The several different people or artists found under names that look alike, waiting on the
   // person's answer: they stand on the answer that asks which one is meant, and ride back in with
   // the turn that chooses between them, so the one they chose is the one that is looked up.
@@ -93,8 +95,8 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
   const choicesRef = useRef([]);
 
   const push = useCallback(
-    (role, text, pictures, source, choices) =>
-      turnRef.current?.(role, text, pictures, source, choices),
+    (role, text, pictures, source, choices, videos) =>
+      turnRef.current?.(role, text, pictures, source, choices, videos),
     []
   );
 
@@ -209,6 +211,9 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
     // where that material came from is kept for the answer that stands on it, so the screen can
     // show the source of what the voice says
     if (fresh.material && fresh.source) freshSourceRef.current = fresh.source;
+    // the artist's own videos found for this turn wait for the answer that names them, so the screen
+    // can stand the same five under it — and a turn about nobody at all clears them
+    videosRef.current = Array.isArray(fresh.videos) ? fresh.videos : [];
     // The ears write the turn down in the app's own spelling of the person's own words, and the
     // reader names no language for it: Kibembe is what is read here. So the note goes in as what
     // the writing is, never as a command, and the answer that feeds on it stays Kibembe.
@@ -326,9 +331,13 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       // this answer alone and never beneath a later one
       const source = freshSourceRef.current;
       freshSourceRef.current = null;
+      // the artist's own videos found for this answer: they stand under the words, and are cleared
+      // with them so no later answer carries them
+      const videos = videosRef.current;
+      videosRef.current = [];
       // the names waiting on the person's choice stand on the answer that asks for it, and are
       // cleared with it so no later line carries them
-      push("assistant", text, undefined, source, choicesRef.current);
+      push("assistant", text, undefined, source, choicesRef.current, videos);
       choicesRef.current = [];
       // The words this answer is made of are read against the admin's pictures as the answer is
       // shown, and the pictures of the words it carries join it a moment later: the answer itself
@@ -551,7 +560,10 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
           reply,
           Array.isArray(data.pictures) ? data.pictures : [],
           data.source || null,
-          choices
+          choices,
+          // the artist's own most watched videos, when the question was about an artist: the answer
+          // names them in its own words and the same five stand under it on the screen
+          Array.isArray(data.videos) ? data.videos : []
         );
         writtenAnsweredRef.current?.();
       } catch (err) {
