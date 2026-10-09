@@ -4,10 +4,8 @@ import { ArrowLeft, Coins } from "lucide-react";
 import useRapStudio from "@/hooks/useRapStudio";
 import useSongwriter from "@/hooks/useSongwriter";
 import TypingDots from "@/components/voice/TypingDots";
-import RapControls from "@/components/rap/RapControls";
-import RapTempo from "@/components/rap/RapTempo";
-import StudioTimeline from "@/components/rap/StudioTimeline";
 import RapGenerate from "@/components/rap/RapGenerate";
+import StudioTimeline from "@/components/rap/StudioTimeline";
 import RapSteps from "@/components/rap/RapSteps";
 import RapLyrics from "@/components/rap/RapLyrics";
 import RapMicBar from "@/components/rap/RapMicBar";
@@ -19,6 +17,7 @@ import useBeatMaker from "@/hooks/useBeatMaker";
 import { Image } from "@/components/ui/image";
 import "@/rap-studio.css";
 import "@/rap-voice.css";
+import "@/rap-timeline.css";
 
 // the room the whole session stands in, laid across the head of the page
 const HERO = "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/30575228d_generated_fa7f6bd9.jpg";
@@ -140,77 +139,69 @@ export default function Rap() {
 
         {error ? <p className="rap-note">{error}</p> : null}
 
-        <div className="rap-grid">
-          <RapControls
-            settings={settings}
-            beatName={beat?.name || ""}
-            busy={!!busy || !ready}
-            onChange={studio.setSettings}
-            onBeatFile={studio.setBeatFile}
+        <section className="rap-timeline">
+          <StudioTimeline
+            beat={beat}
+            lines={lines}
+            take={take}
+            recording={songwriter.recording}
+            seconds={songwriter.seconds}
+            tracks={voiceTracks.tracks}
+            position={voiceTracks.position}
+            length={voiceTracks.mixLength}
+            playing={voiceTracks.playing}
+            busy={!!voiceTracks.busy}
+            off={!ready}
+            bpm={settings.bpm}
+            onBpm={(bpm) => studio.setSettings({ ...settings, bpm })}
+            onPlay={voiceTracks.playMix}
+            onPause={voiceTracks.pauseMix}
+            onStop={voiceTracks.stopMix}
+            onSeek={voiceTracks.seek}
+            mic={<RapMicBar studio={voiceTracks} off={!ready || !!voiceTracks.busy} showCount />}
+            selectedId={voiceTracks.selectedId}
+            onSelect={voiceTracks.select}
+            onStart={voiceTracks.setStart}
+            onNudge={voiceTracks.nudge}
+            onFold={voiceTracks.toggleCollapsed}
+            onPatch={voiceTracks.patch}
+            inspector={
+              <ClipInspector
+                track={selectedTrack}
+                busy={voiceTracks.busy}
+                onStart={voiceTracks.setStart}
+                onNudge={(delta) => voiceTracks.nudge(selectedTrack.id, delta)}
+                onPatch={(changes) => voiceTracks.patch(selectedTrack.id, changes)}
+                onRemove={voiceTracks.remove}
+                onFold={voiceTracks.toggleCollapsed}
+                onClose={() => voiceTracks.select(null)}
+              />
+            }
           />
 
-          <section className="rap-timeline">
-            <div className="rap-tl-head">
-              <span className="rap-label">Mwendo (BPM)</span>
-              <RapTempo
-                bpm={settings.bpm}
-                busy={!!busy || !ready}
-                onPick={(bpm) => studio.setSettings({ ...settings, bpm })}
-              />
-              <RapMicBar studio={voiceTracks} off={!ready || !!voiceTracks.busy} showCount />
-            </div>
+          <StudioAmbience
+            value={voiceTracks.ambience}
+            busy={!!voiceTracks.busy}
+            onChange={voiceTracks.setAmbience}
+          />
 
-            <StudioTimeline
-              beat={beat}
-              savedBeats={studio.savedBeats}
+          <RapSteps
+            steps={studio.steps}
+            startedAt={studio.runStartedAt}
+            endedAt={studio.runEndedAt}
+            wordCount={studio.words?.length || 0}
+          />
+
+          {lines.length ? (
+            <RapLyrics
               lines={lines}
-              take={take}
-              recording={songwriter.recording}
-              seconds={songwriter.seconds}
-              tracks={voiceTracks.tracks}
-              voiceTools={<RapMicBar studio={voiceTracks} off={!ready || !!voiceTracks.busy} />}
-              selectedId={voiceTracks.selectedId}
-              onSelect={voiceTracks.select}
-              onStart={voiceTracks.setStart}
-              onFold={voiceTracks.toggleCollapsed}
-              inspector={
-                <ClipInspector
-                  track={selectedTrack}
-                  busy={voiceTracks.busy}
-                  onStart={voiceTracks.setStart}
-                  onNudge={(delta) => voiceTracks.nudge(selectedTrack.id, delta)}
-                  onPatch={(changes) => voiceTracks.patch(selectedTrack.id, changes)}
-                  onRemove={voiceTracks.remove}
-                  onFold={voiceTracks.toggleCollapsed}
-                  onClose={() => voiceTracks.select(null)}
-                />
-              }
+              wordsUsed={studio.wordsUsed}
+              words={studio.words || []}
+              onEdit={studio.editLine}
+              onLock={studio.toggleLock}
             />
-
-            <StudioAmbience
-              value={voiceTracks.ambience}
-              busy={!!voiceTracks.busy}
-              onChange={voiceTracks.setAmbience}
-            />
-
-            <RapSteps
-              steps={studio.steps}
-              startedAt={studio.runStartedAt}
-              endedAt={studio.runEndedAt}
-              wordCount={studio.words?.length || 0}
-            />
-
-            {lines.length ? (
-              <RapLyrics
-                lines={lines}
-                wordsUsed={studio.wordsUsed}
-                words={studio.words || []}
-                onEdit={studio.editLine}
-                onLock={studio.toggleLock}
-              />
-            ) : null}
-          </section>
-        </div>
+          ) : null}
+        </section>
 
         <StudioDock
           studio={studio}

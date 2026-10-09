@@ -1,5 +1,5 @@
 import React, { useRef, useState } from "react";
-import { Disc3, Download, FileAudio, Play, Plus, Save, Square, Trash2 } from "lucide-react";
+import { Disc3, Download, FileAudio, Plus, Save, Square, Trash2 } from "lucide-react";
 import StudioPills from "@/components/rap/StudioPills";
 import VoiceTrackRow from "@/components/rap/VoiceTrackRow";
 import { MODES, ROOTS, rootOf } from "@/lib/pitchShift";
@@ -90,25 +90,6 @@ export default function VoiceTracksPanel({ studio, ready }) {
       <div className="rap-mix-tools">
         <button
           type="button"
-          className="rap-cta"
-          onClick={studio.playing ? studio.stopMix : studio.playMix}
-          disabled={off || !studio.tracks.length}
-        >
-          {studio.playing ? (
-            <>
-              <Square className="mr-2 inline h-4 w-4 align-[-3px]" />
-              Simamisha mchanganyiko
-            </>
-          ) : (
-            <>
-              <Play className="mr-2 inline h-4 w-4 align-[-3px]" />
-              Sikiliza mchanganyiko
-            </>
-          )}
-        </button>
-
-        <button
-          type="button"
           className="rap-cta rap-cta-ghost"
           onClick={studio.saveMix}
           disabled={off || !studio.tracks.length}
@@ -145,6 +126,8 @@ export default function VoiceTracksPanel({ studio, ready }) {
       <p className="rap-hint">
         <Disc3 className="mr-1 inline h-3.5 w-3.5 align-[-2px]" />
         Kila sauti inakaa kwenye lane yake, ikakatwa na kusawazishwa kabla ya kupigwa juu ya beat.
+        Kitufe cha play kilicho juu ya timeline kinapiga mchanganyiko wako — unaweza kuusimamisha na
+        kuendelea pale ulipoachia.
       </p>
     </section>
   );

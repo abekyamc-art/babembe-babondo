@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { mixTake, playBuffer, wavBlob } from "@/lib/rapAudio";
 import { clipToBuffer, NO_MIC, startClipRecording } from "@/lib/clipRecorder";
@@ -27,6 +27,8 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
   const [recording, setRecording] = useState(false);
   const [seconds, setSeconds] = useState(0);
   const [playing, setPlaying] = useState(false);
+  // where the playhead stands, in seconds, so pausing and carrying on is read on the line itself
+  const [position, setPosition] = useState(0);
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
@@ -38,6 +40,12 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
   const timerRef = useRef(0);
   const startedRef = useRef(0);
   const stopRef = useRef(null);
+  // the place the playhead stands at, read by the controls without waiting for a re-render
+  const positionRef = useRef(0);
+  // the place the playhead was last drawn at, so the screen is not redrawn for every frame
+  const shownRef = useRef(0);
+  // the mix as it was last built, so play after a pause carries on instead of rendering it again
+  const mixRef = useRef(null);
 
   const add = useCallback((track) => setTracks((prev) => (prev.length >= MAX_TRACKS ? prev : [...prev, track])), []);
 
@@ -233,6 +241,35 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
     [patch, tracks]
   );
 
+  /**
+   * What the mix is made of, as it stands. A mix already built for exactly this session is used
+   * again, so the transport never renders the whole thing afresh merely to carry on playing.
+   */
+  const mixKey = useMemo(
+    () =>
+      JSON.stringify([
+        ambience,
+        beat?.name || "",
+        settings?.beat || "",
+        settings?.bpm || 112,
+        settings?.seconds || 8,
+        tracks.map((track) => [
+          track.id,
+          track.start,
+          track.trimStart,
+          track.trimEnd,
+          track.volume,
+          track.semitones,
+          track.muted,
+          track.solo,
+        ]),
+      ]),
+    [ambience, beat, settings, tracks]
+  );
+
+  /** How long the session runs as the lanes stand now: the ruler and the playhead read against it. */
+  const mixLength = useMemo(() => mixSeconds(tracks, settings?.seconds || 8), [tracks, settings]);
+
   /** The voice tracks over the beat, as one sound: what is played, and what is kept. */
   const buildMix = useCallback(async () => {
     // a studio with nothing to hear stays silent: no lanes at all, or every lane muted, makes no sound
@@ -252,30 +289,97 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
     return addAmbience(mixed, ambience);
   }, [ambience, beat, settings, tracks]);
 
+  /** The mix built once and kept, so playing again after a pause is instant. */
+  const renderMix = useCallback(async () => {
+    if (mixRef.current?.key === mixKey) return mixRef.current.buffer;
+    const mixed = await buildMix();
+    mixRef.current = mixed ? { key: mixKey, buffer: mixed } : null;
+    return mixed;
+  }, [buildMix, mixKey]);
+
+  /** The mix played from wherever the playhead stands, so play carries on from a pause. */
+  const startFrom = useCallback(
+    async (from) => {
+      setBusy("mix");
+      try {
+        const mixed = await renderMix();
+        if (!mixed) {
+          setNote("Bado hakuna sauti inayosikika — rekodi au pakia sauti kwanza.");
+        } else {
+          const at = Math.max(0, Math.min(mixed.duration - 0.05, Number(from) || 0));
+          positionRef.current = at;
+          setPosition(at);
+          stopRef.current = playBuffer(mixed, {
+            offset: at,
+            onTime: (seconds) => {
+              positionRef.current = seconds;
+              // the playhead is drawn ten times a second rather than sixty: it reads the same on the
+              // line, and the studio is not redrawn sixty times a second while it plays
+              if (Math.abs(seconds - shownRef.current) >= 0.1) {
+                shownRef.current = seconds;
+                setPosition(seconds);
+              }
+            },
+            onEnd: () => {
+              stopRef.current = null;
+              setPlaying(false);
+              positionRef.current = 0;
+              setPosition(0);
+            },
+          });
+          setPlaying(true);
+        }
+      } catch (err) {
+        setError("Mchanganyiko haukuweza kupigwa. Jaribu tena.");
+      }
+      setBusy("");
+    },
+    [renderMix]
+  );
+
+  const playMix = useCallback(() => {
+    if (playing || busy) return;
+    setError("");
+    setNote("");
+    const end = mixRef.current?.buffer.duration || mixLength;
+    const at = positionRef.current;
+    startFrom(at > 0.05 && at < end - 0.15 ? at : 0);
+  }, [busy, mixLength, playing, startFrom]);
+
+  /** Pause: the sound stops where it stands and the playhead keeps its place to carry on from. */
+  const pauseMix = useCallback(() => {
+    stopRef.current?.();
+    stopRef.current = null;
+    setPlaying(false);
+    // the playhead is put exactly where the sound was held, so the place is read on the line itself
+    shownRef.current = positionRef.current;
+    setPosition(positionRef.current);
+  }, []);
+
+  /** Stop: the sound stops and the playhead goes back to the head of the session. */
   const stopMix = useCallback(() => {
     stopRef.current?.();
     stopRef.current = null;
     setPlaying(false);
+    positionRef.current = 0;
+    setPosition(0);
   }, []);
 
-  const playMix = useCallback(async () => {
-    if (playing || busy) return;
-    setError("");
-    setNote("");
-    setBusy("mix");
-    try {
-      const mixed = await buildMix();
-      if (!mixed) {
-        setNote("Bado hakuna sauti inayosikika — rekodi au pakia sauti kwanza.");
-        return;
+  /** Anywhere on the line: the playhead is sent there, and carried on from there if it was playing. */
+  const seek = useCallback(
+    (seconds) => {
+      const at = Math.max(0, Math.min(mixLength, Number(seconds) || 0));
+      positionRef.current = at;
+      setPosition(at);
+      if (playing) {
+        stopRef.current?.();
+        stopRef.current = null;
+        setPlaying(false);
+        startFrom(at);
       }
-      stopRef.current = playBuffer(mixed, { onEnd: () => setPlaying(false) });
-      setPlaying(true);
-    } catch (err) {
-      setError("Mchanganyiko haukuweza kupigwa. Jaribu tena.");
-    }
-    setBusy("");
-  }, [buildMix, busy, playing]);
+    },
+    [mixLength, playing, startFrom]
+  );
 
   /** The mix, kept with the takes: the same sound everyone hears, uploaded once. */
   const saveMix = useCallback(async () => {
@@ -284,7 +388,7 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
     setNote("");
     setBusy("keep");
     try {
-      const mixed = await buildMix();
+      const mixed = await renderMix();
       if (!mixed) {
         setNote("Bado hakuna sauti inayosikika — rekodi au pakia sauti kwanza.");
         setBusy("");
@@ -303,25 +407,27 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
       setError("Mchanganyiko haukuweza kuhifadhiwa. Unaweza kuupakua kama faili.");
     }
     setBusy("");
-  }, [buildMix, busy, onKeepMix, title]);
+  }, [busy, onKeepMix, renderMix, title]);
 
   const downloadMix = useCallback(async () => {
     setBusy("mix");
     try {
-      const mixed = await buildMix();
+      const mixed = await renderMix();
       if (mixed) saveBlob(wavBlob(mixed), `${slug(title || "Take yangu")}-sauti.wav`);
       else setNote("Bado hakuna sauti inayosikika — rekodi au pakia sauti kwanza.");
     } catch (err) {
       setError("Mchanganyiko haukuweza kuandaliwa. Jaribu tena.");
     }
     setBusy("");
-  }, [buildMix, title]);
+  }, [renderMix, title]);
 
   return {
     tracks,
     recording,
     seconds,
     playing,
+    position,
+    mixLength,
     busy,
     error,
     note,
@@ -343,7 +449,9 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
     setPitch,
     autoTune,
     playMix,
+    pauseMix,
     stopMix,
+    seek,
     saveMix,
     downloadMix,
   };

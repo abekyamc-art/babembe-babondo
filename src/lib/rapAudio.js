@@ -99,7 +99,7 @@ export async function mixTake({ vocalBytes, vocalKind, beatKind, beatBytes, bpm,
 }
 
 /** Plays a mixed take, reporting its place as it goes so the words can follow it. */
-export function playBuffer(buffer, { onTime, onEnd } = {}) {
+export function playBuffer(buffer, { offset = 0, onTime, onEnd } = {}) {
   const ctx = audioGraph();
   const src = ctx.createBufferSource();
   src.buffer = buffer;
@@ -107,7 +107,10 @@ export function playBuffer(buffer, { onTime, onEnd } = {}) {
 
   let raf = 0;
   let done = false;
-  const startedAt = ctx.currentTime;
+  // the clock the place is read from starts where playback was told to begin, so a take carried on
+  // after a pause still reports the place it truly stands at
+  const from = Math.max(0, Math.min(Math.max(0, buffer.duration - 0.05), Number(offset) || 0));
+  const startedAt = ctx.currentTime - from;
 
   const tick = () => {
     const at = Math.min(buffer.duration, ctx.currentTime - startedAt);
@@ -123,7 +126,7 @@ export function playBuffer(buffer, { onTime, onEnd } = {}) {
   };
 
   src.onended = finish;
-  src.start();
+  src.start(0, from);
   raf = requestAnimationFrame(tick);
 
   return () => {

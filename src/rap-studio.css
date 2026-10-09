@@ -346,55 +346,9 @@
   font-weight: 600;
 }
 
-/* ---------------------------------------------------------------- the timeline */
+/* ------------------------------------------------------------------ inside a lane */
 
-.rap-ruler {
-  display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  padding-bottom: 6px;
-  border-bottom: 1px solid #2a2b33;
-  color: #666978;
-  font-size: 10px;
-  font-weight: 700;
-}
-
-.rap-lanes {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  overflow-x: auto;
-  overscroll-behavior-x: contain;
-  padding-bottom: 4px;
-}
-
-.rap-trk {
-  position: relative;
-  height: 74px;
-  min-width: 780px;
-  overflow: hidden;
-  background: #101116;
-  border: 1px solid #23242b;
-  border-radius: 6px;
-  background-image: repeating-linear-gradient(
-    90deg,
-    transparent 0,
-    transparent 63px,
-    #1d1e25 63px,
-    #1d1e25 64px
-  );
-}
-
-.rap-trk-name {
-  position: absolute;
-  left: 8px;
-  top: 6px;
-  z-index: 2;
-  color: #666978;
-  font: 800 9px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-}
-
+/* what a lane says while it holds nothing yet */
 .rap-trk-empty {
   position: absolute;
   left: 12px;
@@ -437,17 +391,7 @@
   white-space: nowrap;
 }
 
-/* the playhead sweeping the lane */
-.rap-ph {
-  position: absolute;
-  top: 0;
-  bottom: 0;
-  left: 380px;
-  width: 2px;
-  background: #ffffff;
-  box-shadow: 0 0 10px #ffffff;
-  animation: rap-mv 9s linear infinite;
-}
+/* the playhead itself is drawn by the workspace, standing where the transport truly is */
 
 /* ------------------------------------------------------------------- the work */
 

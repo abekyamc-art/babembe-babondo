@@ -8,6 +8,7 @@ import RapSong from "@/components/rap/RapSong";
 import RapSimilar from "@/components/rap/RapSimilar";
 import SavedBeats from "@/components/rap/SavedBeats";
 import SongwriterPanel from "@/components/rap/SongwriterPanel";
+import RapControls from "@/components/rap/RapControls";
 import VoiceTracksPanel from "@/components/rap/VoiceTracksPanel";
 import ClonedVoicePanel from "@/components/rap/ClonedVoicePanel";
 import BeatMaker from "@/components/rap/BeatMaker";
@@ -146,6 +147,14 @@ export default function StudioDock({ studio, songwriter, voiceTracks, beatMaker,
 
     settings: (
       <div className="rap-dock-one">
+        <RapControls
+          settings={settings}
+          beatName={beat?.name || ""}
+          busy={working}
+          onChange={studio.setSettings}
+          onBeatFile={studio.setBeatFile}
+        />
+
         <RapSessionPanel
           settings={settings}
           words={studio.words?.length ?? null}

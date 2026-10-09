@@ -1,114 +1,146 @@
 import React, { useState } from "react";
-import { ChevronDown, ChevronUp } from "lucide-react";
+import RapTempo from "@/components/rap/RapTempo";
+import StudioTransport from "@/components/rap/StudioTransport";
+import TrackHead from "@/components/rap/TrackHead";
+import ClipNudge from "@/components/rap/ClipNudge";
 import TimelineClip from "@/components/rap/TimelineClip";
 import { trackLength } from "@/lib/voiceTracks";
 
-const SPANS = ["1", "2", "3", "4", "5", "6", "7", "8"];
-const LIME = "#c7f400";
-const CYAN = "#15d8d0";
-// how wide one second of a voice lane is drawn, and so how far a hand carries a clip
-const TRACK_PPS = 20;
+// how wide one second of the session is drawn, and how far the ruler runs
+const PPS = 22;
+const LANE_SECONDS = 40;
+const MARK_EVERY = 4;
+// a bar of the rap is read as this much of the line
+const BAR_SECONDS = 2;
 
-/** The clips of one lane, laid one after the other across it. */
-function lay(clips) {
-  let at = 20;
-  return clips.map((clip, index) => {
-    const width = Math.min(700, Math.max(120, 60 + clip.count * 34));
-    const row = { ...clip, left: at, width, color: index % 2 ? CYAN : LIME };
-    at += width + 16;
-    return row;
-  });
-}
+const secondsOf = (value, fallback = 0) => {
+  const seconds = Number(value);
+  return Number.isFinite(seconds) && seconds > 0 ? seconds : fallback;
+};
 
 /**
- * The session laid out as a timeline: one lane for the beat, one for the bars that have been
- * written, one for the voice, and one for every sound of its own. A voice clip can be taken hold of
- * where it stands and carried along its lane, its lane can be folded down to a line, and the piece
- * that was taken hold of is handed to the controls below. Nothing is drawn here that the studio does
- * not already have.
+ * The session itself, drawn the way a multi-track studio is read: the beat, the bars that were
+ * written, the take, and every voice of its own, each one a lane with its head pinned at the left
+ * and its clips laid along the line. A clip is taken hold of where it stands and carried front or
+ * back, nudged by the buttons that name its place, folded away with its lane, or left alone — and
+ * all of it is done whether the session is playing or stopped.
  */
 export default function StudioTimeline({
   beat,
-  savedBeats,
   lines,
   take,
   recording,
   seconds,
   tracks,
-  voiceTools,
+  position,
+  length,
+  playing,
+  busy,
+  off,
+  bpm,
+  onBpm,
+  onPlay,
+  onPause,
+  onStop,
+  onSeek,
+  mic,
   selectedId,
   onSelect,
   onStart,
+  onNudge,
   onFold,
+  onPatch,
   inspector,
 }) {
-  // the clip being carried by hand right now, and the place it has been carried to
+  // the clip a hand is carrying right now, and the place on the line it has been carried to
   const [drag, setDrag] = useState(null);
 
-  // the written bars, section by section, as the clip each part of the rap stands in
-  const sections = [];
-  (lines || []).forEach((line) => {
-    const name = line.section || "Bars";
-    const at = sections.findIndex((one) => one.name === name);
-    if (at < 0) sections.push({ name, count: 1, seed: `${name}${line.ebembe || ""}` });
-    else sections[at].count += 1;
+  const selected = (tracks || []).find((track) => track.id === selectedId) || null;
+  // where a clip stands: the place it was laid, or the place a hand has carried it to
+  const held = (track) => (drag && drag.id === track.id ? drag.at : Math.max(0, Number(track.start || 0)));
+
+  const clipOf = ({ key, name, seed, at, to, count, color }) => ({
+    key,
+    name,
+    seed,
+    count,
+    left: Math.max(0, at) * PPS,
+    width: Math.max(96, Math.max(0.6, to - at) * PPS),
+    color,
   });
 
+  // the beat, standing the whole length of the session
   const beatClips = beat?.name
-    ? [{ key: "beat", name: beat.name, count: 6, seed: beat.name }]
-    : (savedBeats || []).length
-      ? [{ key: "saved", name: `${savedBeats.length} beats zangu`, count: 4, seed: "beats" }]
-      : [];
+    ? [clipOf({ key: "beat", name: beat.name, seed: beat.name, at: 0, to: length, count: 10 })]
+    : [];
 
+  // the bars that were written, section by section, each one where it is rapped on the line
+  const sections = [];
+  let at = 0;
+  (lines || []).forEach((line) => {
+    const name = line.section || "Bars";
+    const found = sections.find((one) => one.name === name);
+    if (found) found.count += 1;
+    else sections.push({ name, count: 1, from: at });
+    at += BAR_SECONDS;
+  });
+  const barClips = sections.map((one) =>
+    clipOf({
+      key: one.name,
+      name: `${one.name} · ${one.count}`,
+      seed: one.name,
+      at: one.from,
+      to: one.from + one.count * BAR_SECONDS,
+      count: one.count + 4,
+    })
+  );
+
+  // the voice: the take the studio made, and a recording still on the microphone
   const voiceClips = [];
-  if (take) voiceClips.push({ key: "take", name: "Take yako", count: 8, seed: take.kind || "take" });
+  if (take) {
+    voiceClips.push(
+      clipOf({ key: "take", name: "Take yako", seed: "take", at: 0, to: secondsOf(take.seconds, length), count: 10 })
+    );
+  }
   if (recording) {
-    voiceClips.push({
-      key: "rec",
-      name: `Rekodi · ${Math.max(0, Math.round(seconds || 0))}s`,
-      count: 5,
-      seed: "rekodi",
-    });
+    voiceClips.push(
+      clipOf({
+        key: "rec",
+        name: `Rekodi · ${Math.round(seconds || 0)}s`,
+        seed: "rekodi",
+        at: 0,
+        to: secondsOf(seconds, 2),
+        count: 6,
+      })
+    );
   }
 
-  const lanes = [
-    { id: "beat", name: "Beat", clips: lay(beatClips) },
-    {
-      id: "bars",
-      name: "Mistari",
-      clips: lay(
-        sections.slice(0, 3).map((one) => ({
-          key: one.name,
-          name: `${one.name} · ${one.count}`,
-          count: one.count,
-          seed: one.seed,
-        }))
-      ),
-    },
-    { id: "voice", name: "Sauti", clips: lay(voiceClips) },
+  const rows = [
+    { id: "beat", name: "Beat", hint: "Hakuna beat", clips: beatClips },
+    { id: "bars", name: "Mistari", hint: "Hakuna mistari", clips: barClips },
+    { id: "voice", name: "Sauti", hint: "Hakuna take bado", clips: voiceClips },
   ];
 
-  // every voice track is a lane of its own, and its clip stands where it was laid — or, while it is
-  // being carried, where the hand has taken it
+  // a lane of its own for every voice track, its clip standing where it was placed
   (tracks || []).forEach((track, index) => {
-    const held = drag && drag.id === track.id ? drag.seconds : Math.max(0, Number(track.start || 0));
-    const length = trackLength(track);
-    const moved = track.semitones ? ` · ${track.semitones > 0 ? "+" : ""}${track.semitones}st` : "";
-    lanes.push({
+    const from = held(track);
+    const span = trackLength(track);
+    rows.push({
       id: track.id,
       name: track.name,
       track,
-      carrying: drag?.id === track.id,
       clips: [
-        {
+        clipOf({
           key: track.id,
-          name: `${track.name}${moved}${track.muted ? " · M" : ""}${track.solo ? " · S" : ""}`,
-          count: Math.max(3, Math.round(length)),
+          name: `${track.name}${track.semitones ? ` · ${track.semitones > 0 ? "+" : ""}${track.semitones}st` : ""}${
+            track.muted ? " · M" : ""
+          }${track.solo ? " · S" : ""}`,
           seed: track.id,
-          left: 20 + held * TRACK_PPS,
-          width: Math.max(80, Math.min(740, Math.max(0.4, length) * TRACK_PPS)),
-          color: track.muted ? "#4d505d" : index % 2 ? CYAN : LIME,
-        },
+          at: from,
+          to: from + span,
+          count: Math.max(4, Math.round(span)),
+          color: track.muted ? "#4d505d" : index % 2 ? "#15d8d0" : "#c7f400",
+        }),
       ],
     });
   });
@@ -117,84 +149,123 @@ export default function StudioTimeline({
     if (!onStart) return;
     event.currentTarget.setPointerCapture?.(event.pointerId);
     const from = Math.max(0, Number(track.start || 0));
-    setDrag({ id: track.id, from, x: event.clientX, seconds: from });
+    setDrag({ id: track.id, from, x: event.clientX, at: from });
     onSelect?.(track.id);
   };
 
   const slide = (event) => {
     setDrag((prev) =>
-      prev ? { ...prev, seconds: Math.max(0, prev.from + (event.clientX - prev.x) / TRACK_PPS) } : prev
+      prev ? { ...prev, at: Math.max(0, prev.from + (event.clientX - prev.x) / PPS) } : prev
     );
   };
 
   const drop = () => {
-    if (drag) onStart?.(drag.id, drag.seconds);
+    if (drag) onStart?.(drag.id, drag.at);
     setDrag(null);
   };
 
+  const seekAt = (event) => {
+    if (!onSeek) return;
+    const box = event.currentTarget.getBoundingClientRect();
+    onSeek(Math.max(0, (event.clientX - box.left) / PPS));
+  };
+
+  const marks = [];
+  for (let second = 0; second <= LANE_SECONDS; second += MARK_EVERY) marks.push(second);
+
+  const playhead = <span className="rap-line-ph" style={{ left: position * PPS }} />;
+
   return (
-    <>
-      <div className="rap-ruler">
-        {SPANS.map((span) => (
-          <span key={span}>{span}</span>
-        ))}
+    <div className="rap-ws">
+      <div className="rap-ws-bar">
+        <StudioTransport
+          playing={playing}
+          position={position}
+          length={length}
+          busy={busy}
+          off={off}
+          hasTracks={!!(tracks || []).length}
+          onPlay={onPlay}
+          onPause={onPause}
+          onStop={onStop}
+        />
+
+        <div className="rap-ws-tools">
+          <span className="rap-label">Mwendo (BPM)</span>
+          <RapTempo bpm={bpm} busy={busy || off} onPick={onBpm} />
+          {mic}
+        </div>
       </div>
 
-      <div className="rap-lanes">
-        {lanes.map((lane) => {
-          const folded = !!lane.track?.collapsed;
+      <ClipNudge
+        track={selected}
+        busy={busy}
+        onNudge={(delta) => selected && onNudge?.(selected.id, delta)}
+        onClose={() => onSelect?.(null)}
+      />
+
+      <div className="rap-tl">
+        <div className="rap-row is-ruler">
+          <div className="rap-th rap-th-ruler">
+            <span className="rap-th-name">Sekunde</span>
+            <span className="rap-th-hint">Gusa hapa kuipeleka playhead</span>
+          </div>
+          <div className="rap-lane rap-lane-ruler" onPointerDown={seekAt}>
+            {marks.map((second) => (
+              <span key={second} className="rap-rk" style={{ left: second * PPS }}>
+                {second}s
+              </span>
+            ))}
+            {playhead}
+          </div>
+        </div>
+
+        {rows.map((row) => {
+          const folded = !!row.track?.collapsed;
 
           return (
             <div
-              key={lane.id}
-              className={`rap-trk ${folded ? "is-folded" : ""} ${lane.carrying ? "is-moving" : ""}`}
+              key={row.id}
+              className={`rap-row ${folded ? "is-folded" : ""} ${drag?.id === row.id ? "is-moving" : ""}`}
             >
-              <span className="rap-trk-name">{lane.name}</span>
+              <TrackHead
+                name={row.name}
+                hint={row.hint}
+                track={row.track}
+                busy={busy}
+                onPatch={(changes) => onPatch?.(row.track.id, changes)}
+                onFold={onFold}
+              />
 
-              {lane.id === "voice" && voiceTools ? <div className="rap-trk-tools">{voiceTools}</div> : null}
+              <div className="rap-lane">
+                {folded ? (
+                  <span className="rap-trk-empty">{row.name} imefungwa</span>
+                ) : (
+                  row.clips.map((clip) => (
+                    <TimelineClip
+                      key={clip.key}
+                      clip={clip}
+                      draggable={!!row.track}
+                      selected={!!row.track && selectedId === row.track.id}
+                      dragging={drag?.id === row.id}
+                      onGrab={row.track ? grab(row.track) : undefined}
+                      onSlide={slide}
+                      onDrop={drop}
+                    />
+                  ))
+                )}
 
-              {lane.track ? (
-                <div className="rap-trk-tools">
-                  <button
-                    type="button"
-                    className="rap-fold"
-                    aria-label={folded ? `Fungua ${lane.name}` : `Funga ${lane.name}`}
-                    aria-pressed={folded}
-                    onClick={() => onFold?.(lane.track.id)}
-                  >
-                    {folded ? <ChevronDown /> : <ChevronUp />}
-                  </button>
-                </div>
-              ) : null}
-
-              {folded ? (
-                <span className="rap-trk-empty">
-                  {lane.name} · {trackLength(lane.track).toFixed(1)}s imefungwa
-                </span>
-              ) : (
-                lane.clips.map((clip) => (
-                  <TimelineClip
-                    key={clip.key}
-                    clip={clip}
-                    draggable={!!lane.track}
-                    selected={!!lane.track && selectedId === lane.track.id}
-                    dragging={lane.carrying}
-                    onGrab={lane.track ? grab(lane.track) : undefined}
-                    onSlide={slide}
-                    onDrop={drop}
-                  />
-                ))
-              )}
-
-              {!folded && !lane.clips.length ? <span className="rap-trk-empty">Bado hakuna kitu hapa</span> : null}
-
-              <div className="rap-ph" />
+                {!folded && !row.clips.length ? (
+                  <span className="rap-trk-empty">{row.hint}</span>
+                ) : null}
+                {playhead}
+              </div>
             </div>
           );
         })}
       </div>
 
       {inspector}
-    </>
+    </div>
   );
 }

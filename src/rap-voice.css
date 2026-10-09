@@ -525,13 +525,13 @@
   outline-offset: 1px;
 }
 
-.rap-trk.is-moving {
-  border-color: #15d8d0;
+.rap-row.is-moving {
+  background: #14151a;
 }
 
 /* a lane folded down keeps its place, its name and what it holds, in one line */
-.rap-trk.is-folded {
-  height: 38px;
+.rap-row.is-folded .rap-lane {
+  height: 34px;
 }
 
 .rap-fold {
