@@ -7,6 +7,7 @@ import { FIRST_TALK } from "@/lib/talkRotation";
 import { openHearingNote, readHeardTurn } from "@/lib/homeHearing";
 import { loadFreshMaterial, loadTurnPictures } from "@/lib/knowledge";
 import { SAY_AGAIN_KIBEMBE, SAY_AGAIN_TURN, isMisheard, isRealTurn } from "@/lib/misheardSpeech";
+import { saveLangMode } from "@/lib/langMode";
 import { heardLanguage } from "@/lib/heardLanguage";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
 
@@ -163,7 +164,10 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       // of is answered from the app's own word bank and in Kibembe. A correction the person makes
       // is saved as the same turn is read. A reading that cannot be made leaves the turn to the
       // voice itself, which is already carrying the rules of the call.
-      readHeardTurn(said, lastAgentRef.current).then(({ note }) => {
+      readHeardTurn(said, lastAgentRef.current).then(({ note, mode }) => {
+        // the person may have plainly asked for another language: it stands from this turn on, in this
+        // call and in every later one, and the reading rode back with the rule for it already
+        if (mode) saveLangMode(mode);
         if (note) socketRef.current?.sendMemory(note);
       });
     },
@@ -242,6 +246,8 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       // the app's own reading of the turn, handed to the voice before it answers
       const read = await readHeardTurn(said, lastAgentRef.current);
       if (!socket.connected || socketRef.current !== socket) return;
+      // a language plainly asked for stands from here on, and the rule for it rides in with the reading
+      if (read.mode) saveLangMode(read.mode);
       if (read.note) socket.sendMemory(read.note);
       if (!read.sure) {
         socket.setReviewPending(true);
@@ -298,7 +304,8 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       handOn(socket, said, held.language, held.text);
     } else {
       socket.sendMemory(`The person corrected their previous transcript to: "${said}". Answer these words rather than the earlier transcription.`);
-      readHeardTurn(said, lastAgentRef.current).then(({ note }) => {
+      readHeardTurn(said, lastAgentRef.current).then(({ note, mode }) => {
+        if (mode) saveLangMode(mode);
         if (note) socket.sendMemory(note);
       });
     }

@@ -6,6 +6,7 @@ import { cartesiaFailed, cartesiaOpened, cartesiaOrder } from "@/lib/cartesiaBac
 import CartesiaCall from "@/lib/cartesiaCall";
 import { readHeardTurn } from "@/lib/homeHearing";
 import { loadTurnPictures } from "@/lib/knowledge";
+import { saveLangMode } from "@/lib/langMode";
 import { SAY_AGAIN_KIBEMBE, SAY_AGAIN_TURN, isMisheard, isRealTurn } from "@/lib/misheardSpeech";
 import { CARTESIA_AI } from "@/lib/providerNames";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
@@ -127,8 +128,12 @@ export default function useCartesiaVoice({
       // Cartesia AI hears, answers and speaks on its own account, and its own settings are left
       // exactly as they are — so no reading is handed to it. What the reading is still used for is
       // the app's own learning: a word, a sound or an answer the person puts right on this turn is
-      // saved into the Word Bank, so the Kibembe they confirm is not lost with the call.
-      readHeardTurn(said, lastAgentRef.current);
+      // saved into the Word Bank, so the Kibembe they confirm is not lost with the call. A language
+      // the person plainly asks for is kept here as well, so the screen's own pill stands with the
+      // language they asked for and not with the one that was standing before it.
+      readHeardTurn(said, lastAgentRef.current).then(({ mode }) => {
+        if (mode) saveLangMode(mode);
+      });
     },
     []
   );
@@ -143,7 +148,9 @@ export default function useCartesiaVoice({
   const correct = useCallback((text) => {
     const said = String(text || "").trim();
     if (!said) return false;
-    readHeardTurn(said, lastAgentRef.current);
+    readHeardTurn(said, lastAgentRef.current).then(({ mode }) => {
+      if (mode) saveLangMode(mode);
+    });
     setNotice("Your words are saved — Cartesia AI answers from what it heard.");
     return true;
   }, []);

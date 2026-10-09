@@ -220,10 +220,13 @@ export default async function (req: Request): Promise<Response> {
       const existing = clean(payload?.id, 60)
         ? await service.entities.KnowledgeFile.get(clean(payload.id, 60)).catch(() => null)
         : null;
-      if (existing) await service.entities.KnowledgeFile.update(existing.id, { ...state, status: "draft" });
-      else await service.entities.KnowledgeFile.create({ ...state, status: "draft" });
+      let row: any = null;
+      if (existing) row = await service.entities.KnowledgeFile.update(existing.id, { ...state, status: "draft" });
+      else row = await service.entities.KnowledgeFile.create({ ...state, status: "draft" });
 
       return Response.json({
+        // the draft's own id, so the approval that follows writes the same row rather than a second
+        id: row?.id || "",
         status: "draft",
         name,
         kind,

@@ -28,6 +28,7 @@ import CoinPill from "@/components/voice/CoinPill";
 import GateDialog from "@/components/voice/GateDialog";
 import AccountIcon from "@/components/voice/AccountIcon";
 import ModeBadge from "@/components/voice/ModeBadge";
+import LangPill from "@/components/voice/LangPill";
 import { CARTESIA_AI, CARTESIA_AI1, CARTESIA_AI2, KIBEMBE_CLASS } from "@/lib/providerNames";
 import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
@@ -350,8 +351,12 @@ export default function VoiceAssistant() {
 
       <main className="relative z-10 flex min-h-0 flex-1 flex-col items-center justify-between gap-4 px-5">
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7">
-          {/* who answers is written on the screen itself, and follows whoever the call is with */}
-          <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
+          {/* who answers, and the language they are answering in, are written on the screen itself:
+               the language stands until the person changes it, here or by asking for one out loud */}
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
+            <LangPill />
+          </div>
           <button
             type="button"
             onClick={handleCall}

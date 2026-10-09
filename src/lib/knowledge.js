@@ -19,6 +19,18 @@ export const KINDS = [
       "No picture is waiting for a word yet — put your pictures in, and each one is shown with the word its own name carries.",
   },
   {
+    id: "voice",
+    tab: "Voice bank",
+    empty:
+      "No recordings kept yet — record a word the way you really say it, then approve it, and the hearing learns from it.",
+  },
+  {
+    id: "files",
+    tab: "Dictionaries",
+    empty:
+      "No dictionary or corpus files yet — upload one, look at the words it holds, then approve it.",
+  },
+  {
     id: "story",
     tab: "Stories",
     empty:

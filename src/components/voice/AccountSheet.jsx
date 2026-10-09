@@ -4,6 +4,7 @@ import { BookOpen, Clapperboard, Languages, MessageCircle, Mic } from "lucide-re
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountProfile from "@/components/voice/AccountProfile";
 import DeleteAccount from "@/components/voice/DeleteAccount";
+import { langLabel, nextLangMode, saveLangMode, useLangMode } from "@/lib/langMode";
 
 function Chevron() {
   return (
@@ -36,6 +37,9 @@ export default function AccountSheet({
   onSwitchAccount,
   onSignOut,
 }) {
+  // the language being answered in: it stands across turns and calls, and one tap moves it on
+  const lang = useLangMode();
+
   if (!open) return null;
 
   const signedIn = !!user;
@@ -68,6 +72,19 @@ export default function AccountSheet({
           <AccountProfile user={user} wallet={wallet} onGetCoins={onGetCoins} />
 
           <div className="account-actions">
+            <button
+              type="button"
+              className="account-action account-action-neutral"
+              onClick={() => saveLangMode(nextLangMode(lang))}
+              aria-label={`Answered in ${langLabel(lang)} — tap to change the language`}
+            >
+              <span className="account-action-label">
+                <Languages className="h-4 w-4" />
+                Answer language
+              </span>
+              <span className="account-coins">{langLabel(lang)}</span>
+            </button>
+
             {signedIn ? (
               <>
                 {user?.role === "admin" ? (

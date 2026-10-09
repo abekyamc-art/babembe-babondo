@@ -7,10 +7,14 @@ import KnowledgeSearch from "@/components/knowledge/KnowledgeSearch";
 import KnowledgeDocPanel from "@/components/knowledge/KnowledgeDocPanel";
 import ImageReviewPanel from "@/components/knowledge/ImageReviewPanel";
 import StoriesPanel from "@/components/knowledge/StoriesPanel";
+import VoiceBankPanel from "@/components/knowledge/VoiceBankPanel";
+import DictionaryPanel from "@/components/knowledge/DictionaryPanel";
 
 /**
- * The admin's knowledge, in two places: the one document everything is written in, and the stories,
- * which stay a collection of their own — each with its own picture, video, audio or link.
+ * The admin's knowledge, where it is written, heard and filed: the one document everything is written
+ * in, the pictures waiting beside a word, the stories, which stay a collection of their own, the
+ * private voice bank the hearing learns a person's own way of saying a word from, and the dictionary
+ * and corpus files the language is kept in.
  */
 export default function KnowledgeSheet({ open, onClose }) {
   const [tab, setTab] = useState("doc");
@@ -83,6 +87,10 @@ export default function KnowledgeSheet({ open, onClose }) {
             <StoriesPanel focus={focus} />
           ) : tab === "image" ? (
             <ImageReviewPanel />
+          ) : tab === "voice" ? (
+            <VoiceBankPanel />
+          ) : tab === "files" ? (
+            <DictionaryPanel />
           ) : (
             <KnowledgeDocPanel focus={focus} />
           )}
