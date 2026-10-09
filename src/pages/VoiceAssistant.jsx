@@ -396,6 +396,7 @@ export default function VoiceAssistant() {
               turns={turns}
               pending={thinking}
               onCorrectTurn={correctTurn}
+              onPick={handleSend}
             />
           </div>
           {/* what the app would keep from a turn the person has put right: their own answer saves it */}

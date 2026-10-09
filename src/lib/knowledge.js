@@ -202,12 +202,15 @@ export async function loadTurnPictures(question = "", answer = "") {
   }
 }
 
-export async function loadFreshMaterial(query = "") {
+export async function loadFreshMaterial(query = "", offered = []) {
   const asked = String(query || "").trim();
-  const none = { material: "", needed: false, found: false, source: null };
+  const none = { material: "", needed: false, found: false, source: null, candidates: [] };
   if (!asked) return none;
   try {
-    const res = await base44.functions.invoke("freshKnowledge", { query: asked });
+    // The names the app put before the person on the turn before — the several people or artists that
+    // came back under names that look alike — ride back in with their answer, so the lookup reads
+    // that turn as the choice it is and lands on the one they chose.
+    const res = await base44.functions.invoke("freshKnowledge", { query: asked, asked: offered });
     const data = res?.data || {};
     return {
       material: String(data.material || ""),
@@ -216,6 +219,9 @@ export async function loadFreshMaterial(query = "") {
       // where the material came from, where it came from somewhere the app can name: the screen
       // shows it beneath the answer the material was given for
       source: data.source || null,
+      // the several different people or artists the search found under names that look alike: they
+      // stand on the answer for the person to choose between, and ride back in with their answer
+      candidates: Array.isArray(data.candidates) ? data.candidates : [],
     };
   } catch (err) {
     // the answer carries on from what is already saved

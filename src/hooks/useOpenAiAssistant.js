@@ -46,6 +46,10 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
   const rafRef = useRef(0);
   // the answer is always charged through the handler as the allowance stands right now
   const answeredRef = useRef(null);
+  // the several different people or artists the app put before the person, waiting on their answer:
+  // they stand on the answer that asks which one is meant, and ride back in with their own turn, so
+  // the one they chose is the one that is looked up
+  const askedRef = useRef([]);
   // turns are answered one after another, so a turn taken while one is being answered is not lost
   const chainRef = useRef(Promise.resolve());
   // every turn is reported to whoever is keeping the whole conversation, so a call that hands over
@@ -58,11 +62,21 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
 
   // a turn carries the pictures the answer came with, where it came with any, so the screen can
   // stand each one at the word it belongs to and again below the answer
-  const pushTurn = useCallback((role, text, pictures, source) => {
+  const pushTurn = useCallback((role, text, pictures, source, choices) => {
     // a turn carries the pictures the answer came with, and the source it was given from where it
     // was given from something looked up on the internet, so the screen can stand each picture at
-    // the word it belongs to and show where the answer came from underneath it
-    setTurns((prev) => [...prev, { role, text, pictures: pictures || [], source: source || null }]);
+    // the word it belongs to and show where the answer came from underneath it — and, where several
+    // people were found under names that look alike, the names themselves
+    setTurns((prev) => [
+      ...prev,
+      {
+        role,
+        text,
+        pictures: pictures || [],
+        source: source || null,
+        choices: choices || [],
+      },
+    ]);
     turnRef.current?.(role, text);
   }, []);
 
@@ -81,7 +95,10 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
       pushTurn("user", line);
       setStatus("thinking");
       try {
-        const res = await base44.functions.invoke("chatWithKibembeAssistant", { message: line });
+        const res = await base44.functions.invoke("chatWithKibembeAssistant", {
+          message: line,
+          asked: askedRef.current,
+        });
         const data = res?.data || {};
         if (data.error) {
           setError(data.error);
@@ -91,12 +108,16 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
         if (!draft) return;
         // the pictures the admin saved beside the words this answer is made of ride with it
         const pictures = Array.isArray(data.pictures) ? data.pictures : [];
+        // the several different people or artists found under names that look alike: they stand on
+        // this answer for the person to choose between, and ride back in with the turn that chooses
+        const choices = Array.isArray(data.candidates) ? data.candidates : [];
+        askedRef.current = choices.length >= 2 ? choices : [];
         // Sadiki AI reads the answer before the person is given it, and what stands is what he hands
         // back; where he could not be asked at all, the answer the assistant wrote stands instead
         const reviewed = await reviewAnswer(line, draft);
         const reply = reviewed || draft;
         if (!reviewed) setNotice(REVIEW_MISSED);
-        pushTurn("assistant", reply, pictures, data.source || null);
+        pushTurn("assistant", reply, pictures, data.source || null, choices);
         // the answer has been given, so it is counted against the allowance
         answeredRef.current?.();
         const call = callRef.current;

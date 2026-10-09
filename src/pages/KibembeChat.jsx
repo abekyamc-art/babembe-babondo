@@ -47,6 +47,17 @@ export default function KibembeChat() {
     await ask(message);
   }, [ask, busy, draft, noteFirstAsk]);
 
+  // the person naming which of the names the assistant put before them they mean: their choice is
+  // their own turn, and the answer that follows names the one they chose
+  const pick = useCallback(
+    async (name) => {
+      if (busy) return;
+      noteFirstAsk();
+      await ask(name);
+    },
+    [ask, busy, noteFirstAsk]
+  );
+
   return (
     <div className={`flex min-h-full flex-col bg-background ${KIBEMBE_CLASS}`}>
       <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
@@ -106,6 +117,8 @@ export default function KibembeChat() {
             text={line.text}
             pictures={line.pictures}
             source={line.source}
+            choices={line.choices}
+            onPick={pick}
           />
         ))}
 

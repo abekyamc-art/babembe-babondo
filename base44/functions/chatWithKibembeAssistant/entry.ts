@@ -3,7 +3,7 @@ import { secrets } from 'base44:runtime';
 import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
-import { lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
+import { candidateList, lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { bestStory, storyNote } from "../../shared/storyMatch.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
@@ -96,6 +96,10 @@ export default async function (req) {
     const body = await req.json().catch(() => ({}));
     const message = String(body?.message || '').trim().slice(0, MAX_MESSAGE);
     if (!message) return Response.json({ error: 'Type a message first.' }, { status: 400 });
+    // The names the app itself put before the person on the turn before — the several people or
+    // artists that came back under names that look alike — sent back with their answer, so this turn
+    // is read as the choice it is.
+    const asked = candidateList(body?.asked);
 
     // The key and the Word Bank live only in Secrets, and are read here on the server: neither is
     // ever sent to the app, and a missing one is said plainly rather than guessed at.
@@ -144,7 +148,7 @@ export default async function (req) {
     // on the internet before the answer is written, by the same lookup the app's other assistants
     // use, and the material rides with the message. A search that found nothing, or that could not
     // be made at all, is said plainly instead of being answered around.
-    const lookup = await lookupForTurn(base44, message);
+    const lookup = await lookupForTurn(base44, message, asked);
 
     // A turn that needed the internet is answered from what was found, and given the room to be
     // answered properly: the whole of what the search brought — who the person is, their songs, their
@@ -159,12 +163,39 @@ export default async function (req) {
       'Never say you do not know the person, and never say nothing was found, when the material above ' +
       'carries them.';
 
+    // Several different people or artists under names that look alike: this turn is the app's own
+    // question back to the person, so the answer names every one of them and asks which is meant.
+    const ASK_NAMES =
+      "- This turn answers a question of the app's own: several different people or artists were found " +
+      'under names that look alike, and only the person can say which one they mean. Name every one of ' +
+      'them, in full, one after another, with what tells each from the others, then ask which one they ' +
+      'mean. Answer nothing about any of them yet, choose none of them yourself, and never say you do ' +
+      'not know — say plainly that there are several by that name and ask which one. Your whole answer ' +
+      'is that question and nothing else: no profile, no history, no songs, no source — the names, and ' +
+      'the question which one they mean.';
+    // ...and this turn is the person's own answer to that question: the one they chose is named back
+    // to them, and everything given belongs to them and to nobody else.
+    const CHOSEN = asked.length
+      ? '- The person was asked which of these names they meant: ' +
+        asked.map((one) => `${one.name}${one.detail ? ` (${one.detail})` : ''}`).join('; ') +
+        '. Their turn now is their answer to that question. Open your answer with the confirmation of ' +
+        'the one they chose, in the language they used and by their full name — "Umemchagua <jina lake ' +
+        'kamili>" in Kiswahili, and the same words in whatever language they spoke — then answer about ' +
+        'that one person alone — everything you give belongs to them and to nobody else. Where their ' +
+        'turn chooses none of them, name all of them again and ask once more which they mean.'
+      : '';
+
+    const asking = lookup.candidates.length >= 2;
+    // Several names waiting on the person's choice: nothing that presents one of them as the answer —
+    // no matched story and no catalogue of names — rides with this turn, so the answer is the
+    // question itself and the person is left to say which one they mean.
     const input = [
       saved,
-      told,
-      tales,
+      asking ? '' : told,
+      asking ? '' : tales,
       lookup.material,
-      lookup.material ? FOUND : '',
+      lookup.material ? (asking ? ASK_NAMES : FOUND) : '',
+      CHOSEN,
       `Mtu amesema: ${message}`,
     ]
       .filter(Boolean)
@@ -214,7 +245,15 @@ export default async function (req) {
     // And where this answer stands on something looked up on the internet, where it came from goes
     // back with it — named, with its own address — so the screen can show the source of what it says
     // instead of the person having to take the answer on trust.
-    return Response.json({ reply, pictures, source: lookupSource(lookup.material) });
+    // The names waiting on the person's choice ride back with the answer, so the screen can put them
+    // before them as the names to choose between — and a question that has answered nothing yet names
+    // no source.
+    return Response.json({
+      reply,
+      pictures,
+      source: asking ? null : lookupSource(lookup.material),
+      candidates: lookup.candidates,
+    });
   } catch (error) {
     console.error('The Kibembe assistant failed:', error?.message);
     return Response.json({ error: NO_REPLY }, { status: 500 });

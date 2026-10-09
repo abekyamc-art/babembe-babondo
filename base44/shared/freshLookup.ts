@@ -26,6 +26,12 @@ const WANTS =
 const ASKS_ABOUT =
   /\b(?:(?:w|n)?ngapi|hits?|views?|subscribers?|followers?|likes?|streams?|albums?|songs?|tracks?|singles?|discography|mixtapes?|music|records?|nyimbo|wimbo|albamu|muziki|mashabiki|watazamaji|kiasi)\b/i;
 
+// The third door, and the narrowest: a turn about a person at all. Only a turn about somebody can
+// turn up several people of alike names, so the reading that tells them apart is spent on those
+// turns alone, and never on a story, a piece of news or a word.
+const PERSON =
+  /(msanii|msani|mwimbaji|mwanamuziki|mchezaji|mwandishi|jina|anaitwa|alizaliwa|wasifu|asili|nani|who|whose|singer|artist|musician|player|coach|biography|born|youtuber|anaimba|mtu)/i;
+
 // an explicit call for more is never held back by a saved answer: "another story" asks for
 // material the note it already has cannot give
 const MORE =
@@ -40,6 +46,109 @@ const COVER_SCORE = 2;
 const MAX_QUERY = 600;
 const MAX_TEXT = 8000;
 const MAX_MATERIAL = 4000;
+// how many different people of alike names are ever put to the person to choose between: more than
+// that on a screen is a list nobody reads
+const NAMES_MAX = 4;
+
+/**
+ * One of the different people a search turned up under a name that looks like another's: the name
+ * they go by, what tells them from the others, and the page they were found on. Several of them
+ * together are what the person is asked to choose between.
+ */
+export type Candidate = {
+  name: string;
+  detail: string;
+  url: string;
+};
+
+/** The names a search put forward, read back as a short list of real names, each one named once. */
+export function candidateList(value: any): Candidate[] {
+  if (!Array.isArray(value)) return [];
+  const out: Candidate[] = [];
+  for (const row of value) {
+    const name = textOf(row?.name ?? row).slice(0, 90);
+    if (!name) continue;
+    if (out.some((had) => had.name.toLowerCase() === name.toLowerCase())) continue;
+    out.push({
+      name,
+      detail: textOf(row?.detail ?? row?.why).slice(0, 200),
+      url: textOf(row?.url ?? row?.link).slice(0, 300),
+    });
+    if (out.length >= NAMES_MAX) break;
+  }
+  return out;
+}
+
+// The one question the apart-reading answers: are there two or more different people in this?
+const NAMES_SCHEMA = {
+  type: "object",
+  properties: {
+    several: {
+      type: "boolean",
+      description:
+        "true only when the material is about two or more different people or artists whose names look or sound alike",
+    },
+    people: {
+      type: "array",
+      description:
+        "the different people, one entry each — empty when the material is about one person only",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string", description: "the person's full name, exactly as the material gives it" },
+          detail: {
+            type: "string",
+            description:
+              "the one thing that tells this person from the others — the land, the city, the kind of music, their songs, their channel",
+          },
+          link: {
+            type: "string",
+            description: "the address of the page this person stands on in the material, or empty",
+          },
+        },
+        required: ["name"],
+      },
+    },
+  },
+  required: ["several", "people"],
+};
+
+/**
+ * Whether what the search brought is about two or more *different* people whose names look alike.
+ *
+ * The reading is its own call, with one question in it and nothing else, because it decides whether
+ * the person is answered or asked: where the search's own findings carry several alike names, every
+ * one of them is put before the person and they say which one they mean — and where they carry one
+ * person, that person is answered about. Nothing is invented here: a name the material does not
+ * carry is never written, and a material about one person yields nothing at all.
+ */
+async function sameNameCheck(base44: any, query: string, material: string): Promise<Candidate[]> {
+  try {
+    const out = await base44.asServiceRole.integrations.Core.InvokeLLM({
+      prompt:
+        "Read one request of a person and the material that was found for it, and answer one question " +
+        "only: are there TWO OR MORE DIFFERENT PEOPLE OR ARTISTS in this material whose names look or " +
+        "sound alike — the same name with another second name, another person going by the same name, " +
+        "another spelling that belongs to somebody else?\n" +
+        `THE REQUEST: ${query}\nTHE MATERIAL FOUND FOR IT:\n${material}\n\n` +
+        "Where the material is about one person only — one artist, his own songs, his own channel, his " +
+        "own work — set several=false and leave `people` empty. Where it carries two or more different " +
+        "people of alike names, set several=true and write every one of them into `people`: his full " +
+        "name in `name` exactly as the material gives it, and in `detail` the one thing that tells him " +
+        "from the others (the land, the city, the kind of music, their songs, their own channel), with " +
+        "the address of his page in `link` where the material gives one. Never write a name the " +
+        "material does not carry, never invent a detail, and never put the same person in twice.",
+      model: "gemini_3_flash",
+      response_json_schema: NAMES_SCHEMA,
+    });
+    const rows = candidateList(out?.people);
+    return out?.several && rows.length >= 2 ? rows : [];
+  } catch (error: any) {
+    // the reading is a help with the answer, never a reason it fails: the material stands as written
+    console.error("Could not read the names apart:", error?.message);
+    return [];
+  }
+}
 
 /**
  * The source the looked-up material names, and its own address, exactly as the lookup wrote them
@@ -73,6 +182,55 @@ const MISS =
   "Ombi hili la mtu lilihitaji kutafutwa mtandaoni, lakini hakuna kilichopatikana kwa uhakika — au kutafuta hakukuwezekana kabisa. " +
   "Sema kwa ufupi kwamba hukupata taarifa ya kuthibitishwa kuhusu hilo, kisha mwombe aeleze zaidi " +
   "au toa kilichohifadhiwa kwenye maarifa. Usijibu kwa jambo lingine lisilohusiana, na usiseme tu \"sijui\" — na usiseme kwamba umetafuta wakati hukutafuta.\n";
+
+/** A turn that needed the internet and found nothing: it is said plainly, and no name is asked about. */
+const miss = (material: string = MISS): Lookup => ({
+  material,
+  needed: true,
+  found: false,
+  candidates: [],
+});
+
+/** A turn that asked for nothing new: nothing rides with it. */
+const nothing = (): Lookup => ({ material: "", needed: false, found: false, candidates: [] });
+
+/**
+ * The block that turns a lookup into a question: every name is written out with what tells it from
+ * the others, and the answer is told to name them all and ask which one is meant — and to say
+ * nothing about any of them until the person has chosen.
+ */
+function askWhich(cands: Candidate[]) {
+  const lines = cands.map((one, index) => {
+    const detail = one.detail ? ` — ${one.detail}` : "";
+    const url = one.url ? `\n   ${one.url}` : "";
+    return `${index + 1}. ${one.name}${detail}${url}`;
+  });
+  return (
+    "\nMAJINA YANAYOFANANA — the search found several different people or artists whose names look alike:\n" +
+    `${lines.join("\n")}\n` +
+    "Taja majina yao yote kwa ukamilifu, moja baada ya nyingine, pamoja na kile kinachomtambulisha kila " +
+    "mmoja, kisha muulize ni yupi anayemwuliza. Usimjibu yeyote wao bado, usichague mwenyewe, na usiseme " +
+    "hujui — sema tu kwamba wapo kadhaa wenye jina hilo, na umuulize ni yupi. Anza kwa kuwataja wote kwa " +
+    "majina yao.\n"
+  );
+}
+
+/**
+ * What the search is told when the turn it is reading is the person's own answer to the app's
+ * question: the names they were offered are written out, and the search is told that this turn
+ * chooses between them — so the one they chose is the one everything must belong to.
+ */
+function offeredBlock(cands: Candidate[]) {
+  return (
+    "\nTHE PERSON WAS ASKED WHICH ONE THEY MEAN. These names were offered: " +
+    cands.map((one) => `${one.name}${one.detail ? ` (${one.detail})` : ""}`).join("; ") +
+    ". Their turn now is their answer to that question: where it chooses one of them — by the name, by " +
+    'a part of it, by the land or the songs that tell them apart, or by counting off the list ("wa pili") ' +
+    "— answer about that one person alone, everything belonging to them and to nobody else, leave " +
+    "`candidates` empty, and write the material about them. Where the turn chooses none of them, write " +
+    "all the names into `candidates` again and leave `text` empty.\n"
+  );
+}
 
 // Video results for the request, read before the search is written down: a search of YouTube is
 // what this app's own network can reach, and it is where its subjects live.
@@ -275,10 +433,10 @@ const SCHEMA = {
       description: "how the Ebembe word is said, syllables joined by dashes, for the ear only",
     },
   },
-  required: ["needed", "no_result", "kind"],
+  required: ["needed", "no_result", "kind", "candidates"],
 };
 
-const PROMPT = (query: string, google: string) =>
+const PROMPT = (query: string, google: string, offered: Candidate[] = []) =>
   "You help an Ebembe village assistant in the Democratic Republic of Congo. A person has just said:\n" +
   `"""${query}"""` +
   google +
@@ -292,6 +450,7 @@ const PROMPT = (query: string, google: string) =>
   "- One or two words alone, or a question asking what a word means → needed=false, no_result=false, kind=\"none\": the words the admin saved are the assistant's own list, and he answers from it.\n" +
   "- Only teach a word (kind \"word\") when the person plainly asks to be taught an Ebembe word that is not on the admin's list.\n\n" +
   "If it does need material: search Google, then write that material yourself and write it out in full.\n" +
+  "BUT FIRST, THE ALIKE NAMES: where the results show two or more different people or artists whose names look or sound alike — the same name with another second name, another artist going by the same name, another spelling that belongs to somebody else — the right person cannot be known and no material is written. Fill `candidates` with every one of them: each one's full name in `name`, in `detail` the one thing that tells them apart (the land, the city, the kind of music, their songs, their own channel), and that page's own address in `link`. Set needed=true, no_result=false, and leave `text` empty. The app puts those names before the person and asks which one they mean, and answers about the one they choose — so writing about one of them here would give the person the wrong one. Never choose between them yourself. Where the results plainly belong to one person — one artist with his own songs, his own channel — write the material as usual and leave `candidates` empty.\n" +
   "A NAME IN THE RESULTS IS A FINDING: when the results above carry the person's own name — in a video's title, or in the channel behind it, as \"By Gaspa boy - Topic\" carries Gaspa Boy — that channel is theirs and those songs are theirs. Write that as the material: who the search shows them to be, the songs by name, the channel, the language they sing in; put the channel or the platform in `source` and the video's own address in `link`. Never answer that nothing was found when the results carry the person's name — a person whose songs are on YouTube is a person who has been found.\n" +
   "The VIDEO RESULTS above are real results from YouTube for this very request. Where they show the person the request names — their own songs, their own channel — the material must stand on them: say what they show (the name, the songs, the language, the channel) and put that video's own address in `link`. What they do not cover — the news, the stories, who someone is beyond their music — take from your own Google search.\n" +
   "- story: the whole story, told properly, ten to twenty sentences — never a summary, and never a description of the story.\n" +
@@ -302,6 +461,8 @@ const PROMPT = (query: string, google: string) =>
   "Someone written about only on those platforms is still someone to answer about: a person found only there is a result, not a reason to say nothing was found.\n" +
   "Write the material in Swahili, adding Ebembe words wherever you know them, and put the source you took it from in `source`, named plainly — the site or the organisation — with that page's own address in `link`.\n" +
   "Never invent anything. When what you found is thin, or the sources disagree, write the material anyway and say plainly inside `text` that it is not confirmed. When the search gives you nothing at all — and a person found on their own YouTube channel, page or music platform is not nothing — set no_result=true and leave `text` empty: never write a finding-nothing out as the material.\n" +
+  "SEVERAL PEOPLE, ALIKE NAMES: where the results show two or more different people or artists whose names look or sound alike — the same name with another second name, another artist going by the same name, another spelling that belongs to somebody else — you cannot know which one is meant. Write every one of them into `candidates`: each one's full name in `name`, and in `detail` the one thing that tells them apart (the land, the city, the kind of music, their songs, their own channel), with that page's own address in `link`. Set needed=true, no_result=false and leave `text` empty. Never choose one of them yourself, and never write about one of them as though he were the one asked about. Where the results plainly belong to one person — one artist with his own songs, his own channel — leave `candidates` empty and write the material as usual.\n" +
+  (offered.length ? offeredBlock(offered) : "") +
   "Fill every field of the answer, using an empty string where a field does not apply.";
 
 function textOf(value: any) {
@@ -338,23 +499,32 @@ async function savedAnswer(base44: any, query: string) {
  * `material` is the text that rides with the turn: the looked-up material itself, or — when the
  * turn needed a search and nothing was found, or the search could not be made at all — the line
  * telling the answer to say plainly that nothing could be confirmed. It is empty for a turn that
- * asked for nothing new, and for one the admin's own saved answer already covers.
+ * asked for nothing new, and for one the admin's own saved answer already covers. `candidates` is
+ * the other thing it can be: several different people found under names that look alike, put to the
+ * person to choose between before anything is answered about any of them.
  */
 export type Lookup = {
   material: string;
   needed: boolean;
   found: boolean;
+  candidates: Candidate[];
 };
 
-export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup> {
+export async function lookupForTurn(
+  base44: any,
+  rawQuery: any,
+  offered?: Candidate[]
+): Promise<Lookup> {
   const query = textOf(rawQuery).slice(0, MAX_QUERY);
-  if (query.length < 4 || !(WANTS.test(query) || ASKS_ABOUT.test(query))) {
-    return { material: "", needed: false, found: false };
-  }
-  // the admin's own answer stands first: where they have already saved this question, its
-  // answer is the one to give, so nothing is looked up — unless more was asked for outright
-  if (!MORE.test(query) && (await savedAnswer(base44, query))) {
-    return { material: "", needed: false, found: false };
+  const asking = candidateList(offered);
+  // A turn that is itself the answer to the app's own question — the person naming which of the
+  // names they meant — is always looked up: a name on its own asks for nothing, and that turn is
+  // exactly the one that has to find the person they chose.
+  if (!asking.length) {
+    if (query.length < 4 || !(WANTS.test(query) || ASKS_ABOUT.test(query))) return nothing();
+    // the admin's own answer stands first: where they have already saved this question, its
+    // answer is the one to give, so nothing is looked up — unless more was asked for outright
+    if (!MORE.test(query) && (await savedAnswer(base44, query))) return nothing();
   }
 
   // Google's own results, and the open web's, for this request ride with it into the search, so the
@@ -370,7 +540,7 @@ export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup>
   let out: any = {};
   try {
     const found = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt: PROMPT(query, results),
+      prompt: PROMPT(query, results, asking),
       add_context_from_internet: true,
       model: "gemini_3_flash",
       response_json_schema: SCHEMA,
@@ -380,16 +550,34 @@ export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup>
     // a search that could not be made is told to the answer exactly as a search that found
     // nothing: the person hears that it is not confirmed instead of hearing something invented
     console.error("Could not look anything up:", error?.message);
-    return { material: MISS, needed: true, found: false };
+    return miss();
+  }
+
+  // Two or more different people under names that look alike is a question only the person can
+  // settle: every one of them is named, and they are asked which is meant — nothing is answered
+  // about any of them yet, and nothing is saved.
+  const candidates = candidateList(out.candidates);
+  if (candidates.length >= 2) {
+    return {
+      material: askWhich(candidates).slice(0, MAX_MATERIAL),
+      needed: true,
+      found: true,
+      candidates,
+    };
   }
 
   const kind = textOf(out.kind);
   if (!out.needed || !kind || kind === "none") {
     // the search did answer even though the request was passed over: what it handed back rides
     if (out.no_result && web.length) {
-      return { material: `${HEAD}\n${webBlock(web)}`.slice(0, MAX_MATERIAL), needed: true, found: true };
+      return {
+        material: `${HEAD}\n${webBlock(web)}`.slice(0, MAX_MATERIAL),
+        needed: true,
+        found: true,
+        candidates: [],
+      };
     }
-    return { material: out.no_result ? MISS : "", needed: true, found: false };
+    return out.no_result ? miss() : nothing();
   }
 
   const title = textOf(out.title).slice(0, 120);
@@ -398,8 +586,13 @@ export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup>
   // the finding was refused anyway, what it handed back rides to the answer as it stands, so a
   // person the search found is never reported as a person nothing is known about.
   if (kind !== "word" && NO_RESULT.test(text)) {
-    if (!web.length) return { material: MISS, needed: true, found: false };
-    return { material: `${HEAD}\n${webBlock(web)}`.slice(0, MAX_MATERIAL), needed: true, found: true };
+    if (!web.length) return miss();
+    return {
+      material: `${HEAD}\n${webBlock(web)}`.slice(0, MAX_MATERIAL),
+      needed: true,
+      found: true,
+      candidates: [],
+    };
   }
   const term = textOf(out.term).slice(0, 80);
   const meaning = textOf(out.meaning).slice(0, 400);
@@ -450,7 +643,28 @@ export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup>
     material = `${HEAD}\n${headline} — ${saved}`;
   }
 
-  if (!material) return { material: MISS, needed: true, found: false };
+  // Several different people or artists under names that look alike is a question only the person can
+  // settle. The search's own findings are read apart once more, and where they carry two or more of
+  // them, every name is put before the person and they are asked which one is meant — with nothing
+  // answered about any of them. The reading runs on the material the answer would be given from, and
+  // on the results themselves where the search wrote none, so a search that named several people is
+  // never answered as though one of them had been chosen.
+  if (!asking.length && PERSON.test(query)) {
+    const forCheck = material || (web.length ? `${HEAD}\n${webBlock(web)}` : "");
+    if (forCheck) {
+      const names = await sameNameCheck(base44, query, forCheck);
+      if (names.length >= 2) {
+        return {
+          material: askWhich(names).slice(0, MAX_MATERIAL),
+          needed: true,
+          found: true,
+          candidates: names,
+        };
+      }
+    }
+  }
+
+  if (!material) return miss();
   // only the material for this answer goes back; the entry itself stays on the server
-  return { material: material.slice(0, MAX_MATERIAL), needed: true, found: true };
+  return { material: material.slice(0, MAX_MATERIAL), needed: true, found: true, candidates: [] };
 }

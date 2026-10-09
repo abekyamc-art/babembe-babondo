@@ -22,10 +22,16 @@ export default async function (req: Request): Promise<Response> {
       payload = {};
     }
 
-    const lookup = await lookupForTurn(base44, payload?.query);
+    // the names the app put before the person last turn ride back in with their answer, so this turn
+    // is read as the choice it is — and the names a search turns up now ride back with it
+    const lookup = await lookupForTurn(base44, payload?.query, payload?.asked);
     // where the material came from goes back with it — named, with its own address — so the call it
-    // is handed into can show the source of what the answer says, not only speak it aloud
-    return Response.json({ ...lookup, source: lookupSource(lookup.material) });
+    // is handed into can show the source of what the answer says, not only speak it aloud. A turn
+    // that is asking which of several names is meant has no source to name: it answered nothing yet.
+    return Response.json({
+      ...lookup,
+      source: lookup.candidates.length >= 2 ? null : lookupSource(lookup.material),
+    });
   } catch (error: any) {
     console.error("Could not look anything up:", error.message);
     return Response.json({ error: "The lookup is unavailable right now." }, { status: 500 });

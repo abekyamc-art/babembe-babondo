@@ -82,8 +82,11 @@ export default function useHomeVoice() {
 
   // the whole talk is kept here, so a call that hands over carries the conversation with it and
   // nothing said before the change is lost from the screen
-  const onTurn = useCallback((role, text, pictures, source) => {
-    setTurns((prev) => [...prev, { role, text, pictures: pictures || [], source: source || null }]);
+  const onTurn = useCallback((role, text, pictures, source, choices) => {
+    setTurns((prev) => [
+      ...prev,
+      { role, text, pictures: pictures || [], source: source || null, choices: choices || [] },
+    ]);
   }, []);
 
   /**

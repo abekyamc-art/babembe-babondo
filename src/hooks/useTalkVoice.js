@@ -69,9 +69,16 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
   const lastUserRef = useRef("");
   // where the material looked up for a turn came from, waiting for the answer that stands on it
   const freshSourceRef = useRef(null);
+  // The several different people or artists found under names that look alike, waiting on the
+  // person's answer: they stand on the answer that asks which one is meant, and ride back in with
+  // the turn that chooses between them, so the one they chose is the one that is looked up.
+  const askedRef = useRef([]);
+  // ...the same names on their way to that answer
+  const choicesRef = useRef([]);
 
   const push = useCallback(
-    (role, text, pictures, source) => turnRef.current?.(role, text, pictures, source),
+    (role, text, pictures, source, choices) =>
+      turnRef.current?.(role, text, pictures, source, choices),
     []
   );
 
@@ -163,7 +170,12 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
       // came from, and says plainly what could not be confirmed, instead of answering that it does
       // not know the person. The lookup decides for itself whether a turn needs one, so ordinary
       // talk waits for nothing.
-      const fresh = await loadFreshMaterial(said);
+      const fresh = await loadFreshMaterial(said, askedRef.current);
+      // the names the person was offered are settled by this turn: what the lookup puts forward now
+      // is what stands before them next
+      const choices = Array.isArray(fresh.candidates) ? fresh.candidates : [];
+      askedRef.current = choices.length >= 2 ? choices : [];
+      choicesRef.current = askedRef.current;
       if (fresh.material) socket.sendMemory(fresh.material);
       // where that material came from is kept for the answer that stands on it, so the screen can
       // show the source of what the voice says
@@ -216,7 +228,10 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
       // this answer alone and never beneath a later one
       const source = freshSourceRef.current;
       freshSourceRef.current = null;
-      push("assistant", text, undefined, source);
+      // the names waiting on the person's choice stand on the answer that asks for it, and are
+      // cleared with it so no later line carries them
+      push("assistant", text, undefined, source, choicesRef.current);
+      choicesRef.current = [];
       // The words this answer is made of are read against the admin's pictures as the answer is
       // shown, and the pictures of the words it carries join it a moment later: the answer itself
       // is never held back while they are found, and most answers carry none.
@@ -395,7 +410,10 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
       setNotice("");
       setStatus("thinking");
       try {
-        const res = await base44.functions.invoke("chatWithKibembeAssistant", { message: said });
+        const res = await base44.functions.invoke("chatWithKibembeAssistant", {
+          message: said,
+          asked: askedRef.current,
+        });
         const data = res?.data || {};
         if (data.error) {
           setError(data.error === UNAUTHORIZED ? SIGN_IN_TO_ASK : data.error);
@@ -406,11 +424,16 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
           setError(NO_WRITTEN_ANSWER);
           return;
         }
+        // the several different people or artists the search found under names that look alike ride
+        // with the answer that asks which one is meant
+        const choices = Array.isArray(data.candidates) ? data.candidates : [];
+        askedRef.current = choices.length >= 2 ? choices : [];
         push(
           "assistant",
           reply,
           Array.isArray(data.pictures) ? data.pictures : [],
-          data.source || null
+          data.source || null,
+          choices
         );
         writtenAnsweredRef.current?.();
       } catch (err) {

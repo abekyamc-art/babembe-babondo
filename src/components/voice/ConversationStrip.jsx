@@ -3,11 +3,12 @@ import ThinkingLine from "@/components/voice/ThinkingLine";
 import HeardTurn from "@/components/voice/HeardTurn";
 import AnswerText from "@/components/kibembe/AnswerText";
 import AnswerPictures from "@/components/kibembe/AnswerPictures";
+import AskNames from "@/components/kibembe/AskNames";
 
 // only the newest lines stay on screen: ten at most, both sides counted together
 const SHOWN = 10;
 
-export default function ConversationStrip({ turns, pending, onCorrectTurn }) {
+export default function ConversationStrip({ turns, pending, onCorrectTurn, onPick }) {
   const ref = useRef(null);
   // the writing line is a line too, so it takes one of the ten places
   const shown = turns.slice(-(pending ? SHOWN - 1 : SHOWN));
@@ -49,6 +50,9 @@ export default function ConversationStrip({ turns, pending, onCorrectTurn }) {
                     <AnswerText text={turn.text} pictures={turn.pictures} />
                   </p>
                   <AnswerPictures pictures={turn.pictures} />
+                  {/* several people or artists came back under names that look alike: the names stand
+                      here, and a tap names the one the person means */}
+                  <AskNames names={turn.choices} onPick={onPick} />
                   {/* where an answer was given from something looked up on the internet, where it
                       came from is named with its own address, so it can be read and followed */}
                   {turn.source?.url ? (
