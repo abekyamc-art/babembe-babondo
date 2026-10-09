@@ -31,9 +31,9 @@ export async function openHearingNote() {
 
 /**
  * The reading of one heard turn, as the voice answering it is told: the note that rides into the call
- * with the turn, whether the app is sure of what it heard, and the language that stands from this turn
- * on. A turn the app's own knowledge holds nothing of comes back `sure: false`, which is what lets the
- * call show the writing to the person and wait for their own word before any voice answers it.
+ * with the turn, whether the app's own knowledge holds anything of it, and the language that stands
+ * from this turn on. A turn the knowledge holds nothing of comes back `sure: false` — it is answered
+ * on the voice's own account like any other, and the turn is never held waiting on the person's word.
  *
  * A reading that cannot be made is never a reason to hold a call up: it comes back sure, with no note.
  */

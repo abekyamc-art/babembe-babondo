@@ -137,13 +137,13 @@ export default function useCartesiaVoice({
   /**
    * The person's own turn, written down and reported by the agent.
    *
-   * A capture the app is not sure of is never taken as the person's own words. It is held, shown as
-   * what the app thinks it heard, and nothing goes into the talk until they say it stands — which is
-   * what keeps a line nobody said, a breath of the room the floor only just let through, from ever
-   * standing on the screen as theirs.
+   * The turn goes on the screen the moment it has ended: nothing is held back waiting on the person's
+   * own word, which is what left a finished turn standing with no answer after it. A breath of the
+   * room never reaches here at all — the floor, and the least a turn of speech runs, keep it out of
+   * the talk before it is ever written down.
    */
   const handleUserText = useCallback(
-    (text, weak) => {
+    (text) => {
       const said = String(text || "").trim();
       if (!said) return;
       // What the app's own ears write for a breath of the room is a fragment, never a turn of the
@@ -158,12 +158,6 @@ export default function useCartesiaVoice({
       // is asked for once more, and the Kibembe they really said is what comes back.
       if (isMisheard(said)) {
         setNotice(SAY_AGAIN_KIBEMBE);
-        return;
-      }
-      // the app is not sure of this one: it is held as a question rather than taken as their words
-      if (weak) {
-        checkRef.current = { text: said };
-        setCheck(checkRef.current);
         return;
       }
       takeTurn(said);

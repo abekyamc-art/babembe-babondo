@@ -27,16 +27,13 @@ const CHUNK = 2048;
 //
 // A room is never silent, and this floor is what keeps the room's own noise out of the talk: a fan,
 // a door, a passing voice from another room all sit under it, and a turn of the person's own rises
-// well above it. A capture that only just clears it is still heard — the words may well be theirs —
-// but it is handed over as one the app is not sure of, so they are the one who says whether it stands.
-const EARS_LEVEL = 0.03;
+// above it. It is kept low enough that a soft-spoken turn still opens one — and what keeps a sound
+// that never really stood out of the talk is the length below.
+const EARS_LEVEL = 0.02;
 const EARS_END_MS = 1200;
 const EARS_MAX_MS = 20000;
 // the least sound above the floor that a turn of speech runs: a tap, a cough or a door is not one
 const EARS_MIN_MS = 350;
-// and what makes a capture one the app is sure of: this long above the floor, and this loud at its loudest
-const EARS_STRONG_MS = 700;
-const EARS_STRONG_PEAK = 0.09;
 // the rate the app's own ears are handed the turn in
 const EARS_RATE = 16000;
 // a turn he has taken and never answered: the wait is given up on and the call moves on rather than
@@ -84,10 +81,9 @@ export default class CartesiaCall {
     this.earsFrames = [];
     this.earsAt = 0;
     this.earsHeardAt = 0;
-    // how much of that turn really stood above the room's own floor, and how loud it got at its
-    // loudest: what decides whether the app is sure of the turn or asks the person about it
+    // how much of that turn really stood above the room's own floor: a capture shorter than the least
+    // a turn of speech runs is not a turn at all
     this.earsVoiced = 0;
-    this.earsPeak = 0;
     // the wait for an answer he has taken but never given
     this.answerGuard = null;
     // The turn being answered right now, and the last answer already counted: the service numbers
@@ -408,7 +404,6 @@ export default class CartesiaCall {
       this.earsOn = false;
       this.earsFrames = [];
       this.earsVoiced = 0;
-      this.earsPeak = 0;
       return;
     }
 
@@ -416,7 +411,6 @@ export default class CartesiaCall {
     if (loud) {
       this.earsHeardAt = now;
       this.earsVoiced += chunk.length;
-      if (this.micLevel > this.earsPeak) this.earsPeak = this.micLevel;
     }
     if (!this.earsOn) {
       if (!loud) return;
@@ -424,7 +418,6 @@ export default class CartesiaCall {
       this.earsAt = now;
       this.earsFrames = [];
       this.earsVoiced = chunk.length;
-      this.earsPeak = this.micLevel;
     }
     // the sound arrives in chunks the audio system reuses, so the turn is kept as its own copy
     this.earsFrames.push(chunk.slice());
@@ -446,20 +439,14 @@ export default class CartesiaCall {
     const at = this.capture?.sampleRate || RATE;
     const total = frames.reduce((count, frame) => count + frame.length, 0);
     const voiced = (this.earsVoiced / at) * 1000;
-    const peak = this.earsPeak;
     this.earsOn = false;
     this.earsFrames = [];
     this.earsVoiced = 0;
-    this.earsPeak = 0;
 
     // A tap, a cough, a door, a breath of the room: the sound never really stood above the floor, so
     // there is no turn here at all and nothing is written down from it. This is what keeps a line
     // nobody said from ever standing on the screen as the person's own.
     if (voiced < EARS_MIN_MS) return;
-    // What was heard is handed over with whether the app is sure of it: a turn that only just cleared
-    // the floor, or that was barely there at its loudest, is one the person is asked about before it
-    // is taken as theirs.
-    const weak = voiced < EARS_STRONG_MS || peak < EARS_STRONG_PEAK;
 
     const joined = new Float32Array(total);
     let put = 0;
@@ -484,7 +471,7 @@ export default class CartesiaCall {
       return;
     }
     this.h.onReask?.("");
-    this.h.onUserText?.(text, weak);
+    this.h.onUserText?.(text);
   }
 
   /** His answer, played as it arrives: each piece follows the one before it without a seam. */
@@ -560,7 +547,6 @@ export default class CartesiaCall {
     this.earsOn = false;
     this.earsFrames = [];
     this.earsVoiced = 0;
-    this.earsPeak = 0;
     this.clearAnswerGuard();
     this.stopPlayback();
     [this.processor, this.source, this.sink].forEach((node) => {

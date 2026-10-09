@@ -262,6 +262,10 @@ export default class RealtimeCall {
             String(msg.response?.status_details?.error?.message || "").slice(0, 160) ||
               "The voice could not read that line out."
           );
+          // A response that gave no sound leaves nothing for the microphone to wait behind: it is
+          // opened again here, so a call whose answer never arrived is not left deaf to every turn
+          // after it — a microphone still shut is a call that answers nothing.
+          this.markSpeaking(false);
         }
         this.settleSpeak(status !== "failed");
         return;

@@ -222,12 +222,11 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
   }, []);
 
   /**
-   * The app's own ears have written the person's turn down, and this is where it is put to the voice —
-   * or held back. The app's own reading of the turn rides in with the words, so a word the Word Bank
-   * holds is answered from its own meaning; and where the app's knowledge holds nothing at all of what
-   * was written, the writing is shown to the person instead of being answered: nothing goes to the
-   * voice until they say it is right or say the turn again, so the answer that follows is an answer to
-   * the turn they really made.
+   * The app's own ears have written the person's turn down, and this is where it is put to the voice.
+   * The app's own reading of the turn rides in with the words, so a word the Word Bank holds is
+   * answered from its own meaning — and the turn goes to the voice the moment it has ended, whatever
+   * the reading found. Nothing is held back waiting on the person's own word: a turn held that way was
+   * never answered at all, and the microphone stayed shut behind it.
    */
   const handleHeard = useCallback(
     async (text, language, socket) => {
@@ -249,12 +248,6 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       // a language plainly asked for stands from here on, and the rule for it rides in with the reading
       if (read.mode) saveLangMode(read.mode);
       if (read.note) socket.sendMemory(read.note);
-      if (!read.sure) {
-        socket.setReviewPending(true);
-        checkRef.current = { text: said, language };
-        setCheck(checkRef.current);
-        return;
-      }
       await handOn(socket, said, language);
     },
     [handOn, push]
