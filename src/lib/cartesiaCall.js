@@ -24,11 +24,24 @@ const CHUNK = 2048;
 // listens through — so the turn is kept here while it is being said and handed over when it is
 // over. Only sound above this floor opens a turn, a breath of quiet this long closes it, and no
 // turn is kept longer than one turn is allowed to run.
-const EARS_LEVEL = 0.02;
+//
+// A room is never silent, and this floor is what keeps the room's own noise out of the talk: a fan,
+// a door, a passing voice from another room all sit under it, and a turn of the person's own rises
+// well above it. A capture that only just clears it is still heard — the words may well be theirs —
+// but it is handed over as one the app is not sure of, so they are the one who says whether it stands.
+const EARS_LEVEL = 0.03;
 const EARS_END_MS = 1200;
 const EARS_MAX_MS = 20000;
+// the least sound above the floor that a turn of speech runs: a tap, a cough or a door is not one
+const EARS_MIN_MS = 350;
+// and what makes a capture one the app is sure of: this long above the floor, and this loud at its loudest
+const EARS_STRONG_MS = 700;
+const EARS_STRONG_PEAK = 0.09;
 // the rate the app's own ears are handed the turn in
 const EARS_RATE = 16000;
+// a turn he has taken and never answered: the wait is given up on and the call moves on rather than
+// sitting on a voice that has gone quiet
+const ANSWER_GUARD_MS = 15000;
 
 function b64ToBytes(b64) {
   const bin = atob(b64);
@@ -71,6 +84,12 @@ export default class CartesiaCall {
     this.earsFrames = [];
     this.earsAt = 0;
     this.earsHeardAt = 0;
+    // how much of that turn really stood above the room's own floor, and how loud it got at its
+    // loudest: what decides whether the app is sure of the turn or asks the person about it
+    this.earsVoiced = 0;
+    this.earsPeak = 0;
+    // the wait for an answer he has taken but never given
+    this.answerGuard = null;
     // The turn being answered right now, and the last answer already counted: the service numbers
     // every turn — the person's and his — in one strictly increasing line, so a number that has
     // already been counted is never counted a second time.
@@ -199,6 +218,8 @@ export default class CartesiaCall {
     }
 
     if (msg.type === "audio_output") {
+      // his voice has arrived: the wait for an answer he never gave is called off
+      this.clearAnswerGuard();
       this.play(msg.audio);
       return;
     }
@@ -224,6 +245,8 @@ export default class CartesiaCall {
       this.draft = "";
       // his answer stays open until the service closes its turn, or until his voice has drained
       this.answerOpen = true;
+      // and it is waited on: a turn taken and never answered is given up on rather than left standing
+      this.armAnswerGuard();
       // The answer is counted here, the moment he takes the turn that follows the person's own: it
       // is the one report every answer carries, so a voice whose turns the service never closes —
       // or whose voice is still sounding when the call is handed on — is still counted.
@@ -234,11 +257,17 @@ export default class CartesiaCall {
     // his answer as it is being written, kept while it arrives: the line is whole even where the
     // service closes the turn without carrying the text along with it
     if (msg.type === "turn_output_text_delta") {
-      if (msg.role === "assistant" && msg.text) this.draft += msg.text;
+      if (msg.role === "assistant" && msg.text) {
+        // he is answering: the wait is called off
+        this.clearAnswerGuard();
+        this.draft += msg.text;
+      }
       return;
     }
 
     if (msg.type === "turn_ended") {
+      // the turn closed, his or the person's: nothing is left waiting on an answer from it
+      this.clearAnswerGuard();
       if (msg.role === "user") {
         if (typeof msg.turn === "number") this.userTurn = Math.max(this.userTurn, msg.turn);
         // the person's turn is heard out in full: an answer to it may be counted from here on
@@ -296,6 +325,24 @@ export default class CartesiaCall {
     if (!this.answerOpen) return;
     this.answerOpen = false;
     this.countAnswer(this.turn);
+  }
+
+  /**
+   * A turn he has taken is waited on. The wait runs from the moment he takes it, so a voice that
+   * never comes back — a session gone quiet, an agent that dropped the turn — is reported plainly
+   * instead of the call sitting there looking live with nothing ever said.
+   */
+  armAnswerGuard() {
+    clearTimeout(this.answerGuard);
+    this.answerGuard = setTimeout(() => {
+      this.answerGuard = null;
+      this.h.onNoAnswer?.();
+    }, ANSWER_GUARD_MS);
+  }
+
+  clearAnswerGuard() {
+    clearTimeout(this.answerGuard);
+    this.answerGuard = null;
   }
 
   send(payload) {
@@ -360,16 +407,24 @@ export default class CartesiaCall {
     if (this.speaking) {
       this.earsOn = false;
       this.earsFrames = [];
+      this.earsVoiced = 0;
+      this.earsPeak = 0;
       return;
     }
 
     const loud = this.micLevel > EARS_LEVEL;
-    if (loud) this.earsHeardAt = now;
+    if (loud) {
+      this.earsHeardAt = now;
+      this.earsVoiced += chunk.length;
+      if (this.micLevel > this.earsPeak) this.earsPeak = this.micLevel;
+    }
     if (!this.earsOn) {
       if (!loud) return;
       this.earsOn = true;
       this.earsAt = now;
       this.earsFrames = [];
+      this.earsVoiced = chunk.length;
+      this.earsPeak = this.micLevel;
     }
     // the sound arrives in chunks the audio system reuses, so the turn is kept as its own copy
     this.earsFrames.push(chunk.slice());
@@ -389,12 +444,22 @@ export default class CartesiaCall {
     if (!this.earsOn) return;
     const frames = this.earsFrames;
     const at = this.capture?.sampleRate || RATE;
+    const total = frames.reduce((count, frame) => count + frame.length, 0);
+    const voiced = (this.earsVoiced / at) * 1000;
+    const peak = this.earsPeak;
     this.earsOn = false;
     this.earsFrames = [];
+    this.earsVoiced = 0;
+    this.earsPeak = 0;
 
-    const total = frames.reduce((count, frame) => count + frame.length, 0);
-    // a tap, a cough or a door is not a turn
-    if (total < at * 0.3) return;
+    // A tap, a cough, a door, a breath of the room: the sound never really stood above the floor, so
+    // there is no turn here at all and nothing is written down from it. This is what keeps a line
+    // nobody said from ever standing on the screen as the person's own.
+    if (voiced < EARS_MIN_MS) return;
+    // What was heard is handed over with whether the app is sure of it: a turn that only just cleared
+    // the floor, or that was barely there at its loudest, is one the person is asked about before it
+    // is taken as theirs.
+    const weak = voiced < EARS_STRONG_MS || peak < EARS_STRONG_PEAK;
 
     const joined = new Float32Array(total);
     let put = 0;
@@ -419,7 +484,7 @@ export default class CartesiaCall {
       return;
     }
     this.h.onReask?.("");
-    this.h.onUserText?.(text);
+    this.h.onUserText?.(text, weak);
   }
 
   /** His answer, played as it arrives: each piece follows the one before it without a seam. */
@@ -494,6 +559,9 @@ export default class CartesiaCall {
     this.ready = false;
     this.earsOn = false;
     this.earsFrames = [];
+    this.earsVoiced = 0;
+    this.earsPeak = 0;
+    this.clearAnswerGuard();
     this.stopPlayback();
     [this.processor, this.source, this.sink].forEach((node) => {
       if (!node) return;

@@ -495,9 +495,11 @@ export default function useHomeVoice() {
     ask,
     // the person's own words put in place of the app's writing of their turn
     correctTurn,
-    heardAsk: seat.kind === "cartesia" ? null : talk.check,
-    acceptHeard: talk.acceptHeard,
-    againHeard: talk.againHeard,
+    // a turn the voice holding the call is not sure it heard: either voice asks the person the same
+    // way, and their own answer is what settles whether it stands
+    heardAsk: live.check,
+    acceptHeard: live.acceptHeard,
+    againHeard: live.againHeard,
     // what the app would keep from those words, and the person's own answer to the offer
     saveAsk,
     keepSave,

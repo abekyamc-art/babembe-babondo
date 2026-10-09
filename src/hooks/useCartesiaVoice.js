@@ -25,6 +25,8 @@ import { noteVoiceTurn } from "@/lib/kpiEvents";
 const NO_REACH = (who) => `${who} couldn't be reached. Please try again.`;
 const ENDED = (who) => `${who}'s call ended. Tap the phone to talk again.`;
 const TOUCH_TO_HEAR = "Touch the screen to let the sound through.";
+// a turn he took and never answered: the session went quiet with the call still looking live
+const NO_ANSWER = (who) => `${who} went quiet on that one — tap the phone and ask again.`;
 
 export default function useCartesiaVoice({
   onTurn,
@@ -37,6 +39,9 @@ export default function useCartesiaVoice({
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // a turn the app is not sure it heard: its writing stands as a question, and nothing is taken as
+  // the person's own words until they say it stands
+  const [check, setCheck] = useState(null);
   const levelRef = useRef(0);
   // the Cartesia voice the call is open on, named on screen and in anything said about it
   const labelRef = useRef(CARTESIA_AI);
@@ -69,6 +74,9 @@ export default function useCartesiaVoice({
   picturesRef.current = onPictures;
   // while the phone is holding the sound back, this waits for the touch that starts it
   const offTouchRef = useRef(null);
+  // the turn held for the person's own word, kept in a ref because the handler that reads it was
+  // handed to the call as it opened
+  const checkRef = useRef(null);
 
   const backToListening = useCallback(() => {
     if (!activeRef.current) return;
@@ -81,6 +89,9 @@ export default function useCartesiaVoice({
     speakingRef.current = false;
     callRef.current = null;
     levelRef.current = 0;
+    // a call that is gone holds nothing: the writing waiting on the person's own word goes with it
+    checkRef.current = null;
+    setCheck(null);
     if (offTouchRef.current) {
       offTouchRef.current();
       offTouchRef.current = null;
@@ -103,9 +114,36 @@ export default function useCartesiaVoice({
     [finish]
   );
 
-  /** The person's own turn, written down and reported by the agent. */
+  /**
+   * One turn of the person's is taken as theirs: it goes on the screen as their own line, and it is
+   * read for the app's own learning.
+   *
+   * Cartesia AI hears, answers and speaks on its own account, and its own settings are left exactly
+   * as they are — so no reading is handed to it. What the reading is still used for is the app's own
+   * learning: a word, a sound or an answer the person puts right on this turn is saved into the Word
+   * Bank, so the Kibembe they confirm is not lost with the call. A language the person plainly asks
+   * for is kept here as well, so the screen's own pill stands with the language they asked for and
+   * not with the one that was standing before it.
+   */
+  const takeTurn = useCallback((said) => {
+    setNotice("");
+    lastUserRef.current = said;
+    turnRef.current?.("user", said);
+    readHeardTurn(said, lastAgentRef.current).then(({ mode }) => {
+      if (mode) saveLangMode(mode);
+    });
+  }, []);
+
+  /**
+   * The person's own turn, written down and reported by the agent.
+   *
+   * A capture the app is not sure of is never taken as the person's own words. It is held, shown as
+   * what the app thinks it heard, and nothing goes into the talk until they say it stands — which is
+   * what keeps a line nobody said, a breath of the room the floor only just let through, from ever
+   * standing on the screen as theirs.
+   */
   const handleUserText = useCallback(
-    (text) => {
+    (text, weak) => {
       const said = String(text || "").trim();
       if (!said) return;
       // What the app's own ears write for a breath of the room is a fragment, never a turn of the
@@ -122,21 +160,31 @@ export default function useCartesiaVoice({
         setNotice(SAY_AGAIN_KIBEMBE);
         return;
       }
-      setNotice("");
-      lastUserRef.current = said;
-      turnRef.current?.("user", said);
-      // Cartesia AI hears, answers and speaks on its own account, and its own settings are left
-      // exactly as they are — so no reading is handed to it. What the reading is still used for is
-      // the app's own learning: a word, a sound or an answer the person puts right on this turn is
-      // saved into the Word Bank, so the Kibembe they confirm is not lost with the call. A language
-      // the person plainly asks for is kept here as well, so the screen's own pill stands with the
-      // language they asked for and not with the one that was standing before it.
-      readHeardTurn(said, lastAgentRef.current).then(({ mode }) => {
-        if (mode) saveLangMode(mode);
-      });
+      // the app is not sure of this one: it is held as a question rather than taken as their words
+      if (weak) {
+        checkRef.current = { text: said };
+        setCheck(checkRef.current);
+        return;
+      }
+      takeTurn(said);
     },
-    []
+    [takeTurn]
   );
+
+  /** The person has said the writing is right: the turn stands in the talk as their own words. */
+  const acceptHeard = useCallback(() => {
+    const held = checkRef.current;
+    checkRef.current = null;
+    setCheck(null);
+    if (held) takeTurn(held.text);
+  }, [takeTurn]);
+
+  /** They are saying the turn again: the writing goes, and what is answered is the turn they say next. */
+  const againHeard = useCallback(() => {
+    checkRef.current = null;
+    setCheck(null);
+    setNotice(SAY_AGAIN_TURN);
+  }, []);
 
   /**
    * The person puts the app's own writing of their turn right. Cartesia AI hears the person itself,
@@ -215,6 +263,22 @@ export default function useCartesiaVoice({
   }, []);
 
   /**
+   * A turn he took and never answered: the session has gone quiet on a call that still looks live.
+   * The call is ended here and reported exactly as a call the service closed is, so the voice is
+   * passed over and the person can tap the phone to talk again — rather than a call that has stopped
+   * answering sitting there looking live with nothing ever said on it.
+   */
+  const handleNoAnswer = useCallback(() => {
+    if (!activeRef.current) return;
+    const call = callRef.current;
+    finish();
+    setNotice(NO_ANSWER(labelRef.current));
+    // the socket is hung up on rather than left holding the microphone open behind a call that ended
+    call?.stop();
+    endedRef.current?.();
+  }, [finish]);
+
+  /**
    * The call opens here, on the first of the seat's three accounts that can take it. The keys
    * themselves never reach the phone: the app's own server is asked for a short-lived token for one
    * account, and that is what opens the agent's calling socket. What comes back is whether the call
@@ -248,6 +312,7 @@ export default function useCartesiaVoice({
         onAnswered: handleAnswered,
         onError: handleError,
         onReask: handleReask,
+        onNoAnswer: handleNoAnswer,
       };
 
       // The accounts behind this one seat are tried in their own order — the app's own account first,
@@ -330,6 +395,7 @@ export default function useCartesiaVoice({
       handleAudioEnd,
       handleAudioStart,
       handleError,
+      handleNoAnswer,
       handleReask,
       handleStatus,
       handleThinking,
@@ -363,5 +429,9 @@ export default function useCartesiaVoice({
     stop,
     // the person's own words put in place of the writing of their turn
     correct,
+    // a turn the app is not sure it heard, and the person's own answer to it
+    check,
+    acceptHeard,
+    againHeard,
   };
 }
