@@ -1,9 +1,8 @@
-import React, { useRef, useState } from "react";
-import { Disc3, Download, FileAudio, Plus, Save, Square, Trash2 } from "lucide-react";
+import React, { useState } from "react";
+import { Disc3, Download, Save, Trash2 } from "lucide-react";
 import StudioPills from "@/components/rap/StudioPills";
 import VoiceTrackRow from "@/components/rap/VoiceTrackRow";
 import { MODES, ROOTS, rootOf } from "@/lib/pitchShift";
-import { timeLabel } from "@/lib/rapBeat";
 
 /**
  * The studio's voice tracks: a lane for every voice, added with one tap, recorded on the spot or
@@ -13,7 +12,6 @@ import { timeLabel } from "@/lib/rapBeat";
 export default function VoiceTracksPanel({ studio, ready }) {
   const [root, setRoot] = useState("a");
   const [mode, setMode] = useState("minor");
-  const fileRef = useRef(null);
   const pc = rootOf(root).pc;
   const off = !ready || !!studio.busy;
 
@@ -24,40 +22,6 @@ export default function VoiceTracksPanel({ studio, ready }) {
         <span className="rap-chip">
           {studio.tracks.length}/{studio.max}
         </span>
-      </div>
-
-      <div className="rap-add-row">
-        <button
-          type="button"
-          className={`rap-cta rap-cta-ghost ${studio.recording ? "is-live" : ""}`}
-          onClick={studio.recording ? studio.stopRecording : studio.startRecording}
-          disabled={!studio.recording && off}
-        >
-          {studio.recording ? <Square className="mr-2 inline h-4 w-4 align-[-3px]" /> : <Plus className="mr-2 inline h-4 w-4 align-[-3px]" />}
-          {studio.recording ? `Simamisha · ${timeLabel(studio.seconds)}` : "Ongeza sauti (rekodi)"}
-        </button>
-
-        <button
-          type="button"
-          className="rap-cta rap-cta-ghost"
-          onClick={() => fileRef.current?.click()}
-          disabled={off}
-        >
-          <FileAudio className="mr-2 inline h-4 w-4 align-[-3px]" />
-          Pakia sauti
-        </button>
-
-        <input
-          ref={fileRef}
-          type="file"
-          accept="audio/*"
-          className="rap-hidden"
-          onChange={(event) => {
-            const file = event.target.files?.[0];
-            event.target.value = "";
-            if (file) studio.importFile(file);
-          }}
-        />
       </div>
 
       <div className="rap-key">
@@ -82,8 +46,8 @@ export default function VoiceTracksPanel({ studio, ready }) {
         </ul>
       ) : (
         <p className="rap-hint">
-          Bado hakuna sauti. Gusa “Ongeza sauti” kurekodi kwenye lane yako ya kwanza, au pakia faili la
-          sauti ulilonalo — unaweza kuongeza hadi {studio.max}.
+          Bado hakuna sauti. Kwenye paneli ya “Ongeza” chagua Sauti 1 kurekodi au kupakia faili la sauti
+          — unaweza kuongeza hadi {studio.max}.
         </p>
       )}
 

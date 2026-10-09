@@ -1,17 +1,16 @@
 import React from "react";
-import { Drum, ListMusic, Mic2, Music2, SlidersHorizontal } from "lucide-react";
+import { ListMusic, Music2, Plus, SlidersHorizontal } from "lucide-react";
 import RapSessionPanel from "@/components/rap/RapSessionPanel";
 import RapPlayer from "@/components/rap/RapPlayer";
 import RapDownloads from "@/components/rap/RapDownloads";
 import RapHistory from "@/components/rap/RapHistory";
 import RapSong from "@/components/rap/RapSong";
 import RapSimilar from "@/components/rap/RapSimilar";
-import SavedBeats from "@/components/rap/SavedBeats";
 import SongwriterPanel from "@/components/rap/SongwriterPanel";
 import RapControls from "@/components/rap/RapControls";
+import AddTrackPanel from "@/components/rap/AddTrackPanel";
 import VoiceTracksPanel from "@/components/rap/VoiceTracksPanel";
 import ClonedVoicePanel from "@/components/rap/ClonedVoicePanel";
-import BeatMaker from "@/components/rap/BeatMaker";
 import { RAP_COST } from "@/lib/coins";
 import { flowOf } from "@/lib/rapBeat";
 
@@ -19,8 +18,7 @@ import { flowOf } from "@/lib/rapBeat";
  *  stands first and opens by itself. */
 export const STUDIO_TABS = [
   { id: "song", label: "Wimbo", Icon: Music2 },
-  { id: "voices", label: "Sauti", Icon: Mic2 },
-  { id: "beats", label: "Beats", Icon: Drum },
+  { id: "add", label: "Ongeza", Icon: Plus },
   { id: "takes", label: "Take", Icon: ListMusic },
   { id: "settings", label: "Mipangilio", Icon: SlidersHorizontal },
 ];
@@ -62,13 +60,20 @@ export default function StudioDock({ studio, songwriter, voiceTracks, beatMaker,
       </div>
     ),
 
-    voices: (
+    add: (
       <div className="rap-dock-grid">
         <div className="rap-col">
-          <VoiceTracksPanel studio={voiceTracks} ready={ready} />
+          <AddTrackPanel
+            studio={studio}
+            voiceTracks={voiceTracks}
+            beatMaker={beatMaker}
+            ready={ready}
+          />
         </div>
 
         <div className="rap-col">
+          <VoiceTracksPanel studio={voiceTracks} ready={ready} />
+
           <ClonedVoicePanel
             busy={working}
             ready={ready}
@@ -76,30 +81,6 @@ export default function StudioDock({ studio, songwriter, voiceTracks, beatMaker,
             language={settings.language}
             speed={flowOf(settings.flow)?.speed || 1}
             onAddSung={voiceTracks.addSung}
-          />
-        </div>
-      </div>
-    ),
-
-    beats: (
-      <div className="rap-dock-grid">
-        <div className="rap-col">
-          <BeatMaker
-            maker={beatMaker}
-            bpm={settings.bpm}
-            ready={ready}
-            onBpm={(next) => studio.setSettings({ ...settings, bpm: next })}
-          />
-        </div>
-
-        <div className="rap-col">
-          <SavedBeats
-            beats={studio.savedBeats}
-            activeUri={beat?.file_uri || ""}
-            busy={working}
-            onUse={studio.useSavedBeat}
-            onRemove={studio.removeSavedBeat}
-            loadBytes={studio.beatBytesOf}
           />
         </div>
       </div>

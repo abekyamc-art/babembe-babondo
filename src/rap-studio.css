@@ -161,6 +161,15 @@
   border-radius: 10px;
 }
 
+/* a tool opened inside the add panel is part of that panel, not a box inside a box */
+.rap-card .rap-card {
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
 /* a piece of the session standing inside a column is part of that column, not a box in a box */
 .rap-panel > .rap-card,
 .rap-timeline > .rap-card {
