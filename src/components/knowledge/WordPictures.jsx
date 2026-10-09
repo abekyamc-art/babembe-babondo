@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Loader2, Trash2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import PictureThumb from "@/components/knowledge/PictureThumb";
+import PictureDownload from "@/components/knowledge/PictureDownload";
 import { findInDoc } from "@/lib/knowledgeDoc";
 
 const tidy = (value) => String(value || "").trim();
@@ -89,11 +90,15 @@ export default function WordPictures({ text = "" }) {
 
   if (!rows || !rows.length) {
     return (
-      <span className="knowledge-meter-text">
-        Pictures saved beside words stand here, each one beside the line of your document that holds its
-        word. Import a ZIP or a Word file and every picture it carries is kept beside the word it stood
-        next to.
-      </span>
+      <>
+        <span className="knowledge-meter-text">
+          Pictures saved beside words stand here, each one beside the line of your document that holds its
+          word. Import a ZIP or a Word file and every picture it carries is kept beside the word it stood
+          next to.
+        </span>
+
+        <PictureDownload count={0} />
+      </>
     );
   }
 
@@ -182,6 +187,8 @@ export default function WordPictures({ text = "" }) {
           );
         })}
       </div>
+
+      <PictureDownload count={rows.length} />
     </div>
   );
 }

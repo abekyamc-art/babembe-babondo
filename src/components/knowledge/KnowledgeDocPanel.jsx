@@ -4,6 +4,7 @@ import useKnowledgeDoc from "@/hooks/useKnowledgeDoc";
 import DocStatus from "@/components/knowledge/DocStatus";
 import DocImport from "@/components/knowledge/DocImport";
 import WordPictures from "@/components/knowledge/WordPictures";
+import PictureDownload from "@/components/knowledge/PictureDownload";
 
 /**
  * The one knowledge document: everything the AIs must know, in one text, under its own headings.
@@ -112,6 +113,8 @@ export default function KnowledgeDocPanel({ focus }) {
       </div>
 
       <WordPictures text={doc.text} />
+
+      <PictureDownload count={doc.doc?.pictures || 0} />
 
       {doc.error ? <p className="knowledge-error">{doc.error}</p> : null}
 

@@ -8,6 +8,7 @@ import { bestStory, storyNote } from "../../shared/storyMatch.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
+import { turnPictures } from "../../shared/answerPictures.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
@@ -173,7 +174,12 @@ export default async function (req) {
 
     const reply = replyText(data);
     if (!reply) return Response.json({ error: NO_REPLY });
-    return Response.json({ reply });
+    // The pictures the admin saved beside the words this answer is made of ride with it: the screen
+    // stands each one where its word is said in the answer, and again below the answer, so a word the
+    // admin gave a picture to is answered with that picture and not with words alone. An answer whose
+    // words carry no picture comes back with none, which is most of them.
+    const pictures = await turnPictures(base44, message, reply);
+    return Response.json({ reply, pictures });
   } catch (error) {
     console.error('The Kibembe assistant failed:', error?.message);
     return Response.json({ error: NO_REPLY }, { status: 500 });

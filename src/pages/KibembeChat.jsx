@@ -100,7 +100,7 @@ export default function KibembeChat() {
         ) : null}
 
         {turns.map((line, index) => (
-          <ChatBubble key={index} role={line.role} text={line.text} />
+          <ChatBubble key={index} role={line.role} text={line.text} pictures={line.pictures} />
         ))}
 
         {busy ? <p className="font-body text-xs text-muted-foreground">Anafikiria…</p> : null}

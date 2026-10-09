@@ -56,8 +56,10 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
   const misheardRef = useRef(onMisheard);
   misheardRef.current = onMisheard;
 
-  const pushTurn = useCallback((role, text) => {
-    setTurns((prev) => [...prev, { role, text }]);
+  // a turn carries the pictures the answer came with, where it came with any, so the screen can
+  // stand each one at the word it belongs to and again below the answer
+  const pushTurn = useCallback((role, text, pictures) => {
+    setTurns((prev) => [...prev, { role, text, pictures: pictures || [] }]);
     turnRef.current?.(role, text);
   }, []);
 
@@ -84,12 +86,14 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
         }
         const draft = String(data.reply || "").trim();
         if (!draft) return;
+        // the pictures the admin saved beside the words this answer is made of ride with it
+        const pictures = Array.isArray(data.pictures) ? data.pictures : [];
         // Sadiki AI reads the answer before the person is given it, and what stands is what he hands
         // back; where he could not be asked at all, the answer the assistant wrote stands instead
         const reviewed = await reviewAnswer(line, draft);
         const reply = reviewed || draft;
         if (!reviewed) setNotice(REVIEW_MISSED);
-        pushTurn("assistant", reply);
+        pushTurn("assistant", reply, pictures);
         // the answer has been given, so it is counted against the allowance
         answeredRef.current?.();
         const call = callRef.current;
