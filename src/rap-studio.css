@@ -439,3 +439,116 @@
 .rap-step.is-failed .rap-step-mark {
   color: #ffb6bd;
 }
+
+/* The songwriter: a whole song written out — its parts, its lead lines and the voice that answers
+   behind them — and the person's own performance recorded onto the beat. */
+.rap-area {
+  min-height: 84px;
+  font-family: inherit;
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.rap-song-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 650;
+  letter-spacing: -0.3px;
+}
+
+.rap-song-part {
+  display: flex;
+  flex-direction: column;
+}
+
+.rap-song-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 0;
+  border-bottom: 1px solid #1c2440;
+}
+
+.rap-song-line:last-child {
+  border-bottom: 0;
+}
+
+.rap-song-text {
+  margin: 0;
+  color: #f5f6ff;
+  font-size: 15px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+.rap-song-meaning {
+  margin: 0;
+  color: #9ba9c6;
+  font-size: 12.5px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
+}
+
+/* the voice behind the lead: set in, softer, and named as what it is */
+.rap-song-line.is-back .rap-song-text {
+  padding-left: 14px;
+  color: #8ebaff;
+  font-style: italic;
+}
+
+.rap-song-tag {
+  margin-right: 6px;
+  color: #7183a8;
+  font-size: 9px;
+  font-weight: 700;
+  font-style: normal;
+  letter-spacing: 1.2px;
+  vertical-align: 2px;
+}
+
+.rap-rec {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.rap-rec-dot {
+  width: 9px;
+  height: 9px;
+  flex: none;
+  border-radius: 999px;
+  background: #ff6b81;
+}
+
+.rap-rec.is-live .rap-rec-dot {
+  animation: rap-pulse 1.25s ease-out infinite;
+}
+
+.rap-rec-time {
+  margin-left: auto;
+  color: #f5f6ff;
+  font: 650 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.rap-tool-live {
+  color: #ffe1e5;
+  background: #6d2030;
+  border-color: #8f3548;
+}
+
+@keyframes rap-pulse {
+  from {
+    box-shadow: 0 0 0 0 rgba(255, 107, 129, 0.55);
+  }
+  to {
+    box-shadow: 0 0 0 12px rgba(255, 107, 129, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rap-rec.is-live .rap-rec-dot {
+    animation: none;
+  }
+}

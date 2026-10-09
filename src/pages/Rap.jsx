@@ -2,6 +2,7 @@ import React from "react";
 import { useNavigate } from "react-router-dom";
 import { ArrowLeft, Coins } from "lucide-react";
 import useRapStudio from "@/hooks/useRapStudio";
+import useSongwriter from "@/hooks/useSongwriter";
 import TypingDots from "@/components/voice/TypingDots";
 import RapControls from "@/components/rap/RapControls";
 import RapGenerate from "@/components/rap/RapGenerate";
@@ -13,6 +14,7 @@ import RapHistory from "@/components/rap/RapHistory";
 import RapSong from "@/components/rap/RapSong";
 import RapSimilar from "@/components/rap/RapSimilar";
 import SavedBeats from "@/components/rap/SavedBeats";
+import SongwriterPanel from "@/components/rap/SongwriterPanel";
 import { RAP_COST } from "@/lib/coins";
 import "@/rap-studio.css";
 
@@ -29,6 +31,13 @@ const BUSY_LABEL = {
 export default function Rap() {
   const navigate = useNavigate();
   const studio = useRapStudio();
+  // the songwriter: a whole song written out from one request, and the person's own voice on the beat
+  const songwriter = useSongwriter({
+    settings: studio.settings,
+    beat: studio.beat,
+    user: studio.user,
+    onKeep: studio.keepRecording,
+  });
   const { settings, lines, take, busy, error, beat } = studio;
   const ready = !!studio.user;
   // a generation run brings its own steps; every other job keeps the studio's running line
@@ -110,6 +119,8 @@ export default function Rap() {
         endedAt={studio.runEndedAt}
         wordCount={studio.words?.length || 0}
       />
+
+      <SongwriterPanel songwriter={songwriter} ready={ready} />
 
       {lines.length ? (
         <RapLyrics

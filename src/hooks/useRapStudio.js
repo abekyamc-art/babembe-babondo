@@ -317,6 +317,34 @@ export default function useRapStudio() {
     [beat, settings, titleOf]
   );
 
+  /** A performance the person recorded themselves, kept with the takes: their own file, the words
+   *  they sang over it, and the beat it was sung on. Their own voice is named as theirs, so a take
+   *  they performed is never listed as one the studio sang. */
+  const keepRecording = useCallback(
+    async (row) => {
+      try {
+        const created = await base44.entities.RapTake.create({
+          title: row.title,
+          language: row.language,
+          voice: "mine",
+          beat: settings.beat,
+          bpm: settings.bpm,
+          seconds: row.seconds,
+          ebembe_lines: (row.lines || []).map((line) => line.ebembe),
+          swahili_lines: (row.lines || []).map((line) => line.swahili || ""),
+          words_used: row.wordsUsed || [],
+          audio_url: row.audio_url,
+          beat_file_uri: beat?.file_uri || "",
+        });
+        setTakes((prev) => [created, ...prev]);
+        return created;
+      } catch (err) {
+        return null;
+      }
+    },
+    [beat, settings.beat, settings.bpm]
+  );
+
   /** The sound of a take, made in one path whichever voice is set: the coins go, the key the voice
    *  sings in is found, the voice performs the bars, and the take is mixed on the phone and kept.
    *  What comes back from the singing voice has to carry a beat where the tempo says it falls: a
@@ -570,7 +598,9 @@ export default function useRapStudio() {
       bpm: saved.bpm || prev.bpm,
       seconds: saved.seconds || prev.seconds,
       beat: saved.beat || prev.beat,
-      voice: saved.voice || prev.voice,
+      // a take the person performed themselves carries their own voice; the studio keeps the voice
+      // chosen for the takes it sings itself
+      voice: saved.voice === "sing" || saved.voice === "agent" ? saved.voice : prev.voice,
       language: saved.language || prev.language,
       topic: saved.title || prev.topic,
     }));
@@ -616,5 +646,6 @@ export default function useRapStudio() {
     downloadMp3,
     downloadLyrics,
     reuse,
+    keepRecording,
   };
 }

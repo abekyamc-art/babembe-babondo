@@ -8,6 +8,7 @@ import {
   PREFIXES,
   clean,
   knownMap,
+  knownToken,
   savedWords,
   tokensOf,
   unverified,
@@ -30,6 +31,9 @@ const MIN_SPARE = 6;
 const MAX_LINES = 80;
 const MAX_IDEAS = 3;
 const MAX_PLAN = 40;
+// the whole song the songwriter writes: how many parts it may have, and how many lines in a part
+const MAX_SONG_PARTS = 12;
+const MAX_SONG_LINES = 24;
 
 const LINE_SCHEMA = {
   type: "object",
@@ -71,6 +75,40 @@ const LINES_SCHEMA = {
     words_used: { type: "array", items: { type: "string" } },
   },
   required: ["lines", "words_used"],
+};
+
+// one whole song: the language its own request asked for, its title, and its parts with the lead
+// lines and the voice singing behind them
+const SONG_SCHEMA = {
+  type: "object",
+  properties: {
+    language: { type: "string" },
+    title: { type: "string" },
+    sections: {
+      type: "array",
+      items: {
+        type: "object",
+        properties: {
+          name: { type: "string" },
+          lines: {
+            type: "array",
+            items: {
+              type: "object",
+              properties: {
+                text: { type: "string" },
+                meaning: { type: "string" },
+                kind: { type: "string" },
+              },
+              required: ["text", "kind"],
+            },
+          },
+        },
+        required: ["name", "lines"],
+      },
+    },
+    words_used: { type: "array", items: { type: "string" } },
+  },
+  required: ["language", "title", "sections"],
 };
 
 // the one corrective pass: bars written again from the confirmed words alone
@@ -185,6 +223,55 @@ function readLines(values: any): any[] {
     })
     .filter((line: any) => line.ebembe)
     .slice(0, MAX_LINES);
+}
+
+/** The song the writer handed back, read into the parts and the lines the screen shows. */
+function readSong(out: any, language: RapLang) {
+  const sections = (Array.isArray(out?.sections) ? out.sections : [])
+    .map((section: any) => ({
+      name: clean(section?.name, 24).toUpperCase() || "PART",
+      lines: (Array.isArray(section?.lines) ? section.lines : [])
+        .map((line: any) => ({
+          text: plainLine(line?.text),
+          meaning: plainLine(line?.meaning),
+          // the voice behind the lead is named as what it is, so the screen can set it apart
+          kind: line?.kind === "back" ? "back" : "lead",
+        }))
+        .filter((line: any) => line.text)
+        .slice(0, MAX_SONG_LINES),
+    }))
+    .filter((section: any) => section.lines.length)
+    .slice(0, MAX_SONG_PARTS);
+
+  return {
+    title: clean(out?.title, 80) || "Wimbo",
+    language,
+    sections,
+  };
+}
+
+/** The song's lines that stand on words the store really holds, with how many were left out. A
+ *  song that keeps fewer than four lines that way is handed over as it was written, since a store
+ *  that small is not the measure of a whole song. */
+function verifiedSong(sections: any[], known: Map<string, string>) {
+  let dropped = 0;
+  let total = 0;
+
+  const kept = sections
+    .map((section: any) => {
+      const lines = section.lines.filter((line: any) => {
+        const unknown = tokensOf({ ebembe: line.text }).filter(
+          (token: string) => !knownToken(token, known)
+        );
+        if (unknown.length) dropped += 1;
+        return !unknown.length;
+      });
+      total += lines.length;
+      return { ...section, lines };
+    })
+    .filter((section: any) => section.lines.length);
+
+  return { sections: kept, lines: total, dropped };
 }
 
 const SPELLING = [
@@ -370,6 +457,50 @@ function writePrompt(
       ? "- In words_used list the Ebembe terms you actually used, exactly as spelled in the list."
       : "- In words_used list the words you actually used.",
     "The theme, when one is given, is: " + (topic || "everyday Babembe life"),
+  ]
+    .filter(Boolean)
+    .join("\n");
+}
+
+/**
+ * The whole song, written from the person's own request: its parts, its lead lines and the voice
+ * that answers behind them, in whichever language that request asks for. The answer says which
+ * language it chose, so a Kibembe or a mixed song is then read against the saved words.
+ */
+function songPrompt(
+  asked: string,
+  words: any[],
+  store: boolean,
+  bpm: number,
+  rules: string,
+  doc: string
+) {
+  return [
+    "You are a songwriter. You write one whole song, ready to be sung, for a voice over an Afro-Zaga / Bongo Flava band at " +
+      bpm +
+      " BPM: verses, a hook that comes back, a bridge and an outro, with a second voice singing behind the lead.",
+    'Write the song in the language the person\'s own request asks for, and return that choice in language: "ebembe" for Kibembe alone, "mix" for all three languages together, "swahili" for Kiswahili, "english" for English. When the request does not name a language, write the song in Kibembe.',
+    store
+      ? "The list below is the whole of the Ebembe you may use, one word per line as term = meaning. In Kibembe and mixed lines every Ebembe word comes from that list, spelled exactly as the list spells it: never invent a word, never change a spelling, and never write a pronunciation guide or a syllable breakdown."
+      : "",
+    store
+      ? "In a mixed song the Kibembe leads and Kiswahili and English carry the meaning around it, so someone who does not know Kibembe still understands the phrase. In a Kiswahili or an English song write plain everyday language with no Kibembe in it."
+      : "Write in plain everyday language, and never invent an Ebembe word.",
+    "Step one — the parts of the song, in this order: \"INTRO\", \"VERSE 1\", \"HOOK\", \"VERSE 2\", \"HOOK\", \"BRIDGE\", \"OUTRO\". Leave the bridge out of a short song rather than writing a thin one.",
+    "Step two — the lines. The hook is short and singable, four lines at most, and it comes back exactly as it was first written. Each verse is six to eight lines and every line of it says something new. Every bar of the song is one sung line, never a paragraph.",
+    'Step three — the voice behind the lead. Every part carries back-vocal lines as well, marked kind "back": the answer to the lead\'s last words, the harmony under the hook, and the short ad-libs that fill the space between two lead lines. They stay short, they answer what the lead has just sung, and they never carry a thought of their own. The lead lines carry kind "lead", and every lead line stands above the back lines it is answered by.',
+    "Give every line two things: text, the line exactly as it is sung, and meaning, that same line briefly in Kiswahili — or in English when the song itself is in Kiswahili.",
+    "Keep the whole song within forty lines, and never leave a part empty.",
+    "Rules, all of them strict:",
+    "- Never write anything in brackets, dashes or slashes, and never write the part's own name inside text or meaning: a part is named by the section itself.",
+    "- Write title as a short name for this song, at most six words, in Kiswahili.",
+    store
+      ? "- In words_used list the Ebembe words you really used, spelled exactly as the list spells them."
+      : "",
+    rules ? RULES_INTRO + "\n" + rules : "",
+    doc,
+    "The person's own request for this song, and it is what the song is about: " +
+      (asked || "a song about everyday Babembe life"),
   ]
     .filter(Boolean)
     .join("\n");
@@ -762,13 +893,15 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // without an action the studio simply reads the same confirmed list the composer uses
-    if (action !== "plan" && action !== "write") {
+    if (action !== "plan" && action !== "write" && action !== "song") {
       return Response.json({ words, count: words.length });
     }
 
     // a Kibembe take cannot be written without the saved words; Kiswahili and English take their
     // words from the writer itself, so they stand on their own
-    if (!words.length && language === "ebembe") {
+    // the songwriter's own language is read from the person's request, so the check below belongs
+    // to the takes that were asked for in a language the studio already knows
+    if (action !== "song" && !words.length && language === "ebembe") {
       return Response.json({ error: EMPTY_LIST, words: [] });
     }
 
@@ -777,6 +910,54 @@ export default async function (req: Request): Promise<Response> {
     const topic = clean(payload?.topic, 140);
     const flow = flowOf(payload?.flow);
     const known = knownMap(words);
+
+    // The songwriter: one request written out as a whole song — its parts, its verses, its hook and
+    // the back-vocal lines behind the lead — in the language that request itself asks for.
+    if (action === "song") {
+      const asked = clean(payload?.prompt, 240);
+      const rules = await rulesText(base44);
+      const doc = await docWholeBlock(base44);
+      const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        prompt: songPrompt(asked, words, words.length > 0, bpm, rules, doc),
+        response_json_schema: SONG_SCHEMA,
+      });
+
+      const language = rapLang(out?.language);
+      // A Kibembe song stands on the saved words: with none saved there is nothing to write it from,
+      // so the person is told to add words rather than handed a song nobody could check.
+      if (language === "ebembe" && !words.length) {
+        return Response.json({ error: EMPTY_LIST, words: 0, language });
+      }
+
+      const song = readSong(out, language);
+      if (!song.sections.length) {
+        return Response.json({ error: UNAVAILABLE, words: words.length }, { status: 502 });
+      }
+
+      // Every line is read against the saved words before the song is handed over: a line carrying a
+      // word the store does not hold is left out rather than shown, and the song is handed over as it
+      // was written only where that would leave too little of it to sing.
+      const store = usesStore(language) && words.length > 0;
+      let dropped = 0;
+      if (store) {
+        const checked = verifiedSong(song.sections, known);
+        dropped = checked.dropped;
+        if (checked.lines >= 4) song.sections = checked.sections;
+      }
+
+      const sung = song.sections.flatMap((section: any) =>
+        section.lines.map((line: any) => ({ ebembe: line.text }))
+      );
+
+      return Response.json({
+        title: song.title,
+        language,
+        sections: song.sections,
+        words_used: store ? usedWords(sung, known).slice(0, 60) : [],
+        dropped,
+        words: words.length,
+      });
+    }
 
     if (action === "plan") {
       // the saved words carry a Kibembe or a mixed take; Kiswahili and English take their words

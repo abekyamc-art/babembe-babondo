@@ -21,10 +21,11 @@
       "type": "string",
       "enum": [
         "sing",
-        "agent"
+        "agent",
+        "mine"
       ],
       "default": "sing",
-      "description": "Which voice sang the take: the singing voice or the assistant's own voice."
+      "description": "Which voice sang the take: the singing voice, the assistant's own voice, or the person's own voice, recorded on their phone over the beat."
     },
     "beat": {
       "type": "string",
