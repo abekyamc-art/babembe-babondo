@@ -267,6 +267,11 @@ export default function VoiceAssistant() {
     navigate("/rap");
   };
 
+  const handleStudio = () => {
+    setAccountOpen(false);
+    navigate("/studio");
+  };
+
   const handleKibembe = () => {
     setAccountOpen(false);
     navigate("/kibembe");
@@ -450,6 +455,7 @@ export default function VoiceAssistant() {
         onReels={handleReels}
         onMessages={handleMessages}
         onRap={handleRap}
+        onStudio={handleStudio}
         onKibembe={handleKibembe}
         onKnowledge={handleKnowledge}
         onGetCoins={handleMarkets}

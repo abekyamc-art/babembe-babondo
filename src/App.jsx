@@ -28,6 +28,9 @@ const Profile = lazy(() => import('./pages/Profile'));
 const Messages = lazy(() => import('./pages/Messages'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Rap = lazy(() => import('./pages/Rap'));
+const StudioLayout = lazy(() => import('./components/studio/StudioLayout'));
+const StudioHome = lazy(() => import('./pages/StudioHome'));
+const StudioProject = lazy(() => import('./pages/StudioProject'));
 const KibembeChat = lazy(() => import('./pages/KibembeChat'));
 
 // A page that needs signing in remembers where the person was headed, so a link someone shared
@@ -97,6 +100,10 @@ const AuthenticatedApp = () => {
                 <Route path="/reset-password" element={<ResetPassword />} />
                 <Route element={<ProtectedRoute unauthenticatedElement={<NeedsSignIn />} />}>
                   <Route path="/rap" element={<Rap />} />
+                  <Route element={<StudioLayout />}>
+                    <Route path="/studio" element={<StudioHome />} />
+                    <Route path="/studio/:id" element={<StudioProject />} />
+                  </Route>
                   <Route path="/reels" element={<Reels />} />
                   <Route path="/markets" element={<Markets />} />
                   <Route path="/live/:id" element={<LiveRoom />} />

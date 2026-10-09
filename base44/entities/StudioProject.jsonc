@@ -1,0 +1,453 @@
+{
+  "name": "StudioProject",
+  "type": "object",
+  "properties": {
+    "title": {
+      "type": "string",
+      "description": "What the song is called, shown on its card at home and at the head of the studio."
+    },
+    "artist": {
+      "type": "string",
+      "description": "Who the song belongs to, written on the project and carried into the export name."
+    },
+    "cover_url": {
+      "type": "string",
+      "description": "Public address of the project's cover picture, uploaded by the artist."
+    },
+    "bpm": {
+      "type": "number",
+      "default": 90,
+      "description": "How fast the song runs, in beats per minute. The ruler, the grid and the metronome all follow it."
+    },
+    "key_root": {
+      "type": "string",
+      "default": "A",
+      "description": "The key the song is written in, one of the twelve note names."
+    },
+    "key_scale": {
+      "type": "string",
+      "enum": [
+        "minor",
+        "major"
+      ],
+      "default": "minor",
+      "description": "Whether the song is written in a minor or a major key."
+    },
+    "time_signature": {
+      "type": "string",
+      "enum": [
+        "4/4",
+        "3/4",
+        "6/8"
+      ],
+      "default": "4/4",
+      "description": "How many beats stand in a bar, so the ruler counts bars the way the song is written."
+    },
+    "notes": {
+      "type": "string",
+      "description": "The artist's own notes about the song."
+    },
+    "duration": {
+      "type": "number",
+      "default": 0,
+      "description": "How long the song runs, in seconds: the furthest point any clip or marker reaches. It is read again as soon as anything on the timeline moves."
+    },
+    "tracks": {
+      "type": "array",
+      "description": "Every track in the song, in the order it stands on the timeline. A track keeps the artist's own settings and the clips laid on it; the audio itself never lives here, only the reference to it.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "name",
+          "kind"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The track's own id, given when it was made and kept for the whole life of the song."
+          },
+          "name": {
+            "type": "string",
+            "description": "What the artist calls the track, shown at its head on the timeline and in the mixer."
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "beat",
+              "vocal",
+              "adlib",
+              "harmony",
+              "instrument",
+              "drums",
+              "import"
+            ],
+            "default": "vocal",
+            "description": "What the track carries: an imported or made beat, a lead vocal, an ad-lib, a harmony, a played instrument, a drum pad performance, or a piece of audio brought in from the phone."
+          },
+          "color": {
+            "type": "string",
+            "description": "The track's own colour, so its clips are told apart at a glance on the timeline and in the mixer."
+          },
+          "volume": {
+            "type": "number",
+            "default": 1,
+            "description": "How loud the track stands in the mix, from silence to half again as loud."
+          },
+          "pan": {
+            "type": "number",
+            "default": 0,
+            "description": "Where the track stands across the stereo field: nothing is the middle, -1 hard left, 1 hard right."
+          },
+          "muted": {
+            "type": "boolean",
+            "default": false,
+            "description": "A muted track is heard nowhere \u2014 neither in the mix nor in the export."
+          },
+          "soloed": {
+            "type": "boolean",
+            "default": false,
+            "description": "While any track is soloed, only the soloed tracks are heard."
+          },
+          "locked": {
+            "type": "boolean",
+            "default": false,
+            "description": "A locked track keeps its clips where they are: nothing on it can be moved, cut or recorded over by accident."
+          },
+          "armed": {
+            "type": "boolean",
+            "default": false,
+            "description": "Which track the next recording lands on."
+          },
+          "input": {
+            "type": "string",
+            "enum": [
+              "mic",
+              "usb",
+              "bluetooth",
+              "file",
+              "none"
+            ],
+            "default": "mic",
+            "description": "Where the track's sound comes from: the phone's microphone, a wired or interface input, a Bluetooth input, or a file."
+          },
+          "bus": {
+            "type": "string",
+            "enum": [
+              "vocal",
+              "music"
+            ],
+            "default": "music",
+            "description": "Which group the track is heard through: the vocal bus or the music bus, each with its own level in the mixer."
+          },
+          "fx": {
+            "type": "array",
+            "description": "The track's effect chain, in the order it is heard. An effect that the phone's own engine cannot run yet keeps its place here and is marked as waiting for the native engine.",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "type"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The slot's own id, so its order and its settings can be changed later."
+                },
+                "type": {
+                  "type": "string",
+                  "description": "Which effect stands in the slot, named by the studio's effect list."
+                },
+                "order": {
+                  "type": "number",
+                  "default": 0,
+                  "description": "Where the effect stands in the chain, counted from the front."
+                },
+                "on": {
+                  "type": "boolean",
+                  "default": true,
+                  "description": "Whether the effect is switched on at all."
+                },
+                "bypass": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "A bypassed effect keeps its settings and changes nothing of what is heard."
+                },
+                "wet": {
+                  "type": "number",
+                  "description": "How much of the effect is heard against the untouched sound, from none to all of it."
+                },
+                "amount": {
+                  "type": "number",
+                  "description": "The one control a preset is shaped by: how far the whole slot is pushed."
+                },
+                "params": {
+                  "type": "object",
+                  "additionalProperties": {
+                    "type": "number"
+                  },
+                  "description": "The effect's own settings, named as the effect names them."
+                }
+              }
+            }
+          },
+          "clips": {
+            "type": "array",
+            "description": "The pieces of audio laid on the track. A clip never holds the sound itself: it says which recording it plays, where it stands, and which part of it is heard.",
+            "items": {
+              "type": "object",
+              "required": [
+                "id",
+                "source_key"
+              ],
+              "properties": {
+                "id": {
+                  "type": "string",
+                  "description": "The clip's own id, kept while it is cut, moved or copied."
+                },
+                "name": {
+                  "type": "string",
+                  "description": "What the clip is called on the timeline."
+                },
+                "source_key": {
+                  "type": "string",
+                  "description": "Which recording in the phone's own audio store this clip plays. The recording itself is never changed \u2014 only where and how much of it is heard."
+                },
+                "take_id": {
+                  "type": "string",
+                  "description": "Which take this clip came out of, when it came from the artist's own recording."
+                },
+                "start": {
+                  "type": "number",
+                  "default": 0,
+                  "description": "Where the clip stands on the timeline, in seconds from the top of the song."
+                },
+                "offset": {
+                  "type": "number",
+                  "default": 0,
+                  "description": "How far into the recording the clip begins, so a cut clip plays on from where it was left."
+                },
+                "duration": {
+                  "type": "number",
+                  "default": 0,
+                  "description": "How much of the recording is heard, in seconds \u2014 the clip's length on the timeline."
+                },
+                "gain": {
+                  "type": "number",
+                  "default": 1,
+                  "description": "The clip's own level, apart from the track's, so one word can be lifted without touching the rest."
+                },
+                "fade_in": {
+                  "type": "number",
+                  "default": 0,
+                  "description": "How long the clip takes to come up to its level, in seconds."
+                },
+                "fade_out": {
+                  "type": "number",
+                  "default": 0,
+                  "description": "How long the clip takes to fall to silence at its end, in seconds."
+                },
+                "looping": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "Whether the recording repeats under the clip for its whole length, which is how a short beat holds up a whole song."
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "takes": {
+      "type": "array",
+      "description": "Every recording the artist has kept on this song, whether or not it stands on the timeline yet. Nothing is thrown away when a better take is chosen: the others wait here to be heard again.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "source_key"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The take's own id."
+          },
+          "name": {
+            "type": "string",
+            "description": "What the take is called in the list, the track it was made on unless the artist renamed it."
+          },
+          "track_id": {
+            "type": "string",
+            "description": "Which track the take was recorded on."
+          },
+          "source_key": {
+            "type": "string",
+            "description": "Which recording in the phone's own audio store this take is."
+          },
+          "seconds": {
+            "type": "number",
+            "description": "How long the take runs, in seconds."
+          },
+          "created_at": {
+            "type": "string",
+            "description": "ISO time the take was recorded."
+          },
+          "peak": {
+            "type": "number",
+            "description": "The take's loudest moment as it was recorded, so a take that clipped is seen at once."
+          }
+        }
+      }
+    },
+    "markers": {
+      "type": "array",
+      "description": "The places the artist has marked on the timeline \u2014 a verse, a hook \u2014 each with the name it was given.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "at"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The marker's own id."
+          },
+          "at": {
+            "type": "number",
+            "description": "Where the marker stands, in seconds from the top of the song."
+          },
+          "name": {
+            "type": "string",
+            "description": "What the marked place is called."
+          }
+        }
+      }
+    },
+    "loop_start": {
+      "type": "number",
+      "default": 0,
+      "description": "Where the loop begins, in seconds. A loop shorter than nothing is no loop at all."
+    },
+    "loop_end": {
+      "type": "number",
+      "default": 0,
+      "description": "Where the loop ends, in seconds."
+    },
+    "loop_on": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the marked loop is played round and round, so a part can be practised or recorded over again."
+    },
+    "buses": {
+      "type": "object",
+      "description": "The two groups every track is heard through, each with its own level and its own quiet switch, standing between the tracks and the master.",
+      "properties": {
+        "vocal": {
+          "type": "object",
+          "properties": {
+            "volume": {
+              "type": "number",
+              "default": 1
+            },
+            "muted": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        },
+        "music": {
+          "type": "object",
+          "properties": {
+            "volume": {
+              "type": "number",
+              "default": 1
+            },
+            "muted": {
+              "type": "boolean",
+              "default": false
+            }
+          }
+        }
+      }
+    },
+    "master": {
+      "type": "object",
+      "description": "The master channel the whole song is heard through: its level, its loudness, and the three things that keep the finished song from clipping.",
+      "properties": {
+        "volume": {
+          "type": "number",
+          "default": 1
+        },
+        "eq_low": {
+          "type": "number",
+          "default": 0
+        },
+        "eq_high": {
+          "type": "number",
+          "default": 0
+        },
+        "comp": {
+          "type": "boolean",
+          "default": false
+        },
+        "limiter": {
+          "type": "boolean",
+          "default": true
+        },
+        "ceiling": {
+          "type": "number",
+          "default": -1
+        }
+      }
+    },
+    "template": {
+      "type": "string",
+      "description": "Which template the song was started from, kept so the artist knows what it was built on."
+    },
+    "storage": {
+      "type": "string",
+      "enum": [
+        "local",
+        "cloud"
+      ],
+      "default": "local",
+      "description": "Where the song's recordings live: the phone itself, or the phone with the cloud copy kept alongside it."
+    },
+    "archived": {
+      "type": "boolean",
+      "default": false,
+      "description": "An archived song is off the working list without being thrown away."
+    },
+    "trashed_at": {
+      "type": "string",
+      "description": "ISO time the song was put in the bin. A song in the bin waits there to be brought back or thrown away for good."
+    },
+    "last_saved_at": {
+      "type": "string",
+      "description": "ISO time the song was last saved, so the artist always sees how far back the last save stands."
+    },
+    "size_bytes": {
+      "type": "number",
+      "default": 0,
+      "description": "How much room the song's recordings take on the phone, in bytes, read back when the song is opened."
+    }
+  },
+  "required": [
+    "title"
+  ],
+  "rls": {
+    "read": {
+      "created_by_id": "{{user.id}}"
+    },
+    "create": {
+      "created_by_id": "{{user.id}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "created_by_id": "{{user.id}}"
+    }
+  }
+}
