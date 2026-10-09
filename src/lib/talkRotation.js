@@ -88,3 +88,15 @@ export function noSignalNotice(from) {
 export function stuckNotice(from, next) {
   return `${from} didn't answer — ${next} is taking your question now.`;
 }
+
+/**
+ * A voice that could not take the call. The reason the voice itself gave is said just as it gave it —
+ * an account that refused names itself and what is left to do about it — so a failure is never left
+ * as a voice that simply did not answer. Where the call carries on, the voice really on the line is
+ * named after the reason; where none could take it, the person's own tap is what tries again.
+ */
+export function refusedNotice(refused, live = "") {
+  const why = String(refused?.why || "").trim();
+  const reason = why || `${refused?.label || "That voice"} couldn't take the call.`;
+  return live ? `${reason} ${live} is on the call.` : `${reason} Tap the phone and try again.`;
+}

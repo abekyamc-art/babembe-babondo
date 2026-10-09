@@ -4,7 +4,7 @@ import useCartesiaVoice from "@/hooks/useCartesiaVoice";
 import { HOME_SEATS, nextPlan } from "@/lib/homeRotation";
 import { checkVoiceSeats } from "@/lib/voiceHealth";
 import { keepHeard, proposeHeard } from "@/lib/homeHearing";
-import { handoffNotice, resumeNotice, stuckNotice, waitNotice } from "@/lib/talkRotation";
+import { handoffNotice, refusedNotice, resumeNotice, stuckNotice, waitNotice } from "@/lib/talkRotation";
 
 /**
  * The home page's call, and who is on it.
@@ -313,11 +313,13 @@ export default function useHomeVoice() {
         ...order.filter((seat) => !checked.has(seat.id)),
       ];
 
-      let refused = down[0]?.label || "";
+      // the voice that could not take the call, and the reason it gave, so the person is told what is
+      // left to do about it rather than only that their tap went nowhere
+      let refused = down[0] || null;
       for (const next of tries) {
         const opened = await openSeat(next, checked.get(next.id));
         if (!opened.ok) {
-          refused = opened.label || next.label;
+          refused = { label: opened.label || next.label, why: opened.why || "" };
           if (!triedRef.current.includes(next.id)) triedRef.current = [...triedRef.current, next.id];
           continue;
         }
@@ -338,11 +340,7 @@ export default function useHomeVoice() {
       setWaiting(true);
       pendingRef.current = { next: pending.next, plan: pending.plan, from: pending.from };
       triedRef.current = [];
-      setNotice(
-        refused
-          ? `${refused} couldn't take the call — tap the phone to try again.`
-          : "Tap the phone to talk again."
-      );
+      setNotice(refused ? refusedNotice(refused) : "Tap the phone to talk again.");
       return false;
     } finally {
       // the change is over: whoever holds the call now is the one answering
@@ -414,6 +412,8 @@ export default function useHomeVoice() {
       // the first voice in the ring that can. A voice that cannot is passed over, so the person is
       // never left waiting on a voice that is down, and such a voice is not offered the turn again
       // for the rest of this call.
+      // Each voice that cannot take it comes back with the reason it gave, so the one thing a person
+      // can act on — a key, an agent id, a service having a bad moment — is never swallowed here.
       const { ready, refused } = await checkVoiceSeats(HOME_SEATS);
       const checked = new Map(ready.map((one) => [one.seat.id, one]));
       refused.forEach((seat) => {
@@ -436,12 +436,9 @@ export default function useHomeVoice() {
           const live = liveSeat(next, opened);
           setCurrent(live);
           if (next.id !== HOME_SEATS[0].id) {
-            const first = refused[0];
-            setNotice(
-              first
-                ? `${first.label} couldn't take the call — ${live.label} is on it.`
-                : `${HOME_SEATS[0].label} couldn't take the call — ${live.label} is on it.`
-            );
+            // the voice that could not take the call is named with the reason it gave — Cartesia's own
+            // refusal said as Cartesia said it — and the voice really on the line is named with it
+            setNotice(refusedNotice(refused[0] || HOME_SEATS[0], live.label));
           }
           return true;
         }
@@ -455,7 +452,7 @@ export default function useHomeVoice() {
       setCurrent(HOME_SEATS[0]);
       setNotice(
         refused.length
-          ? `The call couldn't start — ${refused[0].label} isn't answering just now. Tap the phone and try again.`
+          ? refusedNotice(refused[0])
           : "The call couldn't start — tap the phone and try again."
       );
       return false;
