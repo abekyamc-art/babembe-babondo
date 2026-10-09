@@ -37,10 +37,10 @@ const COOLDOWN_MS = 120000;
 const cooling = new Map();
 
 /**
- * The accounts to try for one call, in their own order: the primary first whenever it is healthy,
- * then the backups behind it. The primary leads every call, so a recovered primary takes its place
- * back on its own with nothing to switch anywhere — and only an account that has proved it cannot
- * take a call stands behind one of the others.
+ * The accounts to try for one call, in their own order: each AI's own account, then the one backup
+ * paired with it, and so on down the list. An account leads every call whenever it is healthy, so a
+ * recovered one takes its place back on its own with nothing to switch anywhere — and only an
+ * account that has proved it cannot take a call is passed over for the one behind it.
  */
 export function cartesiaOrder(now = Date.now()) {
   const ready = ACCOUNTS.filter((one) => (cooling.get(one.account) || 0) <= now);
