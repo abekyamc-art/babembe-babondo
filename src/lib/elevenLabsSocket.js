@@ -203,6 +203,7 @@ export default class VoiceSocket {
     this.captureFrom = 0;
     this.captureFrames = [];
     this.hearing = false;
+    this.reviewPending = false;
     // turns in a row the app's own ears could make nothing of
     this.misses = 0;
     // whether the reason the cleanup is unavailable has already been said in this call
@@ -418,6 +419,15 @@ export default class VoiceSocket {
     return sent;
   }
 
+  setReviewPending(pending) {
+    this.reviewPending = pending;
+    this.captureOn = false;
+    this.captureFrames = [];
+    this.lastUserText = "";
+    this.lastVoiceAt = performance.now();
+    if (pending) this.setAwaiting(false);
+  }
+
   /** A written turn is waited on: shown from the send until its answer lands. */
   setAwaiting(next) {
     if (this.awaiting === next) return;
@@ -557,7 +567,7 @@ export default class VoiceSocket {
     this.processor.onaudioprocess = (event) => {
       // the mic stays closed while the assistant speaks, so its own voice coming out
       // of the phone can never be sent back as an interruption of that answer
-      if (!this.connected || this.speaking) return;
+      if (!this.connected || this.speaking || this.reviewPending || this.hearing) return;
       const chunk = event.inputBuffer.getChannelData(0);
       const pcm = floatToPcmBytes(lift(resample(chunk, this.ctx.sampleRate, IN_RATE)));
       if (!pcm.length) return;
@@ -722,6 +732,10 @@ export default class VoiceSocket {
   watch() {
     const step = () => {
       if (!this.analyser || this.autoEnding) return;
+      if (this.reviewPending || this.hearing) {
+        this.watchId = requestAnimationFrame(step);
+        return;
+      }
       const now = performance.now();
       // while the answer is playing, whatever the microphone picks up is the
       // assistant's own voice coming back out of the speaker

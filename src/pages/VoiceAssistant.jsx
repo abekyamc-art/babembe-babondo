@@ -21,6 +21,7 @@ import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
 import SaveAsk from "@/components/voice/SaveAsk";
+import HeardAsk from "@/components/voice/HeardAsk";
 import ThinkingLine from "@/components/voice/ThinkingLine";
 import UsagePill from "@/components/voice/UsagePill";
 import CoinPill from "@/components/voice/CoinPill";
@@ -54,6 +55,9 @@ export default function VoiceAssistant() {
     stop,
     ask,
     correctTurn,
+    heardAsk,
+    acceptHeard,
+    againHeard,
     saveAsk,
     keepSave,
     leaveSave
@@ -400,7 +404,8 @@ export default function VoiceAssistant() {
             
           </div>
           {/* what the app would keep from a turn the person has put right: their own answer saves it */}
-          {saveAsk ?
+          {heardAsk ?
+          <HeardAsk ask={heardAsk} onUse={acceptHeard} onAgain={againHeard} /> : saveAsk ?
           <SaveAsk ask={saveAsk} onKeep={keepSave} onLeave={leaveSave} /> :
 
           <p

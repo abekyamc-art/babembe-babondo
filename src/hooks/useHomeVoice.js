@@ -154,7 +154,14 @@ export default function useHomeVoice() {
     dueTimerRef.current = setTimeout(dueHandoff, DRAIN_MAX_MS);
   }, [dueHandoff]);
 
-  const talk = useTalkVoice({ onTurn, onPictures: patchPictures });
+  const dropHeldTurn = useCallback((text) => {
+    setTurns((prev) => {
+      const at = prev.findLastIndex((turn) => turn.role === "user" && turn.text === text);
+      return at < 0 ? prev : prev.filter((_, index) => index !== at);
+    });
+  }, []);
+
+  const talk = useTalkVoice({ onTurn, onPictures: patchPictures, onDropTurn: dropHeldTurn });
   const cartesia = useCartesiaVoice({
     onTurn,
     onPictures: patchPictures,
@@ -488,6 +495,9 @@ export default function useHomeVoice() {
     ask,
     // the person's own words put in place of the app's writing of their turn
     correctTurn,
+    heardAsk: seat.kind === "cartesia" ? null : talk.check,
+    acceptHeard: talk.acceptHeard,
+    againHeard: talk.againHeard,
     // what the app would keep from those words, and the person's own answer to the offer
     saveAsk,
     keepSave,

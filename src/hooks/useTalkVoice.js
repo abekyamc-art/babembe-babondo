@@ -157,8 +157,9 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       // of is answered from the app's own word bank and in Kibembe. A correction the person makes
       // is saved as the same turn is read. A reading that cannot be made leaves the turn to the
       // voice itself, which is already carrying the rules of the call.
-      readHeardTurn(said, lastAgentRef.current).then((note) => {
+      readHeardTurn(said, lastAgentRef.current).then(({ note, sure }) => {
         if (note) socketRef.current?.sendMemory(note);
+        if (!sure) setNotice(NOT_SURE);
       });
     },
     [push]
@@ -195,10 +196,6 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
     // where that material came from is kept for the answer that stands on it, so the screen can
     // show the source of what the voice says
     if (fresh.material && fresh.source) freshSourceRef.current = fresh.source;
-    if (!socket.sendText(said)) {
-      setNotice(TURN_NOT_DELIVERED);
-      return;
-    }
     // The ears write the turn down in the app's own spelling of the person's own words, and the
     // reader names no language for it: Kibembe is what is read here. So the note goes in as what
     // the writing is, never as a command, and the answer that feeds on it stays Kibembe.
@@ -210,6 +207,9 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
           ? `The person's turn was written down by the app's own ears, in the app's own spelling of their words, as ${heard}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${heard}, answer in ${heard} only — never in a mix; where their words mix Kibembe and Kiswahili, answer in Kibembe only; where they plainly ask for a language, answer in that one only.`
           : "The person's turn was written down by the app's own ears, in the app's own spelling of the words they said. Kibembe is what is spoken here: read their own words and answer in Kibembe only, never in a mix — and where they plainly used Kiswahili or English, or plainly asked for a language, answer in that one only."
     );
+    if (!socket.connected) return;
+    socket.setReviewPending(false);
+    if (!socket.sendText(said)) setNotice(TURN_NOT_DELIVERED);
   }, []);
 
   /**
@@ -230,8 +230,10 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       push("user", said);
       // the app's own reading of the turn, handed to the voice before it answers
       const read = await readHeardTurn(said, lastAgentRef.current);
+      if (!socket.connected || socketRef.current !== socket) return;
       if (read.note) socket.sendMemory(read.note);
       if (!read.sure) {
+        socket.setReviewPending(true);
         checkRef.current = { text: said, language };
         setCheck(checkRef.current);
         return;
@@ -262,7 +264,8 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
     const held = checkRef.current;
     checkRef.current = null;
     setCheck(null);
-    if (held) dropTurnRef.current?.();
+    if (held) dropTurnRef.current?.(held.text);
+    socketRef.current?.setReviewPending(false);
     setNotice("Say it again — I'm listening.");
   }, []);
 
@@ -276,17 +279,21 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
     const said = String(text || "").trim();
     const socket = socketRef.current;
     if (!said || !socket?.connected) return false;
-    socket.sendMemory(
-      "The app's own ears wrote the person's turn down wrongly. Their own words were: " +
-        `"${said}". That turn is the one you answer: answer these words, in the language they are ` +
-        "said in, and not the earlier writing of them."
-    );
-    readHeardTurn(said, lastAgentRef.current).then((note) => {
-      if (note) socket.sendMemory(note);
-    });
+    lastUserRef.current = said;
+    const held = checkRef.current;
+    if (held) {
+      checkRef.current = null;
+      setCheck(null);
+      handOn(socket, said, held.language, held.text);
+    } else {
+      socket.sendMemory(`The person corrected their previous transcript to: "${said}". Answer these words rather than the earlier transcription.`);
+      readHeardTurn(said, lastAgentRef.current).then(({ note }) => {
+        if (note) socket.sendMemory(note);
+      });
+    }
     setNotice("The voice has your words now.");
     return true;
-  }, []);
+  }, [handOn]);
 
   /** The AI's turn, as the agent itself wrote it down. */
   const handleAgentText = useCallback(
@@ -546,5 +553,8 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
     ask,
     // the person's own words put in place of the ears' writing of their turn
     correct,
+    check,
+    acceptHeard,
+    againHeard,
   };
 }
