@@ -104,6 +104,32 @@ export default function ImageReviewPanel() {
     open();
   };
 
+  // a whole run agreed at once: every picture waiting in the first look is agreed with the word
+  // standing in its own row, and all of them are then waiting for the second look
+  const confirmMany = async (ids, terms) => {
+    const data = await ask("confirm", { ids, terms }, "bulk");
+    if (!data) return;
+    setNote(
+      `Agreed ${data.confirmed} ${data.confirmed === 1 ? "word" : "words"} — they are waiting for your second look below.` +
+        (data.not_in_doc
+          ? ` ${data.not_in_doc} of them stand beside a word that is not written in your document yet.`
+          : "")
+    );
+    open();
+  };
+
+  // a whole run saved at once: only the pictures whose words have been agreed are saved, and any
+  // that are not agreed are left where they stand
+  const approveMany = async (ids) => {
+    const data = await ask("approve", { ids }, "bulk");
+    if (!data) return;
+    setNote(
+      `Saved ${data.saved} ${data.saved === 1 ? "picture" : "pictures"} into your knowledge` +
+        (data.waiting ? ` — ${data.waiting} had no agreed word and are left in the first look.` : ".")
+    );
+    open();
+  };
+
   // a saved picture whose word is wrong: it is taken back out of the knowledge and stands in the
   // first look again with the word written for it
   const reopen = async (row, word) => {
@@ -167,6 +193,8 @@ export default function ImageReviewPanel() {
         onCorrect={correct}
         onDrop={drop}
         onName={name}
+        onConfirmMany={confirmMany}
+        onApproveMany={approveMany}
       />
 
       <WordDraw words={words} version={rows.length + kept.length} onDrawn={open} onSay={say} />

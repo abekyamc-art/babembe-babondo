@@ -1028,6 +1028,64 @@
     cursor: default;
   }
 
+  /* Choosing a whole run of pictures: the bar that picks them, and the one action that moves the run
+     on. The same bar stands over each look, so a run is agreed in one go and saved in one go. */
+  .knowledge-pick-bar {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .knowledge-pick {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 9px 13px;
+    color: #8ebaff;
+    background: #17223b;
+    border: 1px solid #354568;
+    border-radius: 999px;
+    font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+    cursor: pointer;
+    transition: background 0.18s ease, color 0.18s ease;
+  }
+
+  .knowledge-pick:hover:not(:disabled) {
+    background: #233659;
+    color: #ffffff;
+  }
+
+  .knowledge-pick:disabled {
+    opacity: 0.5;
+    cursor: default;
+  }
+
+  .knowledge-pick:focus-visible,
+  .knowledge-tool.knowledge-pick-on:focus-visible {
+    outline: 2px solid #6ba8ff;
+    outline-offset: 3px;
+  }
+
+  /* the one action of the bar: it moves the chosen run on */
+  .knowledge-pick.is-go {
+    color: #ffffff;
+    background: #2f4a7d;
+    border-color: #3f5e97;
+  }
+
+  .knowledge-pick.is-go:hover:not(:disabled) {
+    background: #3a5a94;
+    color: #ffffff;
+  }
+
+  /* a picture chosen for the run stands filled in the row, with the other tools beside it */
+  .knowledge-tool.knowledge-pick-on {
+    color: #ffffff;
+    background: #2f4a7d;
+    border-color: #3f5e97;
+  }
+
   /* the small switches inside a panel — the paste-a-list one, and the spots a story's picture,
      video, audio or link can stand at — wrap rather than squeeze on a narrow screen */
   .knowledge-switch {
