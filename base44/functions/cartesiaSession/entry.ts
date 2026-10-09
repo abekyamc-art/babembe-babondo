@@ -130,10 +130,18 @@ export default async function (req: Request): Promise<Response> {
   // the voice whose account could not be reached, named in anything said about it
   let who = ACCOUNTS[""].name;
   try {
-    // a call is only ever opened for a signed-in person
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+
+    // Who is signed in is never what holds a call back: the home screen is open to a visitor, and
+    // every other voice the call can open on opens for one too. The read below is only so the app's
+    // own client is what reads the saved rules — so a session that cannot be read is simply nobody
+    // signed in, and the call opens all the same. It must never fail the call: reading it used to
+    // take the first AI off the line for a visitor before the call had even begun.
+    try {
+      await base44.auth.me();
+    } catch (err) {
+      // nobody is signed in on this device: the call still opens on the account it asked for
+    }
 
     let payload: any = {};
     try {
