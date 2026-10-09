@@ -67,6 +67,8 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
   picturesRef.current = onPictures;
   // the person's own last turn, so the answer it brings is read against the admin's own pictures
   const lastUserRef = useRef("");
+  // where the material looked up for a turn came from, waiting for the answer that stands on it
+  const freshSourceRef = useRef(null);
 
   const push = useCallback(
     (role, text, pictures, source) => turnRef.current?.(role, text, pictures, source),
@@ -163,6 +165,9 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
       // talk waits for nothing.
       const fresh = await loadFreshMaterial(said);
       if (fresh.material) socket.sendMemory(fresh.material);
+      // where that material came from is kept for the answer that stands on it, so the screen can
+      // show the source of what the voice says
+      if (fresh.material && fresh.source) freshSourceRef.current = fresh.source;
       if (!socket.sendText(said)) {
         setNotice(TURN_NOT_DELIVERED);
         return;
@@ -207,7 +212,11 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
     (text) => {
       const line = String(text || "").trim();
       if (line) lastAgentRef.current = line;
-      push("assistant", text);
+      // the source of the material this answer was given from, taken once, so it stands beneath
+      // this answer alone and never beneath a later one
+      const source = freshSourceRef.current;
+      freshSourceRef.current = null;
+      push("assistant", text, undefined, source);
       // The words this answer is made of are read against the admin's pictures as the answer is
       // shown, and the pictures of the words it carries join it a moment later: the answer itself
       // is never held back while they are found, and most answers carry none.

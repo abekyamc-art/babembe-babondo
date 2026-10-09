@@ -7,7 +7,7 @@ import { knowledgeStamp } from "../../shared/wordBank.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
-import { lookupForTurn } from "../../shared/freshLookup.ts";
+import { lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
@@ -418,7 +418,16 @@ export default async function (req: Request): Promise<Response> {
       console.error("The voice could not be made:", error?.message);
     }
 
-    return Response.json({ transcript, answer, say, audio_url });
+    // Where this answer stands on something looked up on the internet, where it came from goes back
+    // with it — named, with its own address — so the screen can show the source of what it says
+    // instead of the person having to take the answer on trust.
+    return Response.json({
+      transcript,
+      answer,
+      say,
+      audio_url,
+      source: lookupSource(lookup.material),
+    });
   } catch (error: any) {
     console.error("The Base44 answer failed:", error?.message);
     return Response.json({ error: "Jibu halikukamilika. Jaribu tena." }, { status: 500 });

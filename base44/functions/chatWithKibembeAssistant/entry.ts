@@ -3,7 +3,7 @@ import { secrets } from 'base44:runtime';
 import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
-import { lookupForTurn } from "../../shared/freshLookup.ts";
+import { lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { bestStory, storyNote } from "../../shared/storyMatch.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
@@ -80,20 +80,6 @@ function replyText(data) {
     }
   }
   return '';
-}
-
-/**
- * The source the looked-up material names, and its own address, exactly as the lookup wrote them
- * down: the line it puts beside what it saved, or the first address the material carries. Nothing is
- * read from the answer itself, and material that names no address carries no source.
- */
-function citationOf(material) {
-  const text = String(material || '');
-  const named = text.match(/Chanzo:\s*([^\n(]{2,80}?)\s*[—-]\s*(https?:\/\/\S+)/i);
-  if (named) return { label: named[1].trim(), url: named[2].replace(/[),.\]]+$/, '') };
-  const any = text.match(/https?:\/\/\S+/);
-  if (!any) return null;
-  return { label: 'mtandaoni', url: any[0].replace(/[),.\]]+$/, '') };
 }
 
 export default async function (req) {
@@ -216,7 +202,7 @@ export default async function (req) {
     // And where this answer stands on something looked up on the internet, where it came from goes
     // back with it — named, with its own address — so the screen can show the source of what it says
     // instead of the person having to take the answer on trust.
-    return Response.json({ reply, pictures, source: citationOf(lookup.material) });
+    return Response.json({ reply, pictures, source: lookupSource(lookup.material) });
   } catch (error) {
     console.error('The Kibembe assistant failed:', error?.message);
     return Response.json({ error: NO_REPLY }, { status: 500 });

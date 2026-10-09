@@ -58,8 +58,11 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
 
   // a turn carries the pictures the answer came with, where it came with any, so the screen can
   // stand each one at the word it belongs to and again below the answer
-  const pushTurn = useCallback((role, text, pictures) => {
-    setTurns((prev) => [...prev, { role, text, pictures: pictures || [] }]);
+  const pushTurn = useCallback((role, text, pictures, source) => {
+    // a turn carries the pictures the answer came with, and the source it was given from where it
+    // was given from something looked up on the internet, so the screen can stand each picture at
+    // the word it belongs to and show where the answer came from underneath it
+    setTurns((prev) => [...prev, { role, text, pictures: pictures || [], source: source || null }]);
     turnRef.current?.(role, text);
   }, []);
 
@@ -93,7 +96,7 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
         const reviewed = await reviewAnswer(line, draft);
         const reply = reviewed || draft;
         if (!reviewed) setNotice(REVIEW_MISSED);
-        pushTurn("assistant", reply, pictures);
+        pushTurn("assistant", reply, pictures, data.source || null);
         // the answer has been given, so it is counted against the allowance
         answeredRef.current?.();
         const call = callRef.current;

@@ -180,7 +180,9 @@ export default class Base44Call {
         this.h.onUserText?.(data.transcript);
       }
       this.log.push({ role: "agent", text: data.answer });
-      this.h.onAgentText?.(data.answer);
+      // where the answer was given from something looked up on the internet, where it came from
+      // rides with it, so the screen can show the address beneath the words
+      this.h.onAgentText?.(data.answer, data.source || null);
       this.h.onAgentAnswered?.();
       this.answers += 1;
       url = data.audio_url || "";
@@ -280,7 +282,9 @@ export default class Base44Call {
       if (!data.answer) throw new Error(data.error || "Jibu halikukamilika. Jaribu tena.");
 
       this.log.push({ role: "agent", text: data.answer });
-      this.h.onAgentText?.(data.answer);
+      // where the answer was given from something looked up on the internet, where it came from
+      // rides with it, so the screen can show the address beneath the words
+      this.h.onAgentText?.(data.answer, data.source || null);
       this.h.onAgentAnswered?.();
 
       if (speak && data.audio_url && !this.silent) await this.speak(data.audio_url);

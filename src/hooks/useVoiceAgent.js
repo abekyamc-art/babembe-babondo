@@ -76,6 +76,8 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const heardRef = useRef({ text: "", timer: 0 });
   // knowledge that landed while he was answering, waiting for his voice to stop
   const heldRef = useRef("");
+  // where the material looked up for a turn came from, waiting for the answer that stands on it
+  const freshRef = useRef(null);
   // the admin's knowledge document as the session in hand already carries it: the whole document is
   // handed over as a call opens, and this is the stamp that says which one it was given, so the same
   // document is never pushed at it again on every turn — and a new stamp is what carries a document
@@ -180,13 +182,16 @@ export default function useVoiceAgent({ videoRef } = {}) {
     setTalkLabel(mode === "agent" ? FIRST_TALK.label : "");
   }, [mode]);
 
-  const pushTurn = useCallback((role, text) => {
+  const pushTurn = useCallback((role, text, source = null) => {
     // a turn is answered by the reply that follows it, so the last unanswered one is
     // always the newest turn with no reply after it
     if (role === "user") {
       pendingRef.current = text;
       // a fresh turn is its own turn, so it may be moved on once if it is never answered
       stuckTurnRef.current = "";
+      // what an earlier turn was answered from belongs to that turn: a source no answer took is
+      // never carried over on to the next one
+      freshRef.current = null;
     }
     if (role === "agent") pendingRef.current = "";
     if (role === "agent" && text) linesRef.current = [...linesRef.current, text];
@@ -194,9 +199,9 @@ export default function useVoiceAgent({ videoRef } = {}) {
     setTurns((prev) => {
       const last = prev[prev.length - 1];
       if (last && last.role === role) {
-        return [...prev.slice(0, -1), { role, text }];
+        return [...prev.slice(0, -1), { role, text, source: source || last.source || null }];
       }
-      return [...prev, { role, text }];
+      return [...prev, { role, text, source: source || null }];
     });
   }, []);
 
@@ -290,7 +295,10 @@ export default function useVoiceAgent({ videoRef } = {}) {
   const materialFor = useCallback(async (text) => {
     const said = String(text || "").trim();
     if (said.length < 3) return "";
-    const { material } = await loadFreshMaterial(said);
+    const { material, source } = await loadFreshMaterial(said);
+    // where the material for this turn came from waits here until the answer that stands on it is
+    // given, so the source is shown beneath the words and under no other answer
+    if (material && source) freshRef.current = source;
     return material;
   }, []);
 
@@ -449,7 +457,13 @@ export default function useVoiceAgent({ videoRef } = {}) {
       },
       // a cue the provider wrote for its own voice — [curious] — is not a word for a person to
       // read: it is taken out here, once, so neither the screen nor the remembered lines hold it
-      onAgentText: (text) => pushTurn("agent", withoutCues(text)),
+      onAgentText: (text, source) => {
+        // the source of the material this answer stands on, taken once, so it stands beneath this
+        // answer alone and never beneath a later one
+        const from = source || freshRef.current;
+        freshRef.current = null;
+        pushTurn("agent", withoutCues(text), from);
+      },
       // his voice has begun: nothing was stuck, so the wait on the turn is called off
       onAgentAudioStart: () => {
         clearStuck();

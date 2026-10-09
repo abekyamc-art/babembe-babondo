@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import { lookupForTurn } from "../../shared/freshLookup.ts";
+import { lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 
 /**
  * The material one turn needs from outside the admin's saved knowledge — a story, the news, who
@@ -22,7 +22,10 @@ export default async function (req: Request): Promise<Response> {
       payload = {};
     }
 
-    return Response.json(await lookupForTurn(base44, payload?.query));
+    const lookup = await lookupForTurn(base44, payload?.query);
+    // where the material came from goes back with it — named, with its own address — so the call it
+    // is handed into can show the source of what the answer says, not only speak it aloud
+    return Response.json({ ...lookup, source: lookupSource(lookup.material) });
   } catch (error: any) {
     console.error("Could not look anything up:", error.message);
     return Response.json({ error: "The lookup is unavailable right now." }, { status: 500 });

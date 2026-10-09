@@ -204,7 +204,7 @@ export async function loadTurnPictures(question = "", answer = "") {
 
 export async function loadFreshMaterial(query = "") {
   const asked = String(query || "").trim();
-  const none = { material: "", needed: false, found: false };
+  const none = { material: "", needed: false, found: false, source: null };
   if (!asked) return none;
   try {
     const res = await base44.functions.invoke("freshKnowledge", { query: asked });
@@ -213,6 +213,9 @@ export async function loadFreshMaterial(query = "") {
       material: String(data.material || ""),
       needed: !!data.needed,
       found: !!data.found,
+      // where the material came from, where it came from somewhere the app can name: the screen
+      // shows it beneath the answer the material was given for
+      source: data.source || null,
     };
   } catch (err) {
     // the answer carries on from what is already saved

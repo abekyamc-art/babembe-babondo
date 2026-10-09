@@ -17,6 +17,15 @@ import { keyMatches } from "./answerKey.ts";
 const WANTS =
   /(hadithi|habari|historia|story|stories|news|simulia|nieleze|niambie|maelezo|eleza|describe|description|maneno|neno|misemo|msemo|tena|nyingine|nyingi|zaidi|fundisha|nifundishe|google|tafuta|search|legend|dunia|ulimwengu|matukio|kilitokea|linatokea|happening|more about|tell me more|ninani|nani|nini|wapi|vipi|gani|lini|kwa nini|nauliza|ninauliza|nataka kujua|nijue|kuhusu|youtube|youtuber|anaimba|anacheza|msanii|msani|mwimbaji|mwanamuziki|mchezaji|mwandishi|jina|anaitwa|alizaliwa|alikufa|umri|wasifu|asili|nchi|mji|kijiji|familia|timu|who|what|where|when|why|which|whose|how|biography|born|died|singer|artist|musician|player|coach|team|club|country|origin|city|village|family)/i;
 
+// The second door into the lookup: a request that asks *about* something — how many, how much, their
+// songs, their records, their followers, their views. None of the asking words above stands in a
+// question like "gasper boy wa marekani ana hit ngapi?", and a turn that never reaches the lookup is
+// never searched for: the answer comes back as "nothing in the saved knowledge", which is the one
+// thing this lookup exists to prevent. Every word here is matched whole, so an ordinary word that
+// merely contains one — "anahitaji" for "hit" — never opens the door.
+const ASKS_ABOUT =
+  /\b(?:(?:w|n)?ngapi|hits?|views?|subscribers?|followers?|likes?|streams?|albums?|songs?|tracks?|singles?|discography|mixtapes?|music|records?|nyimbo|wimbo|albamu|muziki|mashabiki|watazamaji|kiasi)\b/i;
+
 // an explicit call for more is never held back by a saved answer: "another story" asks for
 // material the note it already has cannot give
 const MORE =
@@ -31,6 +40,22 @@ const COVER_SCORE = 2;
 const MAX_QUERY = 600;
 const MAX_TEXT = 8000;
 const MAX_MATERIAL = 4000;
+
+/**
+ * The source the looked-up material names, and its own address, exactly as the lookup wrote them
+ * down: the line it puts beside what it saved, or the first address the material carries. Nothing is
+ * read from the answer itself, and material that names no address carries no source. Every answer
+ * that stands on something looked up hands this back with it, so the screen can show where it came
+ * from instead of leaving the person to take it on trust.
+ */
+export function lookupSource(material: any): { label: string; url: string } | null {
+  const text = String(material || "");
+  const named = text.match(/Chanzo:\s*([^\n(]{2,80}?)\s*[—-]\s*(https?:\/\/\S+)/i);
+  if (named) return { label: named[1].trim(), url: named[2].replace(/[),.\]]+$/, "") };
+  const any = text.match(/https?:\/\/\S+/);
+  if (!any) return null;
+  return { label: "mtandaoni", url: any[0].replace(/[),.\]]+$/, "") };
+}
 
 const HEAD =
   "\nMAARIFA MAPYA YA MTANDAONI — material that was just looked up for this request:\n" +
@@ -189,6 +214,12 @@ const SEARCH_SKIP = new Set([
   "muziki", "youtube", "youtuber", "video", "videos", "habari", "nini", "nani", "tell", "about",
   "the", "is", "who", "what", "singer", "artist", "musician", "song", "songs", "you", "me", "and",
   "of", "for", "please",
+  // What is asked *for* rather than what it is about: how many, and how they are counted. A search is
+  // made with the name and the subject, never with these — so "gasper boy wa marekani ana hit ngapi?"
+  // searches for the name and the land it belongs to, and not for "hit" and "ngapi".
+  "ngapi", "wangapi", "nngapi", "kiasi", "hits", "hit", "views", "view", "subscribers", "followers",
+  "likes", "streams", "albums", "album", "tracks", "track", "singles", "single", "discography",
+  "mixtape", "records", "record", "music", "albamu", "mashabiki", "watazamaji",
 ]);
 
 /** The few words a search is made with, out of a whole spoken sentence. */
@@ -317,7 +348,9 @@ export type Lookup = {
 
 export async function lookupForTurn(base44: any, rawQuery: any): Promise<Lookup> {
   const query = textOf(rawQuery).slice(0, MAX_QUERY);
-  if (query.length < 4 || !WANTS.test(query)) return { material: "", needed: false, found: false };
+  if (query.length < 4 || !(WANTS.test(query) || ASKS_ABOUT.test(query))) {
+    return { material: "", needed: false, found: false };
+  }
   // the admin's own answer stands first: where they have already saved this question, its
   // answer is the one to give, so nothing is looked up — unless more was asked for outright
   if (!MORE.test(query) && (await savedAnswer(base44, query))) {
