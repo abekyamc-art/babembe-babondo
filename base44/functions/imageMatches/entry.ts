@@ -22,6 +22,8 @@ const MAX_IDS = 100;
 const MAX_ROWS = 200;
 const MAX_TERM = 40;
 const MAX_VOCAB = 400;
+const MAX_KEPT = 100;
+const MAX_FOUND = 20;
 const PAGE = 500;
 
 const NO_WORD = "no word found in its name yet";
@@ -196,12 +198,23 @@ async function wordsNeedingPictures(base44: any) {
   };
 }
 
-/** What the panel reads: the pictures waiting, and how many are already saved. */
+/**
+ * What the panel reads: the pictures waiting for their two looks, the pictures already saved beside a
+ * word — which a wrong word is put right from — and how many are saved in all.
+ */
 async function view(base44: any) {
-  return {
-    rows: await waitingRows(base44),
-    saved: await base44.entities.KnowledgeImage.count({}).catch(() => 0),
-  };
+  const [rows, saved, kept] = await Promise.all([
+    waitingRows(base44),
+    base44.entities.KnowledgeImage.count({}).catch(() => 0),
+    base44.entities.KnowledgeImage
+      .list({
+        sort: "-created_date",
+        limit: MAX_KEPT,
+        fields: ["term", "name", "file_url", "how"],
+      })
+      .catch(() => []),
+  ]);
+  return { rows, saved, kept: rowsOf(kept) };
 }
 
 export default async function (req: Request): Promise<Response> {
@@ -223,6 +236,26 @@ export default async function (req: Request): Promise<Response> {
 
     if (action === "open") {
       return Response.json(await view(base44));
+    }
+
+    // The words of the document, so a picture is put beside a word the document really holds: what is
+    // written here is answered by the document's own words, and an empty question is answered by the
+    // words no picture stands beside yet.
+    if (action === "wordSearch") {
+      const q = plain(payload?.q);
+      const terms = await docTerms(base44);
+      let found: string[] = [];
+      if (!q) {
+        const held = await heldTerms(base44);
+        found = terms.filter((term: string) => !held.has(term.toLowerCase()));
+      } else {
+        const starts = terms.filter((term: string) => plain(term).startsWith(q));
+        const inside = terms.filter(
+          (term: string) => !plain(term).startsWith(q) && plain(term).includes(q)
+        );
+        found = [...starts, ...inside];
+      }
+      return Response.json({ words: found.slice(0, MAX_FOUND), all: terms.length });
     }
 
     // A run of pictures that has just been put in: a word is found for every one of them from the
@@ -416,8 +449,47 @@ export default async function (req: Request): Promise<Response> {
       });
     }
 
+    // A word put right: a picture whose word is not the one it should be is written the word that is,
+    // and it goes back to the first look with it — so the word it is finally saved beside has been
+    // looked at twice like any other, and never slips into the knowledge on one look.
+    if (action === "correct") {
+      const ids = idsOf(payload);
+      if (!ids.length) return Response.json({ error: "No picture was named." }, { status: 400 });
+      const given = payload?.terms && typeof payload.terms === "object" ? payload.terms : {};
+
+      const rows = await base44.entities.ImageMatch.filter(
+        { id: { $in: ids } },
+        { limit: MAX_IDS, fields: ["id", "term", "how"] }
+      );
+      const terms = await docTerms(base44);
+      const inDoc = new Set(terms.map((term: string) => term.toLowerCase()));
+
+      const changes: any[] = [];
+      rowsOf(rows).forEach((row: any) => {
+        const was = clean(row?.term, MAX_TERM);
+        const word = clean(given[row.id], MAX_TERM);
+        if (!word) return;
+        changes.push({
+          id: row.id,
+          term: word,
+          how: word.toLowerCase() === was.toLowerCase() ? clean(row?.how, 120) : BY_HAND,
+          stage: "suggested",
+          in_doc: inDoc.has(word.toLowerCase()),
+        });
+      });
+
+      if (changes.length) await base44.entities.ImageMatch.bulkUpdate(changes);
+
+      return Response.json({
+        corrected: changes.length,
+        not_in_doc: changes.filter((change: any) => !change.in_doc).length,
+      });
+    }
+
     // The second look, which is what saves a picture: only a picture whose word has been agreed can
     // be saved, and saving it writes it beside its word in the knowledge and takes it off the list.
+    // A picture the knowledge already holds at that same address has the word written over rather than
+    // a second copy of it being made, so one picture stands beside one word.
     if (action === "approve") {
       const ids = idsOf(payload);
       if (!ids.length) return Response.json({ error: "No picture was named." }, { status: 400 });
@@ -430,18 +502,91 @@ export default async function (req: Request): Promise<Response> {
       const ready = all.filter((row: any) => row?.stage === "confirmed" && clean(row?.term, MAX_TERM));
 
       if (ready.length) {
-        await base44.entities.KnowledgeImage.bulkCreate(
-          ready.map((row: any) => ({
-            term: clean(row.term, MAX_TERM),
-            name: clean(row.name, 160) || "picture",
-            file_url: String(row.file_url || ""),
-            how: clean(row.how, 120) || BY_HAND,
-          }))
+        const urls = ready.map((row: any) => String(row.file_url || ""));
+        const standing = await base44.entities.KnowledgeImage.filter(
+          { file_url: { $in: urls } },
+          { limit: MAX_IDS, fields: ["id", "file_url"] }
         );
+        const held = new Map<string, string>();
+        rowsOf(standing).forEach((row: any) => held.set(String(row.file_url || ""), String(row.id)));
+
+        const fresh = ready.filter((row: any) => !held.has(String(row.file_url || "")));
+        const again = ready.filter((row: any) => held.has(String(row.file_url || "")));
+
+        if (fresh.length) {
+          await base44.entities.KnowledgeImage.bulkCreate(
+            fresh.map((row: any) => ({
+              term: clean(row.term, MAX_TERM),
+              name: clean(row.name, 160) || "picture",
+              file_url: String(row.file_url || ""),
+              how: clean(row.how, 120) || BY_HAND,
+            }))
+          );
+        }
+        if (again.length) {
+          await base44.entities.KnowledgeImage.bulkUpdate(
+            again.map((row: any) => ({
+              id: held.get(String(row.file_url || "")),
+              term: clean(row.term, MAX_TERM),
+              name: clean(row.name, 160) || "picture",
+              how: clean(row.how, 120) || BY_HAND,
+            }))
+          );
+        }
+
         await base44.entities.ImageMatch.deleteMany({ id: { $in: ready.map((row: any) => row.id) } });
       }
 
       return Response.json({ saved: ready.length, waiting: all.length - ready.length });
+    }
+
+    // A picture already saved in the knowledge whose word is not the right one: it is taken back out
+    // of the knowledge and stands on the list again with the word written for it, so it is looked at
+    // twice before it is saved — and only then stands beside its word again, in its right place.
+    if (action === "reopen") {
+      const ids = idsOf(payload);
+      if (!ids.length) return Response.json({ error: "No picture was named." }, { status: 400 });
+      const given = payload?.terms && typeof payload.terms === "object" ? payload.terms : {};
+
+      const rows = await base44.entities.KnowledgeImage.filter(
+        { id: { $in: ids } },
+        { limit: MAX_IDS, fields: ["id", "term", "name", "file_url"] }
+      );
+      const saved = rowsOf(rows);
+      if (!saved.length) {
+        return Response.json({ error: "That picture is not saved in your knowledge." }, { status: 400 });
+      }
+
+      const terms = await docTerms(base44);
+      const inDoc = new Set(terms.map((term: string) => term.toLowerCase()));
+
+      const fresh = saved
+        .map((row: any) => {
+          const word = clean(given[row.id], MAX_TERM) || clean(row?.term, MAX_TERM);
+          return {
+            name: clean(row?.name, 120) || "picture",
+            file_url: String(row?.file_url || ""),
+            term: word,
+            how: BY_HAND,
+            stage: "suggested",
+            batch: "put back for another look",
+            drawn: false,
+            in_doc: !!word && inDoc.has(word.toLowerCase()),
+          };
+        })
+        .filter((row: any) => isUrl(row.file_url));
+
+      if (!fresh.length) {
+        return Response.json({ error: "That picture has no address to open." }, { status: 400 });
+      }
+
+      await base44.entities.ImageMatch.bulkCreate(fresh);
+      await base44.entities.KnowledgeImage.deleteMany({ id: { $in: saved.map((row: any) => row.id) } });
+
+      return Response.json({
+        reopened: fresh.length,
+        not_in_doc: fresh.filter((row: any) => !row.in_doc).length,
+      });
     }
 
     // A picture the admin does not want: taken off the list, never saved.

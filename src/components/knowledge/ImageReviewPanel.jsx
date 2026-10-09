@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import ImageUploader from "@/components/knowledge/ImageUploader";
 import MatchReview from "@/components/knowledge/MatchReview";
+import SavedPictures from "@/components/knowledge/SavedPictures";
 import WordDraw from "@/components/knowledge/WordDraw";
 import { parseWords } from "@/lib/imageWords";
 
@@ -16,6 +17,7 @@ import { parseWords } from "@/lib/imageWords";
 export default function ImageReviewPanel() {
   const [rows, setRows] = useState(null);
   const [saved, setSaved] = useState(0);
+  const [kept, setKept] = useState([]);
   const [words, setWords] = useState("");
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
@@ -31,6 +33,7 @@ export default function ImageReviewPanel() {
       }
       setRows(data.rows || []);
       setSaved(Number(data.saved) || 0);
+      setKept(data.kept || []);
     } catch (error) {
       setError("Your pictures could not be opened just now.");
     }
@@ -81,7 +84,34 @@ export default function ImageReviewPanel() {
   const approve = async (row) => {
     const data = await ask("approve", { ids: [row.id] }, row.id);
     if (!data) return;
-    setNote(`Saved — the picture now stands beside "${row.term}" in your knowledge.`);
+    setNote(
+      `Saved — the picture now stands beside "${row.term}" in your knowledge, and beside that word in your document.`
+    );
+    open();
+  };
+
+  // a word put right on a picture that is waiting: it is written the word that is and stands in the
+  // first look again, so the word it is saved beside has been looked at twice
+  const correct = async (row, word) => {
+    const data = await ask("correct", { ids: [row.id], terms: { [row.id]: word } }, row.id);
+    if (!data) return;
+    setNote(
+      data.not_in_doc
+        ? `Written as "${word}" — but that word is not in your document yet. It stands in the first look again; agree it when the word is right.`
+        : `Written as "${word}" — it stands in the first look again, to be agreed and then saved.`
+    );
+    open();
+  };
+
+  // a saved picture whose word is wrong: it is taken back out of the knowledge and stands in the
+  // first look again with the word written for it
+  const reopen = async (row, word) => {
+    const data = await ask("reopen", { ids: [row.id], terms: { [row.id]: word } }, row.id);
+    if (!data) return;
+    setNote(
+      `Put back for another look: ${row.name || "that picture"} now stands in the first look above` +
+        (data.not_in_doc ? ` — and "${word}" is not in your document yet.` : ".")
+    );
     open();
   };
 
@@ -117,8 +147,10 @@ export default function ImageReviewPanel() {
   return (
     <>
       <p className="account-hint">
-        Pictures saved beside words stand with the words, and the assistant answers with them. {saved}{" "}
-        {saved === 1 ? "picture is" : "pictures are"} saved in your knowledge.
+        Pictures saved beside words stand with the words in your knowledge and beside that very word in
+        your document, and the assistant answers with them. {saved} {saved === 1 ? "picture is" : "pictures are"}{" "}
+        saved in your knowledge. A word that came out wrong is written again here — on a picture still
+        waiting, and on one already saved — and the picture is looked at twice again before it is saved.
       </p>
 
       <ImageUploader words={words} setWords={setWords} onDone={open} onSay={say} />
@@ -129,11 +161,14 @@ export default function ImageReviewPanel() {
         busy={busy}
         onConfirm={confirm}
         onApprove={approve}
+        onCorrect={correct}
         onDrop={drop}
         onName={name}
       />
 
-      <WordDraw words={words} version={rows.length} onDrawn={open} onSay={say} />
+      <WordDraw words={words} version={rows.length + kept.length} onDrawn={open} onSay={say} />
+
+      <SavedPictures kept={kept} total={saved} busy={busy} onReopen={reopen} />
 
       {note ? <p className="knowledge-meter-text">{note}</p> : null}
       {error ? <p className="knowledge-error">{error}</p> : null}

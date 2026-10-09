@@ -7,7 +7,16 @@ import MatchRow from "@/components/knowledge/MatchRow";
  * is taken — and the pictures whose word is agreed, which the second look saves into the knowledge.
  * The two are kept apart on purpose, so nothing is saved on one look alone.
  */
-export default function MatchReview({ suggested, confirmed, busy, onConfirm, onApprove, onDrop, onName }) {
+export default function MatchReview({
+  suggested,
+  confirmed,
+  busy,
+  onConfirm,
+  onApprove,
+  onCorrect,
+  onDrop,
+  onName,
+}) {
   const unnamed = suggested.filter((row) => !String(row.term || "").trim());
 
   return (
@@ -19,8 +28,9 @@ export default function MatchReview({ suggested, confirmed, busy, onConfirm, onA
 
         {suggested.length ? (
           <span className="knowledge-meter-text">
-            Read the picture, read the word, and agree it — or write the word it is really of. A picture
-            is not saved until you have agreed its word here and then looked at it again below.
+            Read the picture, read the word, and agree it — or write the word it is really of, or find
+            that word among the words of your document. A picture is not saved until you have agreed its
+            word here and then looked at it again below.
           </span>
         ) : (
           <span className="knowledge-meter-text">
@@ -62,6 +72,7 @@ export default function MatchReview({ suggested, confirmed, busy, onConfirm, onA
               stage="suggested"
               busy={busy}
               onConfirm={onConfirm}
+              onCorrect={onCorrect}
               onDrop={onDrop}
             />
           ))}
@@ -76,7 +87,9 @@ export default function MatchReview({ suggested, confirmed, busy, onConfirm, onA
         {confirmed.length ? (
           <span className="knowledge-meter-text">
             Look once more: the picture, and the word it stands beside. Saving it writes it into the
-            knowledge under that word, where the assistant answers with it.
+            knowledge under that word, so it stands in your pictures and beside that word in your
+            document, where the assistant answers with it. If the word is not the right one, write the
+            word that is and put the picture back — it is agreed again, and saved only after that.
           </span>
         ) : (
           <span className="knowledge-meter-text">
@@ -92,6 +105,7 @@ export default function MatchReview({ suggested, confirmed, busy, onConfirm, onA
               stage="confirmed"
               busy={busy}
               onApprove={onApprove}
+              onCorrect={onCorrect}
               onDrop={onDrop}
             />
           ))}

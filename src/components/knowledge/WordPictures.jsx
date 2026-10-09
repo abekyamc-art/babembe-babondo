@@ -152,6 +152,11 @@ export default function WordPictures({ text = "" }) {
         {missing ? ` · ${missing} whose word is not in the document` : ""}
       </span>
 
+      <span className="knowledge-meter-text">
+        A picture whose word came out wrong is put right in <strong>Pictures</strong>, above: write the
+        word that is and it stands here beside that word's line.
+      </span>
+
       <div className="flex flex-col">
         {rows.map((row) => {
           const place = places.get(row.id) || null;
