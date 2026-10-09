@@ -40,7 +40,16 @@ function lay(clips) {
  * written, and one for the voice — each clip standing for the work it really holds, and a playhead
  * sweeping the lanes. Nothing is drawn here that the studio does not already have.
  */
-export default function StudioTimeline({ beat, savedBeats, lines, take, recording, seconds, tracks }) {
+export default function StudioTimeline({
+  beat,
+  savedBeats,
+  lines,
+  take,
+  recording,
+  seconds,
+  tracks,
+  voiceTools,
+}) {
   // the written bars, section by section, as the clip each part of the rap stands in
   const sections = [];
   (lines || []).forEach((line) => {
@@ -119,6 +128,8 @@ export default function StudioTimeline({ beat, savedBeats, lines, take, recordin
         {lanes.map((lane) => (
           <div key={lane.id} className="rap-trk">
             <span className="rap-trk-name">{lane.name}</span>
+
+            {lane.id === "voice" && voiceTools ? <div className="rap-trk-tools">{voiceTools}</div> : null}
 
             {lane.clips.map((clip) => (
               <div

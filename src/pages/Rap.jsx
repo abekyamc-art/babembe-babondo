@@ -10,6 +10,7 @@ import StudioTimeline from "@/components/rap/StudioTimeline";
 import RapGenerate from "@/components/rap/RapGenerate";
 import RapSteps from "@/components/rap/RapSteps";
 import RapLyrics from "@/components/rap/RapLyrics";
+import RapMicBar from "@/components/rap/RapMicBar";
 import StudioDock from "@/components/rap/StudioDock";
 import useVoiceTracks from "@/hooks/useVoiceTracks";
 import useBeatMaker from "@/hooks/useBeatMaker";
@@ -151,6 +152,7 @@ export default function Rap() {
                 busy={!!busy || !ready}
                 onPick={(bpm) => studio.setSettings({ ...settings, bpm })}
               />
+              <RapMicBar studio={voiceTracks} off={!ready || !!voiceTracks.busy} showCount />
             </div>
 
             <StudioTimeline
@@ -161,6 +163,7 @@ export default function Rap() {
               recording={songwriter.recording}
               seconds={songwriter.seconds}
               tracks={voiceTracks.tracks}
+              voiceTools={<RapMicBar studio={voiceTracks} off={!ready || !!voiceTracks.busy} />}
             />
 
             <RapSteps

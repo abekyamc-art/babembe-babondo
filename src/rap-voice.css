@@ -416,3 +416,88 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
+
+/* the studio's own microphone: record your voice right where you are standing */
+
+.rap-mic {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.rap-mic-btn {
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  color: #c7f400;
+  background: #202127;
+  border: 1px solid #3a3b45;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s, color 0.2s;
+}
+
+.rap-mic-btn:hover:not(:disabled) {
+  background: #2b2c34;
+  box-shadow: 0 0 0 3px rgba(199, 244, 0, 0.15);
+}
+
+.rap-mic-btn:active:not(:disabled) {
+  background: #33343d;
+}
+
+.rap-mic-btn:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.rap-mic-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.rap-mic-btn:focus-visible {
+  outline: 2px solid #15d8d0;
+  outline-offset: 2px;
+}
+
+/* while the mic is open the button itself breathes, so a lane being recorded is never missed */
+.rap-mic-btn.is-live {
+  color: #ffe1e5;
+  background: #6d2030;
+  border-color: #8f3548;
+  animation: rap-pulse 1.25s ease-out infinite;
+}
+
+.rap-mic-time {
+  color: #ffe1e5;
+  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+
+.rap-mic-count {
+  color: #666978;
+  font: 700 10px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.08em;
+}
+
+/* standing inside a lane, the controls sit in its own corner and stay out of the clip's way */
+.rap-trk-tools {
+  position: absolute;
+  right: 8px;
+  top: 5px;
+  z-index: 3;
+}
+
+.rap-trk-tools .rap-mic-btn {
+  width: 30px;
+  height: 30px;
+  background: #17181d;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rap-mic-btn.is-live {
+    animation: none;
+  }
+}
