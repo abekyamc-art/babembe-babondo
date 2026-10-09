@@ -1,16 +1,48 @@
-/* Rap Studio — the account surface's dark palette, carried onto its own screen.
+/* Rap Studio — a dark multi-track workspace: near-black surfaces, electric lime for the things a
+   person presses, cyan for the things that move, and a timeline the whole session stands in.
    Written plain rather than in a Tailwind layer: these styles belong to one screen,
    and nothing in the app's utilities needs to override them. */
 
 .rap-screen {
+  position: relative;
   min-height: 100%;
+  overflow: hidden;
+  color: #e9eaf0;
+  background: #101116;
+  border: 1px solid #2a2b33;
+  font-family: system-ui, -apple-system, "Segoe UI", Arial, sans-serif;
+}
+
+/* the room the session stands in, laid across the top of the page and dimmed down into it */
+.rap-hero {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 300px;
+  object-fit: cover;
+  opacity: 0.35;
+  pointer-events: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.rap-scrim {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 300px;
+  pointer-events: none;
+  background: linear-gradient(180deg, rgba(16, 17, 22, 0.3), #101116);
+}
+
+.rap-in {
+  position: relative;
   display: flex;
   flex-direction: column;
-  gap: 18px;
-  padding: max(14px, env(safe-area-inset-top)) 20px 44px;
-  color: #f5f6ff;
-  background: #0b1020;
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+  gap: 16px;
+  padding: 22px 24px 44px;
 }
 
 .rap-head {
@@ -18,32 +50,176 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  animation: rap-fi 0.8s ease both;
 }
 
 .rap-eyebrow {
   display: block;
-  color: #8ebaff;
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.8px;
+  color: #c7f400;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.2em;
   text-transform: uppercase;
 }
 
 .rap-title {
-  margin: 2px 0 0;
-  font-size: 24px;
-  font-weight: 650;
-  letter-spacing: -0.5px;
+  margin: 0;
+  font-size: 44px;
+  font-weight: 900;
+  letter-spacing: -0.02em;
+  line-height: 1.1;
+  text-transform: uppercase;
+}
+
+.rap-back {
+  flex: none;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid #3a3b45;
+  background: #202127;
+  color: #c7f400;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
+}
+
+.rap-back:hover {
+  background: #2b2c34;
+  box-shadow: 0 0 0 3px rgba(199, 244, 0, 0.15);
+}
+
+.rap-back:active {
+  background: #33343d;
+}
+
+.rap-back svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* the strip the whole session is set going from: one tap, how far the work has come, and the way
+   out to coins when the wallet is short */
+.rap-strip {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 12px 16px;
+  background: #202127;
+  border: 1px solid #33343d;
+  border-radius: 10px;
+  animation: rap-fi 0.8s 0.1s ease both;
+}
+
+.rap-strip .rap-generate {
+  flex: 0 0 auto;
+  flex-direction: row;
+  align-items: center;
+  gap: 12px;
+}
+
+.rap-strip .rap-generate .rap-hint,
+.rap-strip .rap-generate .rap-note {
+  max-width: 340px;
+  margin: 0;
+}
+
+.rap-strip .rap-bar {
+  flex: 1 1 120px;
+  min-width: 80px;
+}
+
+.rap-strip .rap-cta {
+  flex: 0 0 auto;
+  width: auto;
+}
+
+/* the three columns of the session: what it is set to, the timeline it is made in, and what is
+   being written and performed */
+.rap-grid {
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr) 280px;
+  gap: 14px;
+  align-items: start;
+}
+
+.rap-grid > .rap-card,
+.rap-panel {
+  animation: rap-fi 0.8s 0.2s ease both;
+}
+
+.rap-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 14px;
+  background: #17181d;
+  border: 1px solid #2a2b33;
+  border-radius: 10px;
+}
+
+/* a piece of the session standing inside a column is part of that column, not a box in a box */
+.rap-panel > .rap-card,
+.rap-timeline > .rap-card {
+  gap: 12px;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
+.rap-timeline {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px;
+  background: #14151a;
+  border: 1px solid #2a2b33;
+  border-radius: 10px;
+  animation: rap-fi 0.8s 0.3s ease both;
+}
+
+.rap-tl-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+/* the two halves of the page below the timeline: what the studio made, and what it kept */
+.rap-lower {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+  align-items: start;
+}
+
+.rap-lower > .rap-col {
+  animation: rap-fi 0.8s 0.4s ease both;
+}
+
+/* a card standing on its own in the lower half keeps the tighter rhythm of that row */
+.rap-lower .rap-card {
+  gap: 12px;
+}
+
+.rap-col {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
 }
 
 .rap-card {
   display: flex;
   flex-direction: column;
   gap: 14px;
-  padding: 15px;
-  background: #101728;
-  border: 1px solid #1c2440;
-  border-radius: 18px;
+  padding: 14px;
+  background: #17181d;
+  border: 1px solid #2a2b33;
+  border-radius: 10px;
 }
 
 .rap-card-head {
@@ -57,12 +233,13 @@
   display: flex;
   flex-direction: column;
   gap: 7px;
+  min-width: 0;
 }
 
 .rap-label {
-  color: #9ba9c6;
-  font: 700 10px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
-  letter-spacing: 1.4px;
+  color: #8d90a0;
+  font: 800 10px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
@@ -70,78 +247,282 @@
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  margin-top: 8px;
+}
+
+.rap-tl-head .rap-pills {
+  margin-top: 0;
 }
 
 .rap-pill {
   flex: 0 1 auto;
-  padding: 9px 14px;
-  color: #9ba9c6;
-  background: #141c32;
-  border: 1px solid #293654;
-  border-radius: 999px;
-  font: 600 12px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 7px 10px;
+  color: #cfd1dc;
+  background: #202127;
+  border: 1px solid #3a3b45;
+  border-radius: 6px;
+  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
   cursor: pointer;
-  transition: color 0.18s ease, background 0.18s ease, border-color 0.18s ease;
+  transition: background 0.2s, color 0.2s, box-shadow 0.2s;
+}
+
+.rap-pill:hover:not(:disabled) {
+  background: #2c2d36;
+  box-shadow: 0 0 0 2px rgba(21, 216, 208, 0.2);
+}
+
+.rap-pill:active:not(:disabled) {
+  background: #363744;
 }
 
 .rap-pill.is-active {
-  color: #ffffff;
-  background: #2f4a7d;
-  border-color: #3f5e97;
+  color: #101116;
+  background: #c7f400;
+  border-color: #c7f400;
 }
 
+.rap-pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.rap-back:focus-visible,
 .rap-pill:focus-visible,
 .rap-cta:focus-visible,
+.rap-inp:focus-visible,
+.rap-input:focus-visible,
 .rap-tool:focus-visible,
 .rap-dl-row:focus-visible {
-  outline: 2px solid #6ba8ff;
-  outline-offset: 3px;
+  outline: 2px solid #15d8d0;
+  outline-offset: 2px;
 }
 
 .rap-input {
   width: 100%;
   box-sizing: border-box;
-  padding: 12px 14px;
-  color: #f5f6ff;
-  background: #141c32;
-  border: 1px solid #293654;
-  border-radius: 12px;
-  font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  padding: 10px;
+  color: #e9eaf0;
+  background: #101116;
+  border: 1px solid #33343d;
+  border-radius: 6px;
+  font: 600 12px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  resize: none;
 }
 
-.rap-input:focus {
-  outline: 2px solid #6ba8ff;
-  outline-offset: 2px;
+.rap-input::placeholder {
+  color: #666978;
+}
+
+.rap-group .rap-input {
+  margin-top: 8px;
 }
 
 .rap-hint {
   margin: 0;
-  color: #9ba9c6;
-  font-size: 12px;
-  line-height: 1.5;
+  color: #8d90a0;
+  font-size: 11px;
+  line-height: 1.45;
+}
+
+.rap-group .rap-hint {
+  margin-top: 6px;
 }
 
 .rap-note {
   margin: 0;
-  color: #ffb6bd;
-  font-size: 12.5px;
-  line-height: 1.5;
+  color: #ff9a9a;
+  font-size: 11.5px;
+  line-height: 1.45;
 }
 
 .rap-busy {
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #9ba9c6;
+  color: #8d90a0;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+/* ---------------------------------------------------------------- the timeline */
+
+.rap-ruler {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  padding-bottom: 6px;
+  border-bottom: 1px solid #2a2b33;
+  color: #666978;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.rap-lanes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+  padding-bottom: 4px;
+}
+
+.rap-trk {
+  position: relative;
+  height: 74px;
+  min-width: 780px;
+  overflow: hidden;
+  background: #101116;
+  border: 1px solid #23242b;
+  border-radius: 6px;
+  background-image: repeating-linear-gradient(
+    90deg,
+    transparent 0,
+    transparent 63px,
+    #1d1e25 63px,
+    #1d1e25 64px
+  );
+}
+
+.rap-trk-name {
+  position: absolute;
+  left: 8px;
+  top: 6px;
+  z-index: 2;
+  color: #666978;
+  font: 800 9px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.rap-trk-empty {
+  position: absolute;
+  left: 12px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: #4d505d;
+  font: 600 11px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.rap-clip {
+  position: absolute;
+  top: 8px;
+  bottom: 8px;
+  display: flex;
+  align-items: flex-end;
+  gap: 2px;
+  padding: 6px;
+  border-radius: 5px;
+  overflow: hidden;
+}
+
+.rap-clip i {
+  flex: 1;
+  min-width: 2px;
+  background: rgba(16, 17, 22, 0.55);
+  border-radius: 1px;
+}
+
+.rap-clip-name {
+  position: absolute;
+  left: 6px;
+  top: 5px;
+  z-index: 2;
+  max-width: calc(100% - 12px);
+  overflow: hidden;
+  color: #101116;
+  font: 800 9px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.06em;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* the playhead sweeping the lane */
+.rap-ph {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 380px;
+  width: 2px;
+  background: #ffffff;
+  box-shadow: 0 0 10px #ffffff;
+  animation: rap-mv 9s linear infinite;
+}
+
+/* ------------------------------------------------------------------- the work */
+
+/* what one run is doing, step by step, and the clock it is read against */
+.rap-steps {
+  gap: 12px;
+}
+
+.rap-clock {
+  color: #cfd1dc;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.rap-step-list {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.rap-step {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  color: #666978;
   font-size: 12.5px;
+  font-weight: 600;
+}
+
+.rap-step-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 16px;
+  height: 16px;
+}
+
+.rap-step-mark svg {
+  width: 15px;
+  height: 15px;
+}
+
+.rap-step.is-running {
+  color: #e9eaf0;
+}
+
+.rap-step.is-running .rap-step-mark {
+  color: #15d8d0;
+}
+
+.rap-step.is-done {
+  color: #8d90a0;
+}
+
+.rap-step.is-done .rap-step-mark {
+  color: #c7f400;
+}
+
+.rap-step.is-failed {
+  color: #ff9a9a;
+}
+
+.rap-step.is-failed .rap-step-mark {
+  color: #ff9a9a;
 }
 
 .rap-section {
   margin: 6px 0 0;
-  color: #8ebaff;
+  color: #c7f400;
   font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
 }
 
 .rap-lines {
@@ -153,8 +534,8 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  padding: 10px 0;
-  border-bottom: 1px solid #1c2440;
+  padding: 9px 0;
+  border-bottom: 1px solid #23242b;
 }
 
 .rap-line:last-child {
@@ -162,14 +543,14 @@
 }
 
 .rap-line.is-locked {
-  background: rgba(107, 168, 255, 0.05);
+  background: rgba(199, 244, 0, 0.04);
 }
 
 .rap-index {
   flex: none;
   width: 20px;
   padding-top: 8px;
-  color: #7183a8;
+  color: #666978;
   font: 700 11px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
   text-align: right;
 }
@@ -187,89 +568,95 @@
   width: 100%;
   box-sizing: border-box;
   padding: 7px 9px;
-  background: #0d1424;
-  border: 1px solid #222d4a;
-  border-radius: 9px;
+  background: #101116;
+  border: 1px solid #33343d;
+  border-radius: 6px;
   font-family: inherit;
+  resize: none;
 }
 
 .rap-line-ebembe {
-  color: #f5f6ff;
+  color: #e9eaf0;
   font-size: 15px;
   font-weight: 650;
 }
 
 .rap-line-swahili {
-  color: #9ba9c6;
+  color: #8d90a0;
   font-size: 12.5px;
   font-weight: 500;
 }
 
 .rap-line-ebembe:focus,
 .rap-line-swahili:focus {
-  outline: 2px solid #6ba8ff;
+  outline: 2px solid #15d8d0;
   outline-offset: 1px;
 }
 
-.rap-tool {
-  flex: none;
-  width: 40px;
-  height: 40px;
-  display: grid;
-  place-items: center;
-  color: #8ebaff;
-  background: #17223b;
-  border: 1px solid #354568;
-  border-radius: 10px;
-  cursor: pointer;
+/* --------------------------------------------------------- the songwriter & takes */
+
+.rap-area {
+  min-height: 84px;
+  font-family: inherit;
+  line-height: 1.5;
 }
 
-.rap-tool:disabled {
-  opacity: 0.5;
-  cursor: default;
+.rap-song-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 800;
+  letter-spacing: -0.01em;
 }
 
-.rap-tool svg {
-  width: 17px;
-  height: 17px;
+.rap-song-part {
+  display: flex;
+  flex-direction: column;
 }
 
-.rap-cta {
-  width: 100%;
-  padding: 15px;
-  color: #ffffff;
-  background: #2f4a7d;
-  border: 1px solid #3f5e97;
-  border-radius: 14px;
-  font: 650 15px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
-  cursor: pointer;
+.rap-song-line {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 7px 0;
+  border-bottom: 1px solid #23242b;
 }
 
-.rap-cta:disabled {
-  opacity: 0.45;
-  cursor: default;
+.rap-song-line:last-child {
+  border-bottom: 0;
 }
 
-.rap-cta-ghost {
-  color: #c3cde2;
-  background: #141c32;
-  border-color: #293654;
+.rap-song-text {
+  margin: 0;
+  color: #e9eaf0;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
-.rap-bar {
-  position: relative;
-  height: 4px;
-  border-radius: 999px;
-  background: #1c2440;
-  overflow: hidden;
+.rap-song-meaning {
+  margin: 0;
+  color: #8d90a0;
+  font-size: 12px;
+  line-height: 1.45;
+  overflow-wrap: anywhere;
 }
 
-.rap-bar-fill {
-  position: absolute;
-  inset: 0 auto 0 0;
-  border-radius: 999px;
-  background: #6ba8ff;
-  transition: width 0.12s linear;
+/* the voice behind the lead: set in, softer, and named as what it is */
+.rap-song-line.is-back .rap-song-text {
+  padding-left: 14px;
+  color: #15d8d0;
+  font-style: italic;
+}
+
+.rap-song-tag {
+  margin-right: 6px;
+  color: #666978;
+  font-size: 9px;
+  font-weight: 800;
+  font-style: normal;
+  letter-spacing: 0.12em;
+  vertical-align: 2px;
 }
 
 .rap-now {
@@ -281,17 +668,17 @@
 
 .rap-now-line {
   margin: 0;
-  font-size: 19px;
-  font-weight: 650;
-  letter-spacing: -0.3px;
+  font-size: 18px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
   line-height: 1.3;
   overflow-wrap: anywhere;
 }
 
 .rap-now-next {
   margin: 0;
-  color: #7183a8;
-  font-size: 13px;
+  color: #666978;
+  font-size: 12.5px;
   line-height: 1.4;
   overflow-wrap: anywhere;
 }
@@ -304,8 +691,9 @@
 
 .rap-time {
   margin-left: auto;
-  color: #9ba9c6;
-  font: 600 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #8d90a0;
+  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-variant-numeric: tabular-nums;
 }
 
 .rap-dl-row {
@@ -314,14 +702,19 @@
   justify-content: space-between;
   gap: 12px;
   width: 100%;
-  padding: 13px 2px;
-  color: #f5f6ff;
+  padding: 11px 2px;
+  color: #e9eaf0;
   background: transparent;
   border: 0;
-  border-bottom: 1px solid #1c2440;
+  border-bottom: 1px solid #23242b;
   text-align: left;
-  font: 600 14px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
+  font: 600 13px/1.4 system-ui, -apple-system, "Segoe UI", sans-serif;
   cursor: pointer;
+  transition: color 0.2s;
+}
+
+.rap-dl-row:hover:not(:disabled) {
+  color: #c7f400;
 }
 
 .rap-dl-row:last-child {
@@ -344,7 +737,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 0;
-  border-bottom: 1px solid #1c2440;
+  border-bottom: 1px solid #23242b;
 }
 
 .rap-history-row:last-child {
@@ -358,9 +751,9 @@
 
 .rap-history-title {
   margin: 0;
-  color: #f5f6ff;
-  font-size: 14px;
-  font-weight: 650;
+  color: #e9eaf0;
+  font-size: 13px;
+  font-weight: 700;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -377,134 +770,97 @@
   gap: 8px;
 }
 
-/* the steps one run goes through, and the clock they are read against */
-.rap-clock {
-  color: #c3cde2;
-  font-weight: 650;
-  font-variant-numeric: tabular-nums;
+.rap-cta {
+  width: 100%;
+  padding: 12px 18px;
+  color: #101116;
+  background: #c7f400;
+  border: 1px solid #c7f400;
+  border-radius: 8px;
+  font: 800 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  cursor: pointer;
+  transition: box-shadow 0.2s, opacity 0.2s;
 }
 
-.rap-step-list {
-  display: flex;
-  flex-direction: column;
-  gap: 9px;
-  margin: 0;
-  padding: 0;
-  list-style: none;
+.rap-cta:hover:not(:disabled) {
+  box-shadow: 0 0 18px rgba(199, 244, 0, 0.45);
 }
 
-.rap-step {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  color: #7183a8;
-  font-size: 12.5px;
-  font-weight: 600;
+.rap-cta:active:not(:disabled) {
+  opacity: 0.8;
 }
 
-.rap-step-mark {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+.rap-cta:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+/* the way out and the quieter actions: cyan on graphite, so lime stays the one thing to press */
+.rap-cta-ghost {
+  color: #15d8d0;
+  background: #2a2b33;
+  border: 1px solid #15d8d0;
+}
+
+.rap-cta-ghost:hover:not(:disabled) {
+  box-shadow: 0 0 18px rgba(21, 216, 208, 0.35);
+}
+
+/* the take's own play bar: how far it has been played, and how far the work has come */
+.rap-bar {
+  height: 6px;
+  border-radius: 3px;
+  background: #2a2b33;
+  overflow: hidden;
+}
+
+.rap-bar-fill {
+  display: block;
+  height: 100%;
+  width: 0;
+  border-radius: 3px;
+  background: linear-gradient(90deg, #c7f400, #15d8d0);
+  transition: width 0.12s linear;
+}
+
+/* nothing to show of the work yet: the bar breathes while it waits */
+.rap-bar.is-idle .rap-bar-fill {
+  animation: rap-gr 3s ease-in-out infinite alternate;
+}
+
+.rap-tool {
   flex: none;
-  width: 16px;
-  height: 16px;
+  width: 40px;
+  height: 40px;
+  display: grid;
+  place-items: center;
+  color: #c7f400;
+  background: #202127;
+  border: 1px solid #3a3b45;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.2s, box-shadow 0.2s;
 }
 
-.rap-step-mark svg {
-  width: 15px;
-  height: 15px;
+.rap-tool:hover:not(:disabled) {
+  background: #2b2c34;
+  box-shadow: 0 0 0 3px rgba(199, 244, 0, 0.15);
 }
 
-.rap-step.is-running {
-  color: #f5f6ff;
+.rap-tool:active:not(:disabled) {
+  background: #33343d;
 }
 
-.rap-step.is-running .rap-step-mark {
-  color: #8ebaff;
+.rap-tool:disabled {
+  opacity: 0.5;
+  cursor: default;
 }
 
-.rap-step.is-done {
-  color: #9ba9c6;
-}
-
-.rap-step.is-done .rap-step-mark {
-  color: #6ee7c8;
-}
-
-.rap-step.is-failed {
-  color: #ffb6bd;
-}
-
-.rap-step.is-failed .rap-step-mark {
-  color: #ffb6bd;
-}
-
-/* The songwriter: a whole song written out — its parts, its lead lines and the voice that answers
-   behind them — and the person's own performance recorded onto the beat. */
-.rap-area {
-  min-height: 84px;
-  font-family: inherit;
-  line-height: 1.5;
-  resize: vertical;
-}
-
-.rap-song-title {
-  margin: 0;
-  font-size: 18px;
-  font-weight: 650;
-  letter-spacing: -0.3px;
-}
-
-.rap-song-part {
-  display: flex;
-  flex-direction: column;
-}
-
-.rap-song-line {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 7px 0;
-  border-bottom: 1px solid #1c2440;
-}
-
-.rap-song-line:last-child {
-  border-bottom: 0;
-}
-
-.rap-song-text {
-  margin: 0;
-  color: #f5f6ff;
-  font-size: 15px;
-  font-weight: 600;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-.rap-song-meaning {
-  margin: 0;
-  color: #9ba9c6;
-  font-size: 12.5px;
-  line-height: 1.45;
-  overflow-wrap: anywhere;
-}
-
-/* the voice behind the lead: set in, softer, and named as what it is */
-.rap-song-line.is-back .rap-song-text {
-  padding-left: 14px;
-  color: #8ebaff;
-  font-style: italic;
-}
-
-.rap-song-tag {
-  margin-right: 6px;
-  color: #7183a8;
-  font-size: 9px;
-  font-weight: 700;
-  font-style: normal;
-  letter-spacing: 1.2px;
-  vertical-align: 2px;
+.rap-tool svg {
+  width: 17px;
+  height: 17px;
 }
 
 .rap-rec {
@@ -527,8 +883,8 @@
 
 .rap-rec-time {
   margin-left: auto;
-  color: #f5f6ff;
-  font: 650 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #e9eaf0;
+  font: 700 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
   font-variant-numeric: tabular-nums;
 }
 
@@ -536,6 +892,56 @@
   color: #ffe1e5;
   background: #6d2030;
   border-color: #8f3548;
+}
+
+/* ------------------------------------------------------------- the screen itself */
+
+@media (max-width: 1080px) {
+  .rap-in {
+    padding: 18px 16px 40px;
+  }
+
+  .rap-title {
+    font-size: 30px;
+  }
+
+  .rap-strip {
+    flex-wrap: wrap;
+  }
+
+  .rap-grid,
+  .rap-lower {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+@keyframes rap-fi {
+  0% {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  100% {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes rap-mv {
+  0% {
+    left: 10px;
+  }
+  100% {
+    left: 780px;
+  }
+}
+
+@keyframes rap-gr {
+  0% {
+    width: 30%;
+  }
+  100% {
+    width: 90%;
+  }
 }
 
 @keyframes rap-pulse {
@@ -548,6 +954,25 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
+  .rap-head,
+  .rap-strip,
+  .rap-grid > .rap-card,
+  .rap-panel,
+  .rap-timeline,
+  .rap-lower > .rap-col {
+    animation: none;
+  }
+
+  .rap-ph {
+    animation: none;
+    left: 10px;
+  }
+
+  .rap-bar.is-idle .rap-bar-fill {
+    animation: none;
+    width: 64%;
+  }
+
   .rap-rec.is-live .rap-rec-dot {
     animation: none;
   }
