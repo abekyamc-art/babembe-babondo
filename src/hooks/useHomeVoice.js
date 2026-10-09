@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import useTalkVoice from "@/hooks/useTalkVoice";
 import useCartesiaVoice from "@/hooks/useCartesiaVoice";
 import { HOME_SEATS, nextPlan } from "@/lib/homeRotation";
+import { checkVoiceSeats } from "@/lib/voiceHealth";
 import { keepHeard, proposeHeard } from "@/lib/homeHearing";
 import { handoffNotice, resumeNotice, stuckNotice, waitNotice } from "@/lib/talkRotation";
 
@@ -181,15 +182,19 @@ export default function useHomeVoice() {
    * call was expected to open on.
    */
   const openSeat = useCallback(
-    async (next) => {
+    async (next, checked) => {
+      // The session the voice was checked with rides into its call, so the very account that handed
+      // one over as it was checked is not asked for a second one a moment later.
       if (next.kind === "cartesia")
         return cartesia.start({
           label: next.label,
+          checked: checked?.account ? { [checked.account]: checked.session } : null,
           onStuck: (text) => stuckRef.current?.(text) === true,
         });
       const why = await talk.start({
         account: next.account,
         label: next.label,
+        session: checked?.session,
         onAnswered,
         onAnswerEnd: dueHandoff,
         onEnded: () => endedRef.current?.(),
@@ -288,10 +293,20 @@ export default function useHomeVoice() {
       // the voice the call selected while it was standing down is the one the person's tap starts;
       // the rest of the ring is only the fallback for a voice that cannot open at all
       const order = [pending.next, ...pending.plan.filter((seat) => seat.id !== pending.next.id)];
+      // The same check a call's own start makes: every voice that may take the call is asked, all at
+      // once, whether it can hand over a session — so a voice that is down is passed over here rather
+      // than the person's tap waiting on it. The voice the ring chose opens on the session it was
+      // checked with, and there is no second session for it.
+      const { ready, refused: down } = await checkVoiceSeats(order);
+      const checked = new Map(ready.map((one) => [one.seat.id, one]));
+      const tries = [
+        ...ready.map((one) => one.seat),
+        ...order.filter((seat) => !checked.has(seat.id)),
+      ];
 
-      let refused = "";
-      for (const next of order) {
-        const opened = await openSeat(next);
+      let refused = down[0]?.label || "";
+      for (const next of tries) {
+        const opened = await openSeat(next, checked.get(next.id));
         if (!opened.ok) {
           refused = opened.label || next.label;
           if (!triedRef.current.includes(next.id)) triedRef.current = [...triedRef.current, next.id];
@@ -385,11 +400,26 @@ export default function useHomeVoice() {
       setWaiting(false);
       setLabel(HOME_SEATS[0].label);
 
-      // The call opens on Cartesia AI. A voice that cannot open is passed over and the next one in
-      // the ring is tried, so the call opens on whichever voice the app has available — and a voice
-      // that could not open is not offered the turn again for the rest of this call.
-      for (const next of HOME_SEATS) {
-        const opened = await openSeat(next);
+      // Every voice the app is set up with is asked, all at once, whether it can hand over the
+      // session a call is opened with — the one question a call itself asks — and the call opens on
+      // the first voice in the ring that can. A voice that cannot is passed over, so the person is
+      // never left waiting on a voice that is down, and such a voice is not offered the turn again
+      // for the rest of this call.
+      const { ready, refused } = await checkVoiceSeats(HOME_SEATS);
+      const checked = new Map(ready.map((one) => [one.seat.id, one]));
+      refused.forEach((seat) => {
+        if (!triedRef.current.includes(seat.id)) triedRef.current = [...triedRef.current, seat.id];
+      });
+      // The voices that answered the check stand in the ring's own order, and the ones that did not
+      // follow behind them: a voice that answered and then failed to open still leaves the call
+      // somewhere to go rather than nowhere.
+      const order = [
+        ...ready.map((one) => one.seat),
+        ...HOME_SEATS.filter((seat) => !checked.has(seat.id)),
+      ];
+
+      for (const next of order) {
+        const opened = await openSeat(next, checked.get(next.id));
         if (opened.ok) {
           startingRef.current = false;
           // the seat is written up as the voice that really answered, so a call that opened on one of
@@ -397,18 +427,28 @@ export default function useHomeVoice() {
           const live = liveSeat(next, opened);
           setCurrent(live);
           if (next.id !== HOME_SEATS[0].id) {
-            setNotice(`${HOME_SEATS[0].label} couldn't take the call — ${live.label} is on it.`);
+            const first = refused[0];
+            setNotice(
+              first
+                ? `${first.label} couldn't take the call — ${live.label} is on it.`
+                : `${HOME_SEATS[0].label} couldn't take the call — ${live.label} is on it.`
+            );
           }
           return true;
         }
         if (!triedRef.current.includes(next.id)) triedRef.current = [...triedRef.current, next.id];
       }
 
-      // no voice could open the call at all
+      // Not one voice could take the call. It is said plainly, and the person's own tap is what tries
+      // again: a call is never begun on a voice that has just proved it cannot answer.
       startingRef.current = false;
       callingRef.current = false;
       setCurrent(HOME_SEATS[0]);
-      setNotice("The call couldn't start — tap the phone and try again.");
+      setNotice(
+        refused.length
+          ? `The call couldn't start — ${refused[0].label} isn't answering just now. Tap the phone and try again.`
+          : "The call couldn't start — tap the phone and try again."
+      );
       return false;
     },
     [cartesia, clearChange, openSeat, resume, setCurrent, talk]

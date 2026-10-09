@@ -298,7 +298,7 @@ export default function useCartesiaVoice({
    * say so plainly and name the voice that is on the line.
    */
   const start = useCallback(
-    async ({ label = CARTESIA_AI, onStuck } = {}) => {
+    async ({ label = CARTESIA_AI, checked, onStuck } = {}) => {
       stuckRef.current = onStuck || null;
       // a call is opening or already open: a tap that lands on it never opens a second one
       if (activeRef.current || startingRef.current) {
@@ -351,12 +351,17 @@ export default function useCartesiaVoice({
           return { ok: false, why: micMessage(err), account: "", label: one.label };
         }
 
-        let session;
-        try {
-          const res = await base44.functions.invoke("cartesiaSession", { account: one.account });
-          session = res?.data || {};
-        } catch (err) {
-          session = {};
+        // The session the app checked this account with as it decided which voice takes the call:
+        // the call opens on that very session, and only an account that was never checked is asked
+        // for one of its own.
+        let session = checked?.[one.account] || null;
+        if (!session) {
+          try {
+            const res = await base44.functions.invoke("cartesiaSession", { account: one.account });
+            session = res?.data || {};
+          } catch (err) {
+            session = {};
+          }
         }
         if (!session.token || !session.agent_id) {
           stream.getTracks().forEach((track) => track.stop());

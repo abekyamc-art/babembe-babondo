@@ -35,10 +35,12 @@ const STUCK_MS = 6000;
 // The longest a turn's hand-over is waited on: the lookups that ride with the words are the app's own
 // services, and one of them hanging must never leave the call's own guards frozen behind it.
 const HAND_MS = 12000;
-// A soft voice at arm's length is a turn as much as a loud one, and no two phones report the same
-// voice the same way, so the bar for hearing one is set low: what is captured is only ever read
-// once it has been written down, and a sound with no words in it comes back empty and is dropped.
-const VOICE_LEVEL = 0.012;
+// The bar a sound has to cross before a turn is kept from it. A room is never silent — a fan, a
+// passing voice through a wall, a hand on the phone — and a capture that opens on the room's own
+// noise is what comes back written down as words nobody said. So the bar stands above the room: an
+// ordinary turn at arm's length rises well clear of it, while the room itself stays under it. What
+// keeps a sound that only just crossed the bar out of the talk is the length a turn has to run.
+const VOICE_LEVEL = 0.03;
 // a session that carries on is held from speaking until the person takes their
 // turn; this is the longest that hold can last if nothing releases it
 const HOLD_MAX_MS = 15000;
@@ -247,7 +249,18 @@ export default class VoiceSocket {
     return this.userSpoke || this.resuming;
   }
 
-  async open({ withMic, silent, memory, laterTurn, resuming, account, ears, keepOpen, audio } = {}) {
+  async open({
+    withMic,
+    silent,
+    memory,
+    laterTurn,
+    resuming,
+    account,
+    ears,
+    keepOpen,
+    audio,
+    checked,
+  } = {}) {
     // a written message is answered in writing: no microphone, nothing on the speaker
     this.silent = !withMic && !!silent;
     // the app's own ears listen for this call: the sound stays on the phone and is written
@@ -307,7 +320,11 @@ export default class VoiceSocket {
       }
     }
 
-    const res = await base44.functions.invoke("elevenLabsSession", { account: this.account });
+    // The session the app already checked this account with as it decided which voice takes the call:
+    // the call opens on that very session, so the same account is never asked for a second one.
+    const res = checked
+      ? { data: checked }
+      : await base44.functions.invoke("elevenLabsSession", { account: this.account });
     const signedUrl = res?.data?.signed_url;
     if (!signedUrl) {
       throw new Error(res?.data?.error || "Your agent could not be reached.");
@@ -665,8 +682,9 @@ export default class VoiceSocket {
     this.captureOn = false;
     this.captureFrames = [];
     const total = frames.reduce((count, frame) => count + frame.length, 0);
-    // a tap, a cough or a door is not a turn
-    if (total < IN_RATE * 0.4) return;
+    // a tap, a cough or a door is not a turn: what crossed the bar has to run on as a turn of
+    // speech does before anything is written down from it
+    if (total < IN_RATE * 0.5) return;
 
     const samples = new Int16Array(total);
     let at = 0;

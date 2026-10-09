@@ -27,13 +27,14 @@ const CHUNK = 2048;
 //
 // A room is never silent, and this floor is what keeps the room's own noise out of the talk: a fan,
 // a door, a passing voice from another room all sit under it, and a turn of the person's own rises
-// above it. It is kept low enough that a soft-spoken turn still opens one — and what keeps a sound
-// that never really stood out of the talk is the length below.
-const EARS_LEVEL = 0.02;
+// well clear of it. The floor stands above the room rather than under it, so a capture only ever
+// opens on a voice — and what keeps a sound that crossed it by a hair out of the talk is the length
+// below.
+const EARS_LEVEL = 0.03;
 const EARS_END_MS = 1200;
 const EARS_MAX_MS = 20000;
 // the least sound above the floor that a turn of speech runs: a tap, a cough or a door is not one
-const EARS_MIN_MS = 350;
+const EARS_MIN_MS = 500;
 // the rate the app's own ears are handed the turn in
 const EARS_RATE = 16000;
 // A turn he has taken and never answered: the wait is given up on and the call moves on rather than

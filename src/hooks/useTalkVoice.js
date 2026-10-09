@@ -382,7 +382,7 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
    * refused it, so what to put right is never left to be guessed at.
    */
   const start = useCallback(
-    async ({ account, label, onAnswered, onAnswerEnd, onEnded, onStuck } = {}) => {
+    async ({ account, label, session, onAnswered, onAnswerEnd, onEnded, onStuck } = {}) => {
       // a call is opening or already open: a tap that lands on it never opens a second one
       if (activeRef.current || startingRef.current) return "";
       startingRef.current = true;
@@ -430,7 +430,14 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
         // which knows no Kibembe, writes the turn as the English or Kiswahili words it nearly
         // sounds like. Where the ears cannot read a turn — two turns running — the voice hears the
         // person itself, exactly as it did before.
-        await socket.open({ withMic: true, ears: true, account: slotRef.current.account, audio });
+        await socket.open({
+          withMic: true,
+          ears: true,
+          account: slotRef.current.account,
+          audio,
+          // the session the app checked this voice with as it chose who takes the call
+          checked: session,
+        });
       } catch (err) {
         await socket.stop();
         startingRef.current = false;
