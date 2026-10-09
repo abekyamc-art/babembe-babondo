@@ -13,8 +13,8 @@ import {
   getGuestStamps,
   loadUserStamps,
   pruneUsage,
-  spendCredit,
-} from "@/lib/usage";
+  spendCredit } from
+"@/lib/usage";
 import { ensureProfile } from "@/lib/social";
 import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
@@ -56,7 +56,7 @@ export default function VoiceAssistant() {
     correctTurn,
     saveAsk,
     keepSave,
-    leaveSave,
+    leaveSave
   } = useHomeVoice();
   const navigate = useNavigate();
 
@@ -98,9 +98,9 @@ export default function VoiceAssistant() {
     try {
       setProfile(await ensureProfile(user));
     } catch (err) {
+
       // the chip keeps the balance it last read
-    }
-  }, [user]);
+    }}, [user]);
 
   useEffect(() => {
     let alive = true;
@@ -115,11 +115,11 @@ export default function VoiceAssistant() {
       setUser(me);
       try {
         if (me) {
-          ensureProfile(me)
-            .then((mine) => {
-              if (alive) setProfile(mine);
-            })
-            .catch(() => {});
+          ensureProfile(me).
+          then((mine) => {
+            if (alive) setProfile(mine);
+          }).
+          catch(() => {});
           setStamps(await loadUserStamps(me.email));
           pruneUsage(me.email).catch(() => {});
         } else {
@@ -301,24 +301,24 @@ export default function VoiceAssistant() {
   };
 
   const statusLabel =
-    !ready
-      ? "Checking…"
-      : status === "connecting"
-        ? "Connecting"
-        : speaking
-          ? "Speaking"
-          : thinking
-            ? "Thinking"
-            : micActive
-              ? "Listening"
-              : waiting
-                ? "Tap to continue"
-                : "Tap to talk";
+  !ready ?
+  "Checking…" :
+  status === "connecting" ?
+  "Connecting" :
+  speaking ?
+  "Speaking" :
+  thinking ?
+  "Thinking" :
+  micActive ?
+  "Listening" :
+  waiting ?
+  "Tap to continue" :
+  "Tap to talk";
 
   return (
     <div
-      className={`relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground ${KIBEMBE_CLASS}`}
-    >
+      className={`relative flex h-full w-full flex-col overflow-hidden bg-background text-foreground ${KIBEMBE_CLASS}`}>
+      
       <div aria-hidden className="ambient-wash" />
 
       <header className="relative z-10 flex items-start justify-between gap-3 px-5 pt-[max(0.6rem,env(safe-area-inset-top))]">
@@ -335,11 +335,11 @@ export default function VoiceAssistant() {
             ready={ready}
             nextReturnAt={nextReturnAt}
             nowMs={clock}
-            onClick={handleAccount}
-          />
-          {user && profile ? (
-            <CoinPill coins={balanceOf(profile)} onClick={handleCoins} />
-          ) : null}
+            onClick={handleAccount} />
+          
+          {user && profile ?
+          <CoinPill coins={balanceOf(profile)} onClick={handleCoins} /> :
+          null}
           <AccountIcon label="Account" onClick={handleAccount} size="lg" />
         </div>
       </header>
@@ -352,14 +352,14 @@ export default function VoiceAssistant() {
             type="button"
             onClick={handleCall}
             aria-label={micActive ? "End the call" : "Start a voice call"}
-            className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background"
-          >
+            className="shrink-0 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent focus-visible:ring-offset-4 focus-visible:ring-offset-background">
+            
             <OrbVisualizer
               levelRef={levelRef}
               status={status}
               speaking={speaking}
-              thinking={thinking}
-            />
+              thinking={thinking} />
+            
           </button>
 
           <div className="flex flex-col items-center gap-3">
@@ -368,25 +368,25 @@ export default function VoiceAssistant() {
               onClick={handleCall}
               aria-label={micActive ? "End the call" : "Start a voice call"}
               className={`grid h-16 w-16 place-items-center rounded-full shadow-md transition-all active:scale-95 ${
-                micActive ? "bg-destructive text-destructive-foreground" : "bg-foreground text-background"
-              }`}
-            >
-              {!ready || status === "connecting" ? (
-                <Loader2 className="h-6 w-6 animate-spin" />
-              ) : micActive ? (
-                <PhoneOff className="h-6 w-6" />
-              ) : (
-                <Phone className="h-6 w-6" />
-              )}
+              micActive ? "bg-destructive text-destructive-foreground" : "bg-foreground text-background"}`
+              }>
+              
+              {!ready || status === "connecting" ?
+              <Loader2 className="h-6 w-6 animate-spin" /> :
+              micActive ?
+              <PhoneOff className="h-6 w-6" /> :
+
+              <Phone className="h-6 w-6" />
+              }
             </button>
-            <p className="text-[11px] font-medium uppercase tracking-[0.18em] text-muted-foreground">
+            <p className="text-[11px] uppercase tracking-[0.18em] text-muted-foreground [font-family:'Albert_Sans',_sans-serif] font-bold">
               {statusLabel}
             </p>
           </div>
         </div>
 
         {/* the admin's own stories stand in the middle of the screen, so what the app has been told
-            is met before it is asked for; a tap opens the story itself with its media */}
+             is met before it is asked for; a tap opens the story itself with its media */}
         <StoryRail onOpen={openStory} refresh={storiesKey} />
 
         {/* one fixed band holds the conversation and the status line, so nothing on screen moves */}
@@ -396,28 +396,28 @@ export default function VoiceAssistant() {
               turns={turns}
               pending={thinking}
               onCorrectTurn={correctTurn}
-              onPick={handleSend}
-            />
+              onPick={handleSend} />
+            
           </div>
           {/* what the app would keep from a turn the person has put right: their own answer saves it */}
-          {saveAsk ? (
-            <SaveAsk ask={saveAsk} onKeep={keepSave} onLeave={leaveSave} />
-          ) : (
-            <p
-              aria-live="polite"
-              className={`min-h-4 shrink-0 text-center text-[12px] leading-4 ${
-                error ? "text-destructive" : "text-muted-foreground"
-              }`}
-            >
+          {saveAsk ?
+          <SaveAsk ask={saveAsk} onKeep={keepSave} onLeave={leaveSave} /> :
+
+          <p
+            aria-live="polite"
+            className={`min-h-4 shrink-0 text-center text-[12px] leading-4 ${
+            error ? "text-destructive" : "text-muted-foreground"}`
+            }>
+            
               {error || notice || `${voiceLabel} answers each turn.`}
             </p>
-          )}
+          }
         </div>
       </main>
 
       <footer className="relative z-10 px-5 pb-6 pt-2">
         {/* the same progress as the conversation, over the box, with its room kept so
-            nothing on the screen moves when it comes and goes */}
+             nothing on the screen moves when it comes and goes */}
         <div className="flex h-5 items-center justify-center">
           {thinking ? <ThinkingLine /> : null}
         </div>
@@ -437,8 +437,8 @@ export default function VoiceAssistant() {
         onOpenChange={(next) => {
           if (next) return;
           setGate(null);
-        }}
-      />
+        }} />
+      
 
       <AccountSheet
         open={accountOpen}
@@ -455,8 +455,8 @@ export default function VoiceAssistant() {
         onGetCoins={handleMarkets}
         onSwitchAccount={handleSwitchAccount}
         onSignOut={handleSignOut}
-        onClose={() => setAccountOpen(false)}
-      />
+        onClose={() => setAccountOpen(false)} />
+      
 
       <StorySheet story={pickedStory || story} onClose={shutStory} onPlaybackEnd={stop} />
 
@@ -465,8 +465,8 @@ export default function VoiceAssistant() {
         onClose={() => {
           setKnowledgeOpen(false);
           setStoriesKey((count) => count + 1);
-        }}
-      />
-    </div>
-  );
+        }} />
+      
+    </div>);
+
 }
