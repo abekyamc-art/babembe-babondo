@@ -473,6 +473,12 @@ export default class CartesiaCall {
       return;
     }
     this.h.onReask?.("");
+    // The person has taken their turn, so an answer is expected from here on: the wait is started by
+    // the app itself, on the turn it has just heard out, and never only on the service reporting a
+    // turn of its own. A session that never reports one — an agent that has gone quiet — is then still
+    // waited on, and the turn is handed to the next voice service instead of the call sitting there
+    // looking live with nothing ever said after the person's own words.
+    this.armAnswerGuard();
     this.h.onUserText?.(text);
   }
 

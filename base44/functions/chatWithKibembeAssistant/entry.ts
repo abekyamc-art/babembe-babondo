@@ -81,7 +81,11 @@ const INSTRUCTIONS = [
 // Nothing of the key, the store id, or the upstream error is ever in these.
 const NO_KEY = 'The assistant is not connected yet — an admin needs to add the OpenAI key.';
 const NO_STORE = 'The assistant is not connected yet — an admin needs to add the Kibembe Word Bank.';
-const NO_REPLY = 'The assistant could not answer just now. Please try again.';
+// Each failure names the stage it belongs to, so what went wrong is said plainly instead of being
+// answered around: where nothing could be read, nothing is answered from it.
+const NO_REPLY = 'The answer could not be written just now — please try again.';
+const KNOWLEDGE_DOWN =
+  'The saved knowledge could not be read just now — please try again in a moment.';
 
 /** The reply text out of a Responses API answer, however the model handed it back. */
 function replyText(data) {
@@ -115,9 +119,9 @@ export default async function (req) {
     // The key and the Word Bank live only in Secrets, and are read here on the server: neither is
     // ever sent to the app, and a missing one is said plainly rather than guessed at.
     const apiKey = secrets.get('OPENAI_API_KEY');
-    if (!apiKey) return Response.json({ error: NO_KEY });
+    if (!apiKey) return Response.json({ error: NO_KEY, stage: 'setup' });
     const storeId = secrets.get('OPENAI_VECTOR_STORE_ID');
-    if (!storeId) return Response.json({ error: NO_STORE });
+    if (!storeId) return Response.json({ error: NO_STORE, stage: 'setup' });
 
     // What the admin has saved in this app rides with the message: the rule book in force first,
     // then every word they hold. Both are read here on the server and never sent to the app.
@@ -130,7 +134,12 @@ export default async function (req) {
     // a translation into Kibembe is built from the Word Bank itself: the whole of what the admin has
     // reviewed rides with that turn rather than the part an ordinary turn carries
     const translating = wantsEbembeTranslation(message);
-    const [rules, words, doc, storyPage, tales, lookup] = await Promise.all([
+    // Each piece stands on its own as well as beside the others. A read that fails takes nothing with
+    // it: what the other pieces brought back still rides with the turn, and the one that failed is
+    // named to the answer so it says plainly that it could not be read rather than answering as
+    // though it had. Reading them with Promise.all was what made one failing piece — a story
+    // catalogue, a document part — lose the whole Word Bank and leave the person with nothing.
+    const reads = await Promise.allSettled([
       rulesText(base44).then((rows) => trimToLines(rows, RULES_BUDGET)),
       bankRows(base44).then((rows) =>
         wordListBlock(rows, message, translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET)
@@ -161,7 +170,53 @@ export default async function (req) {
       // one, so ordinary talk is not held by it.
       lookupForTurn(base44, message, asked),
     ]);
+    // What each read is, named for the stage it belongs to: the name is what a failure is reported by.
+    const STAGE_NAMES = [
+      'the rule book',
+      'the Word Bank',
+      'the knowledge document',
+      'the stories',
+      'the story catalogue',
+      'the internet lookup',
+    ];
+    const missed: string[] = [];
+    // A read that failed is written down by its stage and the turn carries on without it. The reason
+    // stays in the app's own logs, named by that stage — nothing of the knowledge itself, and nothing
+    // of the key, is ever logged.
+    const took = (at: number, fallback: any) => {
+      const result = reads[at];
+      if (result.status === 'fulfilled') return result.value;
+      missed.push(STAGE_NAMES[at]);
+      console.error(
+        `The ${STAGE_NAMES[at]} could not be read:`,
+        result.reason?.message || result.reason
+      );
+      return fallback;
+    };
+    const rules = took(0, '');
+    const words = took(1, '');
+    const doc = took(2, '');
+    const storyPage = took(3, null);
+    const tales = took(4, '');
+    const lookup = took(5, { material: '', needed: false, found: false, candidates: [] });
+
+    // Nothing of the saved knowledge could be read at all: the turn is stopped here and the stage is
+    // named, rather than an answer being written from nothing and put before the person as the app's own.
+    const CORE = ['the rule book', 'the Word Bank', 'the knowledge document'];
+    if (CORE.every((one) => missed.includes(one))) {
+      console.error('The saved knowledge could not be read for this turn:', missed.join(', '));
+      return Response.json({ error: KNOWLEDGE_DOWN, stage: 'knowledge' });
+    }
+
     const saved = rules || words || doc ? `${RULES_HEAD}${rules}${words}${doc}` : '';
+    // A part that could not be read is named to the answer, so it says plainly that it could not reach
+    // it: nothing is ever claimed from a read that failed.
+    const unread = missed.length
+      ? `\n- A part of the saved knowledge could not be read for this turn: ${missed.join(', ')}. ` +
+        'The app could not reach it just now. Do not answer from it, do not claim anything it holds, ' +
+        'and never say nothing was found: where this answer depends on it, say plainly that it could ' +
+        'not be read just now and ask the person to try again.\n'
+      : '';
     // The matching lives in one place, so the story found here is the story the screen is given.
     const story = bestStory(storyPage?.items || [], message);
     const told = story ? storyNote(story) : '';
@@ -209,6 +264,7 @@ export default async function (req) {
     // question itself and the person is left to say which one they mean.
     const input = [
       saved,
+      unread,
       asking ? '' : told,
       asking ? '' : tales,
       lookup.material,
@@ -250,11 +306,11 @@ export default async function (req) {
     if (!response.ok) {
       // the real reason stays in the app's own logs; the person is told only that it did not work
       console.error('The Kibembe assistant could not answer:', response.status, JSON.stringify(data).slice(0, 400));
-      return Response.json({ error: NO_REPLY });
+      return Response.json({ error: NO_REPLY, stage: 'answer' });
     }
 
     const reply = replyText(data);
-    if (!reply) return Response.json({ error: NO_REPLY });
+    if (!reply) return Response.json({ error: NO_REPLY, stage: 'answer' });
     // The pictures the admin saved beside the words this answer is made of ride with it: the screen
     // stands each one where its word is said in the answer, and again below the answer, so a word the
     // admin gave a picture to is answered with that picture and not with words alone. An answer whose
@@ -274,6 +330,6 @@ export default async function (req) {
     });
   } catch (error) {
     console.error('The Kibembe assistant failed:', error?.message);
-    return Response.json({ error: NO_REPLY }, { status: 500 });
+    return Response.json({ error: NO_REPLY, stage: 'answer' }, { status: 500 });
   }
 }

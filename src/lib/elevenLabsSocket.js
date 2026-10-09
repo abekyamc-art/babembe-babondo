@@ -32,6 +32,9 @@ const GIVE_UP_MS = 45000;
 // is handed on to the next voice service rather than the person watching a working line: the same
 // words, so the answer comes to what they really asked.
 const STUCK_MS = 6000;
+// The longest a turn's hand-over is waited on: the lookups that ride with the words are the app's own
+// services, and one of them hanging must never leave the call's own guards frozen behind it.
+const HAND_MS = 12000;
 // A soft voice at arm's length is a turn as much as a loud one, and no two phones report the same
 // voice the same way, so the bar for hearing one is set low: what is captured is only ever read
 // once it has been written down, and a sound with no words in it comes back empty and is dropped.
@@ -719,7 +722,10 @@ export default class VoiceSocket {
         return;
       }
       this.misses = 0;
-      await this.h.onHeard?.(text, language, this);
+      // The hand-over is bounded: the lookups that ride with the words are the app's own services, and
+      // one of them hanging must never leave this call's own guards frozen behind it — the turn then
+      // closes as it always does and the person is told plainly rather than the call going quiet.
+      await Promise.race([this.h.onHeard?.(text, language, this), wait(HAND_MS)]);
     } catch (err) {
       // The app's own ears could not read the turn at all — a key they are not allowed to use, a
       // service that cannot answer — so the listening is handed to the AI itself rather than the

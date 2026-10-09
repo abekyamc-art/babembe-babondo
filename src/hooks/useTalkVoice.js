@@ -520,6 +520,13 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
         });
         const data = res?.data || {};
         if (data.error) {
+          // The failure names the stage it belongs to, so what went wrong is never left to be guessed
+          // at — and nothing of the saved knowledge and nothing of any key is ever logged here.
+          console.error(
+            'The written turn could not be answered:',
+            data.stage || 'answer',
+            data.error
+          );
           setError(data.error === UNAUTHORIZED ? SIGN_IN_TO_ASK : data.error);
           return;
         }
