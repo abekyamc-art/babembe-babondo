@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import KnowledgeTabs from "@/components/knowledge/KnowledgeTabs";
 import KnowledgeSearch from "@/components/knowledge/KnowledgeSearch";
 import KnowledgeDocPanel from "@/components/knowledge/KnowledgeDocPanel";
+import ImageReviewPanel from "@/components/knowledge/ImageReviewPanel";
 import StoriesPanel from "@/components/knowledge/StoriesPanel";
 
 /**
@@ -78,7 +79,13 @@ export default function KnowledgeSheet({ open, onClose }) {
 
           <KnowledgeTabs kind={tab} onPick={setTab} />
 
-          {tab === "story" ? <StoriesPanel focus={focus} /> : <KnowledgeDocPanel focus={focus} />}
+          {tab === "story" ? (
+            <StoriesPanel focus={focus} />
+          ) : tab === "image" ? (
+            <ImageReviewPanel />
+          ) : (
+            <KnowledgeDocPanel focus={focus} />
+          )}
         </div>
       </section>
     </div>,

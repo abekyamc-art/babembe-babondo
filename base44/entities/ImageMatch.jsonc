@@ -1,0 +1,71 @@
+{
+  "name": "ImageMatch",
+  "type": "object",
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "The name the picture came in as \u2014 the name of the file that was put in, or the name a drawn picture was given. It is what the admin reads beside the picture while it is being checked."
+    },
+    "file_url": {
+      "type": "string",
+      "description": "Public address of the picture, given the moment it is put in or drawn. It is what the picture is looked at through while it waits for the admin's word."
+    },
+    "term": {
+      "type": "string",
+      "description": "The word the picture is of, as it stands now: the word the document or the admin's own list gave it, or the word the admin wrote in. A picture with no word yet is one the admin must name before it can be saved."
+    },
+    "how": {
+      "type": "string",
+      "description": "Where the word came from: a word of the document standing in the file's own name, a word from the admin's list, the word the admin wrote in, or the word the AI named from the picture. It is read beside the picture so the admin knows what to check."
+    },
+    "stage": {
+      "type": "string",
+      "enum": [
+        "suggested",
+        "confirmed"
+      ],
+      "default": "suggested",
+      "description": "How far the picture has come through the review. A suggested picture is still waiting for the admin's first look; a confirmed one has had its word agreed and is waiting for the second look, which saves it into the knowledge. Nothing is saved on one look alone."
+    },
+    "in_doc": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the word the picture is confirmed with really stands in the knowledge document. False is shown to the admin plainly, so a word that is not in the document is caught before the picture is saved."
+    },
+    "batch": {
+      "type": "string",
+      "description": "Which putting-in the picture came with, written when it was uploaded \u2014 the time of that run. It is read beside the picture so one run's pictures are told from another's."
+    },
+    "drawn": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the picture was drawn for its word inside the app rather than put in by the admin. A drawn picture is reviewed the same way as any other."
+    }
+  },
+  "required": [
+    "name",
+    "file_url"
+  ],
+  "rls": {
+    "read": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

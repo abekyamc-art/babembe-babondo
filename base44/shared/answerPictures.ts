@@ -7,9 +7,10 @@
  * those — so a question about mtu is answered with the picture of mtu, not with the picture of the
  * longest phrase that happens to hold the word.
  *
- * Each picture is handed back through a short-lived link of its own, because it is kept privately and
- * is never at a public address. Only the word, the name and that link are handed over — the storage
- * reference itself never leaves the server.
+ * A picture put in from the pictures area carries an address of its own and is handed back at it; one
+ * that came in with a knowledge package is kept privately and handed back through a short-lived link.
+ * Only the word, the name and the address are handed over — a private storage reference never leaves
+ * the server.
  */
 
 // What one answer carries: two at the most, so the answer stays readable
@@ -46,9 +47,11 @@ export async function turnPictures(base44: any, question: string, answer: string
   try {
     const page = await base44.asServiceRole.entities.KnowledgeImage.list({
       limit: ROWS,
-      fields: ["term", "name", "file_uri"],
+      fields: ["term", "name", "file_uri", "file_url"],
     });
-    const rows = rowsOf(page).filter((row: any) => row?.file_uri && termOf(row.term));
+    const rows = rowsOf(page).filter(
+      (row: any) => (row?.file_uri || row?.file_url) && termOf(row.term)
+    );
     if (!rows.length) return [];
 
     const asked = String(question || "");
@@ -72,6 +75,12 @@ export async function turnPictures(base44: any, question: string, answer: string
       const key = held.term.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
+
+      const open = String(held.row.file_url || "");
+      if (open) {
+        picked.push({ term: held.term, name: String(held.row.name || ""), url: open });
+        continue;
+      }
 
       const signed = await base44.asServiceRole.integrations.Core.CreateFileSignedUrl({
         file_uri: held.row.file_uri,

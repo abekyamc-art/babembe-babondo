@@ -13,6 +13,12 @@ export const KINDS = [
       "Nothing in the document yet — write your words, your phrases, your rules and the rest under their headings, then publish it.",
   },
   {
+    id: "image",
+    tab: "Pictures",
+    empty:
+      "No picture is waiting for a word yet — put your pictures in, and each one is shown with the word its own name carries.",
+  },
+  {
     id: "story",
     tab: "Stories",
     empty:

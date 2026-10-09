@@ -12,16 +12,19 @@
     },
     "file_uri": {
       "type": "string",
-      "description": "Private storage reference for the picture. It is opened through a short-lived link, so it is never public and is only ever read by the admin who put it there."
+      "description": "Private storage reference for a picture that was put in with a knowledge package. It is opened through a short-lived link, so it is never public and is only ever read by the admin who put it there."
+    },
+    "file_url": {
+      "type": "string",
+      "description": "Public address of a picture that was put in or drawn from the pictures area. The address is given the moment the picture is put in, and it is what the panel and the assistant open the picture through."
     },
     "how": {
       "type": "string",
-      "description": "How the picture was found for the word \u2014 it stood beside it in the document, its file is named after it, or the admin chose it by hand."
+      "description": "How the picture was found for the word \u2014 it stood beside it in the document, its file is named after it, the admin chose it by hand, or it was drawn for the word."
     }
   },
   "required": [
-    "term",
-    "file_uri"
+    "term"
   ],
   "rls": {
     "read": {

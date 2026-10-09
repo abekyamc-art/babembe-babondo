@@ -60,11 +60,21 @@ function typeOf(name: string): string {
   return MIME[ext] || "image/png";
 }
 
-/** The bytes of one privately kept picture, read through a link made for this reading alone. */
-async function bytesOf(service: any, uri: string): Promise<Uint8Array | null> {
-  const signed = await service.integrations.Core.CreateFileSignedUrl({ file_uri: uri, expires_in: 900 });
-  if (!signed?.signed_url) return null;
-  const response = await fetch(signed.signed_url, { signal: AbortSignal.timeout(READ_MS) });
+/**
+ * The bytes of one picture: read at its own address when it has one, and otherwise through a
+ * short-lived link made for this reading alone, because a picture that came in with a knowledge
+ * package is kept privately and is never at a public address of its own.
+ */
+async function bytesOf(service: any, row: any): Promise<Uint8Array | null> {
+  let url = String(row?.file_url || "").trim();
+  if (!/^https:\/\//i.test(url)) {
+    const uri = String(row?.file_uri || "").trim();
+    if (!uri) return null;
+    const signed = await service.integrations.Core.CreateFileSignedUrl({ file_uri: uri, expires_in: 900 });
+    url = String(signed?.signed_url || "").trim();
+  }
+  if (!url) return null;
+  const response = await fetch(url, { signal: AbortSignal.timeout(READ_MS) });
   if (!response.ok) return null;
   return new Uint8Array(await response.arrayBuffer());
 }
@@ -78,7 +88,7 @@ async function readRun(service: any, rows: any[], from: number) {
     const slice = rows.slice(at, at + BATCH);
     const done = await Promise.allSettled(
       slice.map(async (row: any, inside: number) => {
-        const bytes = await bytesOf(service, row.file_uri);
+        const bytes = await bytesOf(service, row);
         if (!bytes) throw new Error("unreadable");
         return { row, name: fileNameOf(row, from + at + inside), bytes };
       })
@@ -97,9 +107,9 @@ async function savedPictures(base44: any) {
   const page = await base44.entities.KnowledgeImage.list({
     sort: "created_date",
     limit: MAX_PICTURES,
-    fields: ["term", "name", "file_uri"],
+    fields: ["term", "name", "file_uri", "file_url"],
   });
-  return rowsOf(page).filter((row: any) => row?.file_uri);
+  return rowsOf(page).filter((row: any) => row?.file_uri || row?.file_url);
 }
 
 function base64(bytes: Uint8Array): string {

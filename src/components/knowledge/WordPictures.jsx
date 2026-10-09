@@ -121,13 +121,14 @@ export default function WordPictures({ text = "" }) {
           <span className="knowledge-meter-text is-over">
             Your document names {named} {named === 1 ? "picture" : "pictures"}, and not one of them is
             saved — a plain text or Markdown file carries the words and the names, never the pictures
-            themselves. Put the document and its pictures folder into one ZIP and import that: every
-            picture in it is then kept, each one beside the word it stood with.
+            themselves. Open <strong>Pictures</strong> above and put them in there, or put the document
+            and its pictures folder into one ZIP and import that: every picture is then kept, each one
+            beside the word it stood with.
           </span>
         ) : (
           <span className="knowledge-meter-text">
-            No picture is saved yet. Import a ZIP, or a Word file, that carries them — every picture it
-            holds is kept beside the word it stood next to.
+            No picture is saved yet. Open <strong>Pictures</strong> above and put yours in — each one is
+            shown with the word its own name carries, and a picture can be drawn for a word that has none.
           </span>
         )}
 
