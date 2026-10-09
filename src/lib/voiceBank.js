@@ -17,7 +17,6 @@ import { base44 } from "@/api/base44Client";
 // how long a recording may run: long enough for a phrase said slowly, short enough that the whole
 // bank stays a set of short clips
 export const RECORD_MAX_MS = 12000;
-export const RECORD_MIN_MS = 700;
 
 /** The formats a phone will record in, best first. */
 const KINDS = ["audio/webm;codecs=opus", "audio/webm", "audio/mp4"];
@@ -99,19 +98,17 @@ export async function hearClip(blob) {
  * wrote it goes beside it, and nothing is used until the admin approves it.
  */
 export async function saveVariant({ term, condition, note, blob, seconds, heard }) {
+  // Who the voice is, taken before anything is uploaded: a recording is never left in the bank
+  // without the person it belongs to.
+  const email = (await base44.auth.me())?.email || "";
+  if (!email) throw new Error("Sign in first, so the recording is kept under your own name.");
+
   const file = new File([blob], `voice-${Date.now()}.webm`, {
     type: blob.type || "audio/webm",
   });
   const saved = await base44.integrations.Core.UploadPrivateFile({ file });
   const file_uri = String(saved?.file_uri || "");
   if (!file_uri) throw new Error("The recording could not be saved.");
-
-  let email = "";
-  try {
-    email = (await base44.auth.me())?.email || "";
-  } catch (err) {
-    email = "";
-  }
 
   return base44.entities.VoiceVariant.create({
     term: String(term || "").trim(),
@@ -149,9 +146,4 @@ export async function clipUrl(fileUri) {
   } catch (err) {
     return "";
   }
-}
-
-/** What the app's own ears make of one already-saved recording. */
-export async function listenTo(blob) {
-  return hearClip(blob);
 }
