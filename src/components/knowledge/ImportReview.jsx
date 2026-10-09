@@ -39,7 +39,7 @@ export default function ImportReview({ result, doc, onState, onDone, onClose }) 
     setRows((prev) => prev.map((row) => (row.key === key ? { ...row, ...change } : row)));
 
   const add = async () => {
-    if (busy || !keeping.length) return;
+    if (busy || (!keeping.length && !pictures.length)) return;
     setBusy(true);
     onState?.(true);
     setError("");
@@ -56,26 +56,42 @@ export default function ImportReview({ result, doc, onState, onDone, onClose }) 
 
       let text = String(doc.text || "");
       if (whole && result.text) text = appendText(text, result.text);
-      const merged = mergeWords(text, entries);
+      const merged = entries.length ? mergeWords(text, entries) : { text, added: 0, updated: 0 };
       if (merged.text.length > DOC_MAX) throw new Error("large");
 
       await doc.writeDraft(merged.text);
 
-      // each picture is filed under the word it stands beside, so it is shown with that word in the
-      // panel — the word's own line in the document stays what the AIs read, and holds no address
-      const kept = entries.filter((entry) => entry.picture?.file_uri);
-      if (kept.length) {
-        const terms = kept.map((entry) => entry.term);
-        await base44.entities.KnowledgeImage.deleteMany({ term: { $in: terms } });
-        await base44.entities.KnowledgeImage.bulkCreate(
-          kept.map((entry) => ({
-            term: entry.term,
-            name: entry.picture.name || "",
-            file_uri: entry.picture.file_uri,
-            how: entry.how || "",
-          }))
-        );
+      // Every picture the file held is kept here, and not only the ones a word already names: the one
+      // that stood beside a word is filed under it and shown with it, and one no word names is kept
+      // without one — it stands in the panel waiting for its word instead of being lost on the way in.
+      // The word's own line in the document stays what the AIs read, and holds no address.
+      const paired = entries.filter((entry) => entry.picture?.file_uri);
+      const loosePics = pictures.filter((pic, index) => !keeping.some((row) => row.at === index));
+      const saving = [
+        ...paired.map((entry) => ({
+          term: entry.term,
+          name: entry.picture.name || "",
+          file_uri: entry.picture.file_uri,
+          how: entry.how || "",
+        })),
+        ...loosePics.map((pic) => ({
+          term: "?",
+          name: pic.name || "",
+          file_uri: pic.file_uri,
+          how: "no word beside it in the file",
+        })),
+      ];
+      if (paired.length) {
+        await base44.entities.KnowledgeImage.deleteMany({
+          term: { $in: paired.map((entry) => entry.term) },
+        });
       }
+      if (loosePics.length) {
+        await base44.entities.KnowledgeImage.deleteMany({
+          file_uri: { $in: loosePics.map((pic) => pic.file_uri) },
+        });
+      }
+      if (saving.length) await base44.entities.KnowledgeImage.bulkCreate(saving);
 
       try {
         await doc.recordSource({
@@ -87,11 +103,18 @@ export default function ImportReview({ result, doc, onState, onDone, onClose }) 
         // the words are in the working copy; the file itself simply was not kept beside them
       }
 
+      const said = [];
+      if (merged.added) {
+        said.push(`Added ${merged.added} ${merged.added === 1 ? "word" : "words"} to the working copy`);
+      }
+      if (merged.updated) said.push(`updated ${merged.updated} already there`);
+      if (saving.length) {
+        said.push(`${saving.length} ${saving.length === 1 ? "picture" : "pictures"} saved in the panel`);
+      }
       onDone?.(
-        `Added ${merged.added} ${merged.added === 1 ? "word" : "words"} to the working copy` +
-          `${merged.updated ? `, and updated ${merged.updated} already there` : ""}` +
-          `${kept.length ? `, with ${kept.length} ${kept.length === 1 ? "picture" : "pictures"} saved beside them` : ""}` +
-          `. Save it, then publish it when you are ready — nothing reaches the AIs until you do.`
+        `${said.length ? said.join(", ") : "Nothing new was written"}. ` +
+          `${loosePics.length ? `${loosePics.length} of the pictures ${loosePics.length === 1 ? "has" : "have"} no word yet — give each one its word in the panel. ` : ""}` +
+          `Save it, then publish it when you are ready — nothing reaches the AIs until you do.`
       );
     } catch (err) {
       setError(
@@ -189,7 +212,7 @@ export default function ImportReview({ result, doc, onState, onDone, onClose }) 
       ) : (
         <p className="knowledge-empty">
           No words were found in this package — nothing here reads as a word of the language. Its
-          pictures are listed below.
+          pictures are listed below, and every one of them can be added to the panel without a word.
         </p>
       )}
 
@@ -208,7 +231,8 @@ export default function ImportReview({ result, doc, onState, onDone, onClose }) 
             ))}
           </div>
           <span className="knowledge-meter-text">
-            Choose one of these from a word's picture list above to put it with that word.
+            Choose one of these from a word's picture list above to put it with that word. Any you
+            leave here are kept in the panel all the same, with no word beside them, waiting for one.
           </span>
         </div>
       ) : null}
@@ -234,13 +258,17 @@ export default function ImportReview({ result, doc, onState, onDone, onClose }) 
         <button
           type="button"
           onClick={add}
-          disabled={busy || !keeping.length}
+          disabled={busy || (!keeping.length && !pictures.length)}
           className="knowledge-upload"
         >
           {busy ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <Check className="h-3.5 w-3.5" />}
           {busy
             ? "Writing into the working copy…"
-            : `Add ${keeping.length} to the working copy`}
+            : `Add ${
+                keeping.length
+                  ? `${keeping.length} ${keeping.length === 1 ? "word" : "words"}`
+                  : `${pictures.length} ${pictures.length === 1 ? "picture" : "pictures"}`
+              } to the working copy`}
         </button>
         <button type="button" onClick={onClose} disabled={busy} className="knowledge-cancel">
           Leave it for now

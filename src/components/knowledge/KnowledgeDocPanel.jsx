@@ -111,7 +111,7 @@ export default function KnowledgeDocPanel({ focus }) {
         ) : null}
       </div>
 
-      <WordPictures />
+      <WordPictures text={doc.text} />
 
       {doc.error ? <p className="knowledge-error">{doc.error}</p> : null}
 
