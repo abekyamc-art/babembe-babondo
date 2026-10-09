@@ -36,9 +36,11 @@ const EARS_MAX_MS = 20000;
 const EARS_MIN_MS = 350;
 // the rate the app's own ears are handed the turn in
 const EARS_RATE = 16000;
-// a turn he has taken and never answered: the wait is given up on and the call moves on rather than
-// sitting on a voice that has gone quiet
-const ANSWER_GUARD_MS = 15000;
+// A turn he has taken and never answered: the wait is given up on and the call moves on rather than
+// sitting on a voice that has gone quiet. It is kept short on purpose — an answer that has not begun
+// by this long is not on its way, and waiting longer only leaves the person watching a working line
+// instead of hearing a reply.
+const ANSWER_GUARD_MS = 7000;
 
 function b64ToBytes(b64) {
   const bin = atob(b64);

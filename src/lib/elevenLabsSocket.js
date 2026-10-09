@@ -10,9 +10,9 @@ const IN_RATE = 16000;
 // as speech close to the phone. The lift is kept gentle: a capture squashed flat loses the
 // shape of the words, and the hearing service works the letters out from that shape.
 const MIC_GAIN = 1.6;
-// his first words after the person's turn wait only this long, so his answer begins
-// as soon as the words he was just handed have landed
-const BEAT_MS = 300;
+// his first words after the person's turn wait only this long, so his answer begins as soon as the
+// words he was just handed have landed — a breath, not a pause the person has to sit through
+const BEAT_MS = 120;
 // once his voice has drained, this much quiet ends his turn: a breath between two
 // chunks of the same answer is not the end of it, so the microphone stays closed
 // instead of opening onto his own voice
@@ -21,10 +21,11 @@ const OPEN_QUIET_MS = 20000;
 // once his answer has finished, this much quiet ends the call, so the person can
 // start it again whenever they are ready
 const CLOSE_QUIET_MS = 15000;
-// a turn that gets no answer is put to him once more after this long, and if it is
-// still unanswered this much later, the call closes as it always has — the question
-// is kept for the next call
-const RECOVER_MS = 15000;
+// A turn that gets no answer is put to him once more after this long, and if it is still unanswered
+// this much later, the call closes as it always has — the question is kept for the next call. The
+// first wait is kept short: silence this long from a voice agent is not an answer on its way, and
+// the person is left watching a working line while nothing is said.
+const RECOVER_MS = 8000;
 const GIVE_UP_MS = 45000;
 // A soft voice at arm's length is a turn as much as a loud one, and no two phones report the same
 // voice the same way, so the bar for hearing one is set low: what is captured is only ever read
@@ -44,11 +45,11 @@ const TURN_MAX_MS = 30000;
 // how long the sound is given to start before the person is asked to touch the screen for it
 const START_WAIT_MS = 1500;
 // The app's own ears are given this long to write a turn down, and they are given it generously: a
-// Kibembe turn read properly is worth the wait, so the reading is allowed to take its time rather
-// than being cut short into a guess at another language. Ears that hang longer than this are ears
-// the call does without: the AI hears the person itself rather than the conversation sitting in
-// silence.
-const HEAR_MS = 20000;
+// Kibembe turn read properly is worth a wait, so the reading is allowed to take its time rather than
+// being cut short into a guess at another language. But a hang is not a reading: ears that have not
+// answered by this long are ears the call does without from here on, and the AI hears the person
+// itself — so nobody is left watching a turn being written down that is never going to come back.
+const HEAR_MS = 12000;
 
 const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 

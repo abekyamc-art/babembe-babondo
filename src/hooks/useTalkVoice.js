@@ -188,14 +188,15 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
    * themselves, then what the writing is — the app's own spelling of the person's own words, or their
    * own words where they put the writing right.
    */
-  const handOn = useCallback(async (socket, said, language, wrong = "") => {
+  const handOn = useCallback(async (socket, said, language, wrong = "", ready = null) => {
     // A turn that asks about the world — who someone is, their songs, their history, a piece of
     // news, a story — is looked up before it is put to the voice, and what was found rides into
     // the call with the words. So the voice answers from what was really found, names where it
     // came from, and says plainly what could not be confirmed, instead of answering that it does
-    // not know the person. The lookup decides for itself whether a turn needs one, so ordinary
-    // talk waits for nothing.
-    const fresh = await loadFreshMaterial(said, askedRef.current);
+    // not know the person. Where the material has already been looked up alongside the reading of
+    // the sound, it is used exactly as it stands: the words are then put to the voice without
+    // waiting on a second lookup of the same turn.
+    const fresh = ready || (await loadFreshMaterial(said, askedRef.current));
     // the names the person was offered are settled by this turn: what the lookup puts forward now
     // is what stands before them next
     const choices = Array.isArray(fresh.candidates) ? fresh.candidates : [];
@@ -242,13 +243,20 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       setNotice("");
       lastUserRef.current = said;
       push("user", said);
-      // the app's own reading of the turn, handed to the voice before it answers
-      const read = await readHeardTurn(said, lastAgentRef.current);
+      // The two lookups this turn needs are made together, never one after the other: what the sound
+      // is read to mean and what the question is asked about are independent of each other, and
+      // running them in turn is what left an ordinary turn standing on the screen, still working,
+      // for seconds before the voice ever heard a word of it. Neither lookup is dropped or cut
+      // short — they simply no longer wait on each other, so the turn reaches the voice sooner.
+      const [read, fresh] = await Promise.all([
+        readHeardTurn(said, lastAgentRef.current),
+        loadFreshMaterial(said, askedRef.current),
+      ]);
       if (!socket.connected || socketRef.current !== socket) return;
       // a language plainly asked for stands from here on, and the rule for it rides in with the reading
       if (read.mode) saveLangMode(read.mode);
       if (read.note) socket.sendMemory(read.note);
-      await handOn(socket, said, language);
+      await handOn(socket, said, language, "", fresh);
     },
     [handOn, push]
   );
