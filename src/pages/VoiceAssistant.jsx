@@ -262,11 +262,6 @@ export default function VoiceAssistant() {
     navigate("/reels");
   };
 
-  const handleRap = () => {
-    setAccountOpen(false);
-    navigate("/rap");
-  };
-
   const handleStudio = () => {
     setAccountOpen(false);
     navigate("/studio");
@@ -454,7 +449,6 @@ export default function VoiceAssistant() {
         onSignIn={handleGoogle}
         onReels={handleReels}
         onMessages={handleMessages}
-        onRap={handleRap}
         onStudio={handleStudio}
         onKibembe={handleKibembe}
         onKnowledge={handleKnowledge}

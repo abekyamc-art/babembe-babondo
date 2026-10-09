@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, Clapperboard, Languages, MessageCircle, Mic, Music } from "lucide-react";
+import { BookOpen, Clapperboard, Languages, MessageCircle, Mic } from "lucide-react";
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountProfile from "@/components/voice/AccountProfile";
 import DeleteAccount from "@/components/voice/DeleteAccount";
@@ -27,7 +27,6 @@ export default function AccountSheet({
   wallet,
   onReels,
   onMessages,
-  onRap,
   onStudio,
   onKibembe,
   onKnowledge,
@@ -80,13 +79,6 @@ export default function AccountSheet({
                     <Chevron />
                   </button>
                 ) : null}
-                <button type="button" className="account-action" onClick={onRap}>
-                  <span className="account-action-label">
-                    <Music className="h-4 w-4" />
-                    Rap Studio
-                  </span>
-                  <Chevron />
-                </button>
                 <button type="button" className="account-action" onClick={onStudio}>
                   <span className="account-action-label">
                     <Mic className="h-4 w-4" />

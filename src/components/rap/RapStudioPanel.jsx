@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Coins } from "lucide-react";
+import { Coins } from "lucide-react";
 import useRapStudio from "@/hooks/useRapStudio";
 import useSongwriter from "@/hooks/useSongwriter";
 import TypingDots from "@/components/voice/TypingDots";
@@ -14,13 +14,9 @@ import StudioAmbience from "@/components/rap/StudioAmbience";
 import StudioDock from "@/components/rap/StudioDock";
 import useVoiceTracks from "@/hooks/useVoiceTracks";
 import useBeatMaker from "@/hooks/useBeatMaker";
-import { Image } from "@/components/ui/image";
 import "@/rap-studio.css";
 import "@/rap-voice.css";
 import "@/rap-timeline.css";
-
-// the room the whole session stands in, laid across the head of the page
-const HERO = "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/30575228d_generated_fa7f6bd9.jpg";
 
 const BUSY_LABEL = {
   plan: "Base44 AI inapanga maneno…",
@@ -32,7 +28,12 @@ const BUSY_LABEL = {
   beat: "Base44 AI inatengeneza beat kama huo…",
 };
 
-export default function Rap() {
+/**
+ * The rap session, kept in the studio: the words, the beat, the voice over it, the cutting and the
+ * takes. It is the same workspace the Rap Studio held, standing inside Gloire Studio now, so writing,
+ * rapping and recording all happen in one place.
+ */
+export default function RapStudioPanel() {
   const navigate = useNavigate();
   const studio = useRapStudio();
   // the songwriter: a whole song written out from one request, and the person's own voice on the beat
@@ -102,20 +103,7 @@ export default function Rap() {
 
   return (
     <div className="rap-screen">
-      <Image className="rap-hero" src={HERO} alt="Studio ya kurekodi yenye mwanga" fittingType="fill" />
-      <div className="rap-scrim" aria-hidden="true" />
-
       <div className="rap-in">
-        <div className="rap-head">
-          <div>
-            <span className="rap-eyebrow">Rap Studio</span>
-            <h1 className="rap-title">Ebembe Rap</h1>
-          </div>
-          <button type="button" className="rap-back" aria-label="Rudi" onClick={() => navigate(-1)}>
-            <ArrowLeft />
-          </button>
-        </div>
-
         <div className="rap-strip">
           <RapGenerate
             language={settings.language}

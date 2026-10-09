@@ -13,6 +13,7 @@ import AddTrackSheet from "@/components/studio/AddTrackSheet";
 import TrackSheet from "@/components/studio/TrackSheet";
 import ClipInspector from "@/components/studio/ClipInspector";
 import BeatLibrarySheet from "@/components/studio/BeatLibrarySheet";
+import StudioRapSheet from "@/components/studio/StudioRapSheet";
 import { useStudioText } from "@/components/studio/StudioLangProvider";
 import useStudioProject from "@/hooks/useStudioProject";
 import useStudioPlayback from "@/hooks/useStudioPlayback";
@@ -64,6 +65,7 @@ export default function StudioProject() {
   const [openTrack, setOpenTrack] = useState(null);
   const [clipOpen, setClipOpen] = useState(false);
   const [beatsOpen, setBeatsOpen] = useState(false);
+  const [rapOpen, setRapOpen] = useState(false);
   const [buffers, setBuffers] = useState({});
   const [missing, setMissing] = useState([]);
   const [note, setNote] = useState("");
@@ -482,6 +484,17 @@ export default function StudioProject() {
                 <button type="button" className="gs-chip" onClick={() => setBeatsOpen(true)} disabled={importing}>
                   <Library aria-hidden="true" /> {t("beatLibrary")}
                 </button>
+                <button
+                  type="button"
+                  className="gs-chip"
+                  onClick={() => {
+                    playback.stop();
+                    setRapOpen(true);
+                  }}
+                  disabled={recorder.recording}
+                >
+                  <Music2 aria-hidden="true" /> {t("rapTitle")}
+                </button>
                 <button type="button" className="gs-chip" onClick={() => setAddOpen(true)}>
                   <Plus aria-hidden="true" /> {t("addTrack")}
                 </button>
@@ -585,6 +598,7 @@ export default function StudioProject() {
         }}
       />
       <BeatLibrarySheet open={beatsOpen} busy={importing} onClose={() => setBeatsOpen(false)} onUse={useBeat} />
+      <StudioRapSheet open={rapOpen} onClose={() => setRapOpen(false)} />
 
       {selectedClip && !clipOpen ? (
         <button type="button" className="gs-clip-open" onClick={() => setClipOpen(true)}>

@@ -772,6 +772,50 @@
   }
 }
 
+/* --- the rap session, kept inside the studio --- */
+
+.gs-rap-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  flex-direction: column;
+  background: #0c0e12;
+  animation: gs-rap-in 0.22s ease both;
+}
+
+/* the one line under the bar saying what the panel is for */
+.gs-rap-note {
+  margin: 0;
+  padding: 10px 14px;
+  color: #9aa1ab;
+  font: 500 12px/1.45 var(--font-body);
+  border-bottom: 1px solid var(--gs-line);
+}
+
+.gs-rap-body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  background: #101116;
+}
+
+.gs-rap-body .rap-screen {
+  border: 0;
+}
+
+@keyframes gs-rap-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* --- transport --- */
 
 .gs-transport {

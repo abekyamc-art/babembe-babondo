@@ -1,6 +1,6 @@
 import React, { useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Archive, HardDrive, Library, Loader2, Plus, Settings, Sparkles, Trash2, Upload } from "lucide-react";
+import { Archive, HardDrive, Library, Loader2, Music2, Plus, Settings, Sparkles, Trash2, Upload } from "lucide-react";
 import StudioShell from "@/components/studio/StudioShell";
 import StudioSheet from "@/components/studio/StudioSheet";
 import HomeProjectRow from "@/components/studio/HomeProjectRow";
@@ -8,6 +8,7 @@ import NewProjectSheet from "@/components/studio/NewProjectSheet";
 import ProjectActionsSheet from "@/components/studio/ProjectActionsSheet";
 import StudioSettingsSheet from "@/components/studio/StudioSettingsSheet";
 import BeatLibrarySheet from "@/components/studio/BeatLibrarySheet";
+import StudioRapSheet from "@/components/studio/StudioRapSheet";
 import { useStudioText } from "@/components/studio/StudioLangProvider";
 import useStudioProjects from "@/hooks/useStudioProjects";
 import { TEMPLATE_NAMES, TEMPLATES, newClip, newProject, newTrack } from "@/lib/studioTracks";
@@ -27,6 +28,7 @@ export default function StudioHome() {
   const [actions, setActions] = useState(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [beatsOpen, setBeatsOpen] = useState(false);
+  const [rapOpen, setRapOpen] = useState(false);
   const [binOpen, setBinOpen] = useState(false);
   const [archivedOpen, setArchivedOpen] = useState(false);
   const [busy, setBusy] = useState("");
@@ -160,6 +162,10 @@ export default function StudioHome() {
       </section>
 
       <section className="gs-block">
+        <button type="button" className="gs-row-btn" onClick={() => setRapOpen(true)}>
+          <Music2 aria-hidden="true" />
+          <span>{t("rapTitle")}</span>
+        </button>
         <button type="button" className="gs-row-btn" onClick={() => setBeatsOpen(true)}>
           <Library aria-hidden="true" />
           <span>{t("beatLibrary")}</span>
@@ -218,6 +224,7 @@ export default function StudioHome() {
       <NewProjectSheet open={newOpen} templateId={templateId} busy={busy === "create"} onClose={() => setNewOpen(false)} onCreate={begin} />
       <StudioSettingsSheet open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <BeatLibrarySheet open={beatsOpen} busy={busy === "beat"} onClose={() => setBeatsOpen(false)} onUse={useBeat} />
+      <StudioRapSheet open={rapOpen} onClose={() => setRapOpen(false)} />
 
       {actions ? (
         <ProjectActionsSheet
