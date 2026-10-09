@@ -46,7 +46,10 @@ const TOP_NOTICE = [
 // Raised to 10 when the readings of the confirmed words — the corrections Gloire himself confirmed,
 // and the ways his own approved recordings were written down — were added to the block, so every
 // agent is written again on its next call with the words said the way they are really said.
-export const RULES_VERSION = "10";
+// Raised to 11 when the live conversation rules — listening to the whole turn before answering, the
+// whole corpus as active vocabulary, and "Omo tenda ii-ii?" as "What did you say?" — were written
+// into the guide, so every agent is written again on its next call carrying them.
+export const RULES_VERSION = "11";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
