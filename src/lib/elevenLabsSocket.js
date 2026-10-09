@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { isRepeatIntro } from "@/lib/agentMemory";
+import { isRealTurn } from "@/lib/misheardSpeech";
 import { contextBlocks } from "@/lib/contextBlocks";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage } from "@/lib/micAccess";
@@ -204,6 +205,9 @@ export default class VoiceSocket {
     this.captureFrames = [];
     this.hearing = false;
     this.reviewPending = false;
+    // the turn the app itself handed the service, so the report of that same turn coming back is
+    // never taken for a second turn of the person's
+    this.sentText = "";
     // turns in a row the app's own ears could make nothing of
     this.misses = 0;
     // whether the reason the cleanup is unavailable has already been said in this call
@@ -263,6 +267,7 @@ export default class VoiceSocket {
     this.setAwaiting(false);
     this.cleanupNoted = false;
     this.lastUserText = "";
+    this.sentText = "";
     this.turnAt = 0;
     this.beatDue = false;
     this.recovered = false;
@@ -408,6 +413,8 @@ export default class VoiceSocket {
     this.silentWaitAt = performance.now();
     this.userSpoke = true;
     this.lastUserText = text;
+    // kept so the report of this very turn coming back is recognised for what it is
+    this.sentText = text;
     this.turnAt = performance.now();
     this.recovered = false;
     // a fresh message is its own turn, so its answer is its own to spend
@@ -490,7 +497,14 @@ export default class VoiceSocket {
 
     if (msg.type === "user_transcript") {
       const text = msg.user_transcription_event?.user_transcript;
-      if (text) {
+      // The service reports the turn the app itself handed it back again. That turn is already on
+      // the screen — it was written there when it was made — so taking the report would stand the
+      // same turn in the talk twice.
+      const echo = !!text && text === this.sentText;
+      if (echo) this.sentText = "";
+      // What the ears write for a breath of the room is a fragment, never a turn of speech: it is
+      // not the person's words, so nothing is shown from it and nothing is answered from it.
+      if (text && !echo && isRealTurn(text)) {
         this.userSpoke = true;
         // a fresh turn: the answer coming for it is its own to spend
         this.spent = false;
@@ -616,6 +630,7 @@ export default class VoiceSocket {
       // the turn being said now is the one an answer is coming for, so nothing carried over
       // from the turn before it can be taken for it
       this.lastUserText = "";
+      this.sentText = "";
     }
     this.captureFrames.push(samples);
   }

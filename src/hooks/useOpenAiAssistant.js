@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { primedAudio, primeAudio } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
-import { isMisheard } from "@/lib/misheardSpeech";
+import { isMisheard, isRealTurn, SAY_AGAIN_TURN } from "@/lib/misheardSpeech";
 import RealtimeCall, { stageLabel } from "@/lib/realtimeCall";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
 import { reviewAnswer } from "@/lib/sadikiReview";
@@ -140,6 +140,14 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
     (text) => {
       const said = String(text || "").trim();
       if (!said) return;
+      // Nothing is answered from a breath of the room written down as words: a capture that carried
+      // no turn of speech is dropped here, and the person is simply asked to say it again. This is
+      // the same guard every spoken turn of the app passes through, so the same noise never becomes
+      // a question here either.
+      if (!isRealTurn(said)) {
+        setNotice(SAY_AGAIN_TURN);
+        return;
+      }
       // Ebembe written down as Chinese or Japanese words is an answer to nothing: that turn is
       // handed over where a screen is waiting to take it, and refused plainly where it is not
       if (isMisheard(said)) {

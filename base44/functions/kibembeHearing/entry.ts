@@ -16,7 +16,21 @@ import {
   turnNote,
 } from "../../shared/kibembeFirst.ts";
 import { heardForms } from "../../shared/soundsAlike.ts";
-import { holdsWord } from "../../shared/freshLookup.ts";
+
+// A turn of speech carries at least a word: two letters is the least a word of this app's languages
+// is written with.
+const FEWEST_LETTERS = 2;
+
+/**
+ * Whether what the ears wrote is a turn of speech at all, rather than a breath of the room written
+ * down as words. The fragments and stray marks a capture returns when nobody spoke are not the
+ * person's turn, and nothing is answered from them.
+ */
+function isRealTurn(text: string): boolean {
+  const line = String(text || "").trim();
+  if (!line) return false;
+  return line.replace(/[^\p{L}\p{N}]/gu, "").length >= FEWEST_LETTERS;
+}
 
 // One spoken turn is a sentence or two: anything much longer is not a turn of this call.
 const MAX_SAID = 400;
@@ -286,13 +300,14 @@ export default async function (req: Request): Promise<Response> {
     const reading = readTurn(said, words, patterns);
     const note = reading ? turnNote(said, reading) : "";
 
-    // Whether the app is sure of what it heard, which is what decides whether the voice answers the
-    // turn as it stands or the person is shown what was heard first: the app's own reading of the
-    // turn, or a word of it that the app's own knowledge holds — the confirmed Word Bank, or a word
-    // the admin's own document writes. A turn the knowledge holds nothing of is the one that goes
-    // wrong when it is answered unseen: the ears have written words nobody here said, and the person
-    // is the only one who can put them right.
-    const sure = !!reading || (await holdsWord(base44, said));
+    // Whether the app is sure of what it heard. A turn is unsure when what came back is not a turn
+    // of speech at all — the fragments and stray marks the ears write for a breath of room noise —
+    // and that one is shown to the person instead of being answered, since the only thing that can
+    // put it right is them. A turn that reads as real speech is answered exactly as it stands: the
+    // app's own knowledge not holding one of its words is no reason to hold back an ordinary
+    // question, and asking for a knowledge match here is what left ordinary talk unanswered. Where
+    // the knowledge does hold a word of the turn, the reading rides in with it all the same.
+    const sure = isRealTurn(said);
 
     let saved = "";
     let proposal: any = null;

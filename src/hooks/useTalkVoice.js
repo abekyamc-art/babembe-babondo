@@ -6,7 +6,7 @@ import { primeMic } from "@/lib/micAccess";
 import { FIRST_TALK } from "@/lib/talkRotation";
 import { openHearingNote, readHeardTurn } from "@/lib/homeHearing";
 import { loadFreshMaterial, loadTurnPictures } from "@/lib/knowledge";
-import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
+import { SAY_AGAIN_KIBEMBE, SAY_AGAIN_TURN, isMisheard, isRealTurn } from "@/lib/misheardSpeech";
 import { heardLanguage } from "@/lib/heardLanguage";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
 
@@ -32,9 +32,8 @@ const NO_WRITTEN_ANSWER = "That voice didn't answer — try again in a moment.";
 // person: a guest is told plainly rather than left with a line nobody answered.
 const UNAUTHORIZED = "Unauthorized";
 const SIGN_IN_TO_ASK = "Sign in and I'll answer you in writing — the call still answers out loud.";
-// A turn the app's own knowledge holds nothing of is shown to the person before any voice answers it:
-// what follows is then an answer to the turn they really made, and never to a mishearing of it.
-const NOT_SURE = "Not sure I heard that — put my writing right, or say it again.";
+// A turn the app's own knowledge holds nothing of is answered as it stands: ordinary talk is not a
+// mishearing, and asking for a knowledge match before answering is what left ordinary talk unanswered.
 
 export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
   const [active, setActive] = useState(false);
@@ -142,6 +141,13 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
     (text) => {
       const said = String(text || "").trim();
       if (!said) return;
+      // A breath of the room written down as words is not a turn of the person's: nothing is shown
+      // and nothing is asked from it, and they are simply asked to say it again. This is the reading
+      // the call falls back on where the app's own ears could not take the turn.
+      if (!isRealTurn(said)) {
+        setNotice(SAY_AGAIN_TURN);
+        return;
+      }
       // Sometimes the ears write a language nobody on this call speaks — a guess at some other
       // script altogether. Those are not the person's words and nothing is read from them: the turn
       // is asked for once more, and the Kibembe they really said is what comes back.
@@ -157,9 +163,8 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       // of is answered from the app's own word bank and in Kibembe. A correction the person makes
       // is saved as the same turn is read. A reading that cannot be made leaves the turn to the
       // voice itself, which is already carrying the rules of the call.
-      readHeardTurn(said, lastAgentRef.current).then(({ note, sure }) => {
+      readHeardTurn(said, lastAgentRef.current).then(({ note }) => {
         if (note) socketRef.current?.sendMemory(note);
-        if (!sure) setNotice(NOT_SURE);
       });
     },
     [push]
@@ -224,6 +229,12 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
     async (text, language, socket) => {
       const said = String(text || "").trim();
       if (!said) return;
+      // What the ears write for a breath of noise is not a turn of the person's: nothing is shown,
+      // nothing is held and nothing is put to the voice — they are asked to say it again.
+      if (!isRealTurn(said)) {
+        setNotice(SAY_AGAIN_TURN);
+        return;
+      }
       // the turn is shown exactly as the app's own ears wrote it
       setNotice("");
       lastUserRef.current = said;

@@ -14,6 +14,26 @@ export function isMisheard(text) {
   return OTHER_SCRIPTS.test(String(text || ""));
 }
 
+// A turn of speech carries at least a word: two letters is the least a word of this app's languages
+// is written with.
+const FEWEST_LETTERS = 2;
+
+/**
+ * Whether what the ears wrote is a turn of speech at all.
+ *
+ * A breath of room noise, a fan, a door coming back written down is a fragment, a stray mark, or
+ * nothing at all — never the person's words. Nothing is shown, held or answered from one: the turn
+ * is simply asked for again, so no line nobody said is ever put on the screen as theirs.
+ */
+export function isRealTurn(text) {
+  const line = String(text || "").trim();
+  if (!line) return false;
+  return line.replace(/[^\p{L}\p{N}]/gu, "").length >= FEWEST_LETTERS;
+}
+
+/** The line the person is given when a capture carried no turn of speech to answer. */
+export const SAY_AGAIN_TURN = "Didn't catch that — say it again.";
+
 /**
  * The line the person is given when the ears come back with a language nobody on this call speaks.
  * The turn is asked for once more rather than written down and answered as words they never said.

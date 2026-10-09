@@ -6,7 +6,7 @@ import { cartesiaFailed, cartesiaOpened, cartesiaOrder } from "@/lib/cartesiaBac
 import CartesiaCall from "@/lib/cartesiaCall";
 import { readHeardTurn } from "@/lib/homeHearing";
 import { loadTurnPictures } from "@/lib/knowledge";
-import { SAY_AGAIN_KIBEMBE, isMisheard } from "@/lib/misheardSpeech";
+import { SAY_AGAIN_KIBEMBE, SAY_AGAIN_TURN, isMisheard, isRealTurn } from "@/lib/misheardSpeech";
 import { CARTESIA_AI } from "@/lib/providerNames";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
 
@@ -107,6 +107,13 @@ export default function useCartesiaVoice({
     (text) => {
       const said = String(text || "").trim();
       if (!said) return;
+      // What the app's own ears write for a breath of the room is a fragment, never a turn of the
+      // person's: no line nobody said is ever stood in the talk as theirs, and they are asked to say
+      // it again instead.
+      if (!isRealTurn(said)) {
+        setNotice(SAY_AGAIN_TURN);
+        return;
+      }
       // Sometimes the ears write a language nobody on this call speaks — a guess at some other
       // script altogether. Those are not the person's words and nothing is read from them: the turn
       // is asked for once more, and the Kibembe they really said is what comes back.
