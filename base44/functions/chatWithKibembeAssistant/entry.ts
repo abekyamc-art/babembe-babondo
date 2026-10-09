@@ -178,11 +178,13 @@ export default async function (req) {
     const CHOSEN = asked.length
       ? '- The person was asked which of these names they meant: ' +
         asked.map((one) => `${one.name}${one.detail ? ` (${one.detail})` : ''}`).join('; ') +
-        '. Their turn now is their answer to that question. Open your answer with the confirmation of ' +
-        'the one they chose, in the language they used and by their full name — "Umemchagua <jina lake ' +
-        'kamili>" in Kiswahili, and the same words in whatever language they spoke — then answer about ' +
-        'that one person alone — everything you give belongs to them and to nobody else. Where their ' +
-        'turn chooses none of them, name all of them again and ask once more which they mean.'
+        '. Their turn now is their answer to that question. The first thing you write, as a statement ' +
+        'and never as a question, in the language they used, is the confirmation of the one they chose ' +
+        'by their full name — "Umemchagua <jina lake kamili>" in Kiswahili, and the same words in ' +
+        'whatever language they spoke. Only after that confirmation do you answer about that one person ' +
+        'alone: everything you give belongs to them and to nobody else. Never ask which one they mean ' +
+        'again — they have chosen. Where their turn names none of the people listed above, name all of ' +
+        'them again and ask once more which they mean.'
       : '';
 
     const asking = lookup.candidates.length >= 2;
