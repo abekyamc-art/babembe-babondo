@@ -1,8 +1,11 @@
 import React from "react";
+import { trackLength } from "@/lib/voiceTracks";
 
 const SPANS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 const LIME = "#c7f400";
 const CYAN = "#15d8d0";
+// how wide one second of a voice lane is drawn
+const TRACK_PPS = 20;
 
 /**
  * The bars a clip stands on, read from the words the clip carries: the same clip always draws the
@@ -37,7 +40,7 @@ function lay(clips) {
  * written, and one for the voice — each clip standing for the work it really holds, and a playhead
  * sweeping the lanes. Nothing is drawn here that the studio does not already have.
  */
-export default function StudioTimeline({ beat, savedBeats, lines, take, recording, seconds }) {
+export default function StudioTimeline({ beat, savedBeats, lines, take, recording, seconds, tracks }) {
   // the written bars, section by section, as the clip each part of the rap stands in
   const sections = [];
   (lines || []).forEach((line) => {
@@ -64,6 +67,28 @@ export default function StudioTimeline({ beat, savedBeats, lines, take, recordin
     });
   }
 
+  // every voice track is a lane of its own: where it stands, how much of it is left after the cut,
+  // and the pitch it was moved to
+  const trackLanes = (tracks || []).slice(0, 6).map((track, index) => {
+    const length = trackLength(track);
+    const moved = track.semitones ? ` · ${track.semitones > 0 ? "+" : ""}${track.semitones}st` : "";
+    return {
+      id: track.id,
+      name: track.name,
+      clips: [
+        {
+          key: track.id,
+          name: `${track.name}${moved}${track.muted ? " · M" : ""}${track.solo ? " · S" : ""}`,
+          count: Math.max(3, Math.round(length)),
+          seed: track.id,
+          left: 20 + Math.max(0, track.start || 0) * TRACK_PPS,
+          width: Math.max(80, Math.min(740, Math.max(0.4, length) * TRACK_PPS)),
+          color: track.muted ? "#4d505d" : index % 2 ? CYAN : LIME,
+        },
+      ],
+    };
+  });
+
   const lanes = [
     { id: "beat", name: "Beat", clips: lay(beatClips) },
     {
@@ -79,6 +104,7 @@ export default function StudioTimeline({ beat, savedBeats, lines, take, recordin
       ),
     },
     { id: "voice", name: "Sauti", clips: lay(voiceClips) },
+    ...trackLanes,
   ];
 
   return (

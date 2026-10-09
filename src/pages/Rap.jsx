@@ -18,9 +18,16 @@ import RapSong from "@/components/rap/RapSong";
 import RapSimilar from "@/components/rap/RapSimilar";
 import SavedBeats from "@/components/rap/SavedBeats";
 import SongwriterPanel from "@/components/rap/SongwriterPanel";
+import VoiceTracksPanel from "@/components/rap/VoiceTracksPanel";
+import BeatMaker from "@/components/rap/BeatMaker";
+import ClonedVoicePanel from "@/components/rap/ClonedVoicePanel";
+import useVoiceTracks from "@/hooks/useVoiceTracks";
+import useBeatMaker from "@/hooks/useBeatMaker";
+import { flowOf } from "@/lib/rapBeat";
 import { Image } from "@/components/ui/image";
 import { RAP_COST } from "@/lib/coins";
 import "@/rap-studio.css";
+import "@/rap-voice.css";
 
 // the room the whole session stands in, laid across the head of the page
 const HERO = "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/30575228d_generated_fa7f6bd9.jpg";
@@ -47,6 +54,29 @@ export default function Rap() {
   });
   const { settings, lines, take, busy, error, beat } = studio;
   const ready = !!studio.user;
+  const title = settings.topic?.trim() || lines[0]?.ebembe?.slice(0, 40) || "Take yangu";
+
+  // the studio's own voice tracks — recorded on the spot, brought in as a file, or sung by a voice
+  // the person made from their own clip — and the beat built by hand in the grid
+  const voiceTracks = useVoiceTracks({
+    settings,
+    beat,
+    title,
+    onKeepMix: ({ audio_url, seconds }) =>
+      studio.keepRecording({
+        title,
+        language: settings.language,
+        lines,
+        wordsUsed: studio.wordsUsed,
+        seconds,
+        audio_url,
+      }),
+  });
+
+  const beatMaker = useBeatMaker({
+    bpm: settings.bpm,
+    onUse: ({ bytes, name, bpm, style }) => studio.useMadeBeat(bytes, { name, bpm, style }),
+  });
   // a generation run brings its own steps; every other job keeps the studio's running line
   const running = studio.steps.some((step) => step.state === "running");
   // the running line names the step the one tap is on: the words, the bars, then the voice
@@ -140,6 +170,7 @@ export default function Rap() {
               take={take}
               recording={songwriter.recording}
               seconds={songwriter.seconds}
+              tracks={voiceTracks.tracks}
             />
 
             <RapSteps
@@ -228,6 +259,30 @@ export default function Rap() {
               onUse={studio.useSavedBeat}
               onRemove={studio.removeSavedBeat}
               loadBytes={studio.beatBytesOf}
+            />
+          </div>
+        </div>
+
+        <div className="rap-lower">
+          <div className="rap-col">
+            <BeatMaker
+              maker={beatMaker}
+              bpm={settings.bpm}
+              ready={ready}
+              onBpm={(next) => studio.setSettings({ ...settings, bpm: next })}
+            />
+          </div>
+
+          <div className="rap-col">
+            <VoiceTracksPanel studio={voiceTracks} ready={ready} />
+
+            <ClonedVoicePanel
+              busy={!!busy || !ready}
+              ready={ready}
+              lines={lines}
+              language={settings.language}
+              speed={flowOf(settings.flow)?.speed || 1}
+              onAddSung={voiceTracks.addSung}
             />
           </div>
         </div>

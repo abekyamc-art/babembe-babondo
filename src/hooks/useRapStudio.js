@@ -279,7 +279,36 @@ export default function useRapStudio() {
     }
   }, []);
 
+  /** A beat the person built by hand in the grid: kept privately like any other beat, set under the
+   *  timeline, and added to the saved beats so a later take can drop it on again. */
+  const useMadeBeat = useCallback(
+    async (bytes, { name, bpm, style }) => {
+      if (busy) return;
+      setError("");
+      setBeatNote("");
+      setBusy("beat");
+      try {
+        const blob = new Blob([bytes], { type: "audio/wav" });
+        const file = new File([blob], `${slug(name)}.wav`, { type: "audio/wav" });
+        const { file_uri } = await base44.integrations.Core.UploadPrivateFile({ file });
 
+        setBeat({ name, bytes, file_uri, bpm: bpm || settings.bpm, style, source: "hand" });
+        setSettings((prev) => ({ ...prev, beat: "mine", bpm: bpm || prev.bpm }));
+
+        const kept = await base44.entities.SavedBeat.create({
+          name,
+          bpm: bpm || settings.bpm,
+          style: style || "afro",
+          file_uri,
+        });
+        setSavedBeats((prev) => [kept, ...prev]);
+      } catch (err) {
+        setError("Beat haikuweza kupakiwa. Jaribu tena.");
+      }
+      setBusy("");
+    },
+    [busy, settings.bpm]
+  );
 
   const editLine = useCallback((index, patch) => {
     setLines((prev) => prev.map((line, at) => (at === index ? { ...line, ...patch } : line)));
@@ -637,6 +666,7 @@ export default function useRapStudio() {
     beatBytesOf,
     useSavedBeat,
     removeSavedBeat,
+    useMadeBeat,
     generateRap,
     editLine,
     toggleLock,
