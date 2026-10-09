@@ -2,6 +2,7 @@ import React from "react";
 import { ExternalLink, Play, X } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { hostOf } from "@/lib/stories";
+import { viewsText } from "@/lib/channelSync";
 import { youtubeVideo } from "@/lib/youtube";
 import YouTubePlayer from "@/components/story/YouTubePlayer";
 
@@ -29,6 +30,8 @@ export default function ArtistVideoRow({
 }) {
   const video = youtubeVideo(entry.url);
   const label = entry.name || hostOf(entry.url);
+  // how many times the piece has been watched, when the artist's own channel gave a count for it
+  const watched = viewsText(entry.views);
 
   if (video) {
     return (
@@ -62,6 +65,7 @@ export default function ArtistVideoRow({
               {label}
             </span>
             <span className="block font-body text-[10px] text-white/75">
+              {watched ? `${watched} · ` : ""}
               {shown ? "Playing here · tap to put it away" : "Plays here in the app"}
             </span>
           </span>

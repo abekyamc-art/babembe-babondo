@@ -36,11 +36,19 @@ export default function ArtistLinks({
   // the whole list, once it has been asked for
   const [allOpen, setAllOpen] = useState(false);
   const all = (Array.isArray(links) ? links : []).filter((entry) => entry?.url);
+  // The pieces the artist is known for come first: the channel's own view counts decide the order,
+  // so the five the story shows are the five most watched and everything else waits behind the one
+  // control below. A piece the channel gave no count for is never ranked above one it did count — it
+  // keeps its own place, after the counted ones.
+  const ranked = [...all].sort((a, b) => (Number(b.views) || 0) - (Number(a.views) || 0));
   // the piece the person asked about stands first, so it is the one they meet
   const named = matched?.url
-    ? all.find((entry) => videoKey(entry.url) === videoKey(matched.url))
+    ? ranked.find((entry) => videoKey(entry.url) === videoKey(matched.url))
     : null;
-  const rows = named ? [named, ...all.filter((entry) => entry !== named)] : all;
+  const rows = named ? [named, ...ranked.filter((entry) => entry !== named)] : ranked;
+  // whether the artist's channel gave a count at all, so the list is never called most-watched when
+  // nothing was counted
+  const counted = rows.some((entry) => Number(entry.views) > 0);
   if (!channel && !rows.length) return null;
 
   // when the piece that was asked for is a video it is played right here, with its own sound; the
@@ -80,7 +88,9 @@ export default function ArtistLinks({
 
       {rows.length ? (
         <div className="flex flex-col gap-2">
-          <span className={head}>Published by the artist</span>
+          <span className={head}>
+            {counted ? "Most watched first" : "Published by the artist"}
+          </span>
 
           {named && told ? (
             <div className="flex flex-col gap-2">
@@ -117,7 +127,7 @@ export default function ArtistLinks({
               }}
               className="flex items-center justify-between gap-3 rounded-xl border border-accent/50 bg-accent/10 px-3 py-2 text-left font-body text-[13px] font-semibold text-accent transition active:scale-[0.99]"
             >
-              <span className="truncate">All the artist's videos · {listed.length}</span>
+              <span className="truncate">More of the artist's videos · {rest.length}</span>
               <ListVideo className="h-3.5 w-3.5 shrink-0" />
             </button>
           ) : null}

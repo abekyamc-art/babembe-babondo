@@ -9,6 +9,7 @@ import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
 import { turnPictures } from "../../shared/answerPictures.ts";
+import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
@@ -22,6 +23,10 @@ const MAX_REPLY_TOKENS = 400;
 // minute ago answers now.
 const RULES_BUDGET = 7000;
 const WORD_BUDGET = 7000;
+// A turn that asks for a translation into Kibembe is answered word by word from the admin's own
+// reviewed Word Bank, so far more of that list rides with that one turn than with an ordinary one:
+// the translation has to be built from the words the admin has already confirmed and reviewed.
+const TRANSLATE_WORD_BUDGET = 22000;
 // and the admin's one knowledge document rides with them whole: its words, its phrases, its rules
 // and everything else they wrote, so the answer never rests on a part of it
 // and the catalogue of every story — its name and the names published with it — so a person who asks
@@ -102,7 +107,14 @@ export default async function (req) {
     // What the admin has saved in this app rides with the message: the rule book in force first,
     // then every word they hold. Both are read here on the server and never sent to the app.
     const rules = trimToLines(await rulesText(base44), RULES_BUDGET);
-    const words = wordListBlock(await bankRows(base44), message, WORD_BUDGET);
+    // a translation into Kibembe is built from the Word Bank itself: the whole of what the admin has
+    // reviewed rides with that turn rather than the part an ordinary turn carries
+    const translating = wantsEbembeTranslation(message);
+    const words = wordListBlock(
+      await bankRows(base44),
+      message,
+      translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET
+    );
     // the rest of the document — the admin's notes, their questions and answers, and anything they
     // filed under a heading of their own — rides with the turn too
     // the document is handed over as the parts this message needs: its rules whole, the parts the

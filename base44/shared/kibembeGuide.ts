@@ -1,4 +1,5 @@
 import { ANSWER_LANGUAGE } from "./languageRules.ts";
+import { TRANSLATE_RULES } from "./ebembeTranslation.ts";
 
 /**
  * Gloire Sadiki's own guide for Kibembe (Ebembe), kept in one place.
@@ -144,4 +145,5 @@ export const KIBEMBE_GUIDE =
     TEACH,
     REACTIONS,
     STORIES,
+    TRANSLATE_RULES,
   ].join("\n\n") + "\n";

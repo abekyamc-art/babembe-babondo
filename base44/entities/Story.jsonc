@@ -78,7 +78,7 @@
     },
     "media_after": {
       "type": "number",
-      "description": "How many of the story's lines that older attachment stands after: 0 puts it before the telling, 1 after its first line, and so on. Unset means the story keeps it at the end, after everything \u2014 which is where every story written before this stood."
+      "description": "How many of the story's own lines that older attachment stands after: 0 puts it before the telling, 1 after its first line, and so on. Unset means the story keeps it at the end, after everything \u2014 which is where every story written before this stood."
     },
     "links": {
       "type": "array",
@@ -113,6 +113,11 @@
             ],
             "default": "admin",
             "description": "Where the entry came from: \"channel\" means it was read from the artist's own channel and is kept in step with it, and \"admin\" means the admin wrote it in themselves, so it stays whatever the channel does."
+          },
+          "views": {
+            "type": "number",
+            "default": 0,
+            "description": "How many times the piece has been watched, as the artist's own channel gives it when the channel is read. The five most watched of the artist's pieces are what the story shows and everything else waits behind the app's own control, so this count decides the order. Nothing means the channel gave no count for that piece: it is never ranked above one the channel counted, and keeps the channel's own order."
           }
         },
         "required": [

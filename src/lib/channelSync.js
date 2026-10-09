@@ -42,10 +42,15 @@ export function mergeChannelVideos(entries, videos) {
     if (!video?.url) return;
     const key = videoKey(video.url);
     const held = byKey.get(key);
+    // How many times the piece has been watched, as the channel itself gave it: the five most
+    // watched are the five the story shows. A piece the channel gave no count for keeps nothing and
+    // is never ranked above one it did count.
+    const views = Number(video.views) > 0 ? Number(video.views) : Number(held?.views) || 0;
     const row = {
       name: String(video.name || held?.name || "").trim(),
       url: String(video.url).trim(),
       source: "channel",
+      views,
     };
     if (held) {
       Object.assign(held, row);
@@ -56,6 +61,21 @@ export function mergeChannelVideos(entries, videos) {
   });
 
   return out;
+}
+
+/** A count without a trailing ".0", so 1.0M is written 1M. */
+function trimZero(value) {
+  return value.replace(/\.0$/, "");
+}
+
+/** How many times a piece has been watched, as it reads on screen. Nothing when none was given. */
+export function viewsText(views) {
+  const count = Number(views) || 0;
+  if (count <= 0) return "";
+  if (count >= 1000000000) return `${trimZero((count / 1000000000).toFixed(1))}B views`;
+  if (count >= 1000000) return `${trimZero((count / 1000000).toFixed(1))}M views`;
+  if (count >= 1000) return `${trimZero((count / 1000).toFixed(count >= 10000 ? 0 : 1))}K views`;
+  return `${count} ${count === 1 ? "view" : "views"}`;
 }
 
 /** Whether a story's channel should be read again: never read, or read longer ago than a day. */

@@ -11,9 +11,11 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
  * then its own uploads list is read — that is where the videos the artist has published stand, in the
  * artist's own order, with the names the artist gave them — and its videos page is read beside it for
  * anything the list did not carry. A name neither page held is asked for from YouTube's own address
- * for that video. Everything is bounded, so one very busy channel cannot turn into a long run of
- * calls, and a channel that cannot be reached says so instead of handing back an empty list as if the
- * artist had published nothing.
+ * for that video. How many times a piece has been watched is read from the channel's own feed, so the
+ * order handed back is the artist's own order of popularity and not the order they were published in.
+ * Everything is bounded, so one very busy channel cannot turn into a long run of calls, and a channel
+ * that cannot be reached says so instead of handing back an empty list as if the artist had published
+ * nothing.
  */
 
 // YouTube is read as a plain browser would be read, and never waited on for long.
@@ -34,6 +36,10 @@ const MAX_CHANNEL = 300;
 const UPLOADS = (id: string) => `https://www.youtube.com/playlist?list=UU${id.slice(2)}`;
 const VIDEOS = (id: string) => `https://www.youtube.com/channel/${id}/videos`;
 const WATCH = (id: string) => `https://www.youtube.com/watch?v=${id}`;
+// the channel's own front page, where the pieces it puts forward stand with how often each has been
+// watched, and its feed, where it has one
+const HOME = (id: string) => `https://www.youtube.com/channel/${id}`;
+const FEED = (id: string) => `https://www.youtube.com/feeds/videos.xml?channel_id=${id}`;
 const OEMBED = (id: string) =>
   `https://www.youtube.com/oembed?url=${encodeURIComponent(WATCH(id))}&format=json`;
 
@@ -120,6 +126,46 @@ function titleOf(block: any) {
   return plainText(block?.metadata?.lockupMetadataViewModel?.title?.content || '');
 }
 
+/**
+ * How many times a video has been watched, as the page itself writes it: "1.2M views", "845K views",
+ * "1,234 views". A page that does not say has nothing counted here, so a video is never ranked on a
+ * guess — and the count is read only from a string that is the count itself, never from a sentence
+ * that happens to carry the word.
+ */
+function countOfViews(value: any): number {
+  const found = String(value ?? '').match(/^\s*([\d][\d.,\s]*)\s*([KMB])?\s*views?\b/i);
+  if (!found) return 0;
+  const digits = Number(String(found[1]).replace(/[,\s]/g, ''));
+  if (!Number.isFinite(digits) || digits <= 0) return 0;
+  const scale = String(found[2] || '').toUpperCase();
+  const times = scale === 'B' ? 1e9 : scale === 'M' ? 1e6 : scale === 'K' ? 1e3 : 1;
+  return Math.round(digits * times);
+}
+
+/** The view count a video block carries, wherever inside the block the page keeps it. */
+function viewsIn(node: any, depth = 0): number {
+  if (!node || typeof node !== 'object' || depth > 14) return 0;
+  if (Array.isArray(node)) {
+    for (const item of node) {
+      const found = viewsIn(item, depth + 1);
+      if (found) return found;
+    }
+    return 0;
+  }
+  for (const key of Object.keys(node)) {
+    const value = node[key];
+    if (typeof value === 'string') {
+      const found = countOfViews(value);
+      if (found) return found;
+    }
+  }
+  for (const key of Object.keys(node)) {
+    const found = viewsIn(node[key], depth + 1);
+    if (found) return found;
+  }
+  return 0;
+}
+
 /** Every video the page carries, in the order it carries them, each one once. */
 function videosIn(node: any, out: any[], seen: Set<string>) {
   if (!node || typeof node !== 'object' || out.length >= MAX_IDS) return;
@@ -135,7 +181,7 @@ function videosIn(node: any, out: any[], seen: Set<string>) {
     node.playlistVideoRenderer;
   if (block && typeof block.videoId === 'string' && VIDEO_ID.test(block.videoId) && !seen.has(block.videoId)) {
     seen.add(block.videoId);
-    out.push({ id: block.videoId, title: titleOf(block) });
+    out.push({ id: block.videoId, title: titleOf(block), views: viewsIn(block) });
   }
 
   // the newer shape the channel's own grid and its uploads list are written in: a lockup carrying the
@@ -144,7 +190,7 @@ function videosIn(node: any, out: any[], seen: Set<string>) {
   const held = typeof lockup?.contentId === 'string' ? lockup.contentId : '';
   if (held && VIDEO_ID.test(held) && !seen.has(held)) {
     seen.add(held);
-    out.push({ id: held, title: titleOf(lockup) });
+    out.push({ id: held, title: titleOf(lockup), views: viewsIn(lockup) });
   }
 
   for (const key of Object.keys(node)) videosIn(node[key], out, seen);
@@ -193,14 +239,14 @@ async function videosOf(channelId: string) {
 
   const found: any[] = [];
   const seen = new Set<string>();
-  const keep = (id: string, title: string) => {
+  const keep = (id: string, title: string, views: number) => {
     if (!id || seen.has(id) || found.length >= MAX_IDS) return;
     seen.add(id);
-    found.push({ id, title: String(title || '').trim() });
+    found.push({ id, title: String(title || '').trim(), views: Number(views) || 0 });
   };
 
   if (list.status === 'fulfilled') {
-    pageVideos(list.value).forEach((row: any) => keep(row.id, row.title));
+    pageVideos(list.value).forEach((row: any) => keep(row.id, row.title, row.views));
   }
 
   if (page.status === 'fulfilled') {
@@ -208,13 +254,51 @@ async function videosOf(channelId: string) {
       const already = found.find((item: any) => item.id === row.id);
       if (already) {
         if (!already.title) already.title = row.title;
+        // a page that carried no count for this video takes the count the other page gave
+        if (!already.views && row.views) already.views = row.views;
         return;
       }
-      keep(row.id, row.title);
+      keep(row.id, row.title, row.views);
     });
   }
 
   return found.slice(0, MAX_VIDEOS);
+}
+
+/**
+ * How many times each of the artist's pieces has been watched, as the channel itself gives it.
+ *
+ * YouTube hands a count over in two places and both are read here: the channel's front page, where
+ * the pieces it puts forward stand with how often each has been watched, and its feed, where it has
+ * one. A count always comes with the video's own id, so a count is never attached to the wrong piece
+ * — and a piece neither place counts has no count here, so it is never ranked above one that is.
+ */
+async function countsOf(channelId: string): Promise<Map<string, number>> {
+  const counts = new Map<string, number>();
+  const keep = (id: any, views: any) => {
+    const held = String(id || '');
+    const count = Number(views) || 0;
+    if (VIDEO_ID.test(held) && count > 0 && !counts.has(held)) counts.set(held, count);
+  };
+
+  // a place that could not be read counts nothing: the channel's own order then stands for those
+  // pieces, exactly as it did before, rather than anything being ranked on a guess
+  const [home, feed] = await Promise.allSettled([get(HOME(channelId)), get(FEED(channelId))]);
+
+  if (home.status === 'fulfilled') {
+    pageVideos(home.value).forEach((row: any) => keep(row.id, row.views));
+  }
+
+  if (feed.status === 'fulfilled') {
+    for (const entry of feed.value.split('<entry>').slice(1)) {
+      keep(
+        (entry.match(/<yt:videoId>([A-Za-z0-9_-]{11})<\/yt:videoId>/) || [])[1],
+        Number((entry.match(/<media:statistics views="(\d+)"/) || [])[1] || 0)
+      );
+    }
+  }
+
+  return counts;
 }
 
 /** The name of a video neither page named, asked for from YouTube's own address for that video. */
@@ -275,13 +359,25 @@ export default async function (req: Request): Promise<Response> {
       });
     }
 
-    const rows = await videosOf(channelId);
+    // What the channel lists and what its own feed counts are read together, so the order the story
+    // keeps is the artist's own order of popularity rather than the order they were published in.
+    const [rows, counts] = await Promise.all([videosOf(channelId), countsOf(channelId)]);
     const titled = await namesFor(rows);
 
-    const videos = titled
+    // The pieces the artist is known for come first: a count the channel itself gave decides the
+    // order, so the five most watched are the five the story shows and everything else waits behind
+    // the app's own control. A video with no count from the channel is never placed above one it
+    // counted — the sort keeps it where it stood, after the counted ones, so nothing is ever ranked
+    // on a guess.
+    const ranked = titled
+      .map((row: any) => ({ ...row, views: Number(row.views) || counts.get(row.id) || 0 }))
+      .sort((a: any, b: any) => (Number(b.views) || 0) - (Number(a.views) || 0));
+
+    const videos = ranked
       .map((row: any) => ({
         name: String(row.title || known.get(row.id) || '').trim(),
         url: WATCH(row.id),
+        views: Number(row.views) || 0,
       }))
       .filter((row: any) => row.url);
 
