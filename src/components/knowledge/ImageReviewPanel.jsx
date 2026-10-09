@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { base44 } from "@/api/base44Client";
 import ImageUploader from "@/components/knowledge/ImageUploader";
+import PictureAudit from "@/components/knowledge/PictureAudit";
 import MatchReview from "@/components/knowledge/MatchReview";
 import SavedPictures from "@/components/knowledge/SavedPictures";
 import WordDraw from "@/components/knowledge/WordDraw";
@@ -152,6 +153,8 @@ export default function ImageReviewPanel() {
         saved in your knowledge. A word that came out wrong is written again here — on a picture still
         waiting, and on one already saved — and the picture is looked at twice again before it is saved.
       </p>
+
+      <PictureAudit onDone={open} />
 
       <ImageUploader words={words} setWords={setWords} onDone={open} onSay={say} />
 
