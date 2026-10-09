@@ -101,11 +101,21 @@ async function refusal(res: any): Promise<string> {
   }
 }
 
-async function read(apiKey: string, model: string, bytes: Uint8Array, type: string, prompt: string) {
+async function read(
+  apiKey: string,
+  model: string,
+  bytes: Uint8Array,
+  type: string,
+  prompt: string,
+  language: string = LANGUAGE
+) {
   const form = new FormData();
   form.append("model", model);
   form.append("file", new Blob([bytes], { type: type || "audio/wav" }), nameFor(type));
-  form.append("language", LANGUAGE);
+  // The hint the reader is pointed at for this reading. It is a hint and never a translation: the
+  // turn is written in the letters of the sound either way, and a second reading of the same turn
+  // under a different hint is a second real reading of it.
+  if (language) form.append("language", language);
   if (prompt) form.append("prompt", prompt);
   form.append("response_format", "json");
   return fetch(URL, {
@@ -126,22 +136,24 @@ export async function writeDown({
   bytes,
   type = "audio/wav",
   terms = [],
+  language = LANGUAGE,
 }: {
   apiKey: string;
   bytes: Uint8Array;
   type?: string;
   terms?: string[];
+  language?: string;
 }): Promise<string> {
   if (!apiKey) throw new Error("ears-no-key");
   const prompt = earsPrompt(terms);
 
-  let res = await read(apiKey, MODEL, bytes, type, prompt);
+  let res = await read(apiKey, MODEL, bytes, type, prompt, language);
   // an account not allowed the newer reader is simply read by the older one: the same turn,
   // the same letters, rather than a call that goes quiet over which model answered
   if (!res.ok && (res.status === 400 || res.status === 404)) {
     const reason = await refusal(res);
     if (/model|not found|unsupported/i.test(reason)) {
-      res = await read(apiKey, FALLBACK_MODEL, bytes, type, prompt);
+      res = await read(apiKey, FALLBACK_MODEL, bytes, type, prompt, language);
     } else {
       console.error("The ears refused the turn:", res.status, reason);
       throw new Error("ears-" + res.status);

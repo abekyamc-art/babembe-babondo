@@ -39,7 +39,7 @@ const TOP_NOTICE = [
 
 // Raised whenever the block itself changes shape, so an agent carrying an older one is written
 // again on the next call even though nothing in the store has moved.
-export const RULES_VERSION = "7";
+export const RULES_VERSION = "8";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;

@@ -1,6 +1,7 @@
 import { secrets } from "base44:runtime";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { correctEbembe, earsKnowledge, writeDown } from "../../shared/openAiEars.ts";
+import { spellingsOf, tight } from "../../shared/soundsAlike.ts";
 
 // The app's own ears: OpenAI is the one reader of every voice feature, so what a person says comes
 // back written once, in one hand, whichever call they are on — the Cartesia calls, the talk calls,
@@ -88,6 +89,30 @@ async function isolate(
   return { voice, type: res.headers.get("content-type") || "audio/mpeg" };
 }
 
+// The second reading of a turn: the same reader, the same sound, under another language hint. The
+// reader knows no Kibembe, so a hint only leans its writing one way or the other — and a turn written
+// as the English words it nearly sounds like is exactly the reading a Kibembe turn comes back ruined
+// as. A second hint is a second real reading of the sound, never a guess at it.
+const OTHER_HINT = "en";
+
+/** Every way the app's own words are written, so a reading is measured against the knowledge itself. */
+function bankKeys(rows: any[]): Set<string> {
+  const keys = new Set<string>();
+  (rows || []).forEach((row: any) => {
+    spellingsOf(row).forEach((spelling: string) => {
+      const key = tight(spelling);
+      if (key) keys.add(key);
+    });
+  });
+  return keys;
+}
+
+/** How many of one reading's own words the app's knowledge really holds. */
+function heldWords(written: string, keys: Set<string>): number {
+  return (String(written || "").match(/[\p{L}'’]+/gu) || []).filter((word) => keys.has(tight(word)))
+    .length;
+}
+
 export default async function (req: Request): Promise<Response> {
   try {
     let payload: any = {};
@@ -132,8 +157,13 @@ export default async function (req: Request): Promise<Response> {
 
     // The room is taken out of the turn before it is read: a cleanup that cannot be made leaves the
     // turn exactly as it was, and the reason is carried back so the app can say so once.
+    // What the caller handed over. A turn is written under the name of the sound it really is, so a
+    // recording made on the phone is read as the format it was made in rather than as a WAV it is not.
+    const handedType = String(payload?.type || "")
+      .replace(/[^a-z0-9/+.;=-]/gi, "")
+      .slice(0, 40);
     let voice = bytes;
-    let voiceType = "audio/wav";
+    let voiceType = handedType || "audio/wav";
     let cleaned = true;
     let cleanup = "";
     const isolateKey = secretOr("HELPER_SPEECH_API_KEY");
@@ -170,10 +200,45 @@ export default async function (req: Request): Promise<Response> {
       );
     }
 
+    // One turn, read more than once. The reader may write a whole turn down as the Kiswahili or
+    // English words it nearly sounds like, and what gives that away is that the words it landed on
+    // are ones the app's own knowledge does not hold at all. Where that happens, the same turn is read
+    // a second time under another hint, and whichever of the two readings the knowledge really
+    // accounts for is the one the turn is taken as. Both ride back, so what was weighed is never
+    // hidden; and a turn the first reading already placed is never read twice.
+    const candidates: string[] = [];
+    if (heard) candidates.push(heard);
+
+    const keys = bankKeys(rows);
+    let best = heard;
+    let bestHeld = heard ? heldWords(heard, keys) : 0;
+    if (heard && !bestHeld) {
+      try {
+        const second = await writeDown({
+          apiKey,
+          bytes: voice,
+          type: voiceType,
+          terms,
+          language: OTHER_HINT,
+        });
+        if (second) {
+          candidates.push(second);
+          const heldSecond = heldWords(second, keys);
+          if (heldSecond > bestHeld) {
+            best = second;
+            bestHeld = heldSecond;
+          }
+        }
+      } catch (err: any) {
+        // a second reading is a second opinion, and never a reason to lose the first one
+        console.error("The turn could not be read a second time:", err?.message);
+      }
+    }
+
     // the turn is placed on the app's own spelling of its words, so the Ebembe handed on is the
     // confirmed Ebembe and never a sound-alike of it
-    const text = correctEbembe(heard, rows);
-    return Response.json({ text, language: "", cleaned, cleanup });
+    const text = correctEbembe(best, rows);
+    return Response.json({ text, language: "", cleaned, cleanup, candidates });
   } catch (error: any) {
     console.error("The ears failed:", error?.message);
     return Response.json({ error: UNAVAILABLE }, { status: 500 });

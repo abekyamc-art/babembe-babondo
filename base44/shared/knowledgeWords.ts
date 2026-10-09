@@ -6,6 +6,7 @@
  */
 
 import { docWordRows, publishedDoc } from "./knowledgeDoc.ts";
+import { heardForms } from "./soundsAlike.ts";
 
 export const MAX_TERM = 40;
 export const MAX_MEANING = 110;
@@ -307,13 +308,33 @@ function minedLines(text: any): any[] {
  */
 export async function knowledgeWordRows(base44: any): Promise<any[]> {
   const rows: any[] = [];
-  const seen = new Set<string>();
+  const byKey = new Map<string, any>();
 
+  /**
+   * One spelling stands once, and the first spelling stands: the document's own word is kept exactly
+   * as the document writes it, and a word entry or a dictionary file never overwrite it.
+   *
+   * What is joined to it, though, is everything saved against that same word further down — the other
+   * ways it is known to come out, and its own past. A way of saying a word belongs to that word
+   * wherever the word itself is written, so an accent confirmed in a call, or a way of saying it
+   * learned from a recording of the person's own voice, is heard even when the word's own spelling
+   * lives in the admin's document rather than in a word entry of its own.
+   */
   const add = (row: any) => {
     const key = clean(row?.term, MAX_TERM).toLowerCase();
-    if (!key || seen.has(key)) return;
-    seen.add(key);
-    rows.push(row);
+    if (!key) return;
+
+    const held = byKey.get(key);
+    if (!held) {
+      byKey.set(key, row);
+      rows.push(row);
+      return;
+    }
+
+    const ways = heardForms(row).filter((form: string) => !heardForms(held).includes(form));
+    if (ways.length) held.heard = [...heardForms(held), ...ways];
+    if (Array.isArray(row?.revisions) && row.revisions.length) held.revisions = row.revisions;
+    if (!held.source && row?.source) held.source = row.source;
   };
 
   const doc = await publishedDoc(base44);

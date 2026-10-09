@@ -15,7 +15,8 @@ import {
   saysPrompt,
   turnNote,
 } from "../../shared/kibembeFirst.ts";
-import { heardForms } from "../../shared/soundsAlike.ts";
+import { withHeard, withRevision } from "../../shared/voiceBank.ts";
+import { langAsked, langLine, langName, langOf } from "../../shared/langMode.ts";
 
 // A turn of speech carries at least a word: two letters is the least a word of this app's languages
 // is written with.
@@ -99,35 +100,10 @@ async function patternRows(base44: any): Promise<any[]> {
   }
 }
 
-// How many ways one word may keep being said differently: enough for the accents and the near
-// spellings a word is said in, and never so many that the entry stops being one word.
-const MAX_HEARD = 8;
-
-/** The ways one word is already known to be said, besides its own confirmed spelling. */
-function keptForms(row: any): string[] {
-  return heardForms(row)
-    .map((form: string) => clean(form, MAX_TERM))
-    .filter(Boolean);
-}
-
-/**
- * The ways one word is known to be said, with what has just been confirmed joined to them. Each form
- * has to be something a person really says — a word, or a run of three words at most — and the word's
- * own confirmed spelling is never written into the list: every variation belongs to that spelling.
- */
-function withForms(row: any, ...forms: string[]): string[] {
-  const out = keptForms(row);
-  forms.forEach((form) => {
-    const said = clean(form, MAX_TERM);
-    if (!said || said.split(/\s+/).length > 3) return;
-    if (said.replace(/[^\p{L}]/gu, "").length < 3) return;
-    if (sameTerm(row?.term, said)) return;
-    if (out.some((kept) => sameTerm(kept, said))) return;
-    if (out.length >= MAX_HEARD) return;
-    out.push(said);
-  });
-  return out;
-}
+// The ways a word is said, and the past of a word, are kept in the app's own voice bank: the same
+// list every reader of the knowledge is pointed at, so a way of saying a word that the person
+// confirms here, or that one of their own recordings was approved as, is heard by every one of them
+// and can never drift apart from the word it belongs to.
 
 /** The saved word or phrase a confirmed form belongs to, or nothing when the app holds no such word. */
 function place(words: any[], term: string, canonical: string) {
@@ -176,15 +152,22 @@ async function saveFix(base44: any, words: any[], patterns: any[], fix: any): Pr
   const answer = clean(fix?.answer, 200);
 
   const held = clean(known?.term, MAX_TERM);
-  const fields = {
+  const now = new Date().toISOString();
+  const fields: any = {
     kind: "word",
     term: held || term,
     meaning: meaning || clean(known?.meaning, MAX_MEANING),
     guide: guide || clean(known?.guide, 60),
     usage: clean(known?.usage, MAX_USAGE),
     // the person's own way of saying the word, and the form the ears wrote wrongly: both are this one
-    // word coming out, so both are kept under it
-    heard: withForms(known, held ? term : "", misheard),
+    // word coming out, so both are kept under it — and neither is ever the word itself
+    heard: withHeard(known, held ? term : "", misheard),
+    // the form that stood before this correction is kept, so the newest confirmed form is the word
+    // and every older one can still be traced back to
+    revisions: withRevision(known, now),
+    // where the word came from, so a correction the person gave in a call is told apart from a
+    // recording of their own that was approved, and from a word a dictionary file brought in
+    source: clean(known?.source, 120) || "confirmed in a call",
   };
 
   if (known?.id) await base44.asServiceRole.entities.AssistantKnowledge.update(known.id, fields);
@@ -266,6 +249,10 @@ export default async function (req: Request): Promise<Response> {
 
     const said = clean(payload?.text, MAX_SAID);
     const lastAgent = clean(payload?.lastAgent, MAX_AGENT);
+    // the language in force, chosen by the person and carried turn after turn: the rules of that
+    // language ride to the voice with the rest of the guide, and a turn that plainly asks for another
+    // language changes it from the very next word
+    const mode = langOf(payload?.lang);
     // The app's own ears wrote this turn wrongly and the person has put their own words in its place
     // on the screen. Their words are read, and they are saved only once the person has answered the
     // app's own offer to keep them: a pronunciation is learned from a confirmation, never a guess.
@@ -285,11 +272,12 @@ export default async function (req: Request): Promise<Response> {
       // as it opens.
       const doc = await docWholeBlock(base44, DOC_BUDGET);
       return Response.json({
-        note: `${firstRules()}${wordListBlock(words, "", WORDS_BUDGET)}${doc}`,
+        note: `${firstRules()}\n\n${langLine(mode)}${wordListBlock(words, "", WORDS_BUDGET)}${doc}`,
         matched: null,
         // nothing has been said yet: there is no reading to be sure or unsure of
         sure: true,
         saved: "",
+        mode,
       });
     }
 
@@ -309,6 +297,15 @@ export default async function (req: Request): Promise<Response> {
     // the knowledge does hold a word of the turn, the reading rides in with it all the same.
     const sure = isRealTurn(said);
 
+    // The person may plainly ask for another language mid-call. That ask is honoured at once: the
+    // language in force changes from this turn on, and the voice is told so before it answers, so
+    // nothing has to be confirmed and no turn is answered in the language they have just left.
+    const asked = langAsked(said);
+    const lang = asked || mode;
+    const languageLine = asked
+      ? `${langLine(lang)}\nThe person has just plainly asked for ${langName(asked)}. Answer in it from this very word on, and keep answering in it until they ask for another language.\n`
+      : "";
+
     let saved = "";
     let proposal: any = null;
     if (put) {
@@ -318,7 +315,15 @@ export default async function (req: Request): Promise<Response> {
       saved = await remember(base44, words, patterns, said, lastAgent);
     }
 
-    return Response.json({ note, matched: reading, sure, saved, proposal });
+    return Response.json({
+      note: `${note}${languageLine}`,
+      matched: reading,
+      sure,
+      saved,
+      proposal,
+      // the language now in force: the screen keeps it for the next turn, and a later call opens in it
+      mode: lang,
+    });
   } catch (error: any) {
     console.error("The turn could not be read for the home call:", error?.message);
     return Response.json({ error: READ_FAILED }, { status: 500 });
