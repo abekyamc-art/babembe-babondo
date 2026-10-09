@@ -4,8 +4,18 @@ import { appRulesBlock, blockKey, RULES_MARK, RULES_VERSION, withAppRules } from
 import { knowledgeStamp } from "../../shared/wordBank.ts";
 import { savedWords } from "../../shared/knowledgeWords.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
+import { agentKeywords } from "../../shared/hearingKeywords.ts";
 
 const VERSION = "2026-08-14";
+
+/**
+ * The nearest Bantu reading of what is spoken here, and the language every reader of this app's
+ * Kibembe is pointed at. The app's own ears read Kibembe on it — left to guess, they wander off into
+ * whatever script they land on — and the voice's own hearing is pointed at it here with them. An
+ * agent left on English hears a Kibembe turn as the English words it nearly sounds like, and answers
+ * what it thought it heard instead of what was said.
+ */
+const HEAR_LANGUAGE = "sw";
 
 // the admin's saved answers and saved notes, newest first: what the agent answers with
 const KEY_ROWS = 200;
@@ -74,37 +84,76 @@ function promptOf(agent: any): { field: "llm_system_prompt" | "config"; text: st
  * only when the store has moved since it was written, so a correction, a new saved answer or a word
  * the admin has just put right is in force on the very next call.
  */
+/**
+ * Whether the agent's own hearing already stands as the app keeps it: pointed at the nearest Bantu
+ * reading of Kibembe, and holding the admin's confirmed words as the terms its service listens for.
+ */
+function hearingKept(agent: any, keyterms: string[]): boolean {
+  const config = agent?.config || {};
+  if (String(config?.language?.primary || "").toLowerCase() !== HEAR_LANGUAGE) return false;
+  const had = Array.isArray(config?.audio?.input?.keyterms) ? config.audio.input.keyterms : [];
+  return had.length === keyterms.length && had.every((term: any, at: number) => String(term) === keyterms[at]);
+}
+
 async function keepRules(base44: any, apiKey: string, agentId: string, agent: any) {
   try {
     const { field, text: current } = promptOf(agent);
     const stamp = await knowledgeStamp(base44);
-    // the block on the agent is the one the store holds and the one this code writes: nothing is
-    // read again and nothing is written, so an ordinary call costs one look at the agent
-    if (current.includes(RULES_MARK) && blockKey(current) === `${RULES_VERSION}|${stamp}`) return true;
+    // The agent's own hearing is kept alongside its rules: the reading the app's own ears use for
+    // Kibembe, and the admin's confirmed words as the terms its hearing service listens for — so a
+    // word the app already holds is heard as the app writes it instead of as the English sound-alike
+    // of it, and a word the admin has just confirmed is heard right on the very next call.
+    const keyterms = await agentKeywords(base44);
+    const rulesKept =
+      current.includes(RULES_MARK) && blockKey(current) === `${RULES_VERSION}|${stamp}`;
+    const hearingOk = hearingKept(agent, keyterms);
+    // the block on the agent is the one the store holds and the one this code writes, and its hearing
+    // stands as the app keeps it: nothing is read again and nothing is written, so an ordinary call
+    // costs one look at the agent
+    if (rulesKept && hearingOk) return true;
 
-    const [keys, notes, words, doc] = await Promise.all([
-      base44.asServiceRole.entities.AssistantKnowledge.filter(
-        { kind: "qa" },
-        { sort: "-created_date", limit: KEY_ROWS, fields: ["question", "answer"] }
-      ),
-      base44.asServiceRole.entities.AssistantKnowledge.filter(
-        { kind: "note" },
-        { sort: "-created_date", limit: NOTE_ROWS, fields: ["title", "text"] }
-      ),
-      savedWords(base44),
-      // the admin's one knowledge document, as much of it as a voice can carry: its rules whole,
-      // the parts that matter, and a slice of every other part
-      docWholeBlock(base44, AGENT_DOC_ROOM),
-    ]);
+    const body: any = {};
 
-    const saved = {
-      keys: Array.isArray(keys) ? keys : keys?.items || [],
-      notes: Array.isArray(notes) ? notes : notes?.items || [],
-      words,
-      doc,
-    };
-    const wanted = withAppRules(current, appRulesBlock(saved, stamp));
-    if (wanted === current) return true;
+    if (!rulesKept) {
+      const [keys, notes, words, doc] = await Promise.all([
+        base44.asServiceRole.entities.AssistantKnowledge.filter(
+          { kind: "qa" },
+          { sort: "-created_date", limit: KEY_ROWS, fields: ["question", "answer"] }
+        ),
+        base44.asServiceRole.entities.AssistantKnowledge.filter(
+          { kind: "note" },
+          { sort: "-created_date", limit: NOTE_ROWS, fields: ["title", "text"] }
+        ),
+        savedWords(base44),
+        // the admin's one knowledge document, as much of it as a voice can carry: its rules whole,
+        // the parts that matter, and a slice of every other part
+        docWholeBlock(base44, AGENT_DOC_ROOM),
+      ]);
+
+      const saved = {
+        keys: Array.isArray(keys) ? keys : keys?.items || [],
+        notes: Array.isArray(notes) ? notes : notes?.items || [],
+        words,
+        doc,
+      };
+      const wanted = withAppRules(current, appRulesBlock(saved, stamp));
+      if (wanted !== current) {
+        // a deployed agent keeps its instructions as llm_system_prompt; a managed one as its config
+        if (field === "llm_system_prompt") body.llm_system_prompt = wanted;
+        else body.config = { instructions: wanted };
+      }
+    }
+
+    // the agent's own hearing, in the same visit: the voice, its pace and everything else the admin
+    // set are never touched, and a deployed agent keeps its own settings untouched as well
+    if (!hearingOk && field === "config") {
+      body.config = {
+        ...(body.config || {}),
+        language: { primary: HEAR_LANGUAGE },
+        audio: { input: { keyterms } },
+      };
+    }
+    if (!Object.keys(body).length) return true;
 
     const res = await fetch(`https://api.cartesia.ai/agents/${encodeURIComponent(agentId)}`, {
       method: "PATCH",
@@ -113,9 +162,7 @@ async function keepRules(base44: any, apiKey: string, agentId: string, agent: an
         "Cartesia-Version": VERSION,
         "Content-Type": "application/json",
       },
-      body: JSON.stringify(
-        field === "llm_system_prompt" ? { llm_system_prompt: wanted } : { config: { instructions: wanted } }
-      ),
+      body: JSON.stringify(body),
     });
     if (!res.ok) {
       const detail = await res.text();

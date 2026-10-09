@@ -16,6 +16,7 @@ import {
   turnNote,
 } from "../../shared/kibembeFirst.ts";
 import { heardForms } from "../../shared/soundsAlike.ts";
+import { holdsWord } from "../../shared/freshLookup.ts";
 
 // One spoken turn is a sentence or two: anything much longer is not a turn of this call.
 const MAX_SAID = 400;
@@ -272,6 +273,8 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({
         note: `${firstRules()}${wordListBlock(words, "", WORDS_BUDGET)}${doc}`,
         matched: null,
+        // nothing has been said yet: there is no reading to be sure or unsure of
+        sure: true,
         saved: "",
       });
     }
@@ -283,6 +286,14 @@ export default async function (req: Request): Promise<Response> {
     const reading = readTurn(said, words, patterns);
     const note = reading ? turnNote(said, reading) : "";
 
+    // Whether the app is sure of what it heard, which is what decides whether the voice answers the
+    // turn as it stands or the person is shown what was heard first: the app's own reading of the
+    // turn, or a word of it that the app's own knowledge holds — the confirmed Word Bank, or a word
+    // the admin's own document writes. A turn the knowledge holds nothing of is the one that goes
+    // wrong when it is answered unseen: the ears have written words nobody here said, and the person
+    // is the only one who can put them right.
+    const sure = !!reading || (await holdsWord(base44, said));
+
     let saved = "";
     let proposal: any = null;
     if (put) {
@@ -292,7 +303,7 @@ export default async function (req: Request): Promise<Response> {
       saved = await remember(base44, words, patterns, said, lastAgent);
     }
 
-    return Response.json({ note, matched: reading, saved, proposal });
+    return Response.json({ note, matched: reading, sure, saved, proposal });
   } catch (error: any) {
     console.error("The turn could not be read for the home call:", error?.message);
     return Response.json({ error: READ_FAILED }, { status: 500 });

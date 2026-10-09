@@ -32,12 +32,18 @@ const NO_WRITTEN_ANSWER = "That voice didn't answer — try again in a moment.";
 // person: a guest is told plainly rather than left with a line nobody answered.
 const UNAUTHORIZED = "Unauthorized";
 const SIGN_IN_TO_ASK = "Sign in and I'll answer you in writing — the call still answers out loud.";
+// A turn the app's own knowledge holds nothing of is shown to the person before any voice answers it:
+// what follows is then an answer to the turn they really made, and never to a mishearing of it.
+const NOT_SURE = "Not sure I heard that — put my writing right, or say it again.";
 
-export default function useTalkVoice({ onTurn, onPictures } = {}) {
+export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // the turn the app is not sure of: its writing stands on the screen, and nothing is put to the voice
+  // until the person says the writing is right, or says the turn again
+  const [check, setCheck] = useState(null);
   const levelRef = useRef(0);
 
   const socketRef = useRef(null);
@@ -62,6 +68,13 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
   const endedRef = useRef(null);
   const turnRef = useRef(onTurn);
   turnRef.current = onTurn;
+  // the turn held for the person's own word, kept in a ref because the handlers that read it were
+  // handed to the call as it opened
+  const checkRef = useRef(null);
+  // a held turn the person has set aside is taken off the screen, so a writing nobody said does not
+  // stand in the talk as though it were theirs
+  const dropTurnRef = useRef(onDropTurn);
+  dropTurnRef.current = onDropTurn;
   // the pictures of an answer are handed over through here the moment they are found
   const picturesRef = useRef(onPictures);
   picturesRef.current = onPictures;
@@ -94,6 +107,9 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
     liveSpokeRef.current = null;
     socketRef.current = null;
     levelRef.current = 0;
+    // a call that is gone holds nothing: the writing waiting on the person's own word goes with it
+    checkRef.current = null;
+    setCheck(null);
     if (offTouchRef.current) {
       offTouchRef.current();
       offTouchRef.current = null;
@@ -157,45 +173,98 @@ export default function useTalkVoice({ onTurn, onPictures } = {}) {
    * English or Kiswahili words it nearly sounds like; the app's own ears are pointed at the person's
    * own saved words and expressions instead, so the letters come back as the app already holds them.
    */
+  /**
+   * The turn is put to the voice: what had to be looked up for it rides in first, then the words
+   * themselves, then what the writing is — the app's own spelling of the person's own words, or their
+   * own words where they put the writing right.
+   */
+  const handOn = useCallback(async (socket, said, language, wrong = "") => {
+    // A turn that asks about the world — who someone is, their songs, their history, a piece of
+    // news, a story — is looked up before it is put to the voice, and what was found rides into
+    // the call with the words. So the voice answers from what was really found, names where it
+    // came from, and says plainly what could not be confirmed, instead of answering that it does
+    // not know the person. The lookup decides for itself whether a turn needs one, so ordinary
+    // talk waits for nothing.
+    const fresh = await loadFreshMaterial(said, askedRef.current);
+    // the names the person was offered are settled by this turn: what the lookup puts forward now
+    // is what stands before them next
+    const choices = Array.isArray(fresh.candidates) ? fresh.candidates : [];
+    askedRef.current = choices.length >= 2 ? choices : [];
+    choicesRef.current = askedRef.current;
+    if (fresh.material) socket.sendMemory(fresh.material);
+    // where that material came from is kept for the answer that stands on it, so the screen can
+    // show the source of what the voice says
+    if (fresh.material && fresh.source) freshSourceRef.current = fresh.source;
+    if (!socket.sendText(said)) {
+      setNotice(TURN_NOT_DELIVERED);
+      return;
+    }
+    // The ears write the turn down in the app's own spelling of the person's own words, and the
+    // reader names no language for it: Kibembe is what is read here. So the note goes in as what
+    // the writing is, never as a command, and the answer that feeds on it stays Kibembe.
+    const heard = heardLanguage(language);
+    socket.sendMemory(
+      wrong
+        ? `The app's own ears wrote this turn down wrongly, and the person has put their own words in place of the writing: "${said}" is what was said, and "${wrong}" is what the ears made of it. Answer their own words, in the language they are said in — never the earlier writing of them.`
+        : heard
+          ? `The person's turn was written down by the app's own ears, in the app's own spelling of their words, as ${heard}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${heard}, answer in ${heard} only — never in a mix; where their words mix Kibembe and Kiswahili, answer in Kibembe only; where they plainly ask for a language, answer in that one only.`
+          : "The person's turn was written down by the app's own ears, in the app's own spelling of the words they said. Kibembe is what is spoken here: read their own words and answer in Kibembe only, never in a mix — and where they plainly used Kiswahili or English, or plainly asked for a language, answer in that one only."
+    );
+  }, []);
+
+  /**
+   * The app's own ears have written the person's turn down, and this is where it is put to the voice —
+   * or held back. The app's own reading of the turn rides in with the words, so a word the Word Bank
+   * holds is answered from its own meaning; and where the app's knowledge holds nothing at all of what
+   * was written, the writing is shown to the person instead of being answered: nothing goes to the
+   * voice until they say it is right or say the turn again, so the answer that follows is an answer to
+   * the turn they really made.
+   */
   const handleHeard = useCallback(
     async (text, language, socket) => {
       const said = String(text || "").trim();
       if (!said) return;
-      // the turn is shown exactly as the app's own ears wrote it, and the app's own reading of it
-      // rides with it, so a word the Word Bank holds is answered from its own meaning
-      handleUserText(said);
-      // A turn that asks about the world — who someone is, their songs, their history, a piece of
-      // news, a story — is looked up before it is put to the voice, and what was found rides into
-      // the call with the words. So the voice answers from what was really found, names where it
-      // came from, and says plainly what could not be confirmed, instead of answering that it does
-      // not know the person. The lookup decides for itself whether a turn needs one, so ordinary
-      // talk waits for nothing.
-      const fresh = await loadFreshMaterial(said, askedRef.current);
-      // the names the person was offered are settled by this turn: what the lookup puts forward now
-      // is what stands before them next
-      const choices = Array.isArray(fresh.candidates) ? fresh.candidates : [];
-      askedRef.current = choices.length >= 2 ? choices : [];
-      choicesRef.current = askedRef.current;
-      if (fresh.material) socket.sendMemory(fresh.material);
-      // where that material came from is kept for the answer that stands on it, so the screen can
-      // show the source of what the voice says
-      if (fresh.material && fresh.source) freshSourceRef.current = fresh.source;
-      if (!socket.sendText(said)) {
-        setNotice(TURN_NOT_DELIVERED);
+      // the turn is shown exactly as the app's own ears wrote it
+      setNotice("");
+      lastUserRef.current = said;
+      push("user", said);
+      // the app's own reading of the turn, handed to the voice before it answers
+      const read = await readHeardTurn(said, lastAgentRef.current);
+      if (read.note) socket.sendMemory(read.note);
+      if (!read.sure) {
+        checkRef.current = { text: said, language };
+        setCheck(checkRef.current);
         return;
       }
-      // The ears write the turn down in the app's own spelling of the person's own words, and the
-      // reader names no language for it: Kibembe is what is read here. So the note goes in as what
-      // the writing is, never as a command, and the answer that feeds on it stays Kibembe.
-      const heard = heardLanguage(language);
-      socket.sendMemory(
-        heard
-          ? `The person's turn was written down by the app's own ears, in the app's own spelling of their words, as ${heard}. Read their own words: if they are Kibembe, answer in Kibembe only; if they are ${heard}, answer in ${heard} only — never in a mix; where their words mix Kibembe and Kiswahili, answer in Kibembe only; where they plainly ask for a language, answer in that one only.`
-          : "The person's turn was written down by the app's own ears, in the app's own spelling of the words they said. Kibembe is what is spoken here: read their own words and answer in Kibembe only, never in a mix — and where they plainly used Kiswahili or English, or plainly asked for a language, answer in that one only."
-      );
+      await handOn(socket, said, language);
     },
-    [handleUserText]
+    [handOn, push]
   );
+
+  /**
+   * The person has said the writing is right: the turn goes to the voice exactly as it stands, with
+   * the app's own reading of it riding in before the words.
+   */
+  const acceptHeard = useCallback(async () => {
+    const held = checkRef.current;
+    const socket = socketRef.current;
+    checkRef.current = null;
+    setCheck(null);
+    if (!held || !socket?.connected) return;
+    await handOn(socket, held.text, held.language);
+  }, [handOn]);
+
+  /**
+   * The person is saying the turn again: the writing is set aside — nothing is put to the voice, and
+   * the line nobody said is taken off the screen — so what is answered is the turn they say next.
+   */
+  const againHeard = useCallback(() => {
+    const held = checkRef.current;
+    checkRef.current = null;
+    setCheck(null);
+    if (held) dropTurnRef.current?.();
+    setNotice("Say it again — I'm listening.");
+  }, []);
 
   /**
    * The person puts the app's own writing of their turn right. What they really said is handed to the

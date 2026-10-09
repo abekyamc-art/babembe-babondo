@@ -25,20 +25,28 @@ export async function openHearingNote() {
 }
 
 /**
- * The reading of one heard turn, as the voice answering it is told. An empty string when the turn
- * is close to nothing in the app's own word bank, or when the reading could not be made at all.
+ * The reading of one heard turn, as the voice answering it is told: the note that rides into the call
+ * with the turn, and whether the app is sure of what it heard. A turn the app's own knowledge holds
+ * nothing of comes back `sure: false`, which is what lets the call show the writing to the person and
+ * wait for their own word before any voice answers it.
+ *
+ * A reading that cannot be made is never a reason to hold a call up: it comes back sure, with no note.
  */
 export async function readHeardTurn(text, lastAgent = "") {
   const said = String(text || "").trim();
-  if (!said) return "";
+  if (!said) return { note: "", sure: true };
   try {
     const res = await base44.functions.invoke("kibembeHearing", {
       text: said,
       lastAgent: String(lastAgent || ""),
     });
-    return String(res?.data?.note || "");
+    return {
+      note: String(res?.data?.note || ""),
+      // only a plain no is a no: an older reading that says nothing about it is taken as sure
+      sure: res?.data?.sure !== false,
+    };
   } catch (err) {
-    return "";
+    return { note: "", sure: true };
   }
 }
 

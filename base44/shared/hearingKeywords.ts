@@ -103,6 +103,45 @@ export function earKeywords(rows: any[]): string[] {
   return [...ALWAYS, ...found.slice(0, EAR_LIMIT - ALWAYS.length).map((row) => row.term)];
 }
 
+// The room a voice's own hearing service gives the app's words: a hundred terms, twelve hundred
+// characters across all of them. It is the same reading the app's calls are already pointed at — the
+// confirmed spelling of a word, and never a rule, a heading or a run of syllables — with the whole
+// of that room used, so more of the bank is heard as the app writes it the first time it is said.
+const AGENT_LIMIT = 100;
+const AGENT_CHARS = 1200;
+
+/**
+ * The confirmed words one voice's own hearing service is pointed at, the words no English or
+ * Kiswahili word gives a fallback for leading it: a voice left on the language of the service comes
+ * back with the English sound-alike of a Kibembe word, and answers what it thought it heard.
+ */
+export function agentKeyTerms(rows: any[]): string[] {
+  const seen = new Set(ALWAYS.map((word) => word.toLowerCase()));
+  const found: { term: string; score: number }[] = [];
+
+  rows.forEach((row: any) => {
+    const term = clean(row?.term, MAX_TERM);
+    // one plain word of a length a person says: the same shape the app's other readers are pointed at
+    if (!/^[\p{L}'’]{3,20}$/u.test(term)) return;
+    const key = term.toLowerCase();
+    if (seen.has(key)) return;
+    seen.add(key);
+    found.push({ term, score: keywordScore(term) });
+  });
+
+  found.sort((a, b) => b.score - a.score || b.term.length - a.term.length);
+
+  const out = [...ALWAYS];
+  let chars = out.join(" ").length;
+  for (const row of found) {
+    if (out.length >= AGENT_LIMIT) break;
+    if (chars + row.term.length + 1 > AGENT_CHARS) continue;
+    out.push(row.term);
+    chars += row.term.length + 1;
+  }
+  return out;
+}
+
 // The words are read once per call, not once per turn, and the held copy is dropped the moment the
 // store moves: a word the admin has just saved is pointed at on the very next turn, while a call
 // that changes nothing still reads the list once.
@@ -132,3 +171,6 @@ export const recognitionKeywords = heldTerms(hearingKeywords);
 
 /** The saved words and expressions the app's own ears are pointed at, held while unchanged. */
 export const earKeyTerms = heldTerms(earKeywords);
+
+/** The saved words a voice's own hearing service is pointed at, held while unchanged. */
+export const agentKeywords = heldTerms(agentKeyTerms);

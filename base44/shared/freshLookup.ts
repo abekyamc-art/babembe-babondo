@@ -523,7 +523,7 @@ function saysTerm(term: string, said: string[]): boolean {
  * means ends up with a name, a song or a piece of software that happens to be spelled the same. A
  * turn that asks for more outright still reaches the search, and so does a turn about somebody.
  */
-async function holdsWord(base44: any, query: string): Promise<boolean> {
+export async function holdsWord(base44: any, query: string): Promise<boolean> {
   const said = turnWords(query);
   if (!said.length) return false;
 
