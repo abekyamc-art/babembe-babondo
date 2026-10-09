@@ -11,6 +11,8 @@ import RapGenerate from "@/components/rap/RapGenerate";
 import RapSteps from "@/components/rap/RapSteps";
 import RapLyrics from "@/components/rap/RapLyrics";
 import RapMicBar from "@/components/rap/RapMicBar";
+import ClipInspector from "@/components/rap/ClipInspector";
+import StudioAmbience from "@/components/rap/StudioAmbience";
 import StudioDock from "@/components/rap/StudioDock";
 import useVoiceTracks from "@/hooks/useVoiceTracks";
 import useBeatMaker from "@/hooks/useBeatMaker";
@@ -63,6 +65,9 @@ export default function Rap() {
         audio_url,
       }),
   });
+
+  // the piece that was taken hold of on the timeline, and everything that can be done to it
+  const selectedTrack = voiceTracks.tracks.find((track) => track.id === voiceTracks.selectedId) || null;
 
   const beatMaker = useBeatMaker({
     bpm: settings.bpm,
@@ -164,6 +169,28 @@ export default function Rap() {
               seconds={songwriter.seconds}
               tracks={voiceTracks.tracks}
               voiceTools={<RapMicBar studio={voiceTracks} off={!ready || !!voiceTracks.busy} />}
+              selectedId={voiceTracks.selectedId}
+              onSelect={voiceTracks.select}
+              onStart={voiceTracks.setStart}
+              onFold={voiceTracks.toggleCollapsed}
+              inspector={
+                <ClipInspector
+                  track={selectedTrack}
+                  busy={voiceTracks.busy}
+                  onStart={voiceTracks.setStart}
+                  onNudge={(delta) => voiceTracks.nudge(selectedTrack.id, delta)}
+                  onPatch={(changes) => voiceTracks.patch(selectedTrack.id, changes)}
+                  onRemove={voiceTracks.remove}
+                  onFold={voiceTracks.toggleCollapsed}
+                  onClose={() => voiceTracks.select(null)}
+                />
+              }
+            />
+
+            <StudioAmbience
+              value={voiceTracks.ambience}
+              busy={!!voiceTracks.busy}
+              onChange={voiceTracks.setAmbience}
             />
 
             <RapSteps

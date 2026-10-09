@@ -501,3 +501,125 @@
     animation: none;
   }
 }
+
+/* ------------------------ arranging the clips: take hold, carry, cut, turn, fold, throw out */
+
+.rap-clip.is-movable {
+  cursor: grab;
+  touch-action: none;
+}
+
+.rap-clip.is-movable:hover {
+  filter: brightness(1.08);
+}
+
+.rap-clip.is-dragging {
+  cursor: grabbing;
+  z-index: 4;
+  box-shadow: 0 0 0 2px #15d8d0, 0 10px 24px rgba(0, 0, 0, 0.45);
+}
+
+/* the piece the controls below are standing for */
+.rap-clip.is-sel {
+  outline: 2px solid #15d8d0;
+  outline-offset: 1px;
+}
+
+.rap-trk.is-moving {
+  border-color: #15d8d0;
+}
+
+/* a lane folded down keeps its place, its name and what it holds, in one line */
+.rap-trk.is-folded {
+  height: 38px;
+}
+
+.rap-fold {
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  color: #cfd1dc;
+  background: #202127;
+  border: 1px solid #3a3b45;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: background 0.2s, color 0.2s;
+}
+
+.rap-fold:hover {
+  background: #2c2d36;
+  color: #ffffff;
+}
+
+.rap-fold svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rap-fold:focus-visible {
+  outline: 2px solid #15d8d0;
+  outline-offset: 2px;
+}
+
+/* the piece that was taken hold of, and everything that can be done to it where it stands */
+.rap-clip-tools {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px;
+  background: #17181d;
+  border: 1px solid #15d8d0;
+  border-radius: 10px;
+  animation: rap-fi 0.35s ease both;
+}
+
+.rap-arrange {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.rap-arrange-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.rap-arrange-row .rap-value {
+  min-width: 52px;
+  text-align: center;
+}
+
+/* the room the whole mix is heard in */
+.rap-room {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #17181d;
+  border: 1px solid #2a2b33;
+  border-radius: 10px;
+}
+
+.rap-room .rap-label {
+  display: inline-flex;
+  align-items: center;
+}
+
+.rap-slider-room {
+  flex: 1 1 160px;
+  max-width: 320px;
+}
+
+.rap-room .rap-hint {
+  flex: 1 1 100%;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .rap-clip-tools {
+    animation: none;
+  }
+}

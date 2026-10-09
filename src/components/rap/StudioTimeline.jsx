@@ -1,28 +1,13 @@
-import React from "react";
+import React, { useState } from "react";
+import { ChevronDown, ChevronUp } from "lucide-react";
+import TimelineClip from "@/components/rap/TimelineClip";
 import { trackLength } from "@/lib/voiceTracks";
 
 const SPANS = ["1", "2", "3", "4", "5", "6", "7", "8"];
 const LIME = "#c7f400";
 const CYAN = "#15d8d0";
-// how wide one second of a voice lane is drawn
+// how wide one second of a voice lane is drawn, and so how far a hand carries a clip
 const TRACK_PPS = 20;
-
-/**
- * The bars a clip stands on, read from the words the clip carries: the same clip always draws the
- * same shape. Nothing here is counted, stored or sent anywhere — it is how a clip looks.
- */
-function barsOf(seed, count) {
-  const text = String(seed || "clip");
-  let hash = 0;
-  for (let at = 0; at < text.length; at += 1) hash = (hash * 31 + text.charCodeAt(at)) % 9973;
-
-  const bars = [];
-  for (let at = 0; at < count; at += 1) {
-    hash = (hash * 1103515245 + 12345) % 2147483648;
-    bars.push(26 + (hash % 70));
-  }
-  return bars;
-}
 
 /** The clips of one lane, laid one after the other across it. */
 function lay(clips) {
@@ -37,8 +22,10 @@ function lay(clips) {
 
 /**
  * The session laid out as a timeline: one lane for the beat, one for the bars that have been
- * written, and one for the voice — each clip standing for the work it really holds, and a playhead
- * sweeping the lanes. Nothing is drawn here that the studio does not already have.
+ * written, one for the voice, and one for every sound of its own. A voice clip can be taken hold of
+ * where it stands and carried along its lane, its lane can be folded down to a line, and the piece
+ * that was taken hold of is handed to the controls below. Nothing is drawn here that the studio does
+ * not already have.
  */
 export default function StudioTimeline({
   beat,
@@ -49,7 +36,15 @@ export default function StudioTimeline({
   seconds,
   tracks,
   voiceTools,
+  selectedId,
+  onSelect,
+  onStart,
+  onFold,
+  inspector,
 }) {
+  // the clip being carried by hand right now, and the place it has been carried to
+  const [drag, setDrag] = useState(null);
+
   // the written bars, section by section, as the clip each part of the rap stands in
   const sections = [];
   (lines || []).forEach((line) => {
@@ -76,28 +71,6 @@ export default function StudioTimeline({
     });
   }
 
-  // every voice track is a lane of its own: where it stands, how much of it is left after the cut,
-  // and the pitch it was moved to
-  const trackLanes = (tracks || []).slice(0, 6).map((track, index) => {
-    const length = trackLength(track);
-    const moved = track.semitones ? ` · ${track.semitones > 0 ? "+" : ""}${track.semitones}st` : "";
-    return {
-      id: track.id,
-      name: track.name,
-      clips: [
-        {
-          key: track.id,
-          name: `${track.name}${moved}${track.muted ? " · M" : ""}${track.solo ? " · S" : ""}`,
-          count: Math.max(3, Math.round(length)),
-          seed: track.id,
-          left: 20 + Math.max(0, track.start || 0) * TRACK_PPS,
-          width: Math.max(80, Math.min(740, Math.max(0.4, length) * TRACK_PPS)),
-          color: track.muted ? "#4d505d" : index % 2 ? CYAN : LIME,
-        },
-      ],
-    };
-  });
-
   const lanes = [
     { id: "beat", name: "Beat", clips: lay(beatClips) },
     {
@@ -113,8 +86,51 @@ export default function StudioTimeline({
       ),
     },
     { id: "voice", name: "Sauti", clips: lay(voiceClips) },
-    ...trackLanes,
   ];
+
+  // every voice track is a lane of its own, and its clip stands where it was laid — or, while it is
+  // being carried, where the hand has taken it
+  (tracks || []).forEach((track, index) => {
+    const held = drag && drag.id === track.id ? drag.seconds : Math.max(0, Number(track.start || 0));
+    const length = trackLength(track);
+    const moved = track.semitones ? ` · ${track.semitones > 0 ? "+" : ""}${track.semitones}st` : "";
+    lanes.push({
+      id: track.id,
+      name: track.name,
+      track,
+      carrying: drag?.id === track.id,
+      clips: [
+        {
+          key: track.id,
+          name: `${track.name}${moved}${track.muted ? " · M" : ""}${track.solo ? " · S" : ""}`,
+          count: Math.max(3, Math.round(length)),
+          seed: track.id,
+          left: 20 + held * TRACK_PPS,
+          width: Math.max(80, Math.min(740, Math.max(0.4, length) * TRACK_PPS)),
+          color: track.muted ? "#4d505d" : index % 2 ? CYAN : LIME,
+        },
+      ],
+    });
+  });
+
+  const grab = (track) => (event) => {
+    if (!onStart) return;
+    event.currentTarget.setPointerCapture?.(event.pointerId);
+    const from = Math.max(0, Number(track.start || 0));
+    setDrag({ id: track.id, from, x: event.clientX, seconds: from });
+    onSelect?.(track.id);
+  };
+
+  const slide = (event) => {
+    setDrag((prev) =>
+      prev ? { ...prev, seconds: Math.max(0, prev.from + (event.clientX - prev.x) / TRACK_PPS) } : prev
+    );
+  };
+
+  const drop = () => {
+    if (drag) onStart?.(drag.id, drag.seconds);
+    setDrag(null);
+  };
 
   return (
     <>
@@ -125,31 +141,60 @@ export default function StudioTimeline({
       </div>
 
       <div className="rap-lanes">
-        {lanes.map((lane) => (
-          <div key={lane.id} className="rap-trk">
-            <span className="rap-trk-name">{lane.name}</span>
+        {lanes.map((lane) => {
+          const folded = !!lane.track?.collapsed;
 
-            {lane.id === "voice" && voiceTools ? <div className="rap-trk-tools">{voiceTools}</div> : null}
+          return (
+            <div
+              key={lane.id}
+              className={`rap-trk ${folded ? "is-folded" : ""} ${lane.carrying ? "is-moving" : ""}`}
+            >
+              <span className="rap-trk-name">{lane.name}</span>
 
-            {lane.clips.map((clip) => (
-              <div
-                key={clip.key}
-                className="rap-clip"
-                style={{ left: clip.left, width: clip.width, background: clip.color }}
-              >
-                <span className="rap-clip-name">{clip.name}</span>
-                {barsOf(clip.seed, Math.max(6, Math.min(18, clip.count + 4))).map((height, index) => (
-                  <i key={index} style={{ height: `${height}%` }} />
-                ))}
-              </div>
-            ))}
+              {lane.id === "voice" && voiceTools ? <div className="rap-trk-tools">{voiceTools}</div> : null}
 
-            {lane.clips.length ? null : <span className="rap-trk-empty">Bado hakuna kitu hapa</span>}
+              {lane.track ? (
+                <div className="rap-trk-tools">
+                  <button
+                    type="button"
+                    className="rap-fold"
+                    aria-label={folded ? `Fungua ${lane.name}` : `Funga ${lane.name}`}
+                    aria-pressed={folded}
+                    onClick={() => onFold?.(lane.track.id)}
+                  >
+                    {folded ? <ChevronDown /> : <ChevronUp />}
+                  </button>
+                </div>
+              ) : null}
 
-            <div className="rap-ph" />
-          </div>
-        ))}
+              {folded ? (
+                <span className="rap-trk-empty">
+                  {lane.name} · {trackLength(lane.track).toFixed(1)}s imefungwa
+                </span>
+              ) : (
+                lane.clips.map((clip) => (
+                  <TimelineClip
+                    key={clip.key}
+                    clip={clip}
+                    draggable={!!lane.track}
+                    selected={!!lane.track && selectedId === lane.track.id}
+                    dragging={lane.carrying}
+                    onGrab={lane.track ? grab(lane.track) : undefined}
+                    onSlide={slide}
+                    onDrop={drop}
+                  />
+                ))
+              )}
+
+              {!folded && !lane.clips.length ? <span className="rap-trk-empty">Bado hakuna kitu hapa</span> : null}
+
+              <div className="rap-ph" />
+            </div>
+          );
+        })}
       </div>
+
+      {inspector}
     </>
   );
 }

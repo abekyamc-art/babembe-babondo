@@ -10,6 +10,8 @@ const RATE = 44100;
 // more than the six the studio used to allow, and fewer than a phone would choke on
 export const MAX_TRACKS = 24;
 export const MIN_TRACK_SECONDS = 1;
+// how far along the line a clip may be laid: well past the eight bars the studio writes
+export const MAX_START = 30;
 
 export function nameForTrack(count) {
   return `Sauti ${count}`;
@@ -32,6 +34,7 @@ export function newTrack({ name, buffer, blob, kind = "record" }) {
     tuned: false,
     muted: false,
     solo: false,
+    collapsed: false,
   };
 }
 
@@ -107,4 +110,65 @@ export async function renderTracks(tracks, seconds) {
   });
 
   return ctx.startRendering();
+}
+
+/**
+ * The room the whole mix is heard in. Everything is played dry first, then one short echo and one
+ * soft tail are laid over the lot, so the voices and the beat sound like they were cut in the same
+ * room rather than stacked on top of each other. With the room turned right down, the mix is handed
+ * back exactly as it was rendered.
+ */
+export async function addAmbience(buffer, amount) {
+  const wet = Math.max(0, Math.min(1, Number(amount) || 0));
+  if (!wet || !buffer) return buffer;
+
+  const rate = buffer.sampleRate || RATE;
+  // the tail is given its own room to ring out in, so the echo never ends in a cut
+  const length = buffer.length + Math.ceil(rate * 0.9);
+  const ctx = new OfflineAudioContext(Math.max(1, buffer.numberOfChannels), length, rate);
+
+  const source = ctx.createBufferSource();
+  source.buffer = buffer;
+
+  const dry = ctx.createGain();
+  dry.gain.value = 1 - wet * 0.3;
+
+  const tail = ctx.createConvolver();
+  tail.buffer = roomTail(ctx, 1.8, 2.6);
+  const send = ctx.createGain();
+  send.gain.value = wet * 0.5;
+
+  const echo = ctx.createDelay(0.7);
+  echo.delayTime.value = 0.27;
+  const echoLevel = ctx.createGain();
+  echoLevel.gain.value = wet * 0.35;
+  const echoBack = ctx.createGain();
+  echoBack.gain.value = 0.32;
+
+  source.connect(dry);
+  dry.connect(ctx.destination);
+  source.connect(send);
+  send.connect(tail);
+  tail.connect(ctx.destination);
+  send.connect(echo);
+  echo.connect(echoLevel);
+  echoLevel.connect(ctx.destination);
+  echo.connect(echoBack);
+  echoBack.connect(echo);
+
+  source.start(0);
+  return ctx.startRendering();
+}
+
+/** The tail of the room: a short burst of noise falling away, which is what a room sounds like. */
+function roomTail(ctx, seconds, decay) {
+  const length = Math.max(1, Math.floor(ctx.sampleRate * seconds));
+  const tail = ctx.createBuffer(2, length, ctx.sampleRate);
+  for (let channel = 0; channel < 2; channel += 1) {
+    const data = tail.getChannelData(channel);
+    for (let at = 0; at < length; at += 1) {
+      data[at] = (Math.random() * 2 - 1) * Math.pow(1 - at / length, decay);
+    }
+  }
+  return tail;
 }

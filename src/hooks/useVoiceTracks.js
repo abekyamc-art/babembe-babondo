@@ -5,7 +5,9 @@ import { clipToBuffer, NO_MIC, startClipRecording } from "@/lib/clipRecorder";
 import { detectPitch, snapToKey, shiftPitch } from "@/lib/pitchShift";
 import { saveBlob, slug } from "@/lib/rapLines";
 import {
+  MAX_START,
   MAX_TRACKS,
+  addAmbience,
   mixSeconds,
   nameForTrack,
   newTrack,
@@ -28,6 +30,9 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  // the piece taken hold of on the timeline, and the room the whole mix is heard in
+  const [selectedId, setSelectedId] = useState(null);
+  const [ambience, setAmbience] = useState(0.3);
 
   const micRef = useRef(null);
   const timerRef = useRef(0);
@@ -39,6 +44,36 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
   const patch = useCallback((id, changes) => {
     setTracks((prev) => prev.map((track) => (track.id === id ? { ...track, ...changes } : track)));
   }, []);
+
+  /** The piece the timeline's own controls stand for. */
+  const select = useCallback((id) => setSelectedId(id || null), []);
+
+  /** Where the clip stands on the line, whether it was carried there by hand or nudged along. */
+  const setStart = useCallback(
+    (id, seconds) =>
+      patch(id, {
+        start: Math.max(0, Math.min(MAX_START, Math.round((Number(seconds) || 0) * 10) / 10)),
+      }),
+    [patch]
+  );
+
+  /** The nudge: the clip moved front or back by a tenth of a second, or by a whole one. */
+  const nudge = useCallback(
+    (id, delta) => {
+      const track = tracks.find((one) => one.id === id);
+      if (track) setStart(id, Math.max(0, Number(track.start || 0) + delta));
+    },
+    [setStart, tracks]
+  );
+
+  /** A lane folded down to its own line, so a session of many voices still reads at one look. */
+  const toggleCollapsed = useCallback(
+    (id) => {
+      const track = tracks.find((one) => one.id === id);
+      if (track) patch(id, { collapsed: !track.collapsed });
+    },
+    [patch, tracks]
+  );
 
   /** A file the person already has, brought into a lane of its own. */
   const importFile = useCallback(
@@ -131,10 +166,12 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
 
   const remove = useCallback((id) => {
     setTracks((prev) => prev.filter((track) => track.id !== id));
+    setSelectedId((prev) => (prev === id ? null : prev));
   }, []);
 
   const clearTracks = useCallback(() => {
     setTracks([]);
+    setSelectedId(null);
     setError("");
     setNote("");
   }, []);
@@ -198,11 +235,12 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
 
   /** The voice tracks over the beat, as one sound: what is played, and what is kept. */
   const buildMix = useCallback(async () => {
-    if (!tracks.length) return null;
+    // a studio with nothing to hear stays silent: no lanes at all, or every lane muted, makes no sound
+    if (!tracks.some((track) => !track.muted && track.buffer)) return null;
     const span = mixSeconds(tracks, settings?.seconds || 8);
     const vocals = await renderTracks(tracks, span);
     const vocalBytes = await wavBlob(vocals).arrayBuffer();
-    return mixTake({
+    const mixed = await mixTake({
       vocalBytes,
       vocalKind: "voice",
       beatKind: settings?.beat || "none",
@@ -210,7 +248,9 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
       bpm: settings?.bpm || 112,
       seconds: vocals.duration,
     });
-  }, [beat, settings, tracks]);
+    // the room is laid over the whole mix, so what is heard is what is kept and what is downloaded
+    return addAmbience(mixed, ambience);
+  }, [ambience, beat, settings, tracks]);
 
   const stopMix = useCallback(() => {
     stopRef.current?.();
@@ -226,7 +266,7 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
     try {
       const mixed = await buildMix();
       if (!mixed) {
-        setError("Hakuna sauti iliyowekwa bado — rekodi au pakia faili kwanza.");
+        setNote("Bado hakuna sauti inayosikika — rekodi au pakia sauti kwanza.");
         return;
       }
       stopRef.current = playBuffer(mixed, { onEnd: () => setPlaying(false) });
@@ -245,7 +285,11 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
     setBusy("keep");
     try {
       const mixed = await buildMix();
-      if (!mixed) throw new Error("empty");
+      if (!mixed) {
+        setNote("Bado hakuna sauti inayosikika — rekodi au pakia sauti kwanza.");
+        setBusy("");
+        return;
+      }
       const name = `${slug(title || "Take yangu")}-sauti.wav`;
       const file = new File([wavBlob(mixed)], name, { type: "audio/wav" });
       const { file_url } = await base44.integrations.Core.UploadPublicFile({ file });
@@ -266,6 +310,7 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
     try {
       const mixed = await buildMix();
       if (mixed) saveBlob(wavBlob(mixed), `${slug(title || "Take yangu")}-sauti.wav`);
+      else setNote("Bado hakuna sauti inayosikika — rekodi au pakia sauti kwanza.");
     } catch (err) {
       setError("Mchanganyiko haukuweza kuandaliwa. Jaribu tena.");
     }
@@ -281,7 +326,14 @@ export default function useVoiceTracks({ settings, beat, title, onKeepMix }) {
     error,
     note,
     max: MAX_TRACKS,
+    selectedId,
+    ambience,
     patch,
+    select,
+    setStart,
+    nudge,
+    toggleCollapsed,
+    setAmbience,
     remove,
     clearTracks,
     startRecording,
