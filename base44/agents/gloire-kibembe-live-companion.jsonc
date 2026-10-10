@@ -5,13 +5,17 @@
     {
       "entity_name": "AssistantKnowledge",
       "allowed_operations": [
-        "read"
+        "read",
+        "create",
+        "update"
       ]
     },
     {
       "entity_name": "Story",
       "allowed_operations": [
-        "read"
+        "read",
+        "create",
+        "update"
       ]
     },
     {
@@ -20,11 +24,11 @@
     },
     {
       "function_name": "storyLookup",
-      "description": "Look up the app's saved stories about an artist, a person or a subject, with what is known about them."
+      "description": "Look up the app's saved stories about an artist, a person or a subject, with what is known about them.and external sources too"
     },
     {
       "function_name": "channelVideos",
-      "description": "Read an artist's own official channel and return their published videos, so the most watched ones can be offered with the verified channel link."
+      "description": "Read an artist's own official channel and return their published videos, so the most watched ones can be offered with the verified channel link.and play after user tell you"
     },
     {
       "function_name": "freshKnowledge",
@@ -33,6 +37,18 @@
     {
       "function_name": "mediaSelection",
       "description": "Choose the one piece of media a play request asks for, from the artist's own pieces as the app holds them and from their verified channel: it hands back the chosen piece with the address it stands at, or the short list of titles when the request is ambiguous, or nothing at all when no artist of the app's own answers it. Call it before offering or promising any playback, and never choose media yourself."
+    },
+    {
+      "entity_name": "VoiceVariant",
+      "allowed_operations": [
+        "read",
+        "create",
+        "update"
+      ]
+    },
+    {
+      "function_name": "voiceVariants",
+      "description": "Do everything you want and user request "
     }
   ],
   "context_files": [
