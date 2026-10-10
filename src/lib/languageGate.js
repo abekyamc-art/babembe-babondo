@@ -115,6 +115,19 @@ const OTHER_WORDS = new Set([
   "deutsch",
 ]);
 
+// How much of a line is read at a time as it is being said: only its tail is looked at, so a word
+// that arrives in pieces is still read whole.
+const SPOKEN_TAIL = 240;
+
+/**
+ * The first form of another language in a line that is being said right now, or nothing at all when
+ * it holds none. This is the reading a call takes of an answer as it is heard — the same one the
+ * server takes of a saved line, made for the moment the words are still arriving.
+ */
+export function spokenFlag(text) {
+  return redFlag(String(text ?? "").slice(-SPOKEN_TAIL));
+}
+
 /** The first form of another language in a text, or nothing at all when it holds none. */
 export function redFlag(text) {
   const body = String(text ?? "");

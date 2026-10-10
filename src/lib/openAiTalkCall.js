@@ -1,5 +1,5 @@
 import { primedAudio } from "@/lib/audioUnlock";
-import { LANGUAGE_FALLBACK, redFlag } from "@/lib/languageGate";
+import { LANGUAGE_FALLBACK, redFlag, spokenFlag } from "@/lib/languageGate";
 
 /**
  * The call AI 1 answers on: a WebRTC link straight from this browser to OpenAI's Realtime service.
@@ -478,7 +478,7 @@ export default class OpenAiTalkCall {
    */
   checkAnswer() {
     if (this.stopped || this.blockedSpeech) return;
-    if (!redFlag(this.answerText.slice(-240))) return;
+    if (!spokenFlag(this.answerText)) return;
     this.blockAnswer();
   }
 

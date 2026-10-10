@@ -10,6 +10,7 @@ import { SAY_AGAIN_KIBEMBE, SAY_AGAIN_TURN, isMisheard, isRealTurn } from "@/lib
 import { saveLangMode } from "@/lib/langMode";
 import { heardLanguage } from "@/lib/heardLanguage";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
+import { LANGS_NOTICE } from "@/lib/languageGate";
 
 /**
  * One of the older talk AIs on the home page's call. Each is opened on its own account — its own key,
@@ -392,9 +393,13 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
   }, []);
 
   /** The voice has drained: the call listens again, and the answer ends for whoever counts them. */
-  const handleAudioEnd = useCallback(() => {
+  const handleAudioEnd = useCallback((cut) => {
     speakingRef.current = false;
     backToListening();
+    // A line stopped for a language this app does not speak is not a voice turn: nothing was answered
+    // for that turn, so nothing is counted for it and no change is carried on from it. The app's own
+    // line that takes its place is measured like any other.
+    if (cut === true) return;
     // the voice has drained: one voice turn has been spoken out in full
     noteVoiceTurn();
     // an answer read out in full is reported, so a change it asked for is sent here and now
@@ -405,6 +410,12 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
   const handleAnswered = useCallback(() => liveAnsweredRef.current?.(), []);
   const handleError = useCallback((message) => setError(message), []);
   const handleReask = useCallback((message) => setNotice(message), []);
+
+  /**
+   * The answer turned into a language this app does not speak and was stopped: the app's own line
+   * naming its three languages is what stands on the screen beside it.
+   */
+  const handleBlockedSpeech = useCallback(() => setNotice(LANGS_NOTICE), []);
 
   /**
    * The call opens here, inside the tap that began it, on the talk AI it was asked for. Returns an
@@ -447,6 +458,7 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
         onAgentAnswered: handleAnswered,
         onError: handleError,
         onReask: handleReask,
+        onBlockedSpeech: handleBlockedSpeech,
         // the voice has kept a turn it never began answering: whoever is running the call is asked
         // here and now whether another voice service takes it
         onStuck: (text) => stuckRef.current?.(text) === true,
@@ -501,6 +513,7 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
       handleAnswered,
       handleAudioEnd,
       handleAudioStart,
+      handleBlockedSpeech,
       handleHeard,
       handleError,
       handleReask,

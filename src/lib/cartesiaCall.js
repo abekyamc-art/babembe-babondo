@@ -1,6 +1,8 @@
 import { base44 } from "@/api/base44Client";
 import { primedAudio } from "@/lib/audioUnlock";
 import { bytesToBase64, floatToPcm16, resample, wavBytes } from "@/lib/pcmAudio";
+import { LANGUAGE_FALLBACK, spokenFlag } from "@/lib/languageGate";
+import { sayFallback } from "@/lib/voiceFallback";
 
 /**
  * A call with the Cartesia agent.
@@ -103,6 +105,9 @@ export default class CartesiaCall {
     this.answerOpen = false;
     // his answer as it is being written, kept while it arrives
     this.draft = "";
+    // whether the answer being given right now turned into a language this app does not speak and was
+    // therefore cut: what is left of its sound is never played and nothing of it is shown
+    this.blocked = false;
     // what the session reports itself ready with, while it is still being opened
     this.opened = null;
   }
@@ -217,6 +222,9 @@ export default class CartesiaCall {
     }
 
     if (msg.type === "audio_output") {
+      // A line cut for the language it turned into is never heard out: what is still arriving of its
+      // sound is dropped here, so nothing of another language reaches the person's ears.
+      if (this.blocked) return;
       // his voice has arrived: the wait for an answer he never gave is called off
       this.clearAnswerGuard();
       this.play(msg.audio);
@@ -242,6 +250,8 @@ export default class CartesiaCall {
       this.h.onThinking?.(true);
       if (typeof msg.turn === "number") this.turn = msg.turn;
       this.draft = "";
+      // a fresh answer of his own is its own: a line cut for its language is not held against it
+      this.blocked = false;
       // his answer stays open until the service closes its turn, or until his voice has drained
       this.answerOpen = true;
       // and it is waited on: a turn taken and never answered is given up on rather than left standing
@@ -260,6 +270,9 @@ export default class CartesiaCall {
         // he is answering: the wait is called off
         this.clearAnswerGuard();
         this.draft += msg.text;
+        // The answer is read as it is written, word by word: a line that turns into a language this
+        // app does not speak is cut at that very word rather than heard out.
+        if (spokenFlag(this.draft)) this.blockAnswer();
       }
       return;
     }
@@ -287,6 +300,13 @@ export default class CartesiaCall {
       if (typeof msg.turn === "number") this.turn = msg.turn;
       this.answerOpen = false;
       this.h.onThinking?.(false);
+      // A line cut for the language it turned into is not an answer: nothing of what it ended with is
+      // shown, and nothing is counted for it.
+      if (this.blocked) return;
+      if (text && spokenFlag(text)) {
+        this.blockAnswer();
+        return;
+      }
       if (text) this.h.onAgentText?.(text);
       // One answer given. A turn the service closes is counted here whether or not it carried the
       // words along with it — the answer was heard either way.
@@ -531,6 +551,48 @@ export default class CartesiaCall {
       this.finishAnswer();
       this.h.onAgentAudioEnd?.();
     }, remainingMs);
+  }
+
+  /**
+   * The answer has turned into a language this app does not speak — Lingala, French, or any other —
+   * and is cut at that very word: nothing is left of its sound, nothing of what it was saying is shown,
+   * and nothing of it is read out. The app's own line says plainly which three languages this call
+   * speaks, and it is read in the app's own voice: the service's own settings are its own, so the app
+   * answers for itself rather than putting anything to it.
+   */
+  blockAnswer() {
+    if (this.blocked) return;
+    this.blocked = true;
+    const wasSpeaking = this.speaking;
+    clearTimeout(this.endTimer);
+    this.endTimer = null;
+    this.speaking = false;
+    this.answerOpen = false;
+    this.sources.forEach((node) => {
+      try {
+        node.stop();
+      } catch (err) {
+        // already finished
+      }
+    });
+    this.sources = [];
+    this.playHead = 0;
+    // a line stopped for its language is not a voice turn: it is reported as a stopped line, so
+    // nothing of what it had said is counted
+    if (wasSpeaking) this.h.onAgentAudioEnd?.(true);
+    this.h.onBlockedSpeech?.(LANGUAGE_FALLBACK);
+    // the app's own line is the answer this turn is given, and its beginning and its end are reported
+    // exactly as his own voice reports them
+    sayFallback({
+      onStart: () => {
+        this.speaking = true;
+        this.h.onAgentAudioStart?.();
+      },
+      onEnd: () => {
+        this.speaking = false;
+        this.h.onAgentAudioEnd?.(false);
+      },
+    });
   }
 
   stopPlayback() {

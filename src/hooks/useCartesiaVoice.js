@@ -10,6 +10,7 @@ import { saveLangMode } from "@/lib/langMode";
 import { SAY_AGAIN_KIBEMBE, SAY_AGAIN_TURN, isMisheard, isRealTurn } from "@/lib/misheardSpeech";
 import { CARTESIA_AI } from "@/lib/providerNames";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
+import { LANGS_NOTICE } from "@/lib/languageGate";
 
 /**
  * The Cartesia voice on the line: the outside agent the home page's calls hand over to. It listens
@@ -254,9 +255,12 @@ export default function useCartesiaVoice({
   }, []);
 
   /** His voice has drained — or the person spoke over it: the call listens again. */
-  const handleAudioEnd = useCallback(() => {
+  const handleAudioEnd = useCallback((cut) => {
     speakingRef.current = false;
     backToListening();
+    // A line stopped for a language this app does not speak is not a voice turn: nothing of what it
+    // had said is counted. The app's own line that takes its place is measured like any other.
+    if (cut === true) return;
     // his voice has drained: one voice turn has been spoken out in full
     noteVoiceTurn();
     // the answer has been read out in full: a change it asked for is sent here and now
@@ -264,6 +268,12 @@ export default function useCartesiaVoice({
   }, [backToListening]);
 
   const handleError = useCallback((message) => setError(message), []);
+
+  /**
+   * The answer turned into a language this app does not speak and was stopped: the app's own line
+   * naming its three languages is what stands on the screen beside it.
+   */
+  const handleBlockedSpeech = useCallback(() => setNotice(LANGS_NOTICE), []);
 
   /**
    * A turn the app's own ears could not read. Nothing else writes it down — the app has one reader
@@ -333,6 +343,7 @@ export default function useCartesiaVoice({
         onError: handleError,
         onReask: handleReask,
         onNoAnswer: handleNoAnswer,
+        onBlockedSpeech: handleBlockedSpeech,
       };
 
       // The accounts behind this one seat are tried in their own order — the app's own account first,

@@ -4,6 +4,8 @@ import { isRealTurn } from "@/lib/misheardSpeech";
 import { contextBlocks } from "@/lib/contextBlocks";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage } from "@/lib/micAccess";
+import { LANGUAGE_FALLBACK, spokenFlag } from "@/lib/languageGate";
+import { sayFallback } from "@/lib/voiceFallback";
 
 const IN_RATE = 16000;
 // The capture is lifted before it is sent, so ordinary speech at arm's length arrives as loud
@@ -179,6 +181,9 @@ export default class VoiceSocket {
     this.answered = false;
     // whether the answer being given right now has already been charged for
     this.spent = false;
+    // whether the answer being given right now turned into a language this app does not speak and was
+    // therefore cut: what is left of its sound is never played and nothing of it is counted
+    this.blocked = false;
     this.userSpoke = false;
     this.heardVoice = false;
     this.lastVoiceAt = 0;
@@ -285,6 +290,7 @@ export default class VoiceSocket {
     this.silentWaitAt = performance.now();
     this.answered = false;
     this.spent = false;
+    this.blocked = false;
     this.userSpoke = false;
     this.autoEnding = false;
     // nothing of the last session rides into this one: no turn, no stale breath
@@ -451,6 +457,7 @@ export default class VoiceSocket {
     // a fresh message is its own turn, so its answer is its own to spend
     this.answered = false;
     this.spent = false;
+    this.blocked = false;
     this.releaseQuiet();
     const sent = this.send({ type: "user_message", text });
     if (sent) this.setAwaiting(true);
@@ -514,6 +521,9 @@ export default class VoiceSocket {
 
     if (msg.type === "audio") {
       const chunk = msg.audio_event?.audio_base_64;
+      // A line cut for the language it turned into is never heard out: what is still arriving of its
+      // sound is dropped here, so nothing of another language reaches the person's ears.
+      if (this.blocked) return;
       // a voice that has not been asked for stays out of the room altogether: until the person has
       // taken their turn nothing he says is played — not even silently — so an unasked greeting is
       // never heard, never shown, and never counted as an answer
@@ -539,6 +549,7 @@ export default class VoiceSocket {
         this.userSpoke = true;
         // a fresh turn: the answer coming for it is its own to spend
         this.spent = false;
+        this.blocked = false;
         this.turnAt = performance.now();
         this.recovered = false;
         this.lastUserText = text;
@@ -559,6 +570,15 @@ export default class VoiceSocket {
         // nothing he writes before the person has taken their turn is shown: an unasked greeting
         // is not a reply to anything, and the first turn of the talk is the person's own
         if (!this.engaged) return;
+        // The answer has turned into a language this app does not speak — Lingala, French, or any
+        // other — and is stopped at that very word rather than read out. Only the three languages of
+        // this app are ever heard on a call, and the app's own line takes its place. A written session
+        // is not held to this: its own line is the app's own machinery at work — a helper's list, a
+        // review — and it is read on the screen rather than heard.
+        if (!this.silent && spokenFlag(text)) {
+          this.blockAnswer();
+          return;
+        }
         this.noteAnswer();
         // a session that opened mid-conversation: his greeting coming round again is
         // something he has already said, so it is not shown a second time
@@ -976,8 +996,37 @@ export default class VoiceSocket {
     }, remainingMs);
   }
 
+  /**
+   * The answer has turned into a language this app does not speak and is cut at that very word: what is
+   * left of its sound is never played, nothing of it is shown, and nothing of it is read out. The app's
+   * own line says plainly which three languages this call speaks, and on a spoken call it is read in
+   * the app's own voice — his own agent's settings are his own, so the app answers for itself rather
+   * than putting anything to him.
+   */
+  blockAnswer() {
+    if (this.blocked || this.silent) return;
+    this.blocked = true;
+    this.stopPlayback(true);
+    // The app's own line is the answer this turn is given, and it is counted as one, exactly as a line
+    // of his own would be: the call moves on the way it always does rather than sitting on a turn.
+    this.noteAnswer();
+    this.h.onBlockedSpeech?.(LANGUAGE_FALLBACK);
+    sayFallback({
+      onStart: () => {
+        this.speaking = true;
+        this.setMicOpen(false);
+        this.h.onAgentAudioStart?.();
+      },
+      onEnd: () => {
+        this.speaking = false;
+        this.setMicOpen(true);
+        this.h.onAgentAudioEnd?.(false);
+      },
+    });
+  }
+
   // the answer to a written message is read, not heard: its audio is played into a
-  // silent sink, so the speaker stays quiet while the answer keeps its exact timing
+  // silent sink, so the speaker keeps its exact timing
   silencer() {
     if (!this.muteGain) {
       this.muteGain = this.ctx.createGain();
@@ -1034,7 +1083,12 @@ export default class VoiceSocket {
     this.watchId = requestAnimationFrame(step);
   }
 
-  stopPlayback() {
+  /**
+   * His voice is stopped where it stands. `cut` says the line was stopped for the language it turned
+   * into rather than heard out: such a line is not an answer that was given, so its end is reported as
+   * a stopped line and nothing is counted for it.
+   */
+  stopPlayback(cut = false) {
     clearTimeout(this.endTimer);
     clearTimeout(this.voiceTimer);
     this.voiceTimer = null;
@@ -1042,7 +1096,7 @@ export default class VoiceSocket {
     this.answerEndAt = performance.now();
     if (this.speaking) {
       this.speaking = false;
-      this.h.onAgentAudioEnd?.();
+      this.h.onAgentAudioEnd?.(cut);
     }
     // an interruption hands the turn back: the microphone is open again for it
     this.setMicOpen(true);
