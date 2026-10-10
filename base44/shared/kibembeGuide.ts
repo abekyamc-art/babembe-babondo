@@ -1,4 +1,5 @@
 import { ANSWER_LANGUAGE } from "./languageRules.ts";
+import { PHRASE_TEACHER } from "./phraseTeacher.ts";
 import { PRONUNCIATION_HEAD } from "./pronunciation.ts";
 import { TRANSLATE_RULES } from "./ebembeTranslation.ts";
 
@@ -205,6 +206,9 @@ const GLOIRE_VOICE = [
 export const KIBEMBE_GUIDE =
   [
     GLOIRE_VOICE,
+    // How a phrase is built and given stands right behind who answers: one whole natural sentence,
+    // the grammar words kept and the tense meant, and the four parts in their order.
+    PHRASE_TEACHER,
     CORE,
     UNDERSTANDING,
     HEARING,

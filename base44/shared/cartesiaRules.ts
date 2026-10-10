@@ -55,7 +55,11 @@ const TOP_NOTICE = [
 // the language policy, the brief acknowledgements, and the handing over of anything the app itself
 // holds (corpus, memory, facts, searches, links, player, saving) — were written into the guide, so
 // every agent is written again on its next call carrying them.
-export const RULES_VERSION = "12";
+// Raised to 13 when the phrase-teaching rules — a whole natural sentence rather than broken
+// word-for-word English, the grammar words kept, the tense that was meant, and the four parts every
+// phrase or translation is given in — were written into the guide, so every agent is written again on
+// its next call carrying them.
+export const RULES_VERSION = "13";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
