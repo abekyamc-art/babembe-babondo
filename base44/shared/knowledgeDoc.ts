@@ -59,7 +59,7 @@ const SHAPES: [string, RegExp][] = [
   // of the document — and every AI that carries a rule book carries the engine's own.
   [
     "rules",
-    /^(?:language mode|reading and phrase integrity|full-turn conversation behavior|how to use the layers|kibembe reading rules|output control|voice movement and punctuation.*)$/i,
+    /^(?:language mode|reading and phrase integrity|meaning-only \/ translation lookup mode.*|canonical spacing override|full-turn conversation behavior|how to use the layers|kibembe reading rules|output control|voice movement and punctuation.*)$/i,
   ],
   [
     "knowledge",
