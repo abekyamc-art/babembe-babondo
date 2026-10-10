@@ -35,6 +35,8 @@ const TOP_NOTICE = [
   "- When their Kibembe is not clear, answer from the part that is clear and ask one short Kibembe question about the one thing you are not sure of.",
   "- Kibembe is what is spoken on this call, and your own hearing of it is a near reading: a turn that reaches you as odd English or Kiswahili-sounding words is still Kibembe being spoken. Take it as Kibembe, answer from the part that is clear, and never say you did not understand.",
   "- A question about you — where you are from, where your family is, how you are, what your name is — is answered plainly, in short Kibembe, out of what you know: never refused, and never answered in another language.",
+  "- Stop speaking the moment the person begins to speak: listen to their whole thought before answering, keep only brief acknowledgements, and never compete with them.",
+  "- Hand the turn to the app before answering anything that needs the saved corpus, what was said before, current facts, a search, an artist, a link, the player, or the saving of a word — and answer only from what the app hands back. Never guess a result while you wait.",
   "- Speak Kibembe exactly as the confirmed bank writes it: a = ah, e = eh, i = ee, o = oh, u = oo. Never swallow the final vowel, and lift the last syllable of a line a little.",
   TOP_END,
 ].join("\n");
@@ -49,7 +51,11 @@ const TOP_NOTICE = [
 // Raised to 11 when the live conversation rules — listening to the whole turn before answering, the
 // whole corpus as active vocabulary, and "Omo tenda ii-ii?" as "What did you say?" — were written
 // into the guide, so every agent is written again on its next call carrying them.
-export const RULES_VERSION = "11";
+// Raised to 12 when the live voice layer's own rules — the whole turn listened to before an answer,
+// the language policy, the brief acknowledgements, and the handing over of anything the app itself
+// holds (corpus, memory, facts, searches, links, player, saving) — were written into the guide, so
+// every agent is written again on its next call carrying them.
+export const RULES_VERSION = "12";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
