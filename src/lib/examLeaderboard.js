@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { episodesInSeason } from '@/lib/examSeasons';
 import { episodesPassed, nextEpisode, seasonReached, totalScore } from "@/lib/examProgress";
 
 /**
@@ -25,7 +26,7 @@ function recordOf(me, profile, progress) {
     score: totalScore(progress),
     passed: episodesPassed(progress),
     season,
-    episode: nextEpisode(progress, season),
+    episode: nextEpisode(progress, season) ?? episodesInSeason(season) + 1,
     at: new Date().toISOString(),
   };
 }

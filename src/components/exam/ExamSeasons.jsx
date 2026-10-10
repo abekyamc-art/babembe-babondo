@@ -1,7 +1,7 @@
 import React from "react";
 import { Lock, Trophy } from "lucide-react";
-import { EPISODES_PER_SEASON, EXAM_SEASONS } from "@/lib/examSeasons";
-import { nextEpisode, passedIn, seasonCleared, seasonOpen } from "@/lib/examProgress";
+import { EXAM_SEASONS, episodesInSeason } from "@/lib/examSeasons";
+import { nextEpisode, completedIn, seasonCleared, seasonOpen } from "@/lib/examProgress";
 
 /**
  * The seasons of the examination: which one is open, how far the student has come inside it, and which
@@ -21,9 +21,8 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
       </button>
 
       <p className="exam-seasons-note">
-        Every season holds {EPISODES_PER_SEASON} episodes, and an episode opens once the one before it has
-        been passed — the pass mark is 80%. Clear all {EPISODES_PER_SEASON} episodes of a season and the
-        season after it opens. An episode may be taken again as often as you like — no day has a limit.{" "}
+        Finish an episode to unlock the next one, whatever your score. Completed episodes stay closed
+        and are never given to you again. Finish a season to unlock the next. There is no daily limit.{" "}
         {cleared} of {EXAM_SEASONS.length} seasons cleared.
       </p>
 
@@ -35,7 +34,8 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
 
       {EXAM_SEASONS.map((season) => {
         const open = seasonOpen(progress, season.no);
-        const done = passedIn(progress, season.no);
+        const done = completedIn(progress, season.no);
+        const total = episodesInSeason(season.no);
         const clearedSeason = seasonCleared(progress, season.no);
         const next = nextEpisode(progress, season.no);
 
@@ -58,13 +58,13 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
                 Season {season.no} · {season.title}
               </span>
               <span className="exam-season-blurb">
-                {season.blurb} · {EPISODES_PER_SEASON} episodes
+                {season.blurb} · {total} episodes
               </span>
               <span className="exam-season-tag">
                 {clearedSeason
-                  ? `Cleared · ${done} of ${EPISODES_PER_SEASON} episodes passed`
+                  ? `Completed · ${done} of ${total} episodes`
                   : open
-                    ? `${done} of ${EPISODES_PER_SEASON} episodes passed · next is episode ${next}`
+                    ? `${done} of ${total} episodes completed · next is episode ${next}`
                     : `Clear season ${season.no - 1} to join`}
               </span>
             </span>

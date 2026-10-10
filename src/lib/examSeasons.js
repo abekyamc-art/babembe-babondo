@@ -1,6 +1,8 @@
 import { buildMedicalMix } from "./examBank";
 import { buildExtraMix } from "./examExtras";
 import { lifeQuestionOf, lifeWordOrder, shuffled } from "./examSeries";
+import { buildCalculationPaper } from '@/lib/challengeQuestions';
+import { buildPeoplePaper } from '@/lib/peopleChallenges';
 
 /**
  * The everyday words in one order for the whole season, shuffled once and then kept: every episode's
@@ -57,6 +59,9 @@ const SEASONS = [
     blurb: "Every confirmed word at once — the everyday language and the health terms together",
     pool: "both",
   },
+  { no: 4, title: 'Calculation champions', blurb: 'Addition, subtraction, multiplication and division — new calculations in every episode', pool: 'math' },
+  { no: 5, title: 'People and culture', blurb: 'Artists, comedians, athletes and pioneers — including Diamond Platnumz and Gloire Sadiki', pool: 'people', episodes: 3 },
+  { no: 6, title: 'Everyday problem solving', blurb: 'Shopping, sharing, time and number-pattern challenges', pool: 'logic' },
 ];
 
 /** The seasons of the examination, in their own order. */
@@ -70,6 +75,10 @@ export function seasonByNo(no) {
 /** How many questions an episode asks: ten, in every season and every episode alike. */
 export function episodeSize() {
   return QUESTIONS_PER_EPISODE;
+}
+
+export function episodesInSeason(no) {
+  return seasonByNo(no)?.episodes || EPISODES_PER_SEASON;
 }
 
 /**
@@ -141,7 +150,10 @@ const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "")
  */
 export function buildEpisodePaper(seasonNo, episode) {
   const season = seasonByNo(seasonNo);
-  if (!season) return [];
+  if (!season || episode < 1 || episode > episodesInSeason(seasonNo)) return [];
+  if (season.pool === 'math') return buildCalculationPaper(episode);
+  if (season.pool === 'people') return buildPeoplePaper(episode);
+  if (season.pool === 'logic') return buildCalculationPaper(episode, true);
   const { life, extras, medical } = partsOf(season, episode);
   const everyday = lifeQuestions(season, episode, life);
   return shuffled([

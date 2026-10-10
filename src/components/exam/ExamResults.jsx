@@ -86,13 +86,13 @@ export default function ExamResults({
           </button>
         ) : null}
 
-        <button
+        {onRestart ? <button
           type="button"
           className={`exam-next ${onNext ? "" : "is-go"}`}
           onClick={onRestart}
         >
           <RotateCcw className="h-4 w-4" /> {restartLabel}
-        </button>
+        </button> : null}
 
         {onLevels ? (
           <button type="button" className="exam-ghost" onClick={onLevels}>
