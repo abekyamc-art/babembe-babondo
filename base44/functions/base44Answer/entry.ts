@@ -11,6 +11,7 @@ import { lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
+import { engineTurn } from "../../shared/phraseEngine.ts";
 import { isRepeatAsk, lastOwnLine } from "../../shared/repeatAsk.ts";
 import { correctEbembe, earsKnowledge, writeDown } from "../../shared/openAiEars.ts";
 
@@ -359,8 +360,14 @@ export default async function (req: Request): Promise<Response> {
     // answers, and whatever they filed under a heading of their own name
     // the document is handed over as the parts this question needs: its rules whole, the parts the
     // question itself names, and a slice of every other part
-    const doc = await docWholeBlock(base44, undefined, asked);
-    const tales = await storyCatalogueBlock(base44, STORY_ROOM);
+    const [doc, tales, engine] = await Promise.all([
+      docWholeBlock(base44, undefined, asked),
+      storyCatalogueBlock(base44, STORY_ROOM),
+      // The admin's own engine of asks and replies is read here too, from the same document: the ask
+      // this turn is, and the replies saved for it — one of which is the reply, given exactly as the
+      // engine writes it rather than a sentence written for the turn.
+      engineTurn(base44, asked),
+    ]);
 
     const memory = textOf(payload?.memory, MAX_MEMORY);
     const history = textOf(payload?.history, MAX_HISTORY);
@@ -393,6 +400,9 @@ export default async function (req: Request): Promise<Response> {
       memory ? KNOWLEDGE_HEAD + "\n" + memory : "",
       history ? "The talk so far, oldest first:\n" + history : "",
       repeat,
+      // the engine's own reply for this ask, where the turn is one of its asks — a repeat ask is given
+      // back exactly as it stood, so nothing of the engine rides with it
+      repeating ? "" : engine.note,
       "What they just said: " + asked,
     ]
       .filter(Boolean)

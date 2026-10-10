@@ -4,6 +4,7 @@ import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.t
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { retrieveKnowledge } from "../../shared/knowledgeRetrieval.ts";
 import { pronunciationBlock, recordedEvidence } from "../../shared/pronunciation.ts";
+import { engineAsksOf } from "../../shared/phraseEngine.ts";
 import { isRepeatAsk, repeatNote } from "../../shared/repeatAsk.ts";
 import {
   FIX_SCHEMA,
@@ -315,7 +316,14 @@ export default async function (req: Request): Promise<Response> {
 
     // The reading is made from the app's own knowledge, which is admin-held: the whole bank is read
     // here because only the app can, and only the reading of this person's own turn goes back.
-    const [words, patterns] = await Promise.all([bankRows(base44), patternRows(base44)]);
+    // The admin's own engine of asks and replies is read with them, out of the very same document:
+    // what the person said may be one of its asks, and that ask's own replies are then the reply —
+    // given exactly as the engine writes it, rather than a sentence written for the turn.
+    const [words, patterns, engine] = await Promise.all([
+      bankRows(base44),
+      patternRows(base44),
+      engineAsksOf(base44).catch(() => []),
+    ]);
 
     // The turn is searched for in the whole of the admin's approved document and in the confirmed
     // Word Bank — the same search every voice of a call is handed — and only the few parts it reaches
@@ -327,7 +335,7 @@ export default async function (req: Request): Promise<Response> {
       .then((found) => found.block)
       .catch(() => "");
 
-    const reading = readTurn(said, words, patterns);
+    const reading = readTurn(said, words, patterns, engine);
     const note = reading ? turnNote(said, reading) : "";
 
     // Whether the app is sure of what it heard. A turn is unsure when what came back is not a turn

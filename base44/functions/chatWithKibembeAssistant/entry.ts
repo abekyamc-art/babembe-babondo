@@ -8,6 +8,7 @@ import { bestStory, storyNote } from "../../shared/storyMatch.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
+import { engineTurn } from "../../shared/phraseEngine.ts";
 import { turnPictures } from "../../shared/answerPictures.ts";
 import { isRepeatAsk } from "../../shared/repeatAsk.ts";
 import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
@@ -192,6 +193,10 @@ export default async function (req) {
       // plainly instead of being answered around. The lookup decides for itself whether a turn needs
       // one, so ordinary talk is not held by it.
       lookupForTurn(base44, message, asked),
+      // The admin's own engine of asks and replies rides with the turn as well: the ask the person
+      // said is found in it, and the replies saved for that ask are handed over — one of which is the
+      // reply, given exactly as the engine writes it rather than a sentence written for the turn.
+      engineTurn(base44, message).then((turn) => turn.note),
     ]);
     // What each read is, named for the stage it belongs to: the name is what a failure is reported by.
     const STAGE_NAMES = [
@@ -201,6 +206,7 @@ export default async function (req) {
       'the stories',
       'the story catalogue',
       'the internet lookup',
+      'the reply engine',
     ];
     const missed: string[] = [];
     // A read that failed is written down by its stage and the turn carries on without it. The reason
@@ -222,6 +228,7 @@ export default async function (req) {
     const storyPage = took(3, null);
     const tales = took(4, '');
     const lookup = took(5, { material: '', needed: false, found: false, candidates: [] });
+    const engine = took(6, '');
 
     // Nothing of the saved knowledge could be read at all: the turn is stopped here and the stage is
     // named, rather than an answer being written from nothing and put before the person as the app's own.
@@ -293,6 +300,10 @@ export default async function (req) {
       lookup.material,
       lookup.material ? (asking ? ASK_NAMES : FOUND) : '',
       CHOSEN,
+      // the engine's own reply for this ask, where the turn is one of its asks: one of the replies it
+      // saves is the reply, given exactly as it stands. A turn that is the app's own question back
+      // answers that question and nothing else, so nothing of the engine rides with it.
+      asking ? '' : engine,
       `Mtu amesema: ${message}`,
     ]
       .filter(Boolean)

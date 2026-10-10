@@ -5,6 +5,7 @@ import { docStamp, docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { keyLine, keyMatches } from "../../shared/answerKey.ts";
+import { engineTurn } from "../../shared/phraseEngine.ts";
 import { ANSWER_LANGUAGE } from "../../shared/languageRules.ts";
 
 // The note rides along with a typed message as silent context. It is handed over
@@ -692,10 +693,13 @@ export default async function (req: Request): Promise<Response> {
       const seen = textOf(payload?.seen);
       // the answer key comes first in the note, so the saved answer is what the turn opens with,
       // and the words closest to what was heard follow it
-      const [words, keys, tales] = await Promise.all([
+      const [words, keys, tales, engine] = await Promise.all([
         bankRows(base44),
         keyRowsFor(base44),
         storyCatalogueBlock(base44, STORY_ROOM),
+        // the admin's own engine of asks and replies: the ask this turn is, and the replies saved for
+        // it — one of which is the reply, given exactly as the engine writes it
+        engineTurn(base44, heard),
       ]);
       // what is heard decides which parts of the document that turn is handed, the rules first
       const known = seen && seen === stamp ? "" : await docWholeBlock(base44, undefined, heard);
@@ -705,6 +709,7 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({
         note:
           turnHead(lang, greeting) +
+          engine.note +
           keySection([...keys, ...words], heard) +
           liked.text +
           known +
@@ -768,10 +773,15 @@ export default async function (req: Request): Promise<Response> {
     // the catalogue of every story, and of every name published with one, rides with the question too
     const tales = await storyCatalogueBlock(base44, STORY_ROOM);
 
+    // The admin's own engine of asks and replies: where the question is one of its asks, the replies
+    // saved for that ask ride with the note — one of which is the reply, given exactly as the engine
+    // writes it rather than a sentence written for the turn.
+    const engine = await engineTurn(base44, query);
+
     const body = like + qa.text + world.text + tally.section + say;
     let note =
-      body || key || rulesSection || head || known || tales
-        ? OPENING + head + GUIDE + key + rulesSection + body + known + tales + FALLBACK
+      body || key || rulesSection || head || known || tales || engine.note
+        ? OPENING + head + engine.note + GUIDE + key + rulesSection + body + known + tales + FALLBACK
         : "";
 
     // a question is answered from the admin's long texts too, through the few
