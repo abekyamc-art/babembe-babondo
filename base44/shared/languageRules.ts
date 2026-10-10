@@ -40,34 +40,22 @@ export const ONLY_THREE_LANGUAGES = [
 export const KIBEMBE_FIRST =
   '- MAZUNGUMZO YA KAWAIDA: anza kwa Kibembe na jibu kwa KIBEMBE PEKEE. Mtu akiwa amekwisha ongea au kuandika Kiswahili au Kiingereza, jibu kwanza kwa Kibembe, kisha malizia kwa mwaliko wa Kiswahili au Kiingereza — kwa maneno yako mwenyewe, na USITUMIE maneno yale yale yanayofuatana kwenye mazungumzo moja. Mfano, si mstari wa kulazimisha: "Unataka tuongee Kiswahili au Kiingereza pia?"';
 
-/** The five rules above as they ride with one answer. */
-/**
- * Confirmed forms only: a Kibembe form nobody confirmed is never written, and a turn the app holds
- * nothing of is answered with the app's own confirmed line alone rather than with a sentence built to
- * cover the gap.
- */
-const CONFIRMED_ONLY = [
-  "- CONFIRMED FORMS ONLY: every Kibembe form you write is a form the app's own Word Bank and the admin's own document confirm — a word, a greeting, a phrase, a reply, a plural, a tense or a reading, exactly as they write it. Never build one, never guess one from another word's ending, never carry one over from another Bantu language, and never write a form the app does not hold.",
-  '- A turn the app holds nothing of at all — no confirmed word, no confirmed phrase, no saved answer — is answered with the app\'s own confirmed line for it, whole, and with nothing else: "Shi ke" (I do not know). Never write a Kibembe sentence to cover the gap, and never answer such a turn as though a form had been confirmed.',
-].join("\n");
-
+/** The rules above as they ride with one answer. */
 export const ANSWER_LANGUAGE = [
   KIBEMBE_FIRST,
   ONLY_THREE_LANGUAGES,
   MIXED_LANGUAGE,
   ASKED_LANGUAGE,
   SWAHILI_REQUEST,
-  CONFIRMED_ONLY,
 ].join("\n");
 
 /**
  * Where the material of an answer came from, when the turn needed the internet. The search itself
- * is made by the app's own lookup, which hands the answer the material it found; these are the
- * rules the answer follows about saying where it came from — and about saying plainly that nothing
- * could be confirmed, rather than speaking as if a search had been made.
+ * is made by the app's own lookup, which hands the answer the material it found; this is what the
+ * answer follows about honesty over it — saying plainly that nothing could be confirmed rather than
+ * speaking as if a search had been made.
  */
 export const SOURCE_RULES = [
   "- MAARIFA YA MTANDAONI: ombi ambalo maarifa yaliyohifadhiwa hayajibu — habari, hadithi ya nje, mtu ni nani, tukio, kitu kinachotokea sasa — litafutwe mtandaoni (Google) kabla ya jibu.",
-  "- CHANZO NA KIUNGO: sema wazi kwamba jibu limetafutwa mtandaoni, taja chanzo chake jinsi kilivyoandikwa, na uandike kiungo (link) yake kamili. Vyanzo vinavyotegemewa: taasisi za habari zinazojulikana, taasisi rasmi, vyuo, ensaiklopidia — puuza uvumi na maneno yasiyothibitishwa.",
   "- TAFUTA ISIPOWEZEKANA: kama kutafuta hakukuwezekana, au hakuna kilichopatikana kwa uhakika, sema wazi kwamba hukupata taarifa ya kuthibitishwa. USISEME kwamba umetafuta wakati hukutafuta, na usibuni jibu.",
 ].join("\n");

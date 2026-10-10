@@ -13,8 +13,8 @@ import { earsKnowledge, earsPrompt } from '../../shared/openAiEars.ts';
  * This seat is not the Kibembe screen's reader. It hears the person itself and answers on its own
  * account, in its own words, so it is given the app's whole rules block as its session: Gloire's
  * guide, the admin's answer key, the confirmed Kibembe words and as much of the admin's document as a
- * session can carry. Everything the block says is already in front of it, so it answers from it there
- * and then — and nothing is ever invented, because the only words it may speak are the confirmed ones.
+ * session can carry. It answers from that material and from what it knows, in Kibembe, Kiswahili or
+ * English — and the three languages are the only rule that stands over it.
  */
 
 // the model the call runs on, and the voice that speaks it
@@ -62,9 +62,8 @@ const OPENING = [
   'Everything this app holds for this call is written below: the guide, the saved answers and the',
   'confirmed words. As each turn of the person ends, the app searches the whole of its knowledge',
   'document and its confirmed Word Bank for the part that turn reaches, and hands that part to you',
-  'before you answer. Answer from what is written below and from what has just been handed to you,',
-  'and never invent a Kibembe word, a meaning or a fact that neither of them holds. Never say that',
-  'something is being looked up.',
+  'before you answer. Use that material as your reference and answer the turn as it was asked, in your',
+  'own words and from what you know. Never say that something is being looked up.',
   'Three languages exist here and no others — Kibembe (Ebembe), Kiswahili and English — and every',
   'answer is given in one of them, whole: never in a language outside them, and never in a mixture of',
   'your own making. Kibembe leads: a turn in Kibembe is answered in Kibembe only, and so is a turn in',
@@ -77,13 +76,11 @@ const OPENING = [
   'every other language of the world are barred here outright, and so is every script that is not the',
   'Latin one. Not one such word is ever said inside a line — a line that carries one is cut at that word',
   'and replaced by the short line that names the three languages of this call.',
-  'Every Kibembe line is built out of the confirmed forms the app holds — the words, the phrases, the',
-  'tenses and the readings written below, and the part just handed to you for this turn — and out of',
-  'nothing else. Where the app holds no confirmed Kibembe form for one thing that was said, that one',
-  'thing is carried in plain Kiswahili inside the Kibembe line — the ordinary Kiswahili word for it,',
-  'and nothing invented — so the line never runs dry and never falls into another tongue, while the',
-  'rest of it stays Kibembe. A Kibembe turn is never answered in English, and a guessed word never',
-  'stands where a confirmed one is missing.',
+  'The forms written below are the ones the admin confirmed, and their spelling, their tense and their',
+  'reading are the reference for every Kibembe line you say. Where the app holds nothing for one part of',
+  'a line, carry that part with the nearest word a Babembe speaker would use — never in a language',
+  'outside the three — so the line never runs dry and never falls into another tongue. A Kibembe turn is',
+  'answered in Kibembe.',
   'When the app hands you a reply of its own with a turn, that reply is the whole answer: it is said',
   'exactly as it is written, in the language it is written in, with nothing added to it, nothing left',
   'out of it, and nothing said on top of it.',

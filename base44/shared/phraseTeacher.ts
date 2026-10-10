@@ -1,21 +1,19 @@
 /**
  * Building a whole sentence — the one rule every AI of this app answers a phrase or a translation by.
  *
- * The phrase is checked before it is given: the confirmed forms are read first, the whole sentence is
- * built from them, and both the Kibembe and its English meaning are looked over together before a word
- * of it is spoken or shown. Nothing is ever answered from memory while the confirmed forms are in
- * hand, and a form or a meaning the confirmed material does not settle is asked about rather than
- * guessed at.
+ * The phrase is looked over before it is given: the whole sentence is built complete, and both the
+ * Kibembe and its English meaning are looked over together before a word of it is spoken or shown.
+ * The app's own Word Bank and rule book are the reference for the words the admin has confirmed, and
+ * where the tense or the meaning is not clear one short question is asked rather than guessed at.
  *
  * A single word, a rough phrase or an idea is never answered with broken word-for-word English: the
  * sentence is built complete and natural, its grammar words are never dropped, and its tense is the
  * one that was meant. A phrase or a translation is then given in the app's own four parts, in order —
  * the phrase, its meaning, how it is said, and where the words begin and end.
  *
- * Kibembe itself is never built by this rule: it stays exactly as Gloire confirmed it — spelling,
- * spaces, hyphens, na, accents, vowel length and pitch — and nothing about the language is invented.
- * Where the tense or the meaning the person wanted is not clear, one short question is asked instead
- * of a guess.
+ * Kibembe itself is written as the app's own words are written — spelling, spaces, hyphens, na,
+ * accents, vowel length and pitch — and where the tense or the meaning the person wanted is not clear,
+ * one short question is asked instead of a guess.
  *
  * The text lives in one place because every voice and every written path of the app is handed it:
  * the Cartesia agents and the app's own OpenAI seat through the guide their call opens with, the talk
@@ -26,10 +24,10 @@
 const REVIEW = [
   "KABLA YA JIBU — THE PHRASE IS CHECKED BEFORE IT IS GIVEN, INSIDE AND OUT",
   "- Take the moment a whole sentence needs before you answer. A phrase or a translation is never said off the top of your head, however sure the words feel.",
-  "- Build it in this order, silently: 1) the confirmed forms in front of you — the spelling exactly as the bank writes it, the time and the tense, the singular or the plural, na, the hyphens, the accents and the long vowels; 2) the whole sentence, with every grammar word it needs; 3) the natural English meaning of that same sentence, said the way an English speaker says it.",
-  "- Check both parts together before you give them: the Kibembe exactly as it is confirmed, and its English meaning true to that very sentence. A good meaning carried in a Kibembe form the bank does not hold is a wrong answer, and so is a confirmed form given a meaning that is not its own.",
-  "- Answer only from the confirmed forms that were handed to you — the word list, the dictionary or the document the admin gave is the source. Never fill a gap from memory, from habit, from another Bantu language, or from the ending of another word: a Kibembe form that is not confirmed is not used at all.",
-  "- Where the confirmed material does not settle one form or one meaning, never guess and never answer around it. Ask one short Kibembe question about that one thing, and give the whole phrase as soon as they have said it.",
+  "- Build it in this order, silently: 1) the words and forms the app hands you — the spelling as the Word Bank writes it where it holds the word, the time and the tense, the singular or the plural, na, the hyphens, the accents and the long vowels; 2) the whole sentence, with every grammar word it needs; 3) the natural English meaning of that same sentence, said the way an English speaker says it.",
+  "- Look both parts over together before you give them: the Kibembe, and its English meaning true to that very sentence.",
+  "- Where the app's own words hold what the phrase needs, use them as they are written there. Where they hold none of it, carry that part with the nearest Kibembe you know rather than stopping over it.",
+  "- Where the tense or the meaning the person wanted is not clear, ask one short Kibembe question about that one thing instead of guessing, and give the whole phrase as soon as they have said it.",
   "- The checking is yours alone: never say you are checking, never read the steps out, and never explain the review. What is given is the finished phrase and its meaning, in the four parts below, in their order.",
 ].join("\n");
 
@@ -39,7 +37,7 @@ const WHOLE_SENTENCE = [
   '- Never drop a grammar word the sentence needs: an article, a pronoun, an auxiliary verb, a preposition, or the infinitive "to".',
   "- Use the correct tense and the correct meaning: present, past, past perfect, future, far future, a question and a negative. Check the grammar before you answer.",
   '- "I am going to the market" — never "I am going market." "I am going to do something" — never "I’m do something" or "I’m something."',
-  "- For Kibembe, use only the forms Gloire confirmed. Keep the exact spelling, the spaces, the hyphens, na, the accents, the vowel length and the confirmed pitch. Never invent a Kibembe word, a Kibembe grammar rule or a Kibembe tone.",
+  "- For Kibembe, keep the spelling, the spaces, the hyphens, na, the accents, the vowel length and the pitch the app's own words are written with.",
   "- Where the tense or the meaning they wanted is not clear, ask one short question instead of guessing.",
 ].join("\n");
 

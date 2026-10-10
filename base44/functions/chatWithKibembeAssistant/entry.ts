@@ -1,9 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { secrets } from 'base44:runtime';
 import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
-import { docPhraseRows, docWholeBlock, publishedDoc } from "../../shared/knowledgeDoc.ts";
-import { readTurn } from "../../shared/kibembeFirst.ts";
-import { notHeldLine } from "../../shared/notHeld.ts";
+import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { candidateList, lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { bestStory, storyNote } from "../../shared/storyMatch.ts";
@@ -14,10 +12,6 @@ import { engineReply, engineTurn } from "../../shared/phraseEngine.ts";
 import { turnPictures } from "../../shared/answerPictures.ts";
 import { isRepeatAsk } from "../../shared/repeatAsk.ts";
 import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
-
-// how many of the document's own phrases are read with its words: the greetings and the everyday lines
-// of a conversation, so a confirmed phrase typed whole is understood as the phrase it is
-const MAX_PHRASES = 600;
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
@@ -61,12 +55,11 @@ const DOC_ROOM = 30000;
 // written and used is decided by it, and every answer follows it.
 const RULES_HEAD =
   '\nSHERIA ZA LUGHA YA KIBEMBE — the admin\'s own rule book for reading, pronouncing, writing and ' +
-  'using Kibembe, saved in this app. It is the highest authority on the language: where one of ' +
-  'these rules and your own habit disagree, the rule wins. Never invent a word, a plural or a ' +
-  'tense it does not confirm.\n';
+  'using Kibembe, saved in this app. It is the reference for the language: where one of ' +
+  'these rules and your own habit disagree, the rule wins.\n';
 
-// The assistant's own standing orders: the Word Bank is read before every answer, and nothing
-// Kibembe is ever written that the Word Bank does not confirm.
+// The assistant's own standing orders: the Word Bank and the rule book are read before every answer,
+// and they are the reference the Kibembe of that answer is written from.
 const INSTRUCTIONS = [
   'You are GLOIRE SADIKI AI, the Kibembe (Ebembe) assistant of Village Voice.',
   'Before you answer, read the Kibembe Word Bank in the attached file search store: search it for',
@@ -78,14 +71,12 @@ const INSTRUCTIONS = [
   '  languages into one answer, and never translate unless you are asked to.',
   ANSWER_LANGUAGE,
   SOURCE_RULES,
-  '- Kibembe is written only from the Word Bank: use only words, meanings and grammar it confirms, and',
-  '  never invent, guess, translate or re-spell a Kibembe word, and never state a pronunciation the',
-  '  Word Bank does not carry. The words and the rules the admin has saved in this app are handed to',
-  '  you with every message: they are part of the Word Bank, the newest part of it, and a word written',
-  '  there is confirmed.',
-  '- Where neither the Word Bank nor the material handed over confirms it, say briefly, in the language',
-  '  the person used, that you do not have it — never guess, and never say nothing was found when',
-  '  material was handed to you.',
+  '- The words and the rules the admin has saved in this app are your reference for Kibembe: where a',
+  '  word stands there, write it as it is written. Where nothing there covers one part of what the',
+  '  answer needs, answer anyway, in the Kibembe a Babembe speaker really uses.',
+  '- Never tell the person that you do not have something. Answer from what was handed to you, and',
+  '  where the material does not settle a thing, say plainly that it could not be confirmed — and never',
+  '  say nothing was found when material was handed to you.',
   '- Keep the reply to one or two plain sentences.',
   '- Write plain text only: no headings, no lists and no markdown.',
 ].join('\n');
@@ -169,16 +160,11 @@ export default async function (req) {
     // named to the answer so it says plainly that it could not be read rather than answering as
     // though it had. Reading them with Promise.all was what made one failing piece — a story
     // catalogue, a document part — lose the whole Word Bank and leave the person with nothing.
-    // the Word Bank rows themselves, kept for this turn's own reading as well as for the block
-    let bankRef: any[] = [];
     const reads = await Promise.allSettled([
       rulesText(base44).then((rows) => trimToLines(rows, RULES_BUDGET)),
-      bankRows(base44).then((rows) => {
-        // the same rows are kept for this turn's own reading, so a word the admin confirmed is read
-        // when it is typed exactly as it is when it is said
-        bankRef = rows;
-        return wordListBlock(rows, message, translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET);
-      }),
+      bankRows(base44).then((rows) =>
+        wordListBlock(rows, message, translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET)
+      ),
       // the rest of the document — the admin's notes, their questions and answers, and anything they
       // filed under a heading of their own — rides with the turn too
       // the document is handed over as the parts this message needs: its rules whole, the parts the
@@ -208,12 +194,6 @@ export default async function (req) {
       // said is found in it, and the replies saved for that ask are handed over — one of which is the
       // reply, given exactly as the engine writes it rather than a sentence written for the turn.
       engineTurn(base44, message),
-      // The phrases the admin's own document confirms of more than one word: the greetings and the
-      // everyday lines of a conversation, which the word list leaves out because they are more than
-      // one word. A greeting typed whole is read as the confirmed phrase it is.
-      publishedDoc(base44)
-        .then((text) => docPhraseRows(text).slice(0, MAX_PHRASES))
-        .catch(() => []),
     ]);
     // What each read is, named for the stage it belongs to: the name is what a failure is reported by.
     const STAGE_NAMES = [
@@ -224,7 +204,6 @@ export default async function (req) {
       'the story catalogue',
       'the internet lookup',
       'the reply engine',
-      "the document's phrases",
     ];
     const missed: string[] = [];
     // A read that failed is written down by its stage and the turn carries on without it. The reason
@@ -250,7 +229,6 @@ export default async function (req) {
     const engine = engineTurn_.note || '';
     // the ask itself, kept so its own saved reply can be given whole rather than written for it
     const engineAsk = engineTurn_.ask || null;
-    const phrases = took(7, []);
 
     // Nothing of the saved knowledge could be read at all: the turn is stopped here and the stage is
     // named, rather than an answer being written from nothing and put before the person as the app's own.
@@ -275,14 +253,13 @@ export default async function (req) {
 
     // A turn that needed the internet is answered from what was found, and given the room to be
     // answered properly: the whole of what the search brought — who the person is, their songs, their
-    // history — with the source named and its link written out, and with what could not be confirmed
-    // said plainly. Only the one or two sentences rule is lifted here; every other rule stands.
+    // history — with what could not be confirmed said plainly. Only the one or two sentences rule is
+    // lifted here; every other rule stands.
     const FOUND =
       '- This turn was answered from a search of the internet, and what was found is handed to you ' +
       'above. Give the whole of what was found — who the person is, where they are from, their songs ' +
       'or their work by name, what is known about them — in three to six plain sentences rather than ' +
-      'one, name the source you took it from as it is written (YouTube, Facebook, a news site), write ' +
-      'its full address (link) as plain text, and say plainly where the sources do not settle a thing. ' +
+      'one, say where it came from, and say plainly where the sources do not settle a thing. ' +
       'Never say you do not know the person, and never say nothing was found, when the material above ' +
       'carries them.';
 
@@ -330,24 +307,9 @@ export default async function (req) {
       }
     }
 
-    // Whether the app's own confirmed knowledge holds anything of this turn at all: a word or phrase of
-    // the Word Bank standing in it, an ask of the engine's own, a story, or something the lookup truly
-    // reached. Nothing else is knowledge of this app.
-    const reading = readTurn(message, bankRef, [], [], phrases);
-    // A turn the app holds nothing of is never answered with a Kibembe sentence built to cover the gap:
-    // the app's own confirmed line for it is the whole reply, and nothing is written around it. This is
-    // only said when every part of the knowledge was really read: a read the store refused is not the
-    // app holding nothing, and it is never answered as a "I do not know". A turn that needed the
-    // internet is left to answer for itself — it says plainly what could not be reached rather than
-    // falling back to a Kibembe line that answers nothing.
-    if (!missed.length && !reading && !engine && !story && !lookup.found && !lookup.needed && !asking) {
-      return Response.json({
-        reply: notHeldLine([...bankRef, ...phrases]),
-        pictures: [],
-        source: null,
-        candidates: [],
-      });
-    }
+    // Every turn is answered, whether or not the app's own knowledge holds a word of it: the saved
+    // knowledge below is what the answer is written from, and a turn none of it reaches is answered
+    // from what the model knows, in one of the app's three languages.
 
     const input = [
       saved,

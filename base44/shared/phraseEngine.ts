@@ -54,7 +54,7 @@ export const ASK_REPLY_RULES = [
   "- A reply is never invented and never taken from another ask. The person is never told which reply was chosen, never shown the list of them, and never told that an engine or a list was read.",
   "- Where an ask holds more than one reply, any of them may be given, and the one given stands whole. When the same ask comes again in one call, another of its own replies is given rather than the same line twice — apart from a repeat ask, where that very line is given back as it stood.",
   "- Where the person asks in another language, the Kibembe reply is still the engine's own form, said exactly as it stands, and its own meaning is what the answer says in the language they used.",
-  "- Where an ask carries no reply of its own, answer naturally in Kibembe from the confirmed words, on the person's own subject. Only where nothing else is held for the turn may one of the engine's own general replies stand: Ee ee — Yes. / Sawa — Okay / alright. / Shi ke — I do not know. / Nalola — I am looking / checking. / Ka leka — Wait, let me check. / Oto ela — Please repeat.",
+  "- Where an ask carries no reply of its own, answer it naturally in Kibembe, in your own words, on the person's own subject.",
   "- Never say the rule out loud, never explain the engine, and never say that a reply was chosen from a list: the reply itself is the whole answer, and nothing is said on top of it.",
 ].join("\n");
 
@@ -314,9 +314,7 @@ export function engineNote(said: any, ask: EngineAsk): string {
       "HOW TO REPLY TO THIS TURN\n" +
       `One turn was just said: "${turn}"\n` +
       which +
-      "The engine saves no reply of its own for it: answer naturally in Kibembe, from the confirmed words, on the person's own subject. Only where nothing else is held for the turn may one of the engine's own general replies stand, exactly as it is written: " +
-      ENGINE_GENERAL_REPLIES.join(" / ") +
-      "\n"
+      "The engine saves no reply of its own for it: answer it naturally in Kibembe, in your own words, on the person's own subject.\n"
     );
   }
 

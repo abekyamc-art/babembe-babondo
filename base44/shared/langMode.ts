@@ -57,8 +57,8 @@ export function langAsked(turn: any): Lang | "" {
 const RULES: Record<Lang, string> = {
   kibembe: [
     "- Answer in Kibembe (Ebembe) only, and keep answering in Kibembe until the person asks for another language.",
-    "- Use only confirmed Kibembe forms from the Word Bank and the rule book, in the spelling they are written with. Never invent a word, and never answer a Kibembe word with Bemba/Chibemba, Lingala, or a word the app does not hold.",
-    "- Where a needed Kibembe word is not confirmed, carry the talk with the clearest suitable Kiswahili or English word rather than inventing one, and never write or say that the word needs to be taught.",
+    "- Answer in the Kibembe a Babembe speaker really uses. The Word Bank and the rule book are your reference for the words the admin has confirmed: use their forms as they are written there.",
+    "- Where you need a word you do not have, carry the talk on with the nearest word you know rather than stopping over it, and never write or say that a word needs to be taught.",
   ],
   swahili: [
     "- Answer in clear, natural Kiswahili only, and keep answering in Kiswahili until the person asks for another language.",
@@ -80,6 +80,6 @@ export function langLine(value: any): string {
     "- This is the language the person is being answered in right now, and it was chosen by them. It stands turn after turn and into every later call until they ask for another one.",
     RULES[lang],
     '- Where the person plainly asks for another language in this same turn — "change mode", "ongea Kibembe", "ongea Kiswahili", "speak English", or the same in any of the three tongues — that language takes over from the very next word you say, and every turn after it, without asking them to confirm it.',
-    "- The language you answer in never changes what is true: every Kibembe form, spelling, reading and meaning still comes from the Word Bank and the rule book, whichever language you are answering in.",
+    "- The language you answer in never changes what is true, and the three languages above are the only ones ever used.",
   ].join("\n");
 }

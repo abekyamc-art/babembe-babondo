@@ -2,7 +2,6 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { MAX_MEANING, MAX_TERM, MAX_USAGE, clean } from "../../shared/knowledgeWords.ts";
 import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.ts";
 import { docPhraseRows, docWholeBlock, publishedDoc } from "../../shared/knowledgeDoc.ts";
-import { askAgainLine, notHeldLine } from "../../shared/notHeld.ts";
 import { retrieveKnowledge } from "../../shared/knowledgeRetrieval.ts";
 import { pronunciationBlock, recordedEvidence } from "../../shared/pronunciation.ts";
 import { engineAsksOf, engineReply } from "../../shared/phraseEngine.ts";
@@ -80,10 +79,9 @@ const READ_FAILED = "That turn could not be read just now.";
  * the hearing service of every later call is pointed at as well, so the Kibembe the person confirms
  * is understood the first time it is said next.
  *
- * A turn the app's own knowledge holds nothing of is handed over as exactly that: the reading says so
- * plainly, and no answer is written for it at all. The voice answering such a turn is not asked to
- * answer it on its own account, because that is where a reply in a language nobody here speaks comes
- * from — that turn is left unanswered rather than answered from a guess.
+ * A turn the app's own knowledge holds nothing of is handed over as exactly that: no reading and no
+ * held reply ride with it, and the voice answers the turn itself, in its own words — inside the three
+ * languages, which is the one rule this call keeps.
  *
  * A turn the person puts right on the screen — their own words in place of what the ears wrote — is
  * read the same way, but it is not saved by being read: the app answers with what it would keep, and
@@ -340,9 +338,9 @@ export default async function (req: Request): Promise<Response> {
         // the line the ask is asking for is the app's own, and it goes back whole: the voice is told to
         // say that very line again and nothing else, so it is never re-worded, never shortened and
         // never turned into a lesson. Where the app holds no line at all to give back — the first turn
-        // of a call — nothing is written to fill the place: the admin's own confirmed line asking for
-        // the turn again is what is said.
-        say: clean(lastAgent, MAX_SAY) || askAgainLine(),
+        // of a call — nothing is forced on the voice: the ask is left to it, and it answers in its own
+        // words.
+        say: clean(lastAgent, MAX_SAY),
         // the app holds that very line itself, so this turn is answered from its own hand and never by
         // the voice on its own account
         verified: true,
@@ -436,18 +434,10 @@ export default async function (req: Request): Promise<Response> {
       say = "";
     } else {
       say = replyFor(reading, lastAgent, lang);
-      // Nothing confirmed is held for this turn at all — no word, no phrase, no saved ask and no part
-      // of the admin's document the search truly reached. What is said is the app's own confirmed line
-      // and nothing else: never a Kibembe sentence built to cover the gap, which is where a form nobody
-      // confirmed gets spoken as though it were taught. A turn that is not speech at all is left alone:
-      // it is shown to the person, and the only thing that can put it right is them.
-      //
-      // The line stands only where the app's own knowledge was really read: a read the store refused
-      // leaves no knowledge in hand, and that is never the same thing as the app holding nothing — it
-      // is never answered as a "I do not know", and the turn is left to the voice as it always was.
-      if (!say && !verified && sure && (words.length || phrases.length)) {
-        say = notHeldLine([...words, ...phrases]);
-      }
+      // Where the app's own knowledge holds a reply for this turn, that reply is what is said. Where it
+      // holds none, nothing is forced on the voice: the turn is left to it, and it answers in its own
+      // words. A turn that is not speech at all is left alone as well: it is shown to the person, and
+      // the only thing that can put it right is them.
     }
     // A reply the app holds itself that carries another language is thrown away rather than said: the app
     // speaks three languages, and a saved line in a fourth is a red flag even when it is saved. What is
@@ -474,14 +464,16 @@ export default async function (req: Request): Promise<Response> {
     }
 
     return Response.json({
-      // Nothing of the app's own rode with this turn, so nothing is handed over in its place: the
-      // reading block is left empty rather than filled with words the app does not hold.
-      note: verified ? `${note}${languageLine}${known}` : "",
-      // The one line the app holds for this turn, or the app's own confirmed line for a turn it holds
-      // nothing of — "Shi ke" (I do not know) — so what the person hears is a confirmed Kibembe line
-      // rather than a sentence written to cover a gap.
+      // Where the app's own knowledge reached this turn, its reading rides with it. Where it reached
+      // nothing, no reading is invented — and the language in force still rides with the turn, because
+      // the three languages are the one rule every answer of this call follows.
+      note: verified ? `${note}${languageLine}${known}` : languageLine,
+      // The one reply the app holds for this turn, where it holds one: the voice says exactly that and
+      // nothing else. Where the app holds nothing, the field is left empty and the voice answers the
+      // turn itself, in its own words.
       say,
-      // the app's own word on whether it holds anything of this turn: it is what the answer is gated on
+      // the app's own word on whether it holds anything of this turn: the screen reads it, and an
+      // answer is never held back for it
       verified,
       // whether this turn, or the reply held for it, was in a language this app does not speak: a blocked
       // turn is answered with the app's own line alone, and nothing is generated for it
