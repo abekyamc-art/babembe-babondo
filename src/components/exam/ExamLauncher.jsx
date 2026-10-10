@@ -3,13 +3,13 @@ import { BookmarkCheck } from "lucide-react";
 import "@/exam-launcher.css";
 
 /**
- * Every examination of the app gathered behind one professional seal, standing on the home screen.
+ * The whole examination series met in one place on the home screen: one professional seal, stepping
+ * through its own pure colours while it keeps still, and the one way into the levels — 1, 2, 3 and on.
  *
- * The seal keeps still and steps through its own pure colours, so the eye is caught without the
- * screen moving; the two examinations stand beside it as their own choices. It only opens what the
- * screen already opened — nothing of the examinations themselves is touched here.
+ * It only opens the series. Nothing of the examination itself is touched here, and the screen it stands
+ * on is left as it was.
  */
-export default function ExamLauncher({ onExam, onLifeExam }) {
+export default function ExamLauncher({ onOpen }) {
   return (
     <div className="exam-launcher">
       <span className="exam-seal" aria-hidden="true">
@@ -20,18 +20,10 @@ export default function ExamLauncher({ onExam, onLifeExam }) {
         <button
           type="button"
           className="exam-choice"
-          onClick={onExam}
-          aria-label="Open the GLOIRE AI Kibembe medical examination"
+          onClick={onOpen}
+          aria-label="Open the GLOIRE AI Kibembe examination levels"
         >
-          Exam
-        </button>
-        <button
-          type="button"
-          className="exam-choice"
-          onClick={onLifeExam}
-          aria-label="Open the GLOIRE AI Kibembe daily life examination"
-        >
-          Daily life exam
+          Exam levels
         </button>
       </div>
     </div>

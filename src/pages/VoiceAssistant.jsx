@@ -36,8 +36,7 @@ import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 import StorySheet from "@/components/story/StorySheet";
 import StoryRail from "@/components/story/StoryRail";
 import ExamLauncher from "@/components/exam/ExamLauncher";
-import ExamSheet from "@/components/exam/ExamSheet";
-import LifeExamSheet from "@/components/exam/LifeExamSheet";
+import SeriesShell from "@/components/exam/SeriesShell";
 
 // the outside voice the call hands over to on its own carries its own mark; the older talk AIs
 // carry the app's own, so who is answering is seen at a glance and not only read in the line
@@ -80,10 +79,8 @@ export default function VoiceAssistant() {
   const [gate, setGate] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
-  // the GLOIRE AI examination stands over the call screen, which it never touches
-  const [examOpen, setExamOpen] = useState(false);
-  // and the daily-life examination stands beside it, over the same screen and apart from its answers
-  const [lifeExamOpen, setLifeExamOpen] = useState(false);
+  // the whole examination series stands over the call screen, which it never touches
+  const [levelsOpen, setLevelsOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState(null);
   // the story picked out of the middle strip, shown in the same sheet the assistant's own stories use
@@ -370,9 +367,7 @@ export default function VoiceAssistant() {
             {/* every examination is met in one place, gathered behind one seal that keeps to the
                  left under the badges, before anything is asked of the call itself */}
             <div className="flex w-full justify-start">
-              <ExamLauncher
-                onExam={() => setExamOpen(true)}
-                onLifeExam={() => setLifeExamOpen(true)} />
+              <ExamLauncher onOpen={() => setLevelsOpen(true)} />
             </div>
           </div>
           <button
@@ -473,9 +468,7 @@ export default function VoiceAssistant() {
         <ChatInput onSend={handleSend} onCall={handleCall} inCall={micActive} />
       </footer>
 
-      <ExamSheet open={examOpen} onClose={() => setExamOpen(false)} />
-
-      <LifeExamSheet open={lifeExamOpen} onClose={() => setLifeExamOpen(false)} />
+      <SeriesShell open={levelsOpen} onClose={() => setLevelsOpen(false)} />
 
       <GateDialog
         open={gate !== null}

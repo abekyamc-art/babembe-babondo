@@ -256,3 +256,40 @@ export function buildExam() {
 
   return shuffled([...translated, ...structures, ...confirmedQuestions()]);
 }
+
+/**
+ * A smaller paper drawn from named confirmed terms — the same questions the full examination asks, in the
+ * direction each pair is named with, and with the same confirmed wrong choices. It is how a level of the
+ * united series takes its health part from one system at a time without ever leaving the confirmed list.
+ */
+export function buildMedicalPaper(pairs) {
+  return shuffled(
+    (pairs || [])
+      .map(([label, direction]) => {
+        const entry = entryOf(label);
+        if (!entry) return null;
+        return translationQuestion(entry, direction === "kb_to_en" ? "kb_to_en" : "en_to_kb");
+      })
+      .filter(Boolean)
+  );
+}
+
+/** The terms that were confirmed with a rule of their own, as one level's health part. */
+export function buildRulePaper() {
+  return shuffled(confirmedQuestions());
+}
+
+/**
+ * A health paper drawn from the whole confirmed list at once, for the level that gathers the series. A word
+ * that stands for two structures is asked only toward Kibembe, so no question ever carries two answers.
+ */
+export function buildMedicalMix(count) {
+  return buildMedicalPaper(
+    shuffled(VOCAB)
+      .slice(0, count)
+      .map((entry, at) => [
+        entry.en,
+        entry.kb === "Mabolo" ? "en_to_kb" : at % 2 === 0 ? "en_to_kb" : "kb_to_en",
+      ])
+  );
+}

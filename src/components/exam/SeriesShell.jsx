@@ -5,7 +5,7 @@ import ExamProgress from "./ExamProgress";
 import ExamQuestionCard from "./ExamQuestionCard";
 import ExamResults from "./ExamResults";
 import { reportOf, scoreOf } from "@/lib/examSession";
-import { LIFE_LEVELS, levelByNo } from "@/lib/lifeExamLevels";
+import { EXAM_LEVELS, levelByNo } from "@/lib/examSeries";
 import {
   attemptsOf,
   levelOpen,
@@ -14,30 +14,33 @@ import {
   recordFinish,
   saveAttempt,
   startLevel,
-} from "@/lib/lifeExamSession";
+} from "@/lib/examProgress";
+import "@/exam.css";
 
 const HEAD = {
   title: "GLOIRE AI",
-  subtitle: "Kibembe Daily Life Examination",
+  subtitle: `Kibembe Examination · Levels 1–${EXAM_LEVELS.length}`,
   system: "Kibembe Learning & Examination System",
   credit: "Created by Gloire Sadiki Asende.",
   closeLabel: "Close the examination",
 };
 
 /**
- * The daily-life examination, level by level: the paper of levels, the level being taken, and the report
- * of a finished one. Passing a level writes the pass down and opens the next; failing it writes only the
- * attempt down, and the same level waits to be taken again — as often as the student likes, with no day's
- * limit.
+ * The one examination of the app, taken level by level: the paper of numbered levels, the level being
+ * taken, and the report of a finished one.
+ *
+ * Every level mixes everyday Kibembe with the confirmed health terms. Passing a level at 80% writes the
+ * pass down and opens the next; failing it writes only the attempt down, and the same level waits to be
+ * taken again — as often as the student likes, with no day's limit.
  */
-export default function LifeExamShell({ open, onClose }) {
+export default function SeriesShell({ open, onClose }) {
   const [progress, setProgress] = useState({ passed: {}, taken: {} });
   const [attempt, setAttempt] = useState(null);
   const [resume, setResume] = useState(null);
   // the finish of one attempt is written down once, never twice however the screen redraws
   const written = useRef("");
 
-  // Each time the examination is opened: what is passed on this phone, and the level left half-answered.
+  // Each time the series is opened: what is passed on this phone, and the level left half-answered.
   useEffect(() => {
     if (!open) return;
     setProgress(loadProgress());
@@ -68,7 +71,7 @@ export default function LifeExamShell({ open, onClose }) {
 
   const level = attempt ? levelByNo(attempt.level) : null;
   const nextNo =
-    attempt && report?.passed && attempt.level < LIFE_LEVELS.length ? attempt.level + 1 : null;
+    attempt && report?.passed && attempt.level < EXAM_LEVELS.length ? attempt.level + 1 : null;
   const canNext = nextNo && levelOpen(progress, nextNo);
 
   const openLevel = (no) => {
@@ -106,7 +109,7 @@ export default function LifeExamShell({ open, onClose }) {
       className="exam-shell"
       role="dialog"
       aria-modal="true"
-      aria-label="GLOIRE AI Kibembe daily life examination"
+      aria-label="GLOIRE AI Kibembe examination levels"
     >
       <div className="exam-scroll">
         <div className="exam-inner">
@@ -114,7 +117,7 @@ export default function LifeExamShell({ open, onClose }) {
 
           {!attempt ? (
             <ExamLevels
-              levels={LIFE_LEVELS}
+              levels={EXAM_LEVELS}
               progress={progress}
               resume={resume}
               onOpen={openLevel}

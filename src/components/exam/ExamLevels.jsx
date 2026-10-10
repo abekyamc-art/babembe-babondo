@@ -1,6 +1,6 @@
 import React from "react";
 import { Lock } from "lucide-react";
-import { attemptsOf, bestOf, levelOpen, levelsPassed } from "@/lib/lifeExamSession";
+import { attemptsOf, bestOf, levelOpen, levelsPassed } from "@/lib/examProgress";
 
 /**
  * The levels of the daily-life examination: which is open, which has been passed, and which waits behind
@@ -13,8 +13,9 @@ export default function ExamLevels({ levels, progress, resume, onOpen, onResume 
   return (
     <div className="exam-levels">
       <p className="exam-levels-note">
-        Pass a level at 80% and the next one opens. Any level may be taken again as often as you like —
-        no day has a limit. {done} of {levels.length} passed.
+        Every level mixes everyday Kibembe with the confirmed body and health terms. Pass a level at 80%
+        and the next one opens. Any level may be taken again as often as you like — no day has a limit.{" "}
+        {done} of {levels.length} passed.
       </p>
 
       {resume ? (
@@ -28,7 +29,7 @@ export default function ExamLevels({ levels, progress, resume, onOpen, onResume 
         const passed = !!progress?.passed?.[String(level.no)];
         const tries = attemptsOf(progress, level.no);
         const best = bestOf(progress, level.no);
-        const size = level.mix || level.ids.length;
+        const size = level.size || level.mix || level.ids?.length || 0;
 
         return (
           <button

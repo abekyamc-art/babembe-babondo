@@ -1,15 +1,15 @@
-import { buildLevelExam, levelByNo, levelSize } from "./lifeExamLevels";
+import { buildLevelPaper, levelByNo, levelSize } from "./examSeries";
 
 /**
- * The daily-life examination as it goes on: which level is open, which has been passed, and how many
- * times each one has been taken.
+ * The examination series as it goes on: which level is open, which has been passed, and how many times
+ * each one has been taken.
  *
- * Everything stands on the phone itself and nothing else — the pass that opens the next level, the
- * level left half-answered, and the count of attempts. There is no daily limit anywhere in it: a
- * student may sit as many papers in a day as they wish, and taking a level again never costs anything.
+ * Everything stands on the phone itself and nothing else — the pass that opens the next level, the level
+ * left half-answered, and the count of attempts. There is no daily limit anywhere in it: a student may sit
+ * as many papers in a day as they wish, and taking a level again never costs anything.
  */
-const PROGRESS_KEY = "gloire-kibembe-life-levels-v1";
-const ATTEMPT_KEY = "gloire-kibembe-life-level-attempt-v1";
+const PROGRESS_KEY = "gloire-kibembe-exam-series-v1";
+const ATTEMPT_KEY = "gloire-kibembe-exam-series-attempt-v1";
 
 function read(key, fallback) {
   try {
@@ -79,13 +79,13 @@ export function clearAttempt() {
   }
 }
 
-/** Begin a level: its own questions, freshly ordered, with the correct answer standing elsewhere. */
+/** Begin a level: its everyday and its health questions, freshly ordered and shuffled together. */
 export function startLevel(no) {
   return saveAttempt({
     id: `${no}:${Date.now()}`,
     level: no,
     at: 0,
-    questions: buildLevelExam(no),
+    questions: buildLevelPaper(no),
     marks: {},
     started_at: new Date().toISOString(),
   });
