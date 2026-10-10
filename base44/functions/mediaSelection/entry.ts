@@ -14,18 +14,49 @@ import { artistVideosFor, asksArtist } from '../../shared/artistVideos.ts';
  * Two titles that answer the request equally well are never chosen between here: both are handed
  * back, so the question is put to the person once and the answer they give settles it. Nothing is
  * ever invented — no channel ownership, no title, no address, no view count.
+ *
+ * The turn is also read for what the app's own player should do with what is standing in it: a piece
+ * to be played, or the player to be paused, started again, moved on, or taken out. Only what the app
+ * itself does is reported back, and a piece is never said to be playing here: the player itself
+ * reports that, on the phone, once the sound has really begun.
  */
 
 // how long a request may be read, and the words that carry no title at all
 const MAX_REQUEST = 200;
-const STOP = new Set([
+const STOP_WORDS = new Set([
   'play', 'playing', 'put', 'listen', 'nyimbo', 'wimbo', 'muziki', 'song', 'songs', 'music',
   'video', 'videos', 'kanda', 'album', 'singles', 'single', 'weka', 'piga', 'sikiliza', 'pandisha',
   'tafadhali', 'please', 'the', 'and', 'for', 'with', 'from', 'yake', 'yangu', 'wake', 'this', 'that',
+  // the words a person wraps a request in, which name no piece at all
+  'just', 'let', 'let me', 'me', 'my', 'we', 'you', 'can', 'could', 'would', 'want', 'like', 'give',
+  'some', 'now', 'then', 'again', 'its', 'his', 'her', 'our', 'their', 'about', 'only', 'one',
 ]);
+
+// what the turn asks of the app's own player, most particular first: a person who says "just listen"
+// is asking for the piece to play on without more talk, and one who says "play it again" is not
+// asking for a new piece.
+const LISTEN_ASK =
+  /\b(just listen|listen only|only listen|niache|nisikilize|sikiliza tu|no more talk|stop talking|keep (it )?playing|acha kuzungumza|ndiye|basi niache)\b/i;
+const PAUSE_ASK = /\b(pause|pausa|simama|nyamaza|acha kwanza|hold (it|on)|stand by)\b/i;
+const RESUME_ASK = /\b(resume|continue|endelea|endeleza|carry on|play (again|it)|rudia|tena)\b/i;
+const NEXT_ASK = /\b(next|ingine|nyingine|another|fuata|nifuatie|following)\b/i;
+const STOP_ASK = /\b(stop|acha|funga|zima|kata|basi|enough|put it away)\b/i;
+const PLAY_ASK =
+  /\b(play|piga|weka|imba|nyimbo|wimbo|muziki|song|music|videos?|kanda|album|sikiliza|listen)\b/i;
 
 function clean(value: any, max: number): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
+}
+
+/** What the turn asks of the app's own player, or nothing at all. */
+function intentOf(said: string): string {
+  if (LISTEN_ASK.test(said)) return 'listen';
+  if (PAUSE_ASK.test(said)) return 'pause';
+  if (RESUME_ASK.test(said)) return 'resume';
+  if (NEXT_ASK.test(said)) return 'next';
+  if (STOP_ASK.test(said)) return 'stop';
+  if (PLAY_ASK.test(said)) return 'play';
+  return 'none';
 }
 
 /** The words of a title as they are compared: no case, no accents, no decorations, no short words. */
@@ -47,6 +78,11 @@ function fit(asked: string[], name: string): number {
   return asked.filter((word) => words.includes(word)).length / asked.length;
 }
 
+/** An answer with nothing chosen: the intent stands, and no list is handed back. */
+function plain(intent: string, reason = ''): any {
+  return { ok: true, intent, chosen: null, candidates: [], others: [], channel: '', reason };
+}
+
 export default async function (req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -56,7 +92,14 @@ export default async function (req: Request): Promise<Response> {
     const body = await req.json().catch(() => ({}));
     const request = clean(body?.request, MAX_REQUEST);
     if (!request) {
-      return Response.json({ ok: false, reason: 'Nothing was said for the app to choose media from.' });
+      return Response.json({ ok: false, intent: 'none', reason: 'Nothing was said for the app to choose media from.' });
+    }
+
+    const intent = intentOf(request);
+    // Pausing, starting again, moving on and taking the piece out are done on what already stands in
+    // the player, so nothing is looked up for them and no title is read out of such a turn.
+    if (intent !== 'play' && intent !== 'listen') {
+      return Response.json(plain(intent));
     }
 
     // A play request is a request about music, so it is looked up as one — the artist's own story in
@@ -69,15 +112,19 @@ export default async function (req: Request): Promise<Response> {
     if (!videos.length && !channel) {
       return Response.json({
         ok: true,
+        intent,
         chosen: null,
         candidates: [],
+        others: [],
         channel: '',
-        reason: found?.reason || 'No artist or channel of the app\u2019s own answers that request, so nothing was chosen.',
+        reason:
+          found?.reason ||
+          'No artist or channel of the app\u2019s own answers that request, so nothing was chosen.',
       });
     }
 
     // the words that may be the title being asked for
-    const asked = titleWords(request).filter((word) => !STOP.has(word));
+    const asked = titleWords(request).filter((word) => !STOP_WORDS.has(word));
     const scored = videos
       .map((one: any) => ({ name: String(one?.name || ''), url: String(one?.url || ''), score: fit(asked, one?.name) }))
       .filter((one: any) => one.url)
@@ -86,10 +133,13 @@ export default async function (req: Request): Promise<Response> {
     if (!scored.length) {
       return Response.json({
         ok: true,
+        intent,
         chosen: null,
         candidates: [],
+        others: [],
         channel,
-        reason: 'The artist\u2019s own list stands behind a channel, but no piece of it could be read, so nothing was chosen.',
+        reason:
+          'The artist\u2019s own list stands behind a channel, but no piece of it could be read, so nothing was chosen.',
       });
     }
 
@@ -100,10 +150,13 @@ export default async function (req: Request): Promise<Response> {
     if (best.score > 0 && tie.length > 1 && best.score < 1) {
       return Response.json({
         ok: true,
+        intent,
         chosen: null,
         candidates: tie.slice(0, 3).map((one: any) => ({ name: one.name, url: one.url })),
+        others: [],
         channel,
-        reason: 'More than one of the artist\u2019s own pieces answers that title equally well, so the app chose none of them.',
+        reason:
+          'More than one of the artist\u2019s own pieces answers that title equally well, so the app chose none of them.',
       });
     }
 
@@ -111,10 +164,13 @@ export default async function (req: Request): Promise<Response> {
     if (best.score <= 0) {
       return Response.json({
         ok: true,
+        intent,
         chosen: null,
         candidates: scored.slice(0, 5).map((one: any) => ({ name: one.name, url: one.url })),
+        others: [],
         channel,
-        reason: 'That title is not among the artist\u2019s own pieces as the app holds them, so nothing was chosen.',
+        reason:
+          'That title is not among the artist\u2019s own pieces as the app holds them, so nothing was chosen.',
       });
     }
 
@@ -126,13 +182,15 @@ export default async function (req: Request): Promise<Response> {
 
     return Response.json({
       ok: true,
+      intent,
       chosen: { name: best.name, url: best.url, views: Number(chosen?.views) || 0 },
+      candidates: [],
       others,
       channel,
       reason: '',
     });
   } catch (error: any) {
     console.error('The media could not be chosen:', error?.message);
-    return Response.json({ ok: false, reason: 'The media could not be chosen just now.' }, { status: 500 });
+    return Response.json({ ok: false, intent: 'none', reason: 'The media could not be chosen just now.' }, { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import useTalkVoice from "@/hooks/useTalkVoice";
 import useCartesiaVoice from "@/hooks/useCartesiaVoice";
+import useHomeMedia from "@/hooks/useHomeMedia";
 import { HOME_SEATS, nextPlan } from "@/lib/homeRotation";
 import { checkVoiceSeats } from "@/lib/voiceHealth";
 import { keepHeard, proposeHeard } from "@/lib/homeHearing";
@@ -175,14 +176,36 @@ export default function useHomeVoice() {
     });
   }, []);
 
-  const talk = useTalkVoice({ onTurn, onPictures: patchPictures, onDropTurn: dropHeldTurn });
+  // The app's own player on this call. Every voice that reads a turn of the person's reports it here,
+  // so what a turn asks of the player — a piece to stand in it, or the player paused, started again,
+  // moved on or taken out — is answered by the app itself, whatever voice is on the line.
+  const talkRef = useRef(null);
+  const stopRef = useRef(null);
+  const mediaRef = useRef(null);
+  const onMedia = useCallback((said) => mediaRef.current?.read(said) || null, []);
+  // Only a talk AI can be told anything mid-call: Cartesia's own settings are left exactly as they
+  // are, so there the app's line about its own player stands on the screen instead.
+  const onTell = useCallback(
+    (note) => (seatRef.current.kind === "cartesia" ? false : !!talkRef.current?.tell?.(note)),
+    []
+  );
+
+  const talk = useTalkVoice({ onTurn, onPictures: patchPictures, onDropTurn: dropHeldTurn, onMedia });
   const cartesia = useCartesiaVoice({
     onTurn,
     onPictures: patchPictures,
     onAnswered,
     onAnswerEnd: dueHandoff,
     onEnded: () => endedRef.current?.(),
+    onMedia,
   });
+  talkRef.current = talk;
+
+  // A piece the app chose stands in the app's own player, and the call goes quiet only where the
+  // person asked to listen on — and only once the player itself reports the sound has begun. Taking
+  // the voice away never touches the player.
+  const media = useHomeMedia({ onTell, onEndVoice: () => stopRef.current?.() });
+  mediaRef.current = media;
 
   /**
    * The voice one seat stands for opens the call, and says plainly whether it did — and, where the
@@ -474,6 +497,9 @@ export default function useHomeVoice() {
     setNotice("");
     await closeSeat(seatRef.current);
   }, [clearChange, closeSeat]);
+  // the app's own player reaches the call's end through here, so a person who asked to listen on has
+  // the voice taken away while the piece plays on
+  stopRef.current = stop;
 
   /**
    * A written question is always charged, but it never counts against a voice's turn: what moves the
@@ -628,6 +654,8 @@ export default function useHomeVoice() {
     ask,
     // the person's own words put in place of the app's writing of their turn
     correctTurn,
+    // the app's own player on this call: the piece the app chose, and what a turn asks of it
+    media,
     // a turn the voice holding the call is not sure it heard: either voice asks the person the same
     // way, and their own answer is what settles whether it stands
     heardAsk: live.check,

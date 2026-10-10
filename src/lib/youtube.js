@@ -38,7 +38,9 @@ export function youtubeVideo(url, origin = "") {
     // keep their place on a phone, and the page it stands in. No autoplay and no mute is ever asked
     // for, because a player told to start by itself is the one browsers silence — the person presses
     // the play sign inside the player instead, and it speaks from there with its own volume.
-    const asked = [`controls=1`, `playsinline=1`, `rel=0`];
+    // `enablejsapi=1` only lets the app talk to the player it already put there — it asks for no
+    // autoplay and no mute, so the person still presses the play sign inside the player.
+    const asked = [`controls=1`, `playsinline=1`, `rel=0`, `enablejsapi=1`];
     if (origin) asked.push(`origin=${encodeURIComponent(origin)}`);
 
     return {

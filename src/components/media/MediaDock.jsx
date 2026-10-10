@@ -9,20 +9,38 @@ import YouTubePlayer from "@/components/story/YouTubePlayer";
  * press, because a player made to start on its own is the very one browsers silence; pressed, it
  * plays here with its sound. Only once the player is truly in place does the line under the title say
  * so, and the artist's other pieces stand behind this one for the next one.
+ *
+ * The line under the title is the app's own: `note` is what the app has really done with its player —
+ * that the piece stands there, which piece is meant when two titles are alike, or that the voice has
+ * gone quiet. A call may pass the player in through `playerRef`, so the piece standing in it can be
+ * paused, started again or taken out by what the person asked for; `onPlaying` is said only when the
+ * player itself reports that the sound has really begun.
  */
-export default function MediaDock({ item, others = 0, playing, onStart, onNext, onClose }) {
+export default function MediaDock({
+  item,
+  others = 0,
+  note = "",
+  playing,
+  onStart,
+  onPlaying,
+  onNext,
+  onClose,
+  playerRef,
+}) {
   if (!item) return null;
+
+  const line =
+    note ||
+    (playing
+      ? "Nimekuweka — it stands in the player here."
+      : "Press play — it plays right here, with its sound.");
 
   return (
     <section aria-label="Media player" className="border-t border-border px-4 py-3">
       <div className="mb-2 flex items-start gap-3">
         <div className="min-w-0 flex-1">
           <p className="truncate font-body text-sm font-semibold text-foreground">{item.name}</p>
-          <p className="truncate font-body text-[11px] leading-snug text-muted-foreground">
-            {playing
-              ? "Nimekuweka — it stands in the player here."
-              : "Press play — it plays right here, with its sound."}
-          </p>
+          <p className="truncate font-body text-[11px] leading-snug text-muted-foreground">{line}</p>
         </div>
 
         <button
@@ -45,7 +63,13 @@ export default function MediaDock({ item, others = 0, playing, onStart, onNext, 
         </button>
       </div>
 
-      <YouTubePlayer url={item.url} title={item.name} onPlaybackStart={onStart} />
+      <YouTubePlayer
+        ref={playerRef}
+        url={item.url}
+        title={item.name}
+        onPlaybackStart={onStart}
+        onPlaying={onPlaying}
+      />
     </section>
   );
 }

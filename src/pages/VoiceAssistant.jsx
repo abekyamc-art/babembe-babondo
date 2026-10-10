@@ -20,6 +20,7 @@ import { MESSAGE_COST, balanceOf, spendCoins } from "@/lib/coins";
 import OrbVisualizer from "@/components/voice/OrbVisualizer";
 import ChatInput from "@/components/voice/ChatInput";
 import ConversationStrip from "@/components/voice/ConversationStrip";
+import MediaDock from "@/components/media/MediaDock";
 import SaveAsk from "@/components/voice/SaveAsk";
 import HeardAsk from "@/components/voice/HeardAsk";
 import ThinkingLine from "@/components/voice/ThinkingLine";
@@ -61,7 +62,8 @@ export default function VoiceAssistant() {
     againHeard,
     saveAsk,
     keepSave,
-    leaveSave
+    leaveSave,
+    media
   } = useHomeVoice();
   const navigate = useNavigate();
 
@@ -424,6 +426,24 @@ export default function VoiceAssistant() {
           }
         </div>
       </main>
+
+      {/* the app's own player, standing over the talk: what the person asked for plays here, in the
+           artist's own piece, and the app's own line says only what it has really done */}
+      {media.item ? (
+        <div className="absolute inset-x-4 bottom-[5.5rem] z-30 mx-auto max-w-md overflow-hidden rounded-2xl border border-border bg-card/95 shadow-lg backdrop-blur">
+          <MediaDock
+            item={media.item}
+            others={media.others}
+            note={media.note}
+            playing={media.inPlace}
+            playerRef={media.playerRef}
+            onStart={media.onStart}
+            onPlaying={media.onPlaying}
+            onNext={media.onNext}
+            onClose={media.onClose}
+          />
+        </div>
+      ) : null}
 
       <footer className="relative z-10 px-5 pb-6 pt-2">
         {/* the same progress as the conversation, over the box, with its room kept so

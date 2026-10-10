@@ -36,7 +36,7 @@ const SIGN_IN_TO_ASK = "Sign in and I'll answer you in writing — the call stil
 // A turn the app's own knowledge holds nothing of is answered as it stands: ordinary talk is not a
 // mishearing, and asking for a knowledge match before answering is what left ordinary talk unanswered.
 
-export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
+export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia } = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
   const [error, setError] = useState("");
@@ -78,6 +78,10 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
   // stand in the talk as though it were theirs
   const dropTurnRef = useRef(onDropTurn);
   dropTurnRef.current = onDropTurn;
+  // What a turn asks of the app's own player, reported through here the moment the turn is read, so a
+  // piece the app has chosen is standing in its own player before the voice is told anything of it.
+  const mediaRef = useRef(onMedia);
+  mediaRef.current = onMedia;
   // the pictures of an answer are handed over through here the moment they are found
   const picturesRef = useRef(onPictures);
   picturesRef.current = onPictures;
@@ -256,14 +260,19 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
       // running them in turn is what left an ordinary turn standing on the screen, still working,
       // for seconds before the voice ever heard a word of it. Neither lookup is dropped or cut
       // short — they simply no longer wait on each other, so the turn reaches the voice sooner.
-      const [read, fresh] = await Promise.all([
+      const [read, fresh, media] = await Promise.all([
         readHeardTurn(said, lastAgentRef.current),
         loadFreshMaterial(said, askedRef.current),
+        // what the turn asks of the app's own player, if anything at all
+        mediaRef.current ? mediaRef.current(said) : null,
       ]);
       if (!socket.connected || socketRef.current !== socket) return;
       // a language plainly asked for stands from here on, and the rule for it rides in with the reading
       if (read.mode) saveLangMode(read.mode);
       if (read.note) socket.sendMemory(read.note);
+      // What the app has just done with its own player rides in before the words, so the answer stands
+      // on what really happened: a piece is said to be standing in the player, never to be playing.
+      if (media?.spoken) socket.sendMemory(media.spoken);
       await handOn(socket, said, language, "", fresh);
     },
     [handOn, push]
@@ -301,6 +310,18 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
    * a writing, and the sound of the turn itself is never touched — and the words they put right are
    * read against the app's own Word Bank exactly as any other turn of theirs is.
    */
+  /**
+   * The app's own word about its own player, handed to the voice on the line. Only what the app has
+   * really done is ever said here — the player itself reports when the sound has begun.
+   */
+  const tell = useCallback((note) => {
+    const socket = socketRef.current;
+    const said = String(note || "").trim();
+    if (!socket?.connected || !said) return false;
+    socket.sendMemory(said);
+    return true;
+  }, []);
+
   const correct = useCallback((text) => {
     const said = String(text || "").trim();
     const socket = socketRef.current;
@@ -605,6 +626,8 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn } = {}) {
     start,
     stop,
     ask,
+    // the app's own word about its own player, where this voice can be told anything at all
+    tell,
     // the person's own words put in place of the ears' writing of their turn
     correct,
     check,

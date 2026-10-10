@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { forwardRef, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { ExternalLink, Play, X } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { youtubeVideo } from "@/lib/youtube";
@@ -22,11 +22,72 @@ import { hostOf } from "@/lib/stories";
  *
  * The link underneath is the only way out: it is opened only when it is deliberately tapped, and
  * what took the person away from the talk hands the talk back.
+ *
+ * The player also answers the app itself, because a call may ask for the piece in it to be paused,
+ * started again or taken out: `pause`, `play` and `stop` are handed to the player through the ref,
+ * and only the player's own report of what it is doing — never a guess — is what the app tells a
+ * voice, so nothing is ever said to be playing before the sound has really begun.
  */
-export default function YouTubePlayer({ url, title = "", onPlaybackEnd, onPlaybackStart }) {
+const YouTubePlayer = forwardRef(function YouTubePlayer(
+  { url, title = "", onPlaybackEnd, onPlaybackStart, onPlaying },
+  ref
+) {
   // the player is told which page it is standing in, so YouTube can recognise the address it is on
   const video = youtubeVideo(url, typeof window === "undefined" ? "" : window.location.origin);
   const [playing, setPlaying] = useState(false);
+  const frameRef = useRef(null);
+  const playingRef = useRef(onPlaying);
+  playingRef.current = onPlaying;
+
+  /** One of YouTube's own commands, handed to the frame it belongs to. */
+  const command = (func) => {
+    const frame = frameRef.current;
+    if (!frame?.contentWindow) return false;
+    frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: [] }), "*");
+    return true;
+  };
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      // the player is standing: nothing can be paused or started before it is
+      standing: () => !!frameRef.current,
+      pause: () => command("pauseVideo"),
+      play: () => command("playVideo"),
+      // taking it out is the only honest stop: the frame goes, the cover stays
+      stop: () => setPlaying(false),
+    }),
+    []
+  );
+
+  /**
+   * What the player itself says it is doing. YouTube reports it to the page the player stands in, and
+   * that report — a played video, or a paused one — is the only thing the app takes as true.
+   */
+  useEffect(() => {
+    if (!playing) return undefined;
+    const onMessage = (event) => {
+      const from = String(event?.origin || "").replace(/^https?:\/\//, "");
+      if (!/(^|\.)youtube(-nocookie)?\.com$/.test(from)) return;
+      let data = event.data;
+      if (typeof data === "string") {
+        try {
+          data = JSON.parse(data);
+        } catch (err) {
+          return;
+        }
+      }
+      const state =
+        typeof data?.info === "number" && data?.event === "onStateChange"
+          ? data.info
+          : typeof data?.info?.playerState === "number"
+            ? data.info.playerState
+            : null;
+      if (state === 1) playingRef.current?.();
+    };
+    window.addEventListener("message", onMessage);
+    return () => window.removeEventListener("message", onMessage);
+  }, [playing]);
 
   if (!video) return null;
 
@@ -47,12 +108,18 @@ export default function YouTubePlayer({ url, title = "", onPlaybackEnd, onPlayba
       {playing ? (
         <div className="w-full overflow-hidden rounded-2xl border border-border bg-black">
           <iframe
+            ref={frameRef}
             src={video.embed}
             title={title || "YouTube video"}
             allow="autoplay; encrypted-media; picture-in-picture; web-share"
             allowFullScreen
             // the player is told where it is standing, so a page that asks for a known address is given one
             referrerPolicy="strict-origin-when-cross-origin"
+            // the frame is told the page is listening, which is how it starts reporting what it does
+            onLoad={() => {
+              const frame = frameRef.current;
+              frame?.contentWindow?.postMessage(JSON.stringify({ event: "listening" }), "*");
+            }}
             className="aspect-video w-full"
           />
         </div>
@@ -61,7 +128,7 @@ export default function YouTubePlayer({ url, title = "", onPlaybackEnd, onPlayba
           type="button"
           onClick={() => {
             setPlaying(true);
-            // the player is in place now, and that is the only thing the app claims
+            // the player is in place now, and that is the only thing the app claims here
             onPlaybackStart?.();
           }}
           aria-label="Show the YouTube video here"
@@ -112,4 +179,6 @@ export default function YouTubePlayer({ url, title = "", onPlaybackEnd, onPlayba
       ) : null}
     </div>
   );
-}
+});
+
+export default YouTubePlayer;

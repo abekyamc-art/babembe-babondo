@@ -34,6 +34,7 @@ export default function useCartesiaVoice({
   onAnswered,
   onAnswerEnd,
   onEnded,
+  onMedia,
 } = {}) {
   const [active, setActive] = useState(false);
   const [status, setStatus] = useState("idle");
@@ -56,6 +57,10 @@ export default function useCartesiaVoice({
   // the turn and the answer are always reported through the handlers as they stand right now
   const turnRef = useRef(onTurn);
   turnRef.current = onTurn;
+  // What a turn asks of the app's own player. Cartesia's settings are its own and nothing is handed
+  // to it, so the app's own player is what answers here — and what it did stands on the screen.
+  const mediaRef = useRef(onMedia);
+  mediaRef.current = onMedia;
   const answeredRef = useRef(onAnswered);
   answeredRef.current = onAnswered;
   // the end of an answer is reported the same way, so a call can move on the moment it is read out
@@ -137,6 +142,8 @@ export default function useCartesiaVoice({
     lastUserRef.current = said;
     takenTurnRef.current = said;
     turnRef.current?.("user", said);
+    // the app's own player answers a turn that asks for media, whichever voice is on the call
+    mediaRef.current?.(said);
     readHeardTurn(said, lastAgentRef.current).then(({ mode }) => {
       if (mode) saveLangMode(mode);
     });
