@@ -23,10 +23,9 @@ const MODEL = 'gpt-4.1-mini';
 const MAX_MESSAGE = 2000;
 // the app's own last answer, sent back with a turn where the screen holding it has one
 const MAX_LAST = 1200;
-// a repeat ask with nothing yet said: the app asks quietly for the turn again rather than inventing a
-// line nobody gave, and no answer is written for the ask at all
-const REPEAT_NONE = "Sema tena, nakusikiliza.";
-const MAX_REPLY_TOKENS = 900;
+// the room one answer is given: wide enough for a whole answer with its source named, so nothing of
+// what the assistant writes is cut off on its way to the person
+const MAX_REPLY_TOKENS = 1600;
 
 // How much of the app's own saved knowledge rides with one turn: the rule book the admin keeps in
 // force, and the words they have saved. The file search store is searched as before — this is the
@@ -77,7 +76,7 @@ const INSTRUCTIONS = [
   '- Never tell the person that you do not have something. Answer from what was handed to you, and',
   '  where the material does not settle a thing, say plainly that it could not be confirmed — and never',
   '  say nothing was found when material was handed to you.',
-  '- Keep the reply to one or two plain sentences.',
+  '- Answer as fully as the question needs, in your own words.',
   '- Write plain text only: no headings, no lists and no markdown.',
 ].join('\n');
 
@@ -88,8 +87,6 @@ const NO_STORE = 'The assistant is not connected yet — an admin needs to add t
 // Each failure names the stage it belongs to, so what went wrong is said plainly instead of being
 // answered around: where nothing could be read, nothing is answered from it.
 const NO_REPLY = 'The answer could not be written just now — please try again.';
-const KNOWLEDGE_DOWN =
-  'The saved knowledge could not be read just now — please try again in a moment.';
 
 /** The reply text out of a Responses API answer, however the model handed it back. */
 function replyText(data) {
@@ -129,12 +126,12 @@ export default async function (req) {
     // re-worded, shortened, translated or turned into a lesson. Where no line is held, nothing is
     // invented: the turn is answered as any other, with the ask laid out in front of the answer.
     const repeating = isRepeatAsk(message);
-    if (repeating) {
-      // The line the app holds, where it holds one. Where it holds none — the very first turn of a
-      // conversation — nothing is invented to fill the place: the app's own quiet line asks for the
-      // turn again. Either way no answer is written for the ask, so nothing of it can be re-worded,
-      // translated or turned into a lesson.
-      return Response.json({ reply: lastAgent || REPEAT_NONE, repeated: true });
+    // The line the app holds is given back word for word, exactly as it stands, so nothing of it can be
+    // re-worded, shortened, translated or turned into a lesson. Where the app holds no line of its own —
+    // the very first turn of a conversation — no fixed line is invented to fill the place: the ask is
+    // answered like any other, in the assistant's own words.
+    if (repeating && lastAgent) {
+      return Response.json({ reply: lastAgent, repeated: true });
     }
 
     // The key and the Word Bank live only in Secrets, and are read here on the server: neither is
@@ -230,12 +227,12 @@ export default async function (req) {
     // the ask itself, kept so its own saved reply can be given whole rather than written for it
     const engineAsk = engineTurn_.ask || null;
 
-    // Nothing of the saved knowledge could be read at all: the turn is stopped here and the stage is
-    // named, rather than an answer being written from nothing and put before the person as the app's own.
     const CORE = ['the rule book', 'the Word Bank', 'the knowledge document'];
     if (CORE.every((one) => missed.includes(one))) {
+      // Nothing of the saved knowledge could be read at all for this turn: it is answered all the same,
+      // in the assistant's own words, rather than being turned away from. The reason stays in the app's
+      // own logs, named by the stage it belongs to.
       console.error('The saved knowledge could not be read for this turn:', missed.join(', '));
-      return Response.json({ error: KNOWLEDGE_DOWN, stage: 'knowledge' });
     }
 
     const saved = rules || words || doc ? `${RULES_HEAD}${rules}${words}${doc}` : '';

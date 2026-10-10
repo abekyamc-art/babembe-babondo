@@ -11,16 +11,6 @@
 export const LANGUAGE_FALLBACK =
   "Lugha tatu pekee hapa: Kibembe, Kiswahili na Kiingereza. Only Kibembe, Kiswahili or English here.";
 
-/**
- * The app's own line for a turn its confirmed knowledge holds nothing of: "Shi ke — I do not know.",
- * as the admin's own document writes it. A turn nobody confirmed is never covered by a sentence built
- * to fill the gap — the app's confirmed line is the whole reply, and the voice writes nothing for it.
- *
- * The same line stands in base44/shared/notHeld.ts, which is what the app's own answers read it from.
- * The two are kept in step by hand.
- */
-export const NOT_HELD = "Shi ke";
-
 /** What the screen says beside it. */
 export const LANGS_NOTICE = "Only Kibembe, Kiswahili or English here.";
 

@@ -5,24 +5,19 @@ import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import { isMisheard, isRealTurn, SAY_AGAIN_TURN } from "@/lib/misheardSpeech";
 import RealtimeCall, { stageLabel } from "@/lib/realtimeCall";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
-import { reviewAnswer } from "@/lib/sadikiReview";
-import { SADIKI_AI } from "@/lib/providerNames";
 
 /**
  * The Kibembe assistance screen's own assistant: the app's Kibembe assistant, answered from the
  * saved Word Bank on the server. A spoken turn goes out over a real Realtime connection and the words
  * the service writes down are put to `chatWithKibembeAssistant` — the same assistant the written
- * chat asks — and the answer that comes back is read by Sadiki AI before anything is shown or said.
- * A written turn is put to the same assistant, read in the same way, and answered on screen.
+ * chat asks — and the answer that comes back is the answer that is given, exactly as the assistant
+ * wrote it. A written turn is put to the same assistant and answered on screen the same way.
  */
 
 const COULD_NOT_ASK = "The assistant could not be reached. Please try again.";
 const NO_VOICE = "The answer came back, but the voice could not read it out.";
 const TOUCH_TO_HEAR = "Tap the screen to let the sound through.";
 const ENDED = "The call ended. Tap the phone to begin again.";
-// Sadiki AI reads every answer before it is given: where he could not be asked at all, that is said
-// plainly and the answer the assistant wrote stands as it is
-const REVIEW_MISSED = `${SADIKI_AI} couldn't read that answer just now — it comes to you as the assistant wrote it.`;
 // A spoken turn the ears wrote down in a script this app's people never speak — Ebembe come back as
 // Chinese or Japanese words — is never answered here: it is refused, and the person is asked to say
 // it again, so no answer is ever written from words nobody said.
@@ -120,19 +115,15 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
         // this answer for the person to choose between, and ride back in with the turn that chooses
         const choices = Array.isArray(data.candidates) ? data.candidates : [];
         askedRef.current = choices.length >= 2 ? choices : [];
-        // A line the person asked to hear again — "Omo tenda bile?" — is their own last answer coming
-        // straight back: it is not put to the reviewer at all, since a second reading is the very thing
-        // that would re-word it. Every other answer is read before it is given, as it always was.
-        const reviewed = data.repeated ? draft : await reviewAnswer(line, draft);
-        const reply = reviewed || draft;
-        if (!reviewed && !data.repeated) setNotice(REVIEW_MISSED);
-        pushTurn("assistant", reply, pictures, data.source || null, choices);
+        // The answer the assistant wrote is the answer that is given: nothing reads it over first, so
+        // nothing of it is re-worded, shortened or held back on its way to the screen.
+        pushTurn("assistant", draft, pictures, data.source || null, choices);
         // the answer has been given, so it is counted against the allowance
         answeredRef.current?.();
         const call = callRef.current;
         if (!call) return;
         setStatus("speaking");
-        const spoken = await call.speak(reply);
+        const spoken = await call.speak(draft);
         if (!spoken) setNotice(NO_VOICE);
         // the answer has been read out in full: one voice turn, done
         else noteVoiceTurn();

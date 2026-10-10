@@ -1,5 +1,5 @@
 import { primedAudio } from "@/lib/audioUnlock";
-import { LANGUAGE_FALLBACK, NOT_HELD, redFlag, spokenFlag } from "@/lib/languageGate";
+import { LANGUAGE_FALLBACK, redFlag, spokenFlag } from "@/lib/languageGate";
 
 /**
  * The call AI 1 answers on: a WebRTC link straight from this browser to OpenAI's Realtime service.
@@ -23,9 +23,8 @@ const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 // how long the session and the sound are given to come up
 const CONNECT_MS = 20000;
 // How long the turn that has just ended is held while the app searches its own knowledge for it. The
-// answer is begun the moment the knowledge is handed in; where it never arrives, that turn is left
-// unanswered — the app says so plainly and the call listens again, and the seat is never asked to
-// speak for itself, which is where an answer in a language nobody here speaks comes from.
+// answer is begun the moment the knowledge is handed in; where it never arrives inside that bound the
+// seat is asked for a plain answer of its own, so a person who spoke is never left in silence.
 const ANSWER_WAIT_MS = 6000;
 
 /** A failure named by the stage it happened at, so the screen says what really went wrong. */
@@ -397,8 +396,8 @@ export default class OpenAiTalkCall {
   /**
    * The turn has just ended, and the app is searching its own knowledge for what that turn reaches.
    * The seat is held here until the knowledge is handed in. The wait is bounded, and the bound is
-   * where the turn settles: a turn whose knowledge never arrives is left unanswered rather than
-   * handed to the seat to answer on its own.
+   * where the turn settles: a turn whose knowledge never arrives is handed to the seat, which answers
+   * it from the person's own words rather than leaving them with nothing.
    */
   armAnswer(text) {
     this.pendingText = String(text || "");
@@ -428,20 +427,10 @@ export default class OpenAiTalkCall {
     if (text !== null && String(text) !== pending) return;
     const wrote = String(note || "").trim();
     const line = String(say || "").trim();
-    // The app holds nothing confirmed for this turn: what is said is the app's own confirmed line,
-    // whole, and the seat writes nothing for it. Letting an answer run on its own account here is where
-    // a Kibembe form nobody confirmed reaches the person's ears.
-    if (!wrote && !line) {
-      this.pendingText = "";
-      clearTimeout(this.gateTimer);
-      this.gateTimer = null;
-      this.speakLine(NOT_HELD);
-      return;
-    }
     // The turn is answered in every case: whatever the app knows of it rides in front of the seat, and
     // where the app knows nothing of it the seat answers from the person's own words under the rules of
-    // the call. Asking for no answer at all is what left a person who spoke with nothing back, and
-    // silence is never the right answer to a turn somebody said.
+    // the call. No fixed line is ever said in the place of an answer, and silence is never the right
+    // answer to a turn somebody said.
     this.pendingText = "";
     clearTimeout(this.gateTimer);
     this.gateTimer = null;
@@ -467,10 +456,10 @@ export default class OpenAiTalkCall {
   }
 
   /**
-   * The app's own reading of the turn never arrived — the bound on that wait is up, so the app holds
-   * nothing confirmed for this turn and its own line is what is said. The answer is never let run on
-   * the seat's own account here: that is where a Kibembe form nobody confirmed is spoken as though it
-   * were taught, and silence is never an answer either.
+   * The app's own reading of the turn never arrived — the bound on that wait is up — so the seat is
+   * asked for its answer with nothing put in front of it. The turn is answered rather than answered
+   * around: neither silence nor a fixed line in the place of an answer is ever what a person who spoke
+   * is left with.
    */
   askPlain(text = null) {
     const pending = this.pendingText;
@@ -482,7 +471,7 @@ export default class OpenAiTalkCall {
     this.forced = "";
     this.appLine = false;
     this.answerText = "";
-    this.speakLine(NOT_HELD);
+    this.send({ type: "response.create" });
   }
 
   /**

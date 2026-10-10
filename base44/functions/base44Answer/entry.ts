@@ -39,9 +39,10 @@ const SPEECH_VOICE = "honey";
 const SPEECH_LANG: Record<string, string> = { ebembe: "ms", swahili: "ms", english: "en" };
 // the model the Admin's Base44 AI mode answers on, pinned so every answer is written by it
 const ANSWER_MODEL = "gpt_6_sol";
-const MAX_ANSWER = 900;
-// about half a minute of speech: the voice line is closed at the last sentence that fits here
-const MAX_SPOKEN = 320;
+// the room one answer is given, and the room the voice line is read in: wide enough for a whole answer
+// with its source named, so nothing the assistant writes is cut off on its way to the person
+const MAX_ANSWER = 1800;
+const MAX_SPOKEN = 900;
 // the answer key rides ahead of the word list, so the saved answer is read before anything else
 const KEY_ROWS = 200;
 const KEY_BUDGET = 1200;
@@ -88,9 +89,9 @@ const HOW = [
   "ebembe: the answer itself in Kibembe (Ebembe), the words a Babembe speaker really uses, written exactly as the rule book's reading key spells them, every letter sounded the Ebembe way rather than the English letter-name, with no hyphens between syllables.",
   "guide: how that same Kibembe sounds to an American ear, syllable by syllable joined with dashes.",
   "swahili: the same thing in everyday Kiswahili. english: the same thing in plain English. Every part says the same thing, and the one in the person's own language is the answer they are waiting for.",
-  "say: only the part in the language the person just used, written exactly as that part is written on screen, apart from a letter the voice would otherwise read wrongly (ch for the c sound, and so on) — and on Kibembe, never an English sound-spelling such as ay, ee or oh. Plain running words with spaces between them: no brackets, no dashes, no hyphens, no pronunciation notes, no language names, and never the listening line. One or two short sentences.",
+  "say: only the part in the language the person just used, written exactly as that part is written on screen, apart from a letter the voice would otherwise read wrongly (ch for the c sound, and so on) — and on Kibembe, never an English sound-spelling such as ay, ee or oh. Plain running words with spaces between them: no brackets, no dashes, no hyphens, no pronunciation notes, no language names, and never the listening line.",
   "When the admin's saved questions hold one that matches what they said, the saved answer for it is what they must hear: your answer opens with that answer word for word, and the rest of the answer stays inside what it says — never wander into other knowledge, and never add what they were not asked.",
-  "Keep the whole answer short: this is talk, not an essay, and only about thirty seconds of it is ever spoken — two or three short sentences in every part, and never more than three sentences of Kibembe. A story or a long telling is given in parts of that length, and the next part follows only when they ask for more.",
+  "Answer as fully as the question needs, in your own words: every part says the whole of what is being answered, and no part is left standing half-written. A story or a long telling is told in full rather than cut short, and where it runs long it is still given whole.",
   "The saved words are the reference for the Kibembe you write: where a word stands in the knowledge, write it as it is saved there, and where nothing there covers one part of what you need, carry that part with the nearest word a Babembe speaker would use.",
   "Copy a saved word letter for letter where you use it, a b, h or w inside it included: a word that looks like a Kiswahili one is still written the way the list spells it (mabwe, never mawe).",
   "The rule book below decides how Kibembe is read, pronounced, written and used. Where one of its rules and your own habit disagree, the rule wins, and where it and a word on the list disagree, the list wins.",
@@ -374,14 +375,11 @@ export default async function (req: Request): Promise<Response> {
 
     // The person has asked for their own last answer again — "Omo tenda bile?". His own last line is
     // read off the talk so far and given back: the same Kibembe words, word for word, in every part of
-    // this answer, with nothing added to it and nothing left out of it. Where no line of his own
-    // stands — the very first turn of a call — nothing is invented to fill the place: the app's own
-    // quiet line asks for the turn again, exactly as it does for a turn nothing could be made of.
+    // this answer, with nothing added to it and nothing left out of it. Where no line of his own stands
+    // — the very first turn of a call — no fixed line is invented to fill the place: the ask is answered
+    // like any other, in his own words.
     const repeating = isRepeatAsk(asked);
     const own = repeating ? lastOwnLine(history) : "";
-    if (repeating && !own) {
-      return Response.json({ answer: REASK, say: REASK });
-    }
     const repeat = repeating
       ? `The person has just asked you to say that again — "Omo tenda bile?" means "What did you say?". Your own last line was, word for word: "${own}". That line is what they are given back: the Kibembe part is that line word for word, unchanged, and every other part says exactly what it says, with nothing added to it and nothing left out of it. Never write a new sentence, never explain what you said, and never answer it in other words. The rule that a line already given is never given again does not stand here: this is that same line being asked for.`
       : "";
