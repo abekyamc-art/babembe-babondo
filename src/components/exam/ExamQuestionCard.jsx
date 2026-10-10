@@ -40,7 +40,7 @@ export default function ExamQuestionCard({
       <h2 className="exam-prompt">{question.prompt}</h2>
       <p className="exam-hint">{question.hint}</p>
 
-      <ExamFigure view={question.view} spot={question.spot} />
+      <ExamFigure view={question.view} spot={question.spot} image={question.image} />
 
       <div className="exam-options">
         {question.options.map((text, choice) => (

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Languages, Loader2, Phone, PhoneOff, Radio, Sparkles } from "lucide-react";
+import { Languages, Loader2, Phone, PhoneOff, Radio, Sparkles, Users } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import useHomeVoice from "@/hooks/useHomeVoice";
 import useStoryTurn from "@/hooks/useStoryTurn";
@@ -37,6 +37,7 @@ import StorySheet from "@/components/story/StorySheet";
 import StoryRail from "@/components/story/StoryRail";
 import ExamPill from "@/components/exam/ExamPill";
 import ExamSheet from "@/components/exam/ExamSheet";
+import LifeExamSheet from "@/components/exam/LifeExamSheet";
 
 // the outside voice the call hands over to on its own carries its own mark; the older talk AIs
 // carry the app's own, so who is answering is seen at a glance and not only read in the line
@@ -81,6 +82,8 @@ export default function VoiceAssistant() {
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
   // the GLOIRE AI examination stands over the call screen, which it never touches
   const [examOpen, setExamOpen] = useState(false);
+  // and the daily-life examination stands beside it, over the same screen and apart from its answers
+  const [lifeExamOpen, setLifeExamOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState(null);
   // the story picked out of the middle strip, shown in the same sheet the assistant's own stories use
@@ -363,6 +366,11 @@ export default function VoiceAssistant() {
             <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
             <LangPill />
             <ExamPill onClick={() => setExamOpen(true)} />
+            <ExamPill
+              onClick={() => setLifeExamOpen(true)}
+              label="Daily life exam"
+              ariaLabel="Open the GLOIRE AI Kibembe daily life examination"
+              icon={Users} />
           </div>
           <button
             type="button"
@@ -463,6 +471,8 @@ export default function VoiceAssistant() {
       </footer>
 
       <ExamSheet open={examOpen} onClose={() => setExamOpen(false)} />
+
+      <LifeExamSheet open={lifeExamOpen} onClose={() => setLifeExamOpen(false)} />
 
       <GateDialog
         open={gate !== null}
