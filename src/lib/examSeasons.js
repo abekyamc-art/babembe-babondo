@@ -1,7 +1,14 @@
 import { LIFE_ROWS } from "./lifeExamWords";
 import { buildMedicalMix } from "./examBank";
 import { buildExtraMix } from "./examExtras";
-import { lifeQuestionOf, shuffled } from "./examSeries";
+import { lifeQuestionOf, runOf, shuffled } from "./examSeries";
+
+/**
+ * The everyday words in one order for the whole season, shuffled once and then kept: every episode's
+ * questions are cut from it where the episode before it left off, so no two episodes beside each other
+ * ask the same word — a word only comes back once the whole list has been round.
+ */
+const LIFE_ORDER = shuffled(LIFE_ROWS);
 
 /**
  * The examination's seasons and the hundred episodes of each one.
@@ -95,24 +102,43 @@ function partsOf(season, episode) {
   return { life: Math.ceil(size / 2), extras: 0, medical: Math.floor(size / 2) };
 }
 
-/** One episode's everyday questions, drawn from the confirmed daily-life words. */
-function lifeQuestions(count) {
+/**
+ * Where a part's run begins in its own list: every question the episodes before this one asked of it,
+ * added up over the season. The everyday run steps on by the whole length of the paper — its mixed
+ * questions and its health questions included — so the runs of the episodes beside each other never cross.
+ */
+const RUN = {
+  life: (part) => part.life + part.extras + part.medical,
+  medical: (part) => part.medical,
+};
+
+function runStart(season, episode, name) {
+  let start = 0;
+  for (let no = 1; no < episode; no += 1) start += RUN[name](partsOf(season, no));
+  return start;
+}
+
+/** One episode's everyday questions: an unbroken run of the season's own order of the confirmed words. */
+function lifeQuestions(season, episode, count) {
   if (count <= 0) return [];
-  return shuffled(LIFE_ROWS).slice(0, count).map(lifeQuestionOf);
+  return runOf(LIFE_ORDER, runStart(season, episode, "life"), count).map(lifeQuestionOf);
 }
 
 /**
- * One episode's paper: its everyday questions and its health questions, freshly ordered and shuffled
- * together, so neither part is ever met in the same place twice. A paper is drawn anew each time an
- * episode is taken, so an episode may be sat again and again without ever meeting the same sheet.
+ * One episode's paper: the everyday questions of that episode alone, taken from the season's own orders so
+ * the papers beside each other never ask the same word — wherever in the season the episode falls — then
+ * its mixed questions and its health questions, freshly ordered and shuffled together, so no part of the
+ * language is ever met in the same place twice. The words an episode asks are its own: a paper sat again
+ * asks those same words in a new order, and never the words of the episodes around it.
  */
 export function buildEpisodePaper(seasonNo, episode) {
   const season = seasonByNo(seasonNo);
   if (!season) return [];
   const { life, extras, medical } = partsOf(season, episode);
+  const everyday = lifeQuestions(season, episode, life);
   return shuffled([
-    ...lifeQuestions(life),
-    ...buildExtraMix(extras),
-    ...buildMedicalMix(medical),
+    ...everyday,
+    ...buildExtraMix(extras, episode, everyday.map((question) => question.key)),
+    ...buildMedicalMix(medical, runStart(season, episode, "medical")),
   ]);
 }

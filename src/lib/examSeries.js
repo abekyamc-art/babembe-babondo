@@ -19,6 +19,20 @@ export function shuffled(list) {
   return out;
 }
 
+/**
+ * A run of `count` items taken from an order, beginning at `start` and carrying on from the top when it
+ * reaches the end. It is how one episode's own words are cut from a season's order — beginning where the
+ * episode before it left off, so the words of the papers beside each other never cross.
+ */
+export function runOf(order, start, count) {
+  if (!order || !order.length || !count || count <= 0) return [];
+  const from = ((start % order.length) + order.length) % order.length;
+  return Array.from(
+    { length: Math.min(count, order.length) },
+    (_, step) => order[(from + step) % order.length]
+  );
+}
+
 /** One daily-life question, with the correct answer standing wherever the shuffle has put it. */
 export function lifeQuestionOf(row) {
   const askKibembe = row.direction === "en_to_kb";

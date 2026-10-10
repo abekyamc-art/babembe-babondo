@@ -87,12 +87,24 @@ const PROVERBS = [
   { kb: "Wa chimbya mchwe aema ibekwa.", en: "One who shakes the head refuses to be shaved" },
 ];
 
-/** The three pools, so one mixed paper draws from all of them. */
-const ALL = [
-  ...NUMBERS.map((row) => ({ kind: "number", row })),
-  ...PHRASES.map((row) => ({ kind: "phrase", row })),
-  ...PROVERBS.map((row) => ({ kind: "proverb", row })),
-];
+/** The three kinds a mixed question is taken from. */
+const KINDS = ["number", "phrase", "proverb"];
+
+/**
+ * Each kind's own list, shuffled once and then kept: an episode's mixed questions are cut from it one
+ * form further on with every turn, so the episodes beside one another never ask the same form.
+ */
+const ORDER = {
+  number: shuffled(NUMBERS),
+  phrase: shuffled(PHRASES),
+  proverb: shuffled(PROVERBS),
+};
+
+/**
+ * The form of a confirmed entry, compared apart from a trailing full stop or question mark. The two
+ * lists write a few of the same phrases a little differently, and one paper must not ask it twice.
+ */
+const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "");
 
 // the label the card carries over the question
 const FOCUS = { number: "Number", phrase: "Phrase", proverb: "Proverb" };
@@ -134,11 +146,6 @@ function others(row, pool, pick) {
     if (out.length === 2) break;
   }
   return out;
-}
-
-/** Which of the two languages this question is put in. */
-function askLanguage() {
-  return Math.random() < 0.5 ? "sw" : "en";
 }
 
 /** One question, with the correct answer standing wherever the shuffle has put it. */
@@ -224,11 +231,16 @@ function proverbQuestion(row, lang) {
   });
 }
 
-/** One mixed question: a number, a greeting or a proverb, put in English or in Kiswahili. */
-function extraQuestion(entry) {
-  const lang = askLanguage();
+/**
+ * One mixed question: a number, a greeting or a proverb, put in English or in Kiswahili. Which of the two
+ * languages it is put in, and which way round a number is asked, follow the place the question stands in,
+ * so an episode's own mixed questions are always its own.
+ */
+function extraQuestion(entry, episode, slot) {
+  const odd = (episode + slot) % 2 === 1;
+  const lang = odd ? "en" : "sw";
   if (entry.kind === "number") {
-    return Math.random() < 0.5 ? numberToKibembe(entry.row, lang) : numberToDigit(entry.row, lang);
+    return odd ? numberToKibembe(entry.row, lang) : numberToDigit(entry.row, lang);
   }
   return entry.kind === "phrase"
     ? phraseQuestion(entry.row, lang)
@@ -236,19 +248,33 @@ function extraQuestion(entry) {
 }
 
 /**
- * The mixed questions of one episode: its numbers, its greetings and phrases and its proverbs, drawn
- * afresh each time. One of each kind comes first, so a paper of two never asks two numbers or two
- * proverbs where a number and a saying will do — the counting, the talking of every day and the
- * sayings of the language are met in the same paper.
+ * The mixed questions of one episode: its number, its greeting or phrase and its proverb, taken from the
+ * kind whose turn it is and from that kind's own place in its list — so the episodes beside each other
+ * never ask the same form, and a paper of two never asks two numbers or two proverbs where a number and a
+ * saying will do. The counting, the talking of every day and the sayings of the language are met in the
+ * same paper.
+ *
+ * `avoid` carries the forms the paper is already asking — the everyday words it has just drawn — so a
+ * phrase the same paper asks as a word of every day is stepped over rather than asked a second time.
  */
-export function buildExtraMix(count) {
+export function buildExtraMix(count, episode = 1, avoid = []) {
   if (!count || count <= 0) return [];
-  const kinds = shuffled(["number", "phrase", "proverb"]);
+  const at = Math.max(1, episode);
+  // how many times each kind has had its turn before this episode
+  const turn = Math.floor((at - 1) / KINDS.length);
+  const asked = new Set(avoid.map(form));
+
   const picked = [];
-  for (let at = 0; at < Math.min(count, ALL.length); at += 1) {
-    const kind = kinds[at % kinds.length];
-    const pool = ALL.filter((entry) => entry.kind === kind && !picked.includes(entry));
-    picked.push(...shuffled(pool).slice(0, 1));
+  for (let slot = 0; slot < Math.min(count, KINDS.length); slot += 1) {
+    const kind = KINDS[(at - 1 + slot) % KINDS.length];
+    const order = ORDER[kind];
+    // step on along this kind's own list until a form the paper does not already ask stands
+    let row = order[turn % order.length];
+    for (let step = 1; step <= order.length && asked.has(form(row.kb)); step += 1) {
+      row = order[(turn + step) % order.length];
+    }
+    asked.add(form(row.kb));
+    picked.push(extraQuestion({ kind, row }, at, slot));
   }
-  return picked.map(extraQuestion);
+  return picked;
 }

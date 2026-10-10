@@ -1,3 +1,5 @@
+import { runOf } from "./examSeries";
+
 /**
  * GLOIRE AI — the confirmed Kibembe medical vocabulary, and the examination built from it.
  *
@@ -97,6 +99,13 @@ const VOCAB = [
 ];
 
 const entryOf = (label) => VOCAB.find((row) => row.en === label);
+
+/**
+ * The confirmed terms in one order for the whole examination, shuffled once and then kept: an episode's
+ * health questions are cut from it where the episode before it left off, so the papers beside each other
+ * never ask the same term.
+ */
+const VOCAB_ORDER = shuffled(VOCAB);
 
 /** The same list, in a different order, so no examination repeats the last one. */
 function shuffled(list) {
@@ -313,16 +322,16 @@ export function buildRulePaper() {
 }
 
 /**
- * A health paper drawn from the whole confirmed list at once, for the level that gathers the series. A word
- * that stands for two structures is asked only toward Kibembe, so no question ever carries two answers.
+ * A health paper drawn from the confirmed list at once: its terms are cut from the list's own order from
+ * `start`, which is where the episode before it left off, so the papers beside each other never ask the
+ * same term. A word that stands for two structures is asked only toward Kibembe, so no question ever
+ * carries two answers.
  */
-export function buildMedicalMix(count) {
+export function buildMedicalMix(count, start = 0) {
   return buildMedicalPaper(
-    shuffled(VOCAB)
-      .slice(0, count)
-      .map((entry, at) => [
-        entry.en,
-        entry.kb === "Mabolo" ? "en_to_kb" : at % 2 === 0 ? "en_to_kb" : "kb_to_en",
-      ])
+    runOf(VOCAB_ORDER, start, count).map((entry, at) => [
+      entry.en,
+      entry.kb === "Mabolo" ? "en_to_kb" : (start + at) % 2 === 0 ? "en_to_kb" : "kb_to_en",
+    ])
   );
 }
