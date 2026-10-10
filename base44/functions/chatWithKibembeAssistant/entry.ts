@@ -3,6 +3,7 @@ import { secrets } from 'base44:runtime';
 import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
+import { TRUTH_RULES } from "../../shared/truthRules.ts";
 import { candidateList, lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { bestStory, storyNote } from "../../shared/storyMatch.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
@@ -72,10 +73,9 @@ const INSTRUCTIONS = [
   SOURCE_RULES,
   '- The words and the rules the admin has saved in this app are your reference for Kibembe: where a',
   '  word stands there, write it as it is written. Where nothing there covers one part of what the',
-  '  answer needs, answer anyway, in the Kibembe a Babembe speaker really uses.',
-  '- Never tell the person that you do not have something. Answer from what was handed to you, and',
-  '  where the material does not settle a thing, say plainly that it could not be confirmed — and never',
-  '  say nothing was found when material was handed to you.',
+  '  answer needs, answer the person anyway — and say plainly that the part you supplied yourself is not',
+  '  confirmed by the app\'s knowledge.',
+  TRUTH_RULES,
   '- Answer as fully as the question needs, in your own words.',
   '- Write plain text only: no headings, no lists and no markdown.',
 ].join('\n');

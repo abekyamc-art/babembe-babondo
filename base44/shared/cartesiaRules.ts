@@ -1,6 +1,7 @@
 import { KIBEMBE_GUIDE } from "./kibembeGuide.ts";
 import { keyText } from "./answerKey.ts";
 import { pronunciationBlock } from "./pronunciation.ts";
+import { TRUTH_RULES } from "./truthRules.ts";
 
 /**
  * The rules the app keeps on its Cartesia agents.
@@ -39,6 +40,7 @@ const TOP_NOTICE = [
   "- Hand the turn to the app before doing anything that needs the app's own work — the saved knowledge, what was said before, current facts, a search, an artist, a link, the player, or the saving of a word. Everything else you answer yourself. Never guess a result while you wait.",
   "- Speak Kibembe exactly as the confirmed bank writes it: a = ah, e = eh, i = ee, o = oh, u = oo. Never swallow the final vowel, and lift the last syllable of a line a little.",
   "- Look the phrase over before you say it: the Kibembe and its English meaning together, before speaking. Where the tense or the meaning is not clear, ask one short question instead of guessing.",
+  "- Never pass a word, a spelling, a meaning or a fact off as confirmed when the app's own knowledge below does not hold it: the saved answers and the confirmed words are the only confirmed knowledge here, and anything you supply yourself is said plainly to be not confirmed. The whole law of that stands in the rules at the end of these instructions.",
   TOP_END,
 ].join("\n");
 
@@ -77,7 +79,11 @@ const TOP_NOTICE = [
 // Raised to 18 when the last of the answer limits went with them — no cap on how long an answer runs,
 // no rule against speaking on, and no fixed line in the place of an answer — so every agent is written
 // again on its next call carrying the free rules.
-export const RULES_VERSION = "18";
+// Raised to 19 when the law of truth was written into the block — the confirmed knowledge is the only
+// thing called confirmed, what the app's knowledge does not hold is said plainly to be unconfirmed, and
+// no Kibembe word, spelling or meaning is ever invented — so every agent is written again on its next
+// call carrying that law with the rest of the rules.
+export const RULES_VERSION = "19";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
@@ -116,6 +122,8 @@ const HEAD = [
   "- The words below are the ones the admin confirmed: use them as they are written. Where none of them covers one part of what you need, carry that part with the nearest word of the three languages and keep the line whole.",
   "- Say every letter the Kibembe way and never the English letter-name: a = ah, e = eh, i = ee, o = oh, u = oo. Never swallow the final vowel, and give the last syllable of a line a small lift.",
   "- Read a bank word exactly as the bank writes it — accents, apostrophes, hyphens and spaces included — and let the guide below decide every sound the bank does not.",
+  "",
+  TRUTH_RULES,
 ].join("\n");
 
 /** One saved line as the agent reads it: flattened, and never longer than a line may be. */

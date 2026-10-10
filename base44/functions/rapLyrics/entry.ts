@@ -14,11 +14,16 @@ import {
   unverified,
 } from "../../shared/knowledgeWords.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
+import { TRUTH_RULES } from "../../shared/truthRules.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 
 // the admin's own rules, saved in the knowledge panel: every take obeys them
 const RULES_INTRO =
-  "The admin's own rules for this language, saved in the knowledge panel. Every one of them stands, and every bar obeys them — where a rule and your own habit disagree, the rule wins:";
+  "The admin's own rules for this language, saved in the knowledge panel. Every one of them stands, and every bar obeys them — where a rule and your own habit disagree, the rule wins:" +
+  "\n" +
+  // the law of truth rides with the rules of every take, so a bar never carries a word the store does
+  // not hold as though it were confirmed Kibembe
+  TRUTH_RULES;
 
 const UNAVAILABLE = "Mawazo hayakuweza kutengenezwa. Jaribu tena baada ya sekunde chache.";
 const EMPTY_LIST =
@@ -362,7 +367,9 @@ function planPrompt(
     store
       ? "Some saved entries are not words at all: a pronunciation fragment, a spelling guide, a rule, a heading or a note about grammar. Never plan or rap one — every word you plan has to be a real Ebembe word whose meaning is a short translation."
       : "",
-    rules ? RULES_INTRO + "\n" + rules : "",
+    // the law of truth rides with every take whether or not a rule book is saved: it is a law of the
+    // app, not a rule of the admin's book
+    RULES_INTRO + (rules ? "\n" + rules : ""),
     // the admin's one knowledge document rides whole with the plan as well
     doc,
     avoid.length
@@ -443,7 +450,9 @@ function writePrompt(
       ? "The list below is the whole of the Ebembe you may use, one word per line as term = meaning:"
       : "",
     store ? wordList(words) : "",
-    rules ? RULES_INTRO + "\n" + rules : "",
+    // the law of truth rides with every take whether or not a rule book is saved: it is a law of the
+    // app, not a rule of the admin's book
+    RULES_INTRO + (rules ? "\n" + rules : ""),
     // the admin's one knowledge document rides whole with the take as well
     doc,
     "Rules, all of them strict:",
@@ -497,7 +506,9 @@ function songPrompt(
     store
       ? "- In words_used list the Ebembe words you really used, spelled exactly as the list spells them."
       : "",
-    rules ? RULES_INTRO + "\n" + rules : "",
+    // the law of truth rides with every take whether or not a rule book is saved: it is a law of the
+    // app, not a rule of the admin's book
+    RULES_INTRO + (rules ? "\n" + rules : ""),
     doc,
     "The person's own request for this song, and it is what the song is about: " +
       (asked || "a song about everyday Babembe life"),

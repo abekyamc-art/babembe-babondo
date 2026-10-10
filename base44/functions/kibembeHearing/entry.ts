@@ -21,6 +21,7 @@ import {
 } from "../../shared/kibembeFirst.ts";
 import { withHeard, withRevision } from "../../shared/voiceBank.ts";
 import { langAsked, langLine, langName, langOf } from "../../shared/langMode.ts";
+import { TRUTH_RULES } from "../../shared/truthRules.ts";
 import { LANGUAGE_FALLBACK, strongFlag } from "../../shared/languageGate.ts";
 
 // A turn of speech carries at least a word: two letters is the least a word of this app's languages
@@ -314,7 +315,9 @@ export default async function (req: Request): Promise<Response> {
         // The readings of the confirmed words ride with them: the corrections the person themselves
         // confirmed lead, and the ways their own approved recordings were written down stand behind
         // them as evidence — so the voice says the Kibembe the way it is really said here.
-        note: `${firstRules()}\n\n${langLine(mode)}${wordListBlock(words, "", WORDS_BUDGET)}${pronunciationBlock(
+        // the law of truth rides with the rules the call carries from the moment it opens, so every
+        // line a voice says on this call stands under it
+        note: `${firstRules()}\n\n${TRUTH_RULES}\n\n${langLine(mode)}${wordListBlock(words, "", WORDS_BUDGET)}${pronunciationBlock(
           words,
           "",
           PRONUNCIATION_BUDGET,
@@ -467,7 +470,12 @@ export default async function (req: Request): Promise<Response> {
       // Where the app's own knowledge reached this turn, its reading rides with it. Where it reached
       // nothing, no reading is invented — and the language in force still rides with the turn, because
       // the three languages are the one rule every answer of this call follows.
-      note: verified ? `${note}${languageLine}${known}` : languageLine,
+      // The law of truth rides with every turn as well as with the rules the call opened on, so
+      // whoever answers this turn — the voice on the call itself, or the app's companion reading this
+      // turn through its own tools — is held to the same words about what is confirmed and what is not.
+      note: verified
+        ? `${note}${languageLine}${known}\n${TRUTH_RULES}`
+        : `${languageLine}\n${TRUTH_RULES}`,
       // The one reply the app holds for this turn, where it holds one: the voice says exactly that and
       // nothing else. Where the app holds nothing, the field is left empty and the voice answers the
       // turn itself, in its own words.

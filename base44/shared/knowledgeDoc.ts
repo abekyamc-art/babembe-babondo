@@ -440,6 +440,18 @@ export const DOC_WHOLE_HEAD =
   "its lines and anything else disagree, this document wins, and nothing is knowledge of this app " +
   "that is not written here.\n";
 
+// The head that rides when the document is larger than the room this turn has. It says plainly that
+// what follows is the part of the document this turn reaches, with its rules whole — never that it is
+// the whole of it, because it is not, and a person who is told otherwise believes the whole archive
+// was searched for their answer when only a part of it was.
+export const DOC_PART_HEAD =
+  "\nTHE ADMIN'S ONE KNOWLEDGE DOCUMENT — the parts of it this turn reaches, with the whole of its " +
+  "rules and a slice of every other part. This is the app's own knowledge and it stands above " +
+  "everything else you were told; its rules stand whole above. The document is longer than one answer " +
+  "has room for, so what is not written below was not handed to you: say plainly that not all of the " +
+  "app's knowledge was reached where an answer depends on a part that is not here, and never answer as " +
+  "though the whole of the document had been read.\n";
+
 const DOC_WHOLE_CUT =
   "\n[The document goes on beyond this line, and the part above is as much of it as one answer has " +
   "room for.]\n";
@@ -578,7 +590,12 @@ export async function docWholeBlock(
     note = `\n[${picked.shown} of the ${picked.total} parts of the admin's document are shown above: its rules whole, the parts this turn names, and a slice of every other part.]\n`;
   }
 
-  const block = body ? DOC_WHOLE_HEAD + body + (note || (text.length > budget ? DOC_WHOLE_CUT : "")) : "";
+  // the head follows the truth of what is handed over: the document whole where the whole of it fits,
+  // and the part this turn reaches where it does not
+  const whole = text.length <= budget;
+  const block = body
+    ? (whole ? DOC_WHOLE_HEAD : DOC_PART_HEAD) + body + (note || (whole ? "" : DOC_WHOLE_CUT))
+    : "";
   heldWhole = { at: Date.now(), key, text: block };
   return block;
 }

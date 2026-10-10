@@ -10,6 +10,7 @@ import { keyLineEn, keyMatches } from "../../shared/answerKey.ts";
 import { lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
+import { TRUTH_RULES } from "../../shared/truthRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
 import { engineTurn } from "../../shared/phraseEngine.ts";
 import { isRepeatAsk, lastOwnLine } from "../../shared/repeatAsk.ts";
@@ -101,7 +102,8 @@ const HOW = [
   "Never ask the person whether they meant another word, and never repeat their own words back to them as your answer.",
   "Never say that you did not hear them or did not understand them, and never ask them to say it again.",
   "Never write a stage direction or an emotion cue between brackets — [curious], [laughs], (softly) — in any part: they are not words a person reads or hears.",
-  "Never say that you do not know, and never say that something is not in the knowledge. When they ask about a person, a place, an event or a thing that the knowledge below does not answer, say briefly that you are looking it up, and answer from the material that comes back: who or what it is, where it is from, and what is known about it — naming where it came from, and saying plainly when it is not confirmed.",
+  "When they ask about a person, a place, an event or a thing that the knowledge below does not answer, answer from the material that comes back from the app's own lookup: who or what it is, where it is from, and what is known about it — naming where it came from, and saying plainly when it is not confirmed.",
+  TRUTH_RULES,
   SOURCE_RULES,
   "Never repeat a line you have already given in this conversation: say something new — apart from a repeat ask (\"Omo tenda bile?\" or \"Omo tenda ii-ii?\"), where that very line is given again, word for word, in every part.",
 ].join("\n");

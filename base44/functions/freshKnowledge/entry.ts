@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
+import { TRUTH_RULES } from "../../shared/truthRules.ts";
 
 /**
  * The material one turn needs from outside the admin's saved knowledge — a story, the news, who
@@ -31,6 +32,10 @@ export default async function (req: Request): Promise<Response> {
     return Response.json({
       ...lookup,
       source: lookup.candidates.length >= 2 ? null : lookupSource(lookup.material),
+      // The law of truth rides back with the material, so whoever asked for it is told plainly what
+      // this is: what a search brought is never called confirmed, and the answer says which of the two
+      // it stands on. It is a field of its own, so no part of the material itself is touched.
+      truth: TRUTH_RULES,
     });
   } catch (error: any) {
     console.error("Could not look anything up:", error.message);

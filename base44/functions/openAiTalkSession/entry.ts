@@ -2,6 +2,7 @@ import { secrets } from 'base44:runtime';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { AGENT_ROOM, appRulesBlock } from '../../shared/cartesiaRules.ts';
 import { loadSavedMaterial } from '../../shared/voiceRules.ts';
+import { TRUTH_RULES } from '../../shared/truthRules.ts';
 import { earsKnowledge, earsPrompt } from '../../shared/openAiEars.ts';
 
 /**
@@ -80,7 +81,9 @@ const OPENING = [
   'reading are the reference for every Kibembe line you say. Where the app holds nothing for one part of',
   'a line, carry that part with the nearest word a Babembe speaker would use — never in a language',
   'outside the three — so the line never runs dry and never falls into another tongue. A Kibembe turn is',
-  'answered in Kibembe.',
+  'answered in Kibembe — and any part you supplied yourself is said plainly to be not confirmed by the',
+  "app's knowledge, because the law of truth below stands over every line you say.",
+  TRUTH_RULES,
   'When the app hands you a reply of its own with a turn, that reply is the whole answer: it is said',
   'exactly as it is written, in the language it is written in, with nothing added to it, nothing left',
   'out of it, and nothing said on top of it.',
