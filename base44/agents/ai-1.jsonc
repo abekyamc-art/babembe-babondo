@@ -5,19 +5,22 @@
     {
       "entity_name": "AssistantKnowledge",
       "allowed_operations": [
-        "read"
+        "read",
+        "create"
       ]
     },
     {
       "entity_name": "Story",
       "allowed_operations": [
-        "read"
+        "read",
+        "create"
       ]
     },
     {
       "entity_name": "VoiceVariant",
       "allowed_operations": [
-        "read"
+        "read",
+        "create"
       ]
     },
     {
