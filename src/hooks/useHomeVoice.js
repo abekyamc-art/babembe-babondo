@@ -19,11 +19,12 @@ import {
 /**
  * The home page's call, and who is on it.
  *
- * Every voice the app is set up with takes the call in turn: Cartesia AI opens it, then the app's
- * older talk AIs in their own order, then the accounts that speak for the other modes — Mbembe AI,
- * Mbondo AI and Sadiki AI — and when the ring is complete it starts over, so the talk keeps moving
- * from one voice to the next for as long as the call runs. Each voice answers its own number of
- * finished answers and then stands aside: Cartesia AI seven, every other voice two.
+ * Every voice the app is set up with takes the call in turn: GLOIRE AI opens it and speaks eight
+ * answers, then the app's own OpenAI seat with six, then the talk AIs the admin has set up in their
+ * own order, then the accounts that speak for the other modes — Mbembe AI, Mbondo AI and Sadiki AI —
+ * and when the ring is complete it starts over, so the talk keeps moving from one voice to the next
+ * for as long as the call runs. Every other voice answers two finished answers before standing aside,
+ * and Cartesia AI seven.
  *
  * What makes the change land is that it is a plain sequence of events, not a reading of the screen:
  *

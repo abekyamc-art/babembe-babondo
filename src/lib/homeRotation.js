@@ -1,8 +1,9 @@
-import { CARTESIA_AI, MBEMBE_AI, MBONDO_AI, OPENAI_AI, SADIKI_AI } from "@/lib/providerNames";
+import { CARTESIA_AI, GLOIRE_AI, MBEMBE_AI, MBONDO_AI, OPENAI_AI, SADIKI_AI } from "@/lib/providerNames";
 import {
   AI2_ID,
   ai2Resting,
   CARTESIA_ANSWERS,
+  GLOIRE_ANSWERS,
   OPENAI_ANSWERS,
   TALK_ANSWERS,
 } from "@/lib/talkRotation";
@@ -10,9 +11,10 @@ import {
 /**
  * Who answers on the home page's calls, and in what order.
  *
- * Every voice the app offers stands on this one ring, and the ring's order is what a call walks. The
- * app's own OpenAI seat — AI 1 — stands first: it opens the call, and it answers six finished answers
- * before the ring moves on. Then come the talk AIs the admin has set up, then the accounts that speak
+ * Every voice the app offers stands on this one ring, and the ring's order is what a call walks.
+ * GLOIRE AI stands first: it opens the call, and it answers eight finished answers before the ring
+ * moves on. Then comes the app's own OpenAI seat — AI 1 — with six, then the talk AIs the admin has
+ * set up, then the accounts that speak
  * for the other modes — Mbembe AI for Base44 mode, then Mbondo AI, then Sadiki AI. The Cartesia voice
  * stands last: a call still reaches it, and it still opens a call when the voices ahead of it cannot,
  * but it is never the voice a call is given while a working one is available — its own service is
@@ -28,8 +30,9 @@ import {
  * accounts are never used here. They are never turns of this ring: no call walks from one Cartesia
  * account to the next the way it walks from one voice to another.
  *
- * GLOIRE AI is not on this ring: its own account stays set up exactly as it is, but a home call never
- * offers it a turn.
+ * GLOIRE AI stands at the head of this ring: every home call opens on it, and it holds the call for
+ * its own eight answers before the voice behind it takes over — its own account, its own key and its
+ * own agent are exactly as they always were, and the ring offers it a turn again when it comes round.
  *
  * Only the voices that really speak with a person stand here: the Kibembe assistant and the app's
  * own written helpers answer on their own screens or in writing, so none of them is on this ring.
@@ -43,7 +46,10 @@ import {
 export const BASE44_SEAT_ID = "mbembe";
 
 const RING = [
-  // AI 1 is the app's own OpenAI seat and stands first: it opens the call and speaks six answers.
+  // GLOIRE AI stands first: every call opens on it, on the account the app already had, and it
+  // speaks eight answers before the ring moves on.
+  { id: "gloire", label: GLOIRE_AI, kind: "talk", account: "", answers: GLOIRE_ANSWERS },
+  // AI 1 is the app's own OpenAI seat, next behind GLOIRE AI: it speaks six answers.
   { id: "openai", label: OPENAI_AI, kind: "openai", account: "openai", answers: OPENAI_ANSWERS },
   { id: "talk2", label: "AI 2", kind: "talk", account: "talk2", answers: TALK_ANSWERS },
   { id: "talk3", label: "AI 3", kind: "talk", account: "talk3", answers: TALK_ANSWERS },

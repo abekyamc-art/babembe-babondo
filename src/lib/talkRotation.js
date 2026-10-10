@@ -17,8 +17,15 @@ export const FIRST_TALK = { id: "gloire", label: GLOIRE_AI, account: "" };
 export const TALK_ANSWERS = 2;
 
 /**
- * How many answers the app's own OpenAI seat — AI 1, the first voice a home call is given — speaks
- * before the ring of voices moves on to the next one. Every answer given spends one credit.
+ * How many answers GLOIRE AI — the voice every home call opens on now — gives before the ring of
+ * voices moves on to the next one: eight finished answers, and then it stands aside like any other
+ * voice. Every answer given spends one credit.
+ */
+export const GLOIRE_ANSWERS = 8;
+
+/**
+ * How many answers the app's own OpenAI seat — AI 1, the voice that follows GLOIRE AI on a home call
+ * — speaks before the ring of voices moves on to the next one. Every answer given spends one credit.
  */
 export const OPENAI_ANSWERS = 6;
 
@@ -60,7 +67,7 @@ export function signalLine(fromLabel) {
 }
 
 // the number of answers a notice names, written the way the notice says it
-const COUNT_WORDS = { 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven" };
+const COUNT_WORDS = { 2: "two", 3: "three", 4: "four", 5: "five", 6: "six", 7: "seven", 8: "eight" };
 
 /** One AI steps aside after its own answers, and the next one is ready to carry the talk on. */
 export function handoffNotice(from, next, answers = TALK_ANSWERS) {
