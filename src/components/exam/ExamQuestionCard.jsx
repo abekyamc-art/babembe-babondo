@@ -4,6 +4,7 @@ import { LETTERS } from "@/lib/examBank";
 import ExamFigure from "./ExamFigure";
 import ExamOption from "./ExamOption";
 import ExamPrompt from "./ExamPrompt";
+import ExamRead from "./ExamRead";
 
 /** How one choice is drawn once the answer has been given: the right one named, the rest set back. */
 function lookOf(at, question, mark) {
@@ -42,6 +43,8 @@ export default function ExamQuestionCard({
         <ExamPrompt question={question} />
       </h2>
       {question.hint ? <p className="exam-hint">{question.hint}</p> : null}
+
+      <ExamRead text={question.prompt} />
 
       {question.image || question.view ? (
         <ExamFigure view={question.view} spot={question.spot} image={question.image} />

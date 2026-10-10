@@ -1093,3 +1093,73 @@
   width: 100%;
   text-align: center;
 }
+
+/* The question read aloud: one control under the question, in the card's own ink, which speaks the line
+   in the examination's own voice and stops it again. */
+.exam-read-wrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.exam-read-say {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: #8c1d2f;
+}
+
+.exam-read {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  width: fit-content;
+  padding: 9px 14px;
+  color: #123049;
+  background: #eef4ff;
+  border: 1px solid #cfe0ff;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+
+.exam-read:hover {
+  background: #dce9ff;
+}
+
+.exam-read:focus-visible {
+  outline: 3px solid #2f4a7d;
+  outline-offset: 2px;
+}
+
+.exam-read svg {
+  width: 16px;
+  height: 16px;
+}
+
+/* the voice being made, while the button waits on it */
+.exam-read-spin {
+  animation: exam-spin 0.9s linear infinite;
+}
+
+@keyframes exam-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* while the voice is being made, and while the line is being heard */
+.exam-read.is-on {
+  color: #ffffff;
+  background: #123049;
+  border-color: #123049;
+}
+
+.exam-read.is-on:hover {
+  background: #1b4272;
+}
