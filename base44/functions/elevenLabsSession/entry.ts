@@ -2,6 +2,16 @@ import { secrets } from "base44:runtime";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { ensureFastPace } from "../../shared/agentPace.ts";
 import { recognitionKeywords } from "../../shared/hearingKeywords.ts";
+import {
+  AGENT_ROOM,
+  appRulesBlock,
+  blockKey,
+  RULES_MARK,
+  RULES_VERSION,
+  withAppRules,
+} from "../../shared/cartesiaRules.ts";
+import { knowledgeStamp } from "../../shared/wordBank.ts";
+import { loadSavedMaterial } from "../../shared/voiceRules.ts";
 
 const unavailable = "The voice call couldn't start. Please try again in a moment.";
 
@@ -86,6 +96,67 @@ const ACCOUNTS: {
 // written down the same way. The app's own ears are the ones that write every turn down, so the
 // language the voice answers in is left alone completely: the one the admin gave his agent stands.
 
+// How much of the admin's one knowledge document rides onto a voice agent. The document is far larger
+// than any voice can carry, so the agent is given the app's own rules whole, its guide, the admin's
+// saved answers, their notes and their confirmed words, and as much of the document as is left of the
+// room — never a part of it passed off as the whole of it.
+const AGENT_DOC_ROOM = 6000;
+
+/** Where the agent keeps its own instructions, and what they say. */
+function promptOf(agent: any) {
+  const prompt = agent?.conversation_config?.agent?.prompt;
+  return { prompt, text: typeof prompt?.prompt === "string" ? prompt.prompt : "" };
+}
+
+/**
+ * The app's own rules kept on the agent: Gloire's current guide, the admin's answer key, their saved
+ * answers and notes, the confirmed words, and the law of truth that stands over all of it — written
+ * below the agent's own instructions, which are never touched.
+ *
+ * A voice on this account hears and answers on its own, so the one place the app can put its
+ * knowledge in front of it is the agent itself. The block is written again only when the store has
+ * moved or the app's rules have changed shape, so an ordinary call costs one look at the agent; a
+ * write the service refuses leaves the agent exactly as it stood and never stops a call opening.
+ */
+async function keepRules(base44: any, apiKey: string, agentId: string, agent: any) {
+  try {
+    const { prompt, text: current } = promptOf(agent);
+    // no prompt to write into: this agent keeps its instructions somewhere this app does not know
+    if (!prompt) return false;
+
+    const stamp = await knowledgeStamp(base44);
+    if (current.includes(RULES_MARK) && blockKey(current) === `${RULES_VERSION}|${stamp}`) {
+      return true;
+    }
+
+    const { saved } = await loadSavedMaterial(base44, AGENT_DOC_ROOM);
+    const wanted = withAppRules(current, appRulesBlock(saved, stamp, AGENT_ROOM));
+    if (wanted === current) return true;
+
+    const res = await fetch(
+      "https://api.elevenlabs.io/v1/convai/agents/" + encodeURIComponent(agentId),
+      {
+        method: "PATCH",
+        headers: { "xi-api-key": apiKey, "Content-Type": "application/json" },
+        // the prompt is sent back whole with only its own text changed, so everything else the admin
+        // set on it — the model, its tools, its temperature — stands exactly as it was
+        body: JSON.stringify({
+          conversation_config: { agent: { prompt: { ...prompt, prompt: wanted } } },
+        }),
+      }
+    );
+    if (!res.ok) {
+      const detail = await res.text();
+      console.error("The app's rules could not be kept on the agent:", res.status, detail.slice(0, 300));
+      return false;
+    }
+    return true;
+  } catch (error: any) {
+    console.error("The app's rules could not be kept on the agent:", error?.message);
+    return false;
+  }
+}
+
 /**
  * The service only takes the saved words when the agent's own security settings allow it — and it
  * ignores them silently when they do not, so that one permission is made sure of here. Nothing of the
@@ -143,7 +214,7 @@ async function allowHearingSettings(apiKey: string, agentId: string, agent: any)
  * His own agent holds the opening line and the switch that turns it off for a later
  * session. Both are read here, and neither is guessed.
  */
-async function readAgent(apiKey: string, agentId: string, tune: boolean, pace = true) {
+async function readAgent(base44: any, apiKey: string, agentId: string, tune: boolean, pace = true) {
   try {
     const res = await fetch(
       "https://api.elevenlabs.io/v1/convai/agents/" + encodeURIComponent(agentId),
@@ -161,6 +232,10 @@ async function readAgent(apiKey: string, agentId: string, tune: boolean, pace = 
       if (pace) await ensureFastPace(apiKey, agentId);
       // and the saved words and the language of the hearing are only taken when the agent allows them
       await allowHearingSettings(apiKey, agentId, data);
+      // the app's own rules, its guide, the admin's saved knowledge and the law of truth are made sure
+      // of on the agent itself, so this voice answers from the app's knowledge rather than from its own
+      // memory — whichever account the call opened on
+      await keepRules(base44, apiKey, agentId, data);
     }
     const agent = data?.conversation_config?.agent || {};
     const overrides =
@@ -221,7 +296,7 @@ export default async function (req: Request): Promise<Response> {
     // A helper asked in writing is never tuned, and the app's own words are not spent on a
     // session that hears nothing.
     const [agent, keywords] = await Promise.all([
-      readAgent(apiKey, agentId, !account.plain, !account.keepPace),
+      readAgent(base44, apiKey, agentId, !account.plain, !account.keepPace),
       account.plain ? [] : recognitionKeywords(base44),
     ]);
 
