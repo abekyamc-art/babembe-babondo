@@ -52,6 +52,15 @@ const SHAPES: [string, RegExp][] = [
     "rules",
     /^(?:the )?(?:rules?|rule book|grammar|reading|reading key|sheria|kanuni|sarufi|matamshi|namna ya kusoma)$/i,
   ],
+  // The engine's own rule blocks, written as they stand at the head of the master engine document: the
+  // language mode, the reading and phrase integrity, the full-turn behavior, how the layers are used,
+  // the reading rules, the voice movement and the output control. Each of them is a law of the
+  // language rather than a word or a note, so each rides with the rules — whole, and ahead of the rest
+  // of the document — and every AI that carries a rule book carries the engine's own.
+  [
+    "rules",
+    /^(?:language mode|reading and phrase integrity|full-turn conversation behavior|how to use the layers|kibembe reading rules|output control|voice movement and punctuation.*)$/i,
+  ],
   [
     "knowledge",
     /^(?:the )?(?:knowledge|notes?|questions?|questions and answers|q ?& ?a|qa|world|general|more|maarifa|maelezo|maswali|maswali na majibu)$/i,
@@ -420,7 +429,9 @@ export async function docKnowledgeBlock(base44: any, budget = 6000): Promise<str
 // The document is handed over whole. The ceiling below is not a share of it: it is a guard against a
 // runaway document, and where it is reached the block says so plainly rather than passing a part of
 // the document off as the whole of it.
-export const DOC_WHOLE_ROOM = 240000;
+// The room is set just above the master engine document the app now reads, so the engine is handed
+// over whole — its rules as much as its last tier — rather than being cut at a part boundary.
+export const DOC_WHOLE_ROOM = 260000;
 
 export const DOC_WHOLE_HEAD =
   "\nTHE ADMIN'S ONE KNOWLEDGE DOCUMENT — the whole of it, exactly as the admin last approved it. " +
