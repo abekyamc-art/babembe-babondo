@@ -3,10 +3,17 @@ import useTalkVoice from "@/hooks/useTalkVoice";
 import useCartesiaVoice from "@/hooks/useCartesiaVoice";
 import useOpenAiVoice from "@/hooks/useOpenAiVoice";
 import useHomeMedia from "@/hooks/useHomeMedia";
-import { HOME_SEATS, nextPlan } from "@/lib/homeRotation";
+import { BASE44_SEAT_ID, HOME_SEATS, nextPlan } from "@/lib/homeRotation";
 import { checkVoiceSeats } from "@/lib/voiceHealth";
 import { keepHeard, proposeHeard } from "@/lib/homeHearing";
-import { handoffNotice, refusedNotice, resumeNotice, stuckNotice, waitNotice } from "@/lib/talkRotation";
+import {
+  handoffNotice,
+  musicHandoffNotice,
+  refusedNotice,
+  resumeNotice,
+  stuckNotice,
+  waitNotice,
+} from "@/lib/talkRotation";
 
 /**
  * The home page's call, and who is on it.
@@ -93,6 +100,9 @@ export default function useHomeVoice() {
   // is opened, so the voice standing down is released first and two voices are never on the line
   // at the same time
   const handingRef = useRef(null);
+  // the change's own end, reachable from the change itself: a set that ends opens the voice behind it
+  // without waiting for a tap
+  const resumeRef = useRef(null);
 
   // the whole talk is kept here, so a call that hands over carries the conversation with it and
   // nothing said before the change is lost from the screen
@@ -216,10 +226,27 @@ export default function useHomeVoice() {
     onMedia,
   });
 
+  /**
+   * The artist's own set is over — the last of the pieces has played out, or the person has said stop.
+   * The talk moves on to the voice that speaks Base44 mode, with the conversation so far carried with
+   * it. The change is asked for through the change's own ref, because the change itself is written
+   * below the player that asks for it.
+   */
+  const musicHandoff = useCallback(() => {
+    // The voice that speaks Base44 mode already holds the call: the talk is already where the music
+    // asks for it to be, so the set ending changes nothing.
+    if (seatRef.current.id === BASE44_SEAT_ID) return;
+    handoffRef.current?.({ preferId: BASE44_SEAT_ID, music: true });
+  }, []);
+
   // A piece the app chose stands in the app's own player, and the call goes quiet only where the
   // person asked to listen on — and only once the player itself reports the sound has begun. Taking
-  // the voice away never touches the player.
-  const media = useHomeMedia({ onTell, onEndVoice: () => stopRef.current?.() });
+  // the voice away never touches the player; the artist's own set ending hands the talk on instead.
+  const media = useHomeMedia({
+    onTell,
+    onEndVoice: () => stopRef.current?.(),
+    onHandoff: musicHandoff,
+  });
   mediaRef.current = media;
 
   /**
@@ -275,8 +302,15 @@ export default function useHomeVoice() {
    * ring, the call on air is hung up, and the next voice waits for the person's own tap on the phone.
    * The talk so far stays on the screen and goes with the new call, so nothing said before the change
    * is lost from it.
+   *
+   * `preferId` names the voice the app itself wants the call handed to, where the ring still holds it:
+   * when the artist's own set has ended the talk is handed to the voice that speaks Base44 mode, and
+   * every other voice of the ring still follows it, so a voice that cannot open is never a dead end.
+   * `music` says the change was asked for by the music rather than by a voice having taken its own
+   * number of answers: the line on the screen says which, and the voice behind the change is opened
+   * here and now rather than left waiting behind a tap.
    */
-  const handoff = useCallback(async () => {
+  const handoff = useCallback(async ({ preferId = "", music = false } = {}) => {
     // a change is already running, or the next voice is already waiting behind the person's tap
     if (turningRef.current || pendingRef.current) return;
     turningRef.current = true;
@@ -286,16 +320,27 @@ export default function useHomeVoice() {
     const { plan, fresh } = nextPlan(from.id, triedRef.current, usedRef.current);
     // every voice the ring holds has taken its turn: the round is complete, and the ring starts over
     if (!fresh) usedRef.current = [];
+    // The voice the app is asked to hand the call to stands at the head of the ring's own order, where
+    // the ring still holds it; every other voice of the ring follows in the order it always did.
+    const ordered = preferId
+      ? [...plan].sort((a, b) => (a.id === preferId ? -1 : b.id === preferId ? 1 : 0))
+      : plan;
     // The voice taking the next turn is chosen and waiting from the moment the change begins — and
     // the count starts again from nothing, since the answers so far belonged to the voice standing
     // down. Choosing it here is what keeps a tap that lands while the call is being hung up from
     // opening a second call on top of the voice that is standing down.
-    const next = plan[0];
+    const next = ordered[0];
     answersRef.current = 0;
-    pendingRef.current = { next, plan, from };
+    // the music the change was asked by rides with it, so a tap that opens the voice on the person's
+    // own behalf says the same thing the change itself would have said
+    pendingRef.current = { next, plan, from, music };
     setWaiting(true);
     setLabel(next.label);
-    setNotice(resumeNotice(from.label, next.label, from.answers));
+    setNotice(
+      music
+        ? musicHandoffNotice(from.label, next.label, true)
+        : resumeNotice(from.label, next.label, from.answers)
+    );
     // The call on air is hung up here, and the change stays under way until the voice behind the
     // person's tap has opened: that tap waits on this hang-up before it opens anything, so the voice
     // standing down is released first and the two are never on the line at once.
@@ -313,7 +358,13 @@ export default function useHomeVoice() {
       setWaiting(false);
       setNotice("");
       turningRef.current = false;
+      return;
     }
+    // The artist's own set ended under the person's own ears, so the voice that speaks Base44 mode is
+    // opened here and now rather than left waiting behind a tap: the music itself asked for the change.
+    // Where the phone will not open the microphone without a touch, the change is left waiting exactly
+    // as any other is, and the line on the screen says plainly what is left to do.
+    if (music) await resumeRef.current?.(true);
   }, [closeSeat]);
 
   // the change is sent by an answer's own handler, so it is reachable from there
@@ -327,9 +378,12 @@ export default function useHomeVoice() {
    * the call and the one after it is tried; where none of them can open, the person is told plainly
    * rather than the call going quietly nowhere.
    */
-  const resume = useCallback(async () => {
+  const resume = useCallback(async (music = false) => {
     const pending = pendingRef.current;
     if (!pending) return false;
+    // the change was asked for by the artist's own set, whether it is opened here and now or by the
+    // person's own tap: the line on the screen says the same thing either way
+    const byMusic = music || pending.music === true;
     pendingRef.current = null;
     setWaiting(false);
 
@@ -374,7 +428,11 @@ export default function useHomeVoice() {
         // the line — Cartesia AI 1 where the app's own account could not take it, and so on
         const live = liveSeat(next, opened);
         setCurrent(live);
-        setNotice(handoffNotice(pending.from.label, live.label, pending.from.answers));
+        setNotice(
+          byMusic
+            ? musicHandoffNotice(pending.from.label, live.label)
+            : handoffNotice(pending.from.label, live.label, pending.from.answers)
+        );
         return true;
       }
 
@@ -385,7 +443,12 @@ export default function useHomeVoice() {
       // taps that do nothing.
       setLabel(pending.from.label);
       setWaiting(true);
-      pendingRef.current = { next: pending.next, plan: pending.plan, from: pending.from };
+      pendingRef.current = {
+        next: pending.next,
+        plan: pending.plan,
+        from: pending.from,
+        music: pending.music,
+      };
       triedRef.current = [];
       setNotice(refused ? refusedNotice(refused) : "Tap the phone to talk again.");
       return false;
@@ -394,6 +457,12 @@ export default function useHomeVoice() {
       turningRef.current = false;
     }
   }, [openSeat, setCurrent]);
+
+  // the change's own end is reachable from the change itself, since a set that ends opens the voice
+  // behind it without waiting for a tap
+  useEffect(() => {
+    resumeRef.current = resume;
+  }, [resume]);
 
   const clearChange = useCallback(() => {
     dueRef.current = false;

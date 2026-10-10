@@ -34,13 +34,19 @@ import {
  * Only the voices that really speak with a person stand here: the Kibembe assistant and the app's
  * own written helpers answer on their own screens or in writing, so none of them is on this ring.
  */
+/**
+ * The seat that speaks for Base44 mode. When the artist's own set has ended, or the person has said
+ * stop, the call moves from AI 1 to this voice, so the talk is taken on by Base44 AI from there.
+ */
+export const BASE44_SEAT_ID = "mbembe";
+
 const RING = [
   // AI 1 is the app's own OpenAI seat and stands first: it opens the call and speaks six answers.
   { id: "openai", label: OPENAI_AI, kind: "openai", account: "openai", answers: OPENAI_ANSWERS },
   { id: "talk2", label: "AI 2", kind: "talk", account: "talk2", answers: TALK_ANSWERS },
   { id: "talk3", label: "AI 3", kind: "talk", account: "talk3", answers: TALK_ANSWERS },
   { id: "talk4", label: "AI 4", kind: "talk", account: "talk4", answers: TALK_ANSWERS },
-  { id: "mbembe", label: MBEMBE_AI, kind: "talk", account: "second", answers: TALK_ANSWERS },
+  { id: BASE44_SEAT_ID, label: MBEMBE_AI, kind: "talk", account: "second", answers: TALK_ANSWERS },
   { id: "mbondo", label: MBONDO_AI, kind: "talk", account: "third", answers: TALK_ANSWERS },
   { id: "sadiki", label: SADIKI_AI, kind: "talk", account: "fourth", answers: TALK_ANSWERS },
   // Cartesia stands last: it is still a seat of the ring, and a call reaches it once every voice

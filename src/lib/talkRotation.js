@@ -78,6 +78,18 @@ export function resumeNotice(from, next, answers = TALK_ANSWERS) {
 }
 
 /**
+ * The artist's own set has ended, or the person has said stop: AI 1 hands the talk over to the voice
+ * that speaks Base44 mode — not because it had taken its own number of questions, but because the
+ * music it was playing is over. Where the next voice is waiting for the person's own tap, that is what
+ * the line says; where it is already on the call, it is named as being on it now.
+ */
+export function musicHandoffNotice(from, next, waiting = false) {
+  return waiting
+    ? `${from} handed the call over. Tap the phone to talk with ${next}.`
+    : `${from} handed the call over — ${next} is on the call now.`;
+}
+
+/**
  * The call ended by itself in the middle of a turn: the same AI still owes its answers, so it is the
  * one waiting behind the person's tap rather than the ring starting over.
  */

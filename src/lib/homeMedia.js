@@ -62,21 +62,30 @@ export function mediaLines(step, data = {}) {
   const name = String(data?.name || "").trim();
   const channel = String(data?.channel || "").trim();
   const names = joinNames(data?.names);
+  // how many of the artist's own pieces wait behind the one standing
+  const rest = Number(data?.count) || 0;
+  // the piece standing belongs to the artist's own set: the player starts it by itself and moves on
+  const auto = data?.auto === true;
 
   switch (step) {
-    case "standing":
+    case "set":
       return {
-        line: `Nimekuweka — ${name} stands in the player. Press play.`,
+        line: `Nimekuweka — ${name} is starting now${
+          rest ? `, with ${rest} more of the artist's own behind it` : ""
+        }.`,
         spoken:
-          `The app's own player now stands "${name}". It has NOT started: the person presses play in the player themselves. ` +
-          `Say only that you have put it in the player and that it is ready — never that it is playing.`,
+          `The app has put the artist's own pieces in its own player and is starting "${name}" now: it plays here, with its sound.` +
+          (rest
+            ? ` ${rest} more of the artist's own pieces wait behind it, and the player moves on to each of them by itself when one ends.`
+            : ` It is the only piece of the artist's the app holds.`) +
+          ` Say only what the app has done — never that a piece is playing before the app's own player reports it.`,
       };
     case "quiet":
       return {
-        line: `Nimekuweka — ${name}. Press play: once it really starts, the voice goes quiet and the song plays on.`,
+        line: `Nimekuweka — ${name} is starting now. Listen on — the voice goes quiet once it plays.`,
         spoken:
-          `The person asked to listen on without more talk, and the app's own player now stands "${name}", not started. ` +
-          `Say one short line that it is in the player and that they press play, then be quiet — this call goes quiet once it has really started.`,
+          `The person asked to listen on without more talk, and the app's own player is starting "${name}" now. ` +
+          `Say one short line that it is playing, then be quiet — this call goes quiet once the sound has really begun.`,
       };
     case "ambiguous":
       return {
@@ -101,10 +110,15 @@ export function mediaLines(step, data = {}) {
           "There is no next piece: the app's own list of the artist's pieces ends where the player stands. Say so plainly.",
       };
     case "next":
-      return {
-        line: `${name} stands in the player. Press play.`,
-        spoken: `The app has moved its own player on to "${name}", which has not started — the person presses play.`,
-      };
+      return auto
+        ? {
+            line: `Inaendelea — ${name} is playing.`,
+            spoken: `The app's own player has moved on to the artist's own next piece, "${name}", and it is playing now.`,
+          }
+        : {
+            line: `${name} stands in the player. Press play.`,
+            spoken: `The app has moved its own player on to "${name}", which has not started — the person presses play.`,
+          };
     case "pause":
       return {
         line: "Paused.",
@@ -117,8 +131,14 @@ export function mediaLines(step, data = {}) {
       };
     case "stop":
       return {
-        line: "The piece is out of the player — press play and it stands again.",
-        spoken: "The app has taken the piece out of its own player: nothing is playing now.",
+        line: "Nothing is playing now — the player is put away.",
+        spoken: "The app has stopped its own player and put the piece away: nothing is playing now.",
+      };
+    case "setDone":
+      return {
+        line: "That was the last of the artist's own — nothing is playing now.",
+        spoken:
+          "The artist's own set has ended and the app has put its player away: nothing is playing now.",
       };
     case "started":
       return {

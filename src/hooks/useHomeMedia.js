@@ -13,10 +13,18 @@ import { looksLikeMediaTurn, mediaLines, readMediaTurn } from "@/lib/homeMedia";
  * plainly that a piece standing in the player has not started. And the call goes quiet only where the
  * person asked to listen on, and only once the sound has really begun: taking the voice away never
  * touches the player.
+ *
+ * What the app holds of an artist is a set: the piece the person asked for and the artist's own pieces
+ * behind it, brought in and started by the app itself, with the player moving on to each one as it
+ * plays out. When the last of them has played out — or the person says stop — the music turn is over:
+ * the player is put away and the talk is handed on, so Base44 AI takes the call from there.
  */
-export default function useHomeMedia({ onTell, onEndVoice } = {}) {
+export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const [item, setItem] = useState(null);
   const [queue, setQueue] = useState([]);
+  // The piece standing belongs to the artist's own set: the app starts it by itself, and the pieces
+  // still waiting behind it are brought in one after the other as each one plays out.
+  const [auto, setAuto] = useState(false);
   // the app's own line about its own player
   const [note, setNote] = useState("");
   // the player has been brought in: only then can it be paused or started again
@@ -32,11 +40,16 @@ export default function useHomeMedia({ onTell, onEndVoice } = {}) {
   const quietRef = useRef(false);
   const startedRef = useRef(false);
   const readingRef = useRef(false);
+  // the piece standing was asked for as the artist's own set
+  const autoRef = useRef(false);
   // the voice on the line, where one can be told anything at all, and the call's own end
   const tellRef = useRef(onTell);
   const endRef = useRef(onEndVoice);
+  // the music turn is over: the artist's set has ended, or the person has said stop
+  const handoffRef = useRef(onHandoff);
   tellRef.current = onTell;
   endRef.current = onEndVoice;
+  handoffRef.current = onHandoff;
 
   /** The app's own line about its own player, on the screen and — where it can be told — to the voice. */
   const say = useCallback((step, data = {}) => {
@@ -46,18 +59,24 @@ export default function useHomeMedia({ onTell, onEndVoice } = {}) {
     return lines;
   }, []);
 
-  /** A piece stands in the player, not started. */
-  const stand = useCallback((chosen, others) => {
+  /**
+   * A piece stands in the player. Where it was asked for as the artist's own set, the app brings it in
+   * and starts it by itself, with the artist's other pieces waiting behind it; where it was not, it
+   * waits for the person's own press exactly as it always has.
+   */
+  const stand = useCallback((chosen, others, played = false) => {
     const next = { name: chosen.name, url: chosen.url };
     itemRef.current = next;
     queueRef.current = Array.isArray(others) ? others : [];
     startedRef.current = false;
     quietRef.current = false;
+    autoRef.current = played === true;
     setItem(next);
     setQueue(queueRef.current);
     setInPlace(false);
     setStarted(false);
     setQuiet(false);
+    setAuto(autoRef.current);
   }, []);
 
   /** The player and the piece with it are put away. */
@@ -66,12 +85,49 @@ export default function useHomeMedia({ onTell, onEndVoice } = {}) {
     queueRef.current = [];
     startedRef.current = false;
     quietRef.current = false;
+    autoRef.current = false;
     setItem(null);
     setQueue([]);
     setInPlace(false);
     setStarted(false);
     setQuiet(false);
+    setAuto(false);
   }, []);
+
+  /**
+   * The next of the artist's own pieces, wherever the ask for it came from: the player moved on by the
+   * person's own word, or by the piece before it playing out. Returns whether there was one to move to.
+   */
+  const step = useCallback(() => {
+    const rest = queueRef.current;
+    if (!rest.length) return false;
+    const [head, ...tail] = rest;
+    itemRef.current = head;
+    queueRef.current = tail;
+    startedRef.current = false;
+    setItem(head);
+    setQueue(tail);
+    setInPlace(false);
+    setStarted(false);
+    say("next", { name: head.name, auto: autoRef.current });
+    return true;
+  }, [say]);
+
+  /**
+   * The artist's own set is over — the last of the pieces has played out, or the person has said stop:
+   * the player is put away and the app says so in its own words, and the talk moves on to the voice
+   * that speaks Base44 mode. A person who asked to listen on has already had the voice taken away, so
+   * nothing is handed anywhere: the set simply ends.
+   */
+  const finishSet = useCallback(
+    (line = "setDone") => {
+      const listening = quietRef.current;
+      clear();
+      say(line);
+      if (!listening) handoffRef.current?.();
+    },
+    [clear, say]
+  );
 
   /**
    * One turn, read for what the app's own player should do: the piece the person asked for, or the
@@ -88,13 +144,17 @@ export default function useHomeMedia({ onTell, onEndVoice } = {}) {
 
         if (result.intent === "play" || result.intent === "listen") {
           if (result.chosen?.url) {
-            stand(result.chosen, result.others);
+            // the artist's own set: the piece asked for, and the artist's own pieces behind it
+            const behind = (Array.isArray(result.others) ? result.others : []).filter(
+              (one) => one?.url
+            );
+            stand(result.chosen, behind, true);
             if (result.intent === "listen") {
               quietRef.current = true;
               setQuiet(true);
               return say("quiet", { name: result.chosen.name });
             }
-            return say("standing", { name: result.chosen.name });
+            return say("set", { name: result.chosen.name, count: behind.length });
           }
           const names = (Array.isArray(result.candidates) ? result.candidates : [])
             .map((one) => one?.name)
@@ -104,17 +164,12 @@ export default function useHomeMedia({ onTell, onEndVoice } = {}) {
         }
 
         if (result.intent === "next") {
-          const rest = queueRef.current;
-          if (!rest.length) return say("last");
-          const [head, ...tail] = rest;
-          itemRef.current = head;
-          queueRef.current = tail;
-          startedRef.current = false;
-          setItem(head);
-          setQueue(tail);
-          setInPlace(false);
-          setStarted(false);
-          return say("next", { name: head.name });
+          // Nothing of the app's own is standing in the player, so the turn is not about the music at
+          // all: the voice holding the call answers it exactly as it always did.
+          if (!itemRef.current) return null;
+          if (step()) return null;
+          // nothing is left behind the piece standing: the artist's own set is over
+          return finishSet();
         }
 
         if (result.intent === "pause") {
@@ -128,12 +183,12 @@ export default function useHomeMedia({ onTell, onEndVoice } = {}) {
         }
 
         if (result.intent === "stop") {
-          // the piece goes out of the player and stays standing, so it can be pressed again
-          playerRef.current?.stop?.();
-          startedRef.current = false;
-          setInPlace(false);
-          setStarted(false);
-          return say("stop");
+          // Nothing of the app's own is standing in the player, so a stop is not about the music: the
+          // voice holding the call answers it, and the talk keeps the voice it has.
+          if (!itemRef.current) return null;
+          // The person has said stop: the music turn ends here, and the talk moves on from AI 1 to the
+          // voice that speaks Base44 mode rather than the piece being left standing over the call.
+          return finishSet("stop");
         }
 
         return null;
@@ -143,7 +198,7 @@ export default function useHomeMedia({ onTell, onEndVoice } = {}) {
         readingRef.current = false;
       }
     },
-    [say, stand]
+    [finishSet, say, stand, step]
   );
 
   /** The person has brought the player in: it can be paused and started again from here on. */
@@ -167,33 +222,40 @@ export default function useHomeMedia({ onTell, onEndVoice } = {}) {
 
   /** The next of the artist's own pieces, pressed on the screen. */
   const onNext = useCallback(() => {
-    const rest = queueRef.current;
-    if (!rest.length) return say("last");
-    const [head, ...tail] = rest;
-    itemRef.current = head;
-    queueRef.current = tail;
-    startedRef.current = false;
-    setItem(head);
-    setQueue(tail);
-    setInPlace(false);
-    setStarted(false);
-    return say("next", { name: head.name });
-  }, [say]);
+    if (step()) return true;
+    return say("last");
+  }, [say, step]);
+
+  /**
+   * The player itself reports that the piece standing in it has played out. The artist's own set moves
+   * on to the piece behind it by itself; where none is left, the music turn is over and the talk is
+   * handed on to the voice that speaks Base44 mode.
+   */
+  const onTrackEnd = useCallback(() => {
+    if (step()) return;
+    finishSet();
+  }, [finishSet, step]);
 
   /** The player is closed by hand: the app's own doing, so nothing is claimed about it. */
   const onClose = useCallback(() => clear(), [clear]);
 
   return {
     item,
+    // the artist's own pieces still waiting behind the one standing, in the order they play
+    queue,
     others: queue.length,
     note,
     inPlace,
     started,
     quiet,
+    // the piece standing was asked for as the artist's own set: it is brought in and started by the
+    // app, and the player moves on to the piece behind it when it plays out
+    autoStart: auto,
     playerRef,
     read,
     onStart,
     onPlaying,
+    onTrackEnd,
     onNext,
     onClose,
   };

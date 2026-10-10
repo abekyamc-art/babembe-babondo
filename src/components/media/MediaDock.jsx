@@ -15,14 +15,22 @@ import YouTubePlayer from "@/components/story/YouTubePlayer";
  * gone quiet. A call may pass the player in through `playerRef`, so the piece standing in it can be
  * paused, started again or taken out by what the person asked for; `onPlaying` is said only when the
  * player itself reports that the sound has really begun.
+ *
+ * An artist's own set is brought in and started by the app itself: `autoStart` holds the piece the
+ * person asked for with the artist's own pieces behind it, listed here in the order they play, and
+ * `onTrackEnd` is what the player reports when one of them has played out, so the set moves on by
+ * itself until the last of them is done.
  */
 export default function MediaDock({
   item,
+  queue = [],
   others = 0,
   note = "",
   playing,
+  autoStart = false,
   onStart,
   onPlaying,
+  onTrackEnd,
   onNext,
   onClose,
   playerRef,
@@ -32,8 +40,8 @@ export default function MediaDock({
   const line =
     note ||
     (playing
-      ? "Nimekuweka — it stands in the player here."
-      : "Press play — it plays right here, with its sound.");
+      ? "Playing here, with its sound."
+      : "Starting here — if it has not begun, press play on the video itself.");
 
   return (
     <section aria-label="Media player" className="border-t border-border px-4 py-3">
@@ -63,12 +71,32 @@ export default function MediaDock({
         </button>
       </div>
 
+      {queue.length ? (
+        <div className="mt-1 border-t border-border pt-2">
+          <p className="font-body text-[10px] font-semibold uppercase tracking-[0.16em] text-muted-foreground">
+            Baada ya hii — {queue.length} more of the artist's own
+          </p>
+          <ul className="mt-1 space-y-0.5">
+            {queue.map((one) => (
+              <li
+                key={one.url}
+                className="truncate font-body text-[11px] leading-snug text-muted-foreground"
+              >
+                {one.name || one.url}
+              </li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
+
       <YouTubePlayer
         ref={playerRef}
         url={item.url}
         title={item.name}
+        autoStart={autoStart}
         onPlaybackStart={onStart}
         onPlaying={onPlaying}
+        onTrackEnd={onTrackEnd}
       />
     </section>
   );

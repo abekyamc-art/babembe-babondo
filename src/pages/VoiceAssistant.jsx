@@ -433,12 +433,15 @@ export default function VoiceAssistant() {
         <div className="absolute inset-x-4 bottom-[5.5rem] z-30 mx-auto max-w-md overflow-hidden rounded-2xl border border-border bg-card/95 shadow-lg backdrop-blur">
           <MediaDock
             item={media.item}
+            queue={media.queue}
             others={media.others}
             note={media.note}
-            playing={media.inPlace}
+            playing={media.started}
+            autoStart={media.autoStart}
             playerRef={media.playerRef}
             onStart={media.onStart}
             onPlaying={media.onPlaying}
+            onTrackEnd={media.onTrackEnd}
             onNext={media.onNext}
             onClose={media.onClose}
           />

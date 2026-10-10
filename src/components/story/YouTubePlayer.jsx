@@ -29,7 +29,7 @@ import { hostOf } from "@/lib/stories";
  * voice, so nothing is ever said to be playing before the sound has really begun.
  */
 const YouTubePlayer = forwardRef(function YouTubePlayer(
-  { url, title = "", onPlaybackEnd, onPlaybackStart, onPlaying },
+  { url, title = "", onPlaybackEnd, onPlaybackStart, onPlaying, onTrackEnd, autoStart = false },
   ref
 ) {
   // the player is told which page it is standing in, so YouTube can recognise the address it is on
@@ -38,12 +38,22 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
   const frameRef = useRef(null);
   const playingRef = useRef(onPlaying);
   playingRef.current = onPlaying;
+  const endedRef = useRef(onTrackEnd);
+  endedRef.current = onTrackEnd;
+  // the piece that has already been reported as played out, so one end is never told twice
+  const endedFor = useRef("");
+  // the piece the app itself has already brought in, so a stop by hand is never overruled
+  const broughtRef = useRef("");
+  const autoRef = useRef(autoStart);
+  autoRef.current = autoStart;
+  const videoIdRef = useRef("");
+  videoIdRef.current = video?.id || "";
 
   /** One of YouTube's own commands, handed to the frame it belongs to. */
-  const command = (func) => {
+  const command = (func, args = []) => {
     const frame = frameRef.current;
     if (!frame?.contentWindow) return false;
-    frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args: [] }), "*");
+    frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), "*");
     return true;
   };
 
@@ -83,11 +93,38 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
           : typeof data?.info?.playerState === "number"
             ? data.info.playerState
             : null;
-      if (state === 1) playingRef.current?.();
+      if (state === 1) {
+        playingRef.current?.();
+        // The sound is asked for once more the moment the piece is really playing: a player that came
+        // up muted is the one nobody hears, and the app's own set is meant to be heard.
+        if (autoRef.current) {
+          command("unMute");
+          command("setVolume", [100]);
+        }
+        return;
+      }
+      // The piece has played out. The app is told once for each piece, so the artist's own set moves on
+      // to the piece behind it rather than the same end being reported again.
+      if (state === 0 && endedFor.current !== videoIdRef.current) {
+        endedFor.current = videoIdRef.current;
+        endedRef.current?.();
+      }
     };
     window.addEventListener("message", onMessage);
     return () => window.removeEventListener("message", onMessage);
   }, [playing]);
+
+  /**
+   * A piece of the artist's own set is brought in by the app itself: the frame arrives with no press on
+   * the cover, and the piece is started from inside it once it has loaded. The piece the app already
+   * brought in is remembered, so a person who stops it by hand is never overruled by the app.
+   */
+  useEffect(() => {
+    if (!autoStart || !video?.id || broughtRef.current === video.id) return;
+    broughtRef.current = video.id;
+    setPlaying(true);
+    onPlaybackStart?.();
+  }, [autoStart, video?.id, onPlaybackStart]);
 
   if (!video) return null;
 
@@ -119,6 +156,13 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
             onLoad={() => {
               const frame = frameRef.current;
               frame?.contentWindow?.postMessage(JSON.stringify({ event: "listening" }), "*");
+              // A piece of the artist's own set begins here, started by the app and not by a press: the
+              // sound is asked for plainly — unmuted, at full volume — and the piece is set going.
+              if (autoStart) {
+                command("unMute");
+                command("setVolume", [100]);
+                command("playVideo");
+              }
             }}
             className="aspect-video w-full"
           />
