@@ -140,8 +140,12 @@ export function readTurn(
   // the confirmed meaning while the words themselves are left exactly as they were said. A word that
   // merely resembles a saved one is never taken: that would be answering a word nobody said, and the
   // voice answering the call is the one that weighs a wider resemblance, with the whole bank in hand.
+  // Only when what the person said IS that word or phrase: a saved word matched inside a longer turn
+  // is not what the turn is, and answering a whole sentence out of a word nobody said is where a wrong
+  // Kibembe answer is born. Such a turn is left unread, and the voice answers it from the person's own
+  // words under the rules of the call.
   const near = strongTerms(heard, words || [])[0];
-  if (near) {
+  if (near && saidWords(near.said).length >= said.length) {
     return {
       kind: "near",
       term: near.term,

@@ -43,9 +43,9 @@ export async function openHearingNote() {
  *
  * `verified` is the app's own word on whether it holds anything of this turn at all — a reading of it
  * as a confirmed word, phrase or ask, or a part of the admin's knowledge the search really reached. It
- * is what the seat's answer is gated on: where the app holds nothing of the turn, no answer is asked
- * for, the turn is left unanswered and the call listens again. A reading that cannot be made is the
- * same thing — nothing is held for that turn, and nothing is answered for it.
+ * is not what an answer is gated on: every turn is answered, and a turn the app holds nothing of is
+ * answered from the person's own words under the rules of the call. A reading that cannot be made
+ * never leaves the person unanswered, and it never leaves a turn spoken into silence.
  */
 export async function readHeardTurn(text, lastAgent = "") {
   const said = String(text || "").trim();

@@ -398,7 +398,7 @@ export default class OpenAiTalkCall {
   armAnswer(text) {
     this.pendingText = String(text || "");
     clearTimeout(this.gateTimer);
-    this.gateTimer = setTimeout(() => this.noReply(this.pendingText), ANSWER_WAIT_MS);
+    this.gateTimer = setTimeout(() => this.askPlain(this.pendingText), ANSWER_WAIT_MS);
   }
 
   /**
@@ -411,10 +411,11 @@ export default class OpenAiTalkCall {
    * the reply, and the answer is made to say it and nothing else. The seat is given no room to write a
    * sentence of its own around it, which is what keeps the reply the app's own words word for word.
    *
-   * Nothing of the app's own, nothing answered: where both the reading of the turn and the reply the
-   * app keeps for it are empty, no answer is asked for at all — see noReply, which is the very path the
-   * bounded wait takes as well. The seat is never left to answer a Kibembe turn on its own account,
-   * because that is where a reply in a language nobody here speaks comes from.
+   * A turn the app holds nothing of is answered all the same: the answer is asked for with nothing put
+   * in front of the seat, so the person is never left in silence. What keeps such an answer to the
+   * three languages of this call is the rules of the call and the reading of the answer as it is
+   * spoken — a line that turns into another language is stopped at that very word, and the app's own
+   * line takes its place.
    */
   answer(note = "", text = null, say = "") {
     const pending = this.pendingText;
@@ -422,12 +423,10 @@ export default class OpenAiTalkCall {
     if (text !== null && String(text) !== pending) return;
     const wrote = String(note || "").trim();
     const line = String(say || "").trim();
-    // the app's own knowledge is what every answer is built from: where the app holds nothing of the
-    // turn, there is nothing to answer from, and the seat is left out of it altogether
-    if (!wrote && !line) {
-      this.noReply(text);
-      return;
-    }
+    // The turn is answered in every case: whatever the app knows of it rides in front of the seat, and
+    // where the app knows nothing of it the seat answers from the person's own words under the rules of
+    // the call. Asking for no answer at all is what left a person who spoke with nothing back, and
+    // silence is never the right answer to a turn somebody said.
     this.pendingText = "";
     clearTimeout(this.gateTimer);
     this.gateTimer = null;
@@ -453,11 +452,12 @@ export default class OpenAiTalkCall {
   }
 
   /**
-   * A turn the app's own knowledge holds nothing of, left as such: no answer is asked for, so nothing
-   * is spoken for the turn and no answer is charged for it. The turn stays on the screen, the app's own
-   * line says what happened, and the call goes on listening for the person's next word.
+   * The app's own reading of the turn never arrived — the bound on that wait is up. The turn is
+   * answered all the same rather than left hanging: the answer is asked for with the rules of the call
+   * in front of the seat and nothing of the app's own, and the call goes on listening. Silence is never
+   * an answer.
    */
-  noReply(text = null) {
+  askPlain(text = null) {
     const pending = this.pendingText;
     if (this.stopped || !pending) return;
     if (text !== null && String(text) !== pending) return;
@@ -465,7 +465,9 @@ export default class OpenAiTalkCall {
     clearTimeout(this.gateTimer);
     this.gateTimer = null;
     this.forced = "";
-    this.h.onNoReply?.(pending);
+    this.appLine = false;
+    this.answerText = "";
+    this.send({ type: "response.create" });
   }
 
   /**
