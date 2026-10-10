@@ -1,6 +1,6 @@
 import { secrets } from 'base44:runtime';
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import { appRulesBlock } from '../../shared/cartesiaRules.ts';
+import { AGENT_ROOM, appRulesBlock } from '../../shared/cartesiaRules.ts';
 import { loadSavedMaterial } from '../../shared/voiceRules.ts';
 import { earsKnowledge, earsPrompt } from '../../shared/openAiEars.ts';
 
@@ -27,7 +27,13 @@ const SESSION_URL = 'https://api.openai.com/v1/realtime/client_secrets';
 // How much of the app's own rules the session carries, and how much of the admin's document rides in
 // them. A session reads its instructions from the front, so everything past the room is lost: what
 // gives way is the document, and never the guide, the saved answers or the confirmed words.
-const RULES_ROOM = 24000;
+//
+// The room is the app's own room for this whole block — the same one the Cartesia agents carry it in
+// — because the same material has to fit: the guide alone is around 28,500 characters, so a smaller
+// room is spent before the answer key and the confirmed words are ever reached, and the seat is left
+// with the rules and no vocabulary at all — greeting in Kibembe and then falling into a language
+// nobody here speaks, with nothing of the app's own knowledge to answer from.
+const RULES_ROOM = AGENT_ROOM;
 const DOC_ROOM = 6000;
 
 // Every spoken turn of this call is written down by OpenAI too, pointed at the admin's own words
@@ -127,6 +133,14 @@ export default async function (req: Request): Promise<Response> {
       const { stamp, saved } = await loadSavedMaterial(base44, DOC_ROOM);
       const block = appRulesBlock(saved, stamp, RULES_ROOM);
       if (block) instructions = `${OPENING}\n\n${block}`;
+      // A block that has filled its room gave something up — the admin's document goes first — and
+      // what the seat answers from is then a part of the material rather than the whole of it. It is
+      // said here rather than left to be guessed at when an answer comes back thin.
+      if (block.length >= RULES_ROOM) {
+        console.warn(
+          `AI 1's rules filled their room (${block.length} of ${RULES_ROOM} characters): the admin's document is the part that gave way.`
+        );
+      }
     } catch (error: any) {
       // the rules are never a reason a call fails to open: the seat answers from the guide it already
       // carries, and what could not be read is written in the app's own logs
