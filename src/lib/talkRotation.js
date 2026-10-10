@@ -17,6 +17,12 @@ export const FIRST_TALK = { id: "gloire", label: GLOIRE_AI, account: "" };
 export const TALK_ANSWERS = 2;
 
 /**
+ * How many answers the app's own OpenAI seat — AI 1, the first voice a home call is given — speaks
+ * before the ring of voices moves on to the next one. Every answer given spends one credit.
+ */
+export const OPENAI_ANSWERS = 6;
+
+/**
  * How many answers the Cartesia voice gives on a home call before the ring of voices moves on to the
  * next one. Every answer given spends one credit. The Cartesia voice is one seat on that ring with
  * three accounts standing behind it, so this is how long the seat holds the call, whichever of them

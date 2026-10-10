@@ -1,16 +1,23 @@
-import { CARTESIA_AI, MBEMBE_AI, MBONDO_AI, SADIKI_AI } from "@/lib/providerNames";
-import { AI2_ID, ai2Resting, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRotation";
+import { CARTESIA_AI, MBEMBE_AI, MBONDO_AI, OPENAI_AI, SADIKI_AI } from "@/lib/providerNames";
+import {
+  AI2_ID,
+  ai2Resting,
+  CARTESIA_ANSWERS,
+  OPENAI_ANSWERS,
+  TALK_ANSWERS,
+} from "@/lib/talkRotation";
 
 /**
  * Who answers on the home page's calls, and in what order.
  *
- * Every voice the app offers stands on this one ring, and the ring's order is what a call walks: the
- * talk AIs the admin has set up come first, then the accounts that speak for the other modes — Mbembe
- * AI for Base44 mode, then Mbondo AI, then Sadiki AI. The Cartesia voice stands last on the ring: a
- * call still reaches it, and it still opens a call when the voices ahead of it cannot, but it is
- * never the voice a call is given while a working one is available — its own service is standing
- * aside for now, and its place on the ring is the only thing that changed. The Cartesia voice answers
- * seven finished answers before standing aside, and every other voice two.
+ * Every voice the app offers stands on this one ring, and the ring's order is what a call walks. The
+ * app's own OpenAI seat — AI 1 — stands first: it opens the call, and it answers six finished answers
+ * before the ring moves on. Then come the talk AIs the admin has set up, then the accounts that speak
+ * for the other modes — Mbembe AI for Base44 mode, then Mbondo AI, then Sadiki AI. The Cartesia voice
+ * stands last: a call still reaches it, and it still opens a call when the voices ahead of it cannot,
+ * but it is never the voice a call is given while a working one is available — its own service is
+ * standing aside for now, and its place on the ring is the only thing that changed. Every other voice
+ * answers two finished answers before standing aside.
  *
  * The Cartesia voice is one seat, not three. The three Cartesia AIs the app is set up with — the
  * app's own account, then the admin's second and third — stand behind that one seat, each with its
@@ -28,6 +35,8 @@ import { AI2_ID, ai2Resting, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRo
  * own written helpers answer on their own screens or in writing, so none of them is on this ring.
  */
 const RING = [
+  // AI 1 is the app's own OpenAI seat and stands first: it opens the call and speaks six answers.
+  { id: "openai", label: OPENAI_AI, kind: "openai", account: "openai", answers: OPENAI_ANSWERS },
   { id: "talk2", label: "AI 2", kind: "talk", account: "talk2", answers: TALK_ANSWERS },
   { id: "talk3", label: "AI 3", kind: "talk", account: "talk3", answers: TALK_ANSWERS },
   { id: "talk4", label: "AI 4", kind: "talk", account: "talk4", answers: TALK_ANSWERS },

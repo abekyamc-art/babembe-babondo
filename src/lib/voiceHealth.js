@@ -47,6 +47,24 @@ async function checkTalk(seat) {
 }
 
 /**
+ * The app's own OpenAI seat — AI 1 — asked for the session its call is opened with. The key itself
+ * never leaves the server: what comes back is the short-lived credential the call opens on, or the
+ * reason the account gave for refusing it.
+ */
+async function checkOpenAi(seat) {
+  try {
+    const res = await base44.functions.invoke("openAiTalkSession", {});
+    const session = res?.data || {};
+    if (!session.client_secret) return { seat, why: session.error || "" };
+    return { seat, session, account: seat.account };
+  } catch (err) {
+    // the seat could not be asked at all: whatever it said is kept, so the voice is named rather than
+    // left as one that simply did not answer
+    return { seat, why: err?.response?.data?.error || "" };
+  }
+}
+
+/**
  * One Cartesia account, asked for the token its call is opened with: either the session comes back,
  * or the reason the account gave for refusing it does.
  */
@@ -103,7 +121,12 @@ async function checkCartesia(seat) {
 export async function checkVoiceSeats(seats) {
   const asked = await Promise.all(
     seats.map(async (seat) => {
-      const probe = seat.kind === "cartesia" ? checkCartesia(seat) : checkTalk(seat);
+      const probe =
+        seat.kind === "cartesia"
+          ? checkCartesia(seat)
+          : seat.kind === "openai"
+            ? checkOpenAi(seat)
+            : checkTalk(seat);
       return Promise.race([probe, wait(CHECK_MS).then(() => ({ seat, why: gaveUp(seat.label) }))]);
     })
   );

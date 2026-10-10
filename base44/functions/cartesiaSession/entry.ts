@@ -1,10 +1,8 @@
 import { secrets } from "base44:runtime";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { appRulesBlock, blockKey, RULES_MARK, RULES_VERSION, withAppRules } from "../../shared/cartesiaRules.ts";
-import { bankRows, knowledgeStamp } from "../../shared/wordBank.ts";
-import { recordedEvidence } from "../../shared/pronunciation.ts";
-import { savedWords } from "../../shared/knowledgeWords.ts";
-import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
+import { knowledgeStamp } from "../../shared/wordBank.ts";
+import { loadSavedMaterial } from "../../shared/voiceRules.ts";
 import { agentKeywords } from "../../shared/hearingKeywords.ts";
 
 const VERSION = "2026-08-14";
@@ -19,8 +17,6 @@ const VERSION = "2026-08-14";
 const HEAR_LANGUAGE = "sw";
 
 // the admin's saved answers and saved notes, newest first: what the agent answers with
-const KEY_ROWS = 200;
-const NOTE_ROWS = 60;
 
 /**
  * How much of the admin's document rides onto the agent. The document is far larger than any voice
@@ -116,33 +112,9 @@ async function keepRules(base44: any, apiKey: string, agentId: string, agent: an
     const body: any = {};
 
     if (!rulesKept) {
-      const [keys, notes, words, doc, bank, evidence] = await Promise.all([
-        base44.asServiceRole.entities.AssistantKnowledge.filter(
-          { kind: "qa" },
-          { sort: "-created_date", limit: KEY_ROWS, fields: ["question", "answer"] }
-        ),
-        base44.asServiceRole.entities.AssistantKnowledge.filter(
-          { kind: "note" },
-          { sort: "-created_date", limit: NOTE_ROWS, fields: ["title", "text"] }
-        ),
-        savedWords(base44),
-        // the admin's one knowledge document, as much of it as a voice can carry: its rules whole,
-        // the parts that matter, and a slice of every other part
-        docWholeBlock(base44, AGENT_DOC_ROOM),
-        // and how the confirmed words are really said: the readings the person's own corrections
-        // carry, and the ways their approved recordings were written down
-        bankRows(base44),
-        recordedEvidence(base44),
-      ]);
-
-      const saved = {
-        keys: Array.isArray(keys) ? keys : keys?.items || [],
-        notes: Array.isArray(notes) ? notes : notes?.items || [],
-        words,
-        doc,
-        bank: Array.isArray(bank) ? bank : bank?.items || [],
-        evidence,
-      };
+      // the admin's saved material, read here exactly as the app's own OpenAI seat reads it, so every
+      // voice of the app answers from the one store
+      const { saved } = await loadSavedMaterial(base44, AGENT_DOC_ROOM);
       const wanted = withAppRules(current, appRulesBlock(saved, stamp));
       if (wanted !== current) {
         // a deployed agent keeps its instructions as llm_system_prompt; a managed one as its config

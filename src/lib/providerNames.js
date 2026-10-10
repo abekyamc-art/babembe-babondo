@@ -26,6 +26,13 @@ export const KIBEMBE_ASSISTANT = "Kibembe Assistant";
 export const KIBEMBE_CLASS = "mode-kibembe";
 
 /**
+ * The app's own OpenAI seat — the first voice a home call is given, named for the place it stands in
+ * the ring, with the admin's own talk AIs following it as AI 2, AI 3 and AI 4. It hears and answers on
+ * the app's own OpenAI account, and it speaks six answers before the call moves on.
+ */
+export const OPENAI_AI = "AI 1";
+
+/**
  * The outside agent the home page's calls hand over to: Cartesia AI answers from its own account,
  * listening and writing its own answers, and takes every other turn on the call.
  */

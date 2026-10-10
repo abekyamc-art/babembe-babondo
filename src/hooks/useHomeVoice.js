@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import useTalkVoice from "@/hooks/useTalkVoice";
 import useCartesiaVoice from "@/hooks/useCartesiaVoice";
+import useOpenAiVoice from "@/hooks/useOpenAiVoice";
 import useHomeMedia from "@/hooks/useHomeMedia";
 import { HOME_SEATS, nextPlan } from "@/lib/homeRotation";
 import { checkVoiceSeats } from "@/lib/voiceHealth";
@@ -185,8 +186,11 @@ export default function useHomeVoice() {
   const onMedia = useCallback((said) => mediaRef.current?.read(said) || null, []);
   // Only a talk AI can be told anything mid-call: Cartesia's own settings are left exactly as they
   // are, so there the app's line about its own player stands on the screen instead.
+  // Only a talk AI can be told anything mid-call: the app's own OpenAI seat hears the person itself
+  // and answers on its own account, and Cartesia's own settings are left exactly as they are — so on
+  // those two the app's line about its own player stands on the screen instead.
   const onTell = useCallback(
-    (note) => (seatRef.current.kind === "cartesia" ? false : !!talkRef.current?.tell?.(note)),
+    (note) => (seatRef.current.kind === "talk" ? !!talkRef.current?.tell?.(note) : false),
     []
   );
 
@@ -200,6 +204,17 @@ export default function useHomeVoice() {
     onMedia,
   });
   talkRef.current = talk;
+
+  // the app's own OpenAI seat — AI 1, the first voice of the ring: it hears the person itself and
+  // answers on the app's own OpenAI account, so it is opened and hung up exactly like any other voice
+  // of the ring
+  const openai = useOpenAiVoice({
+    onTurn,
+    onPictures: patchPictures,
+    onAnswered,
+    onAnswerEnd: dueHandoff,
+    onMedia,
+  });
 
   // A piece the app chose stands in the app's own player, and the call goes quiet only where the
   // person asked to listen on — and only once the player itself reports the sound has begun. Taking
@@ -223,6 +238,14 @@ export default function useHomeVoice() {
           checked: checked?.account ? { [checked.account]: checked.session } : null,
           onStuck: (text) => stuckRef.current?.(text) === true,
         });
+      // the app's own OpenAI seat opens on the session it was checked with, and reports its own end
+      // like every other voice: a session the service closes leaves the turn where it stood
+      if (next.kind === "openai")
+        return openai.start({
+          label: next.label,
+          checked,
+          onEnded: () => endedRef.current?.(),
+        });
       const why = await talk.start({
         account: next.account,
         label: next.label,
@@ -234,16 +257,17 @@ export default function useHomeVoice() {
       });
       return why ? { ok: false, why } : { ok: true, why: "" };
     },
-    [cartesia, talk, onAnswered, dueHandoff]
+    [cartesia, talk, onAnswered, dueHandoff, openai]
   );
 
   /** The call on air, hung up. */
   const closeSeat = useCallback(
     async (next) => {
       if (next.kind === "cartesia") await cartesia.stop();
+      else if (next.kind === "openai") await openai.stop();
       else await talk.stop();
     },
-    [cartesia, talk]
+    [cartesia, talk, openai]
   );
 
   /**
@@ -416,7 +440,7 @@ export default function useHomeVoice() {
         if (pendingRef.current || turningRef.current) return resume();
         // A call with nothing on the line — no voice open and no change waiting to be taken — is a
         // call that went nowhere, so the tap opens a voice again instead of being swallowed.
-        if (talk.micActive || cartesia.micActive) return false;
+        if (talk.micActive || cartesia.micActive || openai.micActive) return false;
       }
 
       startingRef.current = true;
@@ -480,7 +504,7 @@ export default function useHomeVoice() {
       );
       return false;
     },
-    [cartesia, clearChange, openSeat, resume, setCurrent, talk]
+    [cartesia, clearChange, openSeat, resume, setCurrent, talk, openai]
   );
 
   const stop = useCallback(async () => {
@@ -607,7 +631,12 @@ export default function useHomeVoice() {
       setTurns((prev) =>
         prev.map((turn, index) => (index === at ? { ...turn, text: said } : turn))
       );
-      const live = seatRef.current.kind === "cartesia" ? cartesia : talk;
+      const live =
+        seatRef.current.kind === "openai"
+          ? openai
+          : seatRef.current.kind === "cartesia"
+            ? cartesia
+            : talk;
       live.correct?.(said);
 
       // The app offers to keep what the person put right — their own words in place of what the ears
@@ -616,7 +645,7 @@ export default function useHomeVoice() {
         if (proposal) setSaveAsk({ ...proposal, text: said, heard: String(wasHeard || "") });
       });
     },
-    [cartesia, talk]
+    [cartesia, talk, openai]
   );
 
   /** The person has said the offer should be kept: their own words go into the Word Bank now. */
@@ -632,7 +661,7 @@ export default function useHomeVoice() {
   const leaveSave = useCallback(() => setSaveAsk(null), []);
 
   // whichever voice holds the call is the one whose state the screen reads
-  const live = seat.kind === "cartesia" ? cartesia : talk;
+  const live = seat.kind === "openai" ? openai : seat.kind === "cartesia" ? cartesia : talk;
 
   return {
     status: live.status,
