@@ -3,6 +3,7 @@ import { ArrowRight, Flag } from "lucide-react";
 import { LETTERS } from "@/lib/examBank";
 import ExamFigure from "./ExamFigure";
 import ExamOption from "./ExamOption";
+import ExamPrompt from "./ExamPrompt";
 
 /** How one choice is drawn once the answer has been given: the right one named, the rest set back. */
 function lookOf(at, question, mark) {
@@ -37,10 +38,14 @@ export default function ExamQuestionCard({
         <span className="exam-focus">{question.focus}</span>
       </header>
 
-      <h2 className="exam-prompt">{question.prompt}</h2>
-      <p className="exam-hint">{question.hint}</p>
+      <h2 className="exam-prompt">
+        <ExamPrompt question={question} />
+      </h2>
+      {question.hint ? <p className="exam-hint">{question.hint}</p> : null}
 
-      <ExamFigure view={question.view} spot={question.spot} image={question.image} />
+      {question.image || question.view ? (
+        <ExamFigure view={question.view} spot={question.spot} image={question.image} />
+      ) : null}
 
       <div className="exam-options">
         {question.options.map((text, choice) => (

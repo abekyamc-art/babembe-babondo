@@ -1,5 +1,6 @@
 import { LIFE_ROWS } from "./lifeExamWords";
 import { buildMedicalMix } from "./examBank";
+import { buildExtraMix } from "./examExtras";
 import { lifeQuestionOf, shuffled } from "./examSeries";
 
 /**
@@ -10,27 +11,31 @@ import { lifeQuestionOf, shuffled } from "./examSeries";
  * clearing it is what opens the season after it. Nothing else has to change to add a season: one entry
  * in the list below is a season, and its episodes are built from it.
  *
- * Nothing here is guessed at either. An episode's everyday questions come from lifeExamWords.js and its
- * health questions from the confirmed medical list in examBank.js, each exactly as the admin's own
- * knowledge document confirms it, and the two wrong choices of every question are other confirmed forms
- * — so no choice that was never confirmed is ever put in front of a student.
+ * Nothing here is guessed at either. An episode's everyday questions come from lifeExamWords.js, its
+ * numbers, greetings and proverbs from examExtras.js, and its health questions from the confirmed
+ * medical list in examBank.js, each exactly as the admin's own knowledge document confirms it, and the
+ * two wrong choices of every question are other confirmed forms — so no choice that was never confirmed
+ * is ever put in front of a student. Every question also carries the one thing it turns on apart from
+ * the rest of the line, so the card can stand it in a pure colour of its own.
  */
 
 /** How many episodes stand inside a season. */
 export const EPISODES_PER_SEASON = 100;
 
 /**
- * The seasons themselves. Each one carries the pool its episodes are drawn from — the everyday words,
- * the body and health terms, or both at once — and the length its first episode asks.
+ * The seasons themselves. Each one carries the pool its episodes are drawn from — the everyday words
+ * with the numbers, the greetings and phrases and the proverbs, the body and health terms, or both at
+ * once — and the length its first episode asks.
  *
  * The episodes of a season grow a little longer as the season goes on, and in the later episodes of a
- * season the other pool joins in, so a student never meets one part of the language alone for long.
+ * season the other pools join in, so a student never meets one part of the language alone for long.
  */
 const SEASONS = [
   {
     no: 1,
-    title: "The everyday words",
-    blurb: "Greetings, sleep, home, the village and the road — the Kibembe of every day",
+    title: "The everyday language",
+    blurb:
+      "Greetings, sleep, home, the village and the road — with the numbers, the phrases of every day and the proverbs",
     pool: "life",
     base: 5,
   },
@@ -73,18 +78,21 @@ function partsOf(season, episode) {
   const size = episodeSize(season, episode);
 
   if (season.pool === "life") {
-    // the everyday words alone to begin with, and a third of the paper given to the health terms from
-    // the second half of the season on
+    // The everyday words alone at the very start. From the sixth episode on the mixed questions take
+    // their place in the paper — a number, a greeting or a phrase, a proverb — one of them at first and
+    // two from the fortieth episode on, and the health terms join them from the second half of the
+    // season. So the language is met as it is really spoken, and never one part of it alone for long.
+    const extras = episode > 40 ? 2 : episode > 5 ? 1 : 0;
     const medical = episode > 50 ? Math.max(1, Math.round(size / 3)) : 0;
-    return { life: size - medical, medical };
+    return { life: size - extras - medical, extras, medical };
   }
 
   if (season.pool === "health") {
     const life = episode > 40 ? Math.max(1, Math.round(size / 3)) : 0;
-    return { life, medical: size - life };
+    return { life, extras: 0, medical: size - life };
   }
 
-  return { life: Math.ceil(size / 2), medical: Math.floor(size / 2) };
+  return { life: Math.ceil(size / 2), extras: 0, medical: Math.floor(size / 2) };
 }
 
 /** One episode's everyday questions, drawn from the confirmed daily-life words. */
@@ -101,6 +109,10 @@ function lifeQuestions(count) {
 export function buildEpisodePaper(seasonNo, episode) {
   const season = seasonByNo(seasonNo);
   if (!season) return [];
-  const { life, medical } = partsOf(season, episode);
-  return shuffled([...lifeQuestions(life), ...buildMedicalMix(medical)]);
+  const { life, extras, medical } = partsOf(season, episode);
+  return shuffled([
+    ...lifeQuestions(life),
+    ...buildExtraMix(extras),
+    ...buildMedicalMix(medical),
+  ]);
 }

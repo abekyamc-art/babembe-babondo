@@ -30,6 +30,12 @@ export function lifeQuestionOf(row) {
     prompt: askKibembe
       ? `What is the Kibembe word for “${row.en}”?`
       : `What does the Kibembe term “${row.kb}” mean?`,
+    // the word the question turns on: the English word where the Kibembe is asked for, the Kibembe
+    // where its meaning is asked for. It is written apart from the rest of the line so the card can
+    // stand it in a pure colour of its own
+    lead: askKibembe ? "What is the Kibembe word for “" : "What does the Kibembe term “",
+    key: askKibembe ? row.en : row.kb,
+    tail: askKibembe ? "”?" : "” mean?",
     explain: `${row.kb} = ${row.en}.`,
     options,
     correct: options.indexOf(right),

@@ -193,6 +193,19 @@
   color: #123049;
 }
 
+/* The one thing a question turns on — the word, the number, the phrase or the proverb it asks about
+   — stands in a pure colour of its own, apart from the card's own ink and from the three answer
+   colours, so it is found at a glance. It wraps in one piece, however many lines it runs over. */
+.exam-key {
+  display: inline;
+  padding: 1px 7px;
+  color: #ffffff;
+  background: #6d28d9;
+  border-radius: 7px;
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+
 .exam-hint {
   margin: -6px 0 0;
   font-size: 12.5px;

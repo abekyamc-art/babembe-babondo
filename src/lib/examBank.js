@@ -121,13 +121,18 @@ function wrongs(entry, pool, pick) {
 }
 
 /** One question, with the correct answer standing wherever the shuffle has put it. */
-function questionOf({ id, kind, entry, prompt, right, wrong, explain, practice }) {
+function questionOf({ id, kind, entry, prompt, ask, right, wrong, explain, practice }) {
   const options = shuffled([right, ...wrong]);
   const view = VIEW[entry.view];
   return {
     id,
     kind,
     prompt,
+    // the term the question turns on, written apart from the rest of the line so the card can stand
+    // it in a pure colour of its own
+    lead: ask?.lead || "",
+    key: ask?.key || "",
+    tail: ask?.tail || "",
     explain,
     options,
     correct: options.indexOf(right),
@@ -151,6 +156,9 @@ function translationQuestion(entry, direction) {
     prompt: askKibembe
       ? `What is the Kibembe word for “${entry.en}”?`
       : `What does the Kibembe term “${entry.kb}” mean?`,
+    ask: askKibembe
+      ? { lead: "What is the Kibembe word for “", key: entry.en, tail: "”?" }
+      : { lead: "What does the Kibembe term “", key: entry.kb, tail: "” mean?" },
     right,
     wrong: wrongs(entry, VOCAB, pick),
     explain: `${entry.kb} = ${entry.en}.${entry.note ? ` ${entry.note}` : ""}`,
@@ -164,6 +172,11 @@ function structureQuestion(entry) {
     kind: "structure",
     entry,
     prompt: `Look at ${VIEW[entry.view].where} of the illustration. Which confirmed Kibembe term names a structure of the ${entry.group.toLowerCase()}?`,
+    ask: {
+      lead: `Look at ${VIEW[entry.view].where} of the illustration. Which confirmed Kibembe term names a structure of the `,
+      key: entry.group.toLowerCase(),
+      tail: "?",
+    },
     right: entry.kb,
     wrong: wrongs(entry, VOCAB.filter((row) => row.group !== entry.group), (row) => row.kb),
     explain: `${entry.kb} = ${entry.en}.`,
@@ -182,6 +195,11 @@ function confirmedQuestions() {
       kind: "confirmed",
       entry: cervix,
       prompt: "Both confirmed Kibembe expressions for the cervix stand as correct. Which choice carries them?",
+      ask: {
+        lead: "Both confirmed Kibembe expressions for the ",
+        key: "cervix",
+        tail: " stand as correct. Which choice carries them?",
+      },
       right: cervix.kb,
       wrong: ["Lubochi", "Eisunde"],
       explain: `Cervix — ${cervix.kb}. Both expressions are correct.`,
@@ -191,6 +209,11 @@ function confirmedQuestions() {
       kind: "confirmed",
       entry: scrotum,
       prompt: "Which confirmed Kibembe word is used for both the scrotum and the testicle?",
+      ask: {
+        lead: "Which confirmed Kibembe word is used for both the ",
+        key: "scrotum and the testicle",
+        tail: "?",
+      },
       right: "Mabolo",
       wrong: ["Malúmé", "Mshipa"],
       explain: "Mabolo = Scrotum and Testicle. The confirmed word is the same for both.",
@@ -204,6 +227,11 @@ function confirmedQuestions() {
       kind: "confirmed",
       entry: woman,
       prompt: "The recorded word for the anus differs by sex. Which is the confirmed form for a woman?",
+      ask: {
+        lead: "The recorded word for the anus differs by sex. Which is the confirmed form for a ",
+        key: "woman",
+        tail: "?",
+      },
       right: woman.kb,
       wrong: [man.kb, "ibe"],
       explain: "hanyo = Anus (woman). The form recorded for a man is henyo.",
@@ -217,6 +245,11 @@ function confirmedQuestions() {
       kind: "confirmed",
       entry: man,
       prompt: "The recorded word for the anus differs by sex. Which is the confirmed form for a man?",
+      ask: {
+        lead: "The recorded word for the anus differs by sex. Which is the confirmed form for a ",
+        key: "man",
+        tail: "?",
+      },
       right: man.kb,
       wrong: [woman.kb, "ibe"],
       explain: "henyo = Anus (man). The form recorded for a woman is hanyo.",
