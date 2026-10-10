@@ -23,7 +23,7 @@ import { hostOf } from "@/lib/stories";
  * The link underneath is the only way out: it is opened only when it is deliberately tapped, and
  * what took the person away from the talk hands the talk back.
  */
-export default function YouTubePlayer({ url, title = "", onPlaybackEnd }) {
+export default function YouTubePlayer({ url, title = "", onPlaybackEnd, onPlaybackStart }) {
   // the player is told which page it is standing in, so YouTube can recognise the address it is on
   const video = youtubeVideo(url, typeof window === "undefined" ? "" : window.location.origin);
   const [playing, setPlaying] = useState(false);
@@ -59,7 +59,11 @@ export default function YouTubePlayer({ url, title = "", onPlaybackEnd }) {
       ) : (
         <button
           type="button"
-          onClick={() => setPlaying(true)}
+          onClick={() => {
+            setPlaying(true);
+            // the player is in place now, and that is the only thing the app claims
+            onPlaybackStart?.();
+          }}
           aria-label="Show the YouTube video here"
           className="group relative block w-full overflow-hidden rounded-2xl border border-border bg-black"
         >

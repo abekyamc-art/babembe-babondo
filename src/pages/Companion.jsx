@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import ChatComposer from "@/components/kibembe/ChatComposer";
 import CompanionHeader from "@/components/agents/CompanionHeader";
 import CompanionMessage from "@/components/agents/CompanionMessage";
+import MediaDock from "@/components/media/MediaDock";
 import useCompanionChat from "@/hooks/useCompanionChat";
+import useMediaDock from "@/hooks/useMediaDock";
 import { KIBEMBE_CLASS } from "@/lib/providerNames";
 
 /**
@@ -12,6 +14,8 @@ import { KIBEMBE_CLASS } from "@/lib/providerNames";
  */
 export default function Companion() {
   const { messages, sending, error, send, restart } = useCompanionChat();
+  // the app's own player, standing behind the piece the app's own selection chose
+  const media = useMediaDock(messages);
   const [draft, setDraft] = useState("");
   const endRef = useRef(null);
 
@@ -56,8 +60,18 @@ export default function Companion() {
         <div ref={endRef} />
       </div>
 
-      <div className="sticky bottom-0 border-t border-border bg-background/95 px-4 py-3 backdrop-blur">
-        <ChatComposer value={draft} busy={sending} onChange={setDraft} onSend={submit} />
+      <div className="sticky bottom-0 bg-background/95 backdrop-blur">
+        <MediaDock
+          item={media.item}
+          others={media.others}
+          playing={media.playing}
+          onStart={media.began}
+          onNext={media.next}
+          onClose={media.close}
+        />
+        <div className="border-t border-border px-4 py-3">
+          <ChatComposer value={draft} busy={sending} onChange={setDraft} onSend={submit} />
+        </div>
       </div>
     </div>
   );
