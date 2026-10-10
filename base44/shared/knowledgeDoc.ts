@@ -275,10 +275,21 @@ async function readParts(base44: any, kind: string) {
  *  turn — and read again at once the moment the admin publishes something new. */
 async function loadDoc(base44: any) {
   if (held && Date.now() - held.at < HOLD_MS) return held;
-  const state = await stateRow(base44);
-  const published = state ? await readParts(base44, "published") : "";
-  held = { at: Date.now(), state, published };
-  return held;
+  try {
+    const state = await stateRow(base44);
+    const published = state ? await readParts(base44, "published") : "";
+    held = { at: Date.now(), state, published };
+    return held;
+  } catch (error: any) {
+    // A read the store refused — a rate limit, a moment of trouble — never empties the knowledge.
+    // The document already read stands, and the moment it was read is moved on so a store that is
+    // refusing reads is not asked again on every turn of the same call. A document that was never
+    // read at all is still nothing, and is said as such.
+    console.error("The knowledge document could not be read:", error?.message);
+    if (!held) throw error;
+    held = { ...held, at: Date.now() };
+    return held;
+  }
 }
 
 /** The approved document: the whole knowledge every AI answers from, and never a draft. */

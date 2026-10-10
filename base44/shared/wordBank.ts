@@ -48,9 +48,18 @@ export async function bankRows(base44: any): Promise<any[]> {
   if (held.rows.length && stamp && held.stamp === stamp && Date.now() - held.at < MAX_HELD_MS) {
     return held.rows;
   }
-  const rows = await knowledgeWordRows(base44);
-  held = { at: Date.now(), stamp, rows };
-  return held.rows;
+  try {
+    const rows = await knowledgeWordRows(base44);
+    held = { at: Date.now(), stamp, rows };
+    return held.rows;
+  } catch (error: any) {
+    // A read the store refused — a rate limit, a moment of trouble — never empties the Word Bank:
+    // the words already read stand, so a turn is still read against them and answered from them
+    // instead of being left with nothing at all. A bank that was never read is still nothing.
+    console.error("The saved words could not be read:", error?.message);
+    if (!held.rows.length) throw error;
+    return held.rows;
+  }
 }
 
 // What the list rides under: the words are the app's own saved ones, and a word with no meaning
