@@ -104,6 +104,11 @@ export default function useHomeVoice() {
   // the change's own end, reachable from the change itself: a set that ends opens the voice behind it
   // without waiting for a tap
   const resumeRef = useRef(null);
+  // The voice the artist's own set asked for, where the set began while a change was already under
+  // way: the change in flight reads it as it opens the next voice, so the talk lands on Base44 AI
+  // rather than on whichever voice the ring had chosen a breath before the sound began. It is
+  // consumed by the first change that reads it, and put down when a call of the person's own opens.
+  const wantedRef = useRef("");
 
   // the whole talk is kept here, so a call that hands over carries the conversation with it and
   // nothing said before the change is lost from the screen
@@ -252,7 +257,25 @@ export default function useHomeVoice() {
     // The voice that speaks Base44 mode already holds the call: the talk is already where the music
     // asks for it to be, so the set beginning changes nothing.
     if (seatRef.current.id === BASE44_SEAT_ID) return Promise.resolve();
-    return handoffRef.current?.({ preferId: BASE44_SEAT_ID, music: true });
+    // The set asks for Base44 AI from this moment on, and that ask rides with the change that is
+    // already under way where there is one — so the voice the ring had chosen a breath before the
+    // sound began is put aside rather than kept.
+    wantedRef.current = BASE44_SEAT_ID;
+    // A change is already waiting behind the person's own tap — the voice on the line had taken its
+    // own number of answers before the set began. The voice that takes the call is put right at the
+    // head of that change here, so the line on the screen names Base44 AI and the person's own tap
+    // opens it; and it is opened here and now as well, since it is the music that asked for it.
+    const waiting = pendingRef.current;
+    if (waiting) {
+      const wanted = HOME_SEATS.find((seat) => seat.id === BASE44_SEAT_ID);
+      if (wanted) {
+        pendingRef.current = { ...waiting, next: wanted, music: true };
+        setLabel(wanted.label);
+        setNotice(musicHandoffNotice(waiting.from.label, wanted.label, true));
+      }
+      return Promise.resolve(resumeRef.current?.(true));
+    }
+    return Promise.resolve(handoffRef.current?.({ preferId: BASE44_SEAT_ID, music: true }));
   }, []);
 
   // A piece the app chose stands in the app's own player, and the call goes quiet only where the
@@ -329,6 +352,11 @@ export default function useHomeVoice() {
   const handoff = useCallback(async ({ preferId = "", music = false } = {}) => {
     // a change is already running, or the next voice is already waiting behind the person's tap
     if (turningRef.current || pendingRef.current) return;
+    // The voice the artist's own set asked for rides with this change as well, where the change was
+    // asked for by a voice's own turn-end rather than by the music: the set is what the talk belongs
+    // to from the moment its sound began, so the change that follows it is the set's own change too.
+    const wanted = preferId || wantedRef.current;
+    wantedRef.current = "";
     turningRef.current = true;
     const from = seatRef.current;
     // the voices that may take the call next, in the order the ring runs, each of them once — the
@@ -336,11 +364,14 @@ export default function useHomeVoice() {
     const { plan, fresh } = nextPlan(from.id, triedRef.current, usedRef.current);
     // every voice the ring holds has taken its turn: the round is complete, and the ring starts over
     if (!fresh) usedRef.current = [];
-    // The voice the app is asked to hand the call to stands at the head of the ring's own order, where
-    // the ring still holds it; every other voice of the ring follows in the order it always did.
-    const ordered = preferId
-      ? [...plan].sort((a, b) => (a.id === preferId ? -1 : b.id === preferId ? 1 : 0))
-      : plan;
+    // The voice the app is asked to hand the call to stands at the head of the ring's own order, even
+    // where the ring's own bookkeeping has already passed it over — a voice that had its turn earlier
+    // in this call, or that could not open one, is still the voice the music asks for, and it is
+    // asked for it before every other voice. Every other voice of the ring follows in the order it
+    // always did, so a voice that cannot open is never a dead end and the talk still has somewhere to
+    // go.
+    const head = wanted ? HOME_SEATS.find((seat) => seat.id === wanted) : null;
+    const ordered = head ? [head, ...plan.filter((seat) => seat.id !== head.id)] : plan;
     // The voice taking the next turn is chosen and waiting from the moment the change begins — and
     // the count starts again from nothing, since the answers so far belonged to the voice standing
     // down. Choosing it here is what keeps a tap that lands while the call is being hung up from
@@ -419,16 +450,34 @@ export default function useHomeVoice() {
 
       // the voice the call selected while it was standing down is the one the person's tap starts;
       // the rest of the ring is only the fallback for a voice that cannot open at all
-      const order = [pending.next, ...pending.plan.filter((seat) => seat.id !== pending.next.id)];
+      const chosen = [pending.next, ...pending.plan.filter((seat) => seat.id !== pending.next.id)];
+      // A change that was already under way when the artist's own set began is steered to the voice
+      // that speaks Base44 mode here, whatever voice the ring had chosen a breath earlier: the set is
+      // in the app's own player, and the talk belongs to Base44 AI for as long as it plays.
+      const wanted = wantedRef.current;
+      wantedRef.current = "";
+      // The voice the music asked for is opened first, on a session of its own: the set is what the
+      // person is standing under, and a hand-over held behind a check that has not answered yet is a
+      // hand-over that has not happened. Every other voice still stands behind it exactly as it did, so
+      // one that cannot open is never a dead end.
+      const head = byMusic
+        ? chosen[0]
+        : wanted
+          ? chosen.find((seat) => seat.id === wanted) ||
+            HOME_SEATS.find((seat) => seat.id === wanted) ||
+            null
+          : null;
+      const rest = chosen.filter((seat) => seat.id !== head?.id);
       // The same check a call's own start makes: every voice that may take the call is asked, all at
       // once, whether it can hand over a session — so a voice that is down is passed over here rather
       // than the person's tap waiting on it. The voice the ring chose opens on the session it was
       // checked with, and there is no second session for it.
-      const { ready, refused: down } = await checkVoiceSeats(order);
+      const { ready, refused: down } = await checkVoiceSeats(rest);
       const checked = new Map(ready.map((one) => [one.seat.id, one]));
       const tries = [
+        ...(head ? [head] : []),
         ...ready.map((one) => one.seat),
-        ...order.filter((seat) => !checked.has(seat.id)),
+        ...rest.filter((seat) => !checked.has(seat.id)),
       ];
 
       // the voice that could not take the call, and the reason it gave, so the person is told what is
@@ -535,6 +584,8 @@ export default function useHomeVoice() {
       answersRef.current = 0;
       triedRef.current = [];
       usedRef.current = [];
+      // a call of the person's own is its own: nothing the music asked of an earlier call rides into it
+      wantedRef.current = "";
       clearChange();
       setNotice("");
       setWaiting(false);
@@ -559,7 +610,16 @@ export default function useHomeVoice() {
         ...ready.map((one) => one.seat),
         ...HOME_SEATS.filter((seat) => !checked.has(seat.id)),
       ];
+      // While the artist's own set is playing in the app's own player, the talk is Base44 AI's: a call
+      // the person opens now starts on the voice that speaks Base44 mode rather than on the one every
+      // other call opens on, so the set carries on under the AI holding it and the person is answered
+      // from where they stand. Every other voice of the ring still follows behind it.
+      const want = mediaRef.current?.ready === true ? BASE44_SEAT_ID : "";
+      if (want) order.sort((a, b) => (a.id === want ? -1 : b.id === want ? 1 : 0));
 
+      // the voice that was tried and could not take the call, so what refused is named plainly rather
+      // than left as a voice that simply did not answer
+      let failed = null;
       for (const next of order) {
         const opened = await openSeat(next, checked.get(next.id));
         if (opened.ok) {
@@ -568,12 +628,18 @@ export default function useHomeVoice() {
           // the Cartesia seat's own backup accounts is named for the account that took it
           const live = liveSeat(next, opened);
           setCurrent(live);
-          // The artist's own set was in Base44 AI's hands when this call was opened: the voice that
-          // opens a call takes the talk back, so Base44 AI's own state is put down here rather than
-          // left standing over a call it is no longer on.
-          const stoodDown = mediaRef.current?.ready === true;
-          mediaRef.current?.reset();
-          if (next.id !== HOME_SEATS[0].id) {
+          // The artist's own set was in Base44 AI's hands and another voice has taken this call: Base44
+          // AI has stood down, and the set is the person's own again.
+          const stoodDown = mediaRef.current?.ready === true && live.id !== BASE44_SEAT_ID;
+          if (stoodDown) mediaRef.current?.reset();
+          // A call opened on the voice that speaks Base44 mode because the artist's own set is playing
+          // is exactly what was asked for: nothing was passed over, so nothing is said of a refusal.
+          if (want && live.id === want) return true;
+          if (want) {
+            // the set asked for Base44 AI and that is not the voice on the line: what could not take
+            // the call is named, with the voice really answering after it
+            setNotice(refusedNotice(failed || refused[0] || HOME_SEATS[0], live.label));
+          } else if (next.id !== HOME_SEATS[0].id) {
             // the voice that could not take the call is named with the reason it gave — Cartesia's own
             // refusal said as Cartesia said it — and the voice really on the line is named with it
             setNotice(refusedNotice(refused[0] || HOME_SEATS[0], live.label));
@@ -582,6 +648,7 @@ export default function useHomeVoice() {
           }
           return true;
         }
+        failed = { label: opened.label || next.label, why: opened.why || "" };
         if (!triedRef.current.includes(next.id)) triedRef.current = [...triedRef.current, next.id];
       }
 
@@ -610,6 +677,7 @@ export default function useHomeVoice() {
     pendingRef.current = null;
     triedRef.current = [];
     usedRef.current = [];
+    wantedRef.current = "";
     setWaiting(false);
     setNotice("");
     await closeSeat(seatRef.current);
