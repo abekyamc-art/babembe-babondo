@@ -88,8 +88,10 @@ export function readTurn(
     return { kind: "engine", ask: engineAsk, term: engineAsk.ask, meaning: engineAsk.meaning, how: "engine" };
   }
 
-  // 1) a Kibembe word or phrase exactly as the app's own Word Bank writes it. The longest phrase
-  // wins, so "ole bile" is taken as the whole phrase and not as the single word inside it.
+  // 1) a Kibembe word or phrase exactly as the app's own Word Bank writes it. The spelling that
+  // accounts for most of the turn wins, so "ole bile" is taken as the whole phrase and not as the
+  // single word inside it — and a form written apart where one word was said ("o soo" for the
+  // confirmed word "osoo") beats the shorter word hiding inside it.
   let exact: any = null;
   for (const row of words || []) {
     const term = clean(row?.term, MAX_TERM);
@@ -101,7 +103,7 @@ export function readTurn(
     for (const spelling of [term, ...heardForms(row)]) {
       const found = saidTerm(spelling, said);
       if (!found) continue;
-      span = Math.max(span, saidWords(spelling).length);
+      span = Math.max(span, tight(spelling).length);
       if (found === "exact") {
         how = "exact";
         break;
@@ -109,7 +111,7 @@ export function readTurn(
       how = "phrase";
     }
     if (!how) continue;
-    span = Math.max(span, saidWords(term).length);
+    span = Math.max(span, tight(term).length);
     const better =
       !exact || (how === "exact" && exact.how !== "exact") || (how === exact.how && span > exact.span);
     if (better) {

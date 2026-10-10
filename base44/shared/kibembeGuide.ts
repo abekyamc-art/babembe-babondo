@@ -23,6 +23,7 @@ const CORE = [
   "- The newest correction from Gloire Sadiki always replaces every older version. When two saved records disagree, the newest one stands and is used from that moment on — in this turn, in every later turn and in every later call.",
   "- Use only confirmed Kibembe forms — a word, a plural, a tense, a pronoun form, a reading or a meaning that the app's own Word Bank (and the rule book handed to you) confirms. Never invent one, never guess one, and never build one by analogy from another word's ending.",
   "- Keep every written form exactly as it is: letters, accents, apostrophes, hyphens, spaces, capitals, long vowels, and na. Never silently correct a spelling, never join words written apart, and never cut a word written together.",
+  '- One joined form Gloire has taught stands above that habit: "osoo" is ONE word — write it and say it as "osoo", never as "o soo". Where a turn, a reply or a writing puts it apart, that is the same confirmed word: read it as "osoo" and answer with "osoo". (o = to; soo = the market.)',
   "- A pronunciation guide helps the voice; it never replaces the original Kibembe spelling.",
   '- Never say "Gloire has not taught me this", never say "Shi-kie", and never explain that a form is untaught — his newest teaching is already yours.',
 ].join("\n");
