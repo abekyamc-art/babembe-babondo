@@ -29,7 +29,8 @@ const ACCOUNTS: {
   plain?: boolean;
   keepPace?: boolean;
 }[] = [
-  { id: "", name: "", key: "ELEVENLABS_API_KEY", agent: "ELEVENLABS_AGENT_ID" },
+  // The standing account, and the app's own name for the voice that answers on it.
+  { id: "", name: "GLOIRE AI", key: "ELEVENLABS_API_KEY", agent: "ELEVENLABS_AGENT_ID" },
   {
     id: "second",
     name: "Mbembe AI",
@@ -260,6 +261,37 @@ function secretOr(name: string): string {
   }
 }
 
+// Room for whole answers, not for a few characters: an account with next to nothing left is an
+// account that has nothing left to speak with.
+const ROOM_FLOOR = 500;
+
+/**
+ * Whether this account has run out of room. A plan that has nothing left refuses every conversation
+ * the moment it opens, so the voice never says a word and the call dies in the person's hand — which
+ * is heard as an AI that simply will not answer. The account's own room is read here, before its seat
+ * is offered to a call, so such a voice is passed over by the ring's own check and what is left to do
+ * about it is said plainly instead.
+ *
+ * Only a plain shortage counts: an account that will not say, or says something this app does not
+ * know, is left exactly as it was and never refused on a guess.
+ */
+async function outOfRoom(apiKey: string): Promise<boolean> {
+  try {
+    const res = await fetch("https://api.elevenlabs.io/v1/user/subscription", {
+      headers: { "xi-api-key": apiKey },
+    });
+    if (!res.ok) return false;
+    const data = await res.json();
+    const used = Number(data?.character_count);
+    const limit = Number(data?.character_limit);
+    if (!Number.isFinite(used) || !Number.isFinite(limit) || limit <= 0) return false;
+    return limit - used < ROOM_FLOOR;
+  } catch (error: any) {
+    console.error("The account's own room could not be read:", error?.message);
+    return false;
+  }
+}
+
 export default async function (req: Request): Promise<Response> {
   try {
     let payload: any = {};
@@ -288,6 +320,20 @@ export default async function (req: Request): Promise<Response> {
             : unavailable,
         },
         { status: 500 }
+      );
+    }
+
+    // A voice whose own account has run out of room cannot say a word, so it is not offered the call
+    // at all: the ring's check reads this refusal, passes over the seat and gives the call to the
+    // voice behind it, and the line on the screen says plainly what is left to do about it.
+    if (await outOfRoom(apiKey)) {
+      const who = account.name || "That voice";
+      console.error(`${who}'s account has no room left for a conversation.`);
+      return Response.json(
+        {
+          error: `${who}'s voice account is out of credits — add credits or upgrade that ElevenLabs plan, then tap to talk again.`,
+        },
+        { status: 402 }
       );
     }
 
