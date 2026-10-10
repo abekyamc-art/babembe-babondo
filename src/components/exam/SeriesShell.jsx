@@ -111,17 +111,16 @@ export default function SeriesShell({ open, onClose }) {
   const seasonOf =
     (attempt ? seasonByNo(attempt.season) : seasonByNo(season)) || EXAM_SEASONS[0];
 
-  // A pass opens the episode after it, and the hundredth pass of a season opens the season after it —
-  // worked out from the paper in hand, so the report never waits on the store to be read back.
   // A paper that reached more than eighty per cent of its points closes the episode and opens the one
   // after it, and the hundredth pass of a season opens the season after it. A paper that fell short
-  // stays open: the same episode can be taken again.
+  // stays open, so the same episode can be taken again.
   const nextNo = attempt ? attempt.episode + 1 : 0;
   const went = !!report?.passed;
   const nextOpen = !!attempt && went && nextNo <= episodesInSeason(attempt.season);
   const seasonAfter = attempt && went && !nextOpen && seasonByNo(attempt.season + 1);
   const again = !!attempt && !went;
-  const note = !attempt ? '' : went
+  // the note is written from a finished paper's report, so it stands empty while the paper is still open
+  const note = !report ? '' : went
     ? nextOpen
       ? `Episode ${attempt.episode} is passed and is now closed. Episode ${nextNo} is next.`
       : seasonAfter ? `Season ${attempt.season} is complete. Season ${seasonAfter.no} is next.`
