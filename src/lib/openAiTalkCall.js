@@ -21,6 +21,10 @@ const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 
 // how long the session and the sound are given to come up
 const CONNECT_MS = 20000;
+// How long the turn that has just ended is held while the app searches its own knowledge for it. The
+// answer is begun the moment the knowledge is handed in; where it never arrives, the seat still
+// answers on its own rather than a call sitting silent on a turn nobody answered.
+const ANSWER_WAIT_MS = 6000;
 
 /** A failure named by the stage it happened at, so the screen says what really went wrong. */
 function stageError(stage, message) {
@@ -47,6 +51,10 @@ export default class OpenAiTalkCall {
     this.analyser = null;
     this.source = null;
     this.buf = null;
+    // The turn that has just ended, waiting on the app's own knowledge for it, and the bound on that
+    // wait. The service never answers on its own here: the answer is created by the app.
+    this.pendingText = "";
+    this.gateTimer = null;
   }
 
   /** Whether the session is up and the connection carrying it is really open. */
@@ -244,7 +252,12 @@ export default class OpenAiTalkCall {
 
       case "conversation.item.input_audio_transcription.completed": {
         const said = String(msg.transcript || "").trim();
-        if (said) this.h.onUserText?.(said);
+        if (said) {
+          // the turn goes on the screen, and the app's own knowledge for it is what the answer waits
+          // on: the seat is held here until that knowledge is handed in — see armAnswer/answer
+          this.h.onUserText?.(said);
+          this.armAnswer(said);
+        }
         return;
       }
 
@@ -303,6 +316,39 @@ export default class OpenAiTalkCall {
   }
 
   /**
+   * The turn has just ended, and the app is searching its own knowledge for what that turn reaches.
+   * The seat is held here until the knowledge is handed in, and the wait is bounded so a search that
+   * never arrives still leaves the person answered.
+   */
+  armAnswer(text) {
+    this.pendingText = String(text || "");
+    clearTimeout(this.gateTimer);
+    this.gateTimer = setTimeout(() => this.answer("", this.pendingText), ANSWER_WAIT_MS);
+  }
+
+  /**
+   * The app's own knowledge for the turn that just ended, put in front of the seat before its answer
+   * begins. A turn that has already been left behind — the person has said something else since —
+   * changes nothing here.
+   */
+  answer(note = "", text = null) {
+    const pending = this.pendingText;
+    if (this.stopped || !pending) return;
+    if (text !== null && String(text) !== pending) return;
+    this.pendingText = "";
+    clearTimeout(this.gateTimer);
+    this.gateTimer = null;
+    const said = String(note || "").trim();
+    if (said) {
+      this.send({
+        type: "conversation.item.create",
+        item: { type: "message", role: "system", content: [{ type: "input_text", text: said }] },
+      });
+    }
+    this.send({ type: "response.create" });
+  }
+
+  /**
    * Whether the answer is being spoken right now. Its beginning is what the screen shows, and its
    * end is what the call is told: an answer read out in full is reported here and nowhere else.
    */
@@ -323,6 +369,9 @@ export default class OpenAiTalkCall {
     this.stopped = true;
     this.waits.forEach((id) => clearTimeout(id));
     this.waits = [];
+    clearTimeout(this.gateTimer);
+    this.gateTimer = null;
+    this.pendingText = "";
 
     if (this.dc) {
       try {

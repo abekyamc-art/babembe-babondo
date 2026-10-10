@@ -59,9 +59,12 @@ const OPENING = [
   'or with a line you have already given in this call.',
   'Speak Kibembe the way a Babembe speaker does: every vowel opened and every syllable landing as the',
   'guide gives it, with the warmth and the rhythm of the language rather than an English reading of it.',
-  'Everything this app holds for this call is written below and is already in front of you: the guide,',
-  'the saved answers and the confirmed words. Answer from them here and now — nobody is being asked for',
-  'anything and no turn is being handed anywhere — and never say that something is being looked up.',
+  'Everything this app holds for this call is written below: the guide, the saved answers and the',
+  'confirmed words. As each turn of the person ends, the app searches the whole of its knowledge',
+  'document and its confirmed Word Bank for the part that turn reaches, and hands that part to you',
+  'before you answer. Answer from what is written below and from what has just been handed to you,',
+  'and never invent a Kibembe word, a meaning or a fact that neither of them holds. Never say that',
+  'something is being looked up.',
   'The rules below stand above every other instruction you were given.',
 ].join(' ');
 
@@ -82,9 +85,13 @@ function sessionFor(instructions: string, prompt: string, model: string) {
         },
         // the person's turn ends in the natural pause, and the seat answers on its own: this is a
         // conversation, not a reader, so the answer is started here and the person may speak over it
+        // The answer is begun by the app, never by the service: the turn's own knowledge is searched
+        // for and put in front of the seat first, and only then is the answer created — so AI 1
+        // answers from the app's own knowledge rather than from its own memory. A person who speaks
+        // over it still stops it, exactly as before.
         turn_detection: {
           type: 'server_vad',
-          create_response: true,
+          create_response: false,
           interrupt_response: true,
           silence_duration_ms: 700,
         },

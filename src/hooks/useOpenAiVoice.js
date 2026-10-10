@@ -3,6 +3,7 @@ import { base44 } from "@/api/base44Client";
 import OpenAiTalkCall from "@/lib/openAiTalkCall";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
+import { readHeardTurn } from "@/lib/homeHearing";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
 import { OPENAI_AI } from "@/lib/providerNames";
 
@@ -39,6 +40,8 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
   const offTouchRef = useRef(null);
   // the voice this call is opened on, named on screen exactly as the ring names it
   const labelRef = useRef(OPENAI_AI);
+  // the line AI 1 said last, so a correction on a later turn is read against it
+  const lastAgentRef = useRef("");
   // the handler the finished answers of this call are counted through, and the one that carries the
   // change on once the last of them has been read out
   const liveAnsweredRef = useRef(onAnswered);
@@ -115,6 +118,15 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       push("user", said);
       // what the turn asks of the app's own player is answered by the app itself, here and now
       mediaRef.current?.(said);
+      // The app's own knowledge is searched for the turn that has just ended — the whole approved
+      // document and the confirmed Word Bank, the same search every voice of the ring is handed — and
+      // it is put in front of the seat before the answer is begun, so AI 1 answers from the app's own
+      // knowledge rather than from its own memory. A search that finds nothing, or that cannot be
+      // made at all, never leaves the person unanswered: the seat answers on its own with what it has.
+      if (activeRef.current) setStatus("thinking");
+      readHeardTurn(said, lastAgentRef.current).then(({ note }) => {
+        callRef.current?.answer?.(note || "", said);
+      });
     },
     [push]
   );
@@ -124,6 +136,7 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
     (text) => {
       const line = String(text || "").trim();
       if (!line) return;
+      lastAgentRef.current = line;
       push("assistant", line);
     },
     [push]

@@ -2,6 +2,7 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { MAX_MEANING, MAX_TERM, MAX_USAGE, clean } from "../../shared/knowledgeWords.ts";
 import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.ts";
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
+import { retrieveKnowledge } from "../../shared/knowledgeRetrieval.ts";
 import { pronunciationBlock, recordedEvidence } from "../../shared/pronunciation.ts";
 import {
   FIX_SCHEMA,
@@ -48,6 +49,8 @@ const DOC_BUDGET = 8000;
 // how much of the readings of the confirmed words the call carries: the words the person has given a
 // reading to, and the ways their own approved recordings were written down
 const PRONUNCIATION_BUDGET = 2600;
+// and how much of the search over the whole document rides with one turn: the parts that turn reaches
+const KNOWLEDGE_ROOM = 6000;
 
 const READ_FAILED = "That turn could not be read just now.";
 
@@ -298,6 +301,16 @@ export default async function (req: Request): Promise<Response> {
     // here because only the app can, and only the reading of this person's own turn goes back.
     const [words, patterns] = await Promise.all([bankRows(base44), patternRows(base44)]);
 
+    // The turn is searched for in the whole of the admin's approved document and in the confirmed
+    // Word Bank — the same search every voice of a call is handed — and only the few parts it reaches
+    // ride back with the reading. The words already read above are the very same list this search
+    // reads, so they are handed over rather than read again. A word said in the person's own way
+    // still finds the line that holds it, and a turn that reaches nothing is told so plainly rather
+    // than answered from a guess.
+    const known = await retrieveKnowledge(base44, said, KNOWLEDGE_ROOM, words)
+      .then((found) => found.block)
+      .catch(() => "");
+
     const reading = readTurn(said, words, patterns);
     const note = reading ? turnNote(said, reading) : "";
 
@@ -329,7 +342,7 @@ export default async function (req: Request): Promise<Response> {
     }
 
     return Response.json({
-      note: `${note}${languageLine}`,
+      note: `${note}${languageLine}${known}`,
       matched: reading,
       sure,
       saved,
