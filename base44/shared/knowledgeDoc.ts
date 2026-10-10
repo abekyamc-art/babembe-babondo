@@ -124,32 +124,44 @@ export function docSections(text: any): DocSection[] {
   return out;
 }
 
-/** One written line as a word: its spelling, the reading that is the voice's alone, what it means
- *  and how it is used. A line with no meaning yet is the word on its own, as it always was. */
-function wordRowOf(raw: string, at: string): any | null {
-  const line = raw.trim().replace(/\s+/g, " ");
-  // a note to the admin, a placeholder, or a part of the document's own shape: never a word
+/** The mark the admin's own pairs are written with: the word, a dash, its meaning. */
+const PAIR_MARK = /\s+[—–]\s+/;
+/** The bullet a pair is written under, wherever in the document it stands. */
+const BULLET = /^[•*·]\s+|^-\s+/;
+
+/**
+ * One written line cut into the two sides of a pair, or nothing at all when it is not a pair.
+ *
+ * This is the shape the admin's own document and their own uploaded files are written in: a bullet,
+ * the word, a dash, its meaning — "• Shiete falanga — I have no money." It is read here so the
+ * document and a file are read by the very same rule, and a word the admin has written once is held
+ * whether it reached the app through their document or through a file they uploaded.
+ */
+export function pairLineOf(raw: any): [string, string] | null {
+  const line = String(raw ?? "").trim().replace(/\s+/g, " ");
   if (!line || line.startsWith("#") || line.startsWith("(") || line.startsWith("//")) return null;
 
-  const cut = line.indexOf("=");
-  const left = cut >= 0 ? line.slice(0, cut) : line;
-  const right = cut >= 0 ? line.slice(cut + 1) : "";
+  const bare = line.replace(BULLET, "");
+  const pair = bare.split(PAIR_MARK);
+  if (pair.length < 2) return null;
+  // a rule or a note is never a pair: its own words do not read as a word and a meaning
+  if (!pair[0].trim() || pair[0].length > MAX_TERM || /[\[\]:]/.test(pair[0])) return null;
+  return [pair[0], pair.slice(1).join(" — ")];
+}
 
+/** One pair as a word: its spelling, the reading that is the voice's alone, what it means and how
+ *  it is used. */
+function rowOf(left: string, right: string, at: string): any | null {
   // a reading written between brackets beside the word is for the voice alone
   const held = left.match(/\(([^()]*)\)/);
   const term = clean(left.replace(/\([^()]*\)/g, " "), MAX_TERM);
   if (!term) return null;
-  // a line with no meaning is a word still to be explained: it is never a sentence
-  if (cut < 0 && /[.!?;:,]$/.test(term)) return null;
 
   const bar = right.indexOf("|");
-  const meaning = clean(bar >= 0 ? right.slice(0, bar) : right, MAX_MEANING);
-  const usage = clean(bar >= 0 ? right.slice(bar + 1) : "", MAX_USAGE);
-
   const row: any = {
     term,
-    meaning,
-    usage,
+    meaning: clean(bar >= 0 ? right.slice(0, bar) : right, MAX_MEANING),
+    usage: clean(bar >= 0 ? right.slice(bar + 1) : "", MAX_USAGE),
     guide: held ? clean(held[1], MAX_USAGE) : "",
     source: "document",
   };
@@ -161,15 +173,57 @@ function wordRowOf(raw: string, at: string): any | null {
   return row;
 }
 
+/**
+ * One written line as a word.
+ *
+ * The document writes its own words as pairs all through it — a bullet, the word, a dash, its
+ * meaning ("• Shiete falanga — I have no money.") — under the admin's own headings as much as under
+ * the words heading. A pair is read wherever it is written, so the whole of what the admin has
+ * confirmed is held as words and not only the part filed under one heading.
+ *
+ * Inside the words and phrases headings the other shape is read as well: the word, an equals sign,
+ * its meaning and how it is used. A bulleted line carrying neither a pair nor an equals sign is a
+ * line of the telling, and never a word.
+ */
+function wordRowOf(raw: string, at: string, withinHeadings: boolean): any | null {
+  const line = raw.trim().replace(/\s+/g, " ");
+  // a note to the admin, a placeholder, or a part of the document's own shape: never a word
+  if (!line || line.startsWith("#") || line.startsWith("(") || line.startsWith("//")) return null;
+
+  // the words heading's own shape, whether or not it is written under a bullet
+  if (withinHeadings && line.includes("=")) {
+    const cut = line.indexOf("=");
+    const left = line.slice(0, cut);
+    // a line with no meaning is a word still to be explained: it is never a sentence
+    if (!/[.!?;:,]$/.test(clean(left, MAX_TERM))) return rowOf(left, line.slice(cut + 1), at);
+  }
+
+  // the admin's own pair, wherever in the document it stands: the word, a dash, its meaning
+  const pair = pairLineOf(line);
+  if (pair) return rowOf(pair[0], pair[1], at);
+  // a bulleted line with no pair of its own is a line of the telling, never a word
+  if (BULLET.test(line)) return null;
+  if (!withinHeadings) return null;
+
+  // the words heading's own bare word: a word or a short expression still to be explained, said as it
+  // is written — never a sentence, a note, or a line of the telling
+  const word = clean(line, MAX_TERM);
+  if (!word || word.split(/\s+/).length > 4 || /[;:]/.test(word)) return null;
+  if (/[.!?;:,]$/.test(word)) return null;
+  return rowOf(word, "", at);
+}
+
 /** Every word and phrase the document holds, in the order they are written, each spelling once. */
 export function docWordRows(text: any, at = ""): any[] {
   const rows: any[] = [];
   const seen = new Set<string>();
 
   docSections(text).forEach((section) => {
-    if (section.id !== "words" && section.id !== "phrases") return;
+    // the admin's own pairs stand all through the document; the words heading's own lines are read
+    // there alone, so a stray equals sign in a rule is never taken for a word
+    const withinHeadings = section.id === "words" || section.id === "phrases";
     section.body.split("\n").forEach((raw) => {
-      const row = wordRowOf(raw, at);
+      const row = wordRowOf(raw, at, withinHeadings);
       if (!row) return;
       const key = row.term.toLowerCase();
       if (seen.has(key)) return;
