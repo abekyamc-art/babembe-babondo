@@ -112,7 +112,9 @@ export default async function (req: Request): Promise<Response> {
       // nobody is signed in on this device: the call still opens
     }
 
-    const apiKey = secrets.get('OPENAI_API_KEY');
+    // AI 1 answers on its own OpenAI account, kept in its own secret: the key the seat's calls are
+    // made from is this one, and the account behind it is what the home call's first voice speaks on.
+    const apiKey = secrets.get('OPENAI_API_KEY2');
     if (!apiKey) return Response.json({ error: NO_KEY });
 
     // the app's own rules for this call, whole, within the room a session can hold
