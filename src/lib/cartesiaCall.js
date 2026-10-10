@@ -383,7 +383,12 @@ export default class CartesiaCall {
       const sound = rate === RATE ? chunk : resample(chunk, rate, RATE);
       const pcm = floatToPcm16(sound);
       if (!pcm.length) return;
-      this.send({ type: "audio_input", audio: bytesToBase64(new Uint8Array(pcm.buffer)) });
+      // His own voice comes back out of the phone's speaker and into its microphone. While his
+      // answer is playing, that sound is never sent to him as the person's own words — a steady
+      // silence keeps the session fed instead — and the microphone is heard again the moment his
+      // voice has drained, so nothing he says is ever answered back to himself.
+      const bytes = this.speaking ? new Uint8Array(pcm.byteLength) : new Uint8Array(pcm.buffer);
+      this.send({ type: "audio_input", audio: bytesToBase64(bytes) });
       // the same sound is what the app's own ears read the turn from
       this.hold(chunk);
     };

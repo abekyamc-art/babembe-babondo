@@ -354,6 +354,11 @@ export default class OpenAiTalkCall {
    */
   markSpeaking(on) {
     if (this.speaking === on) return;
+    // The microphone is shut for as long as the seat's own voice is playing. Left open, the phone's
+    // speaker feeds the answer straight back into the microphone as the person's turn, and a reply
+    // nobody asked for is what that echo becomes. It is opened again the moment the answer has
+    // drained, so the person's own next turn is heard exactly as it always was.
+    this.setMicEnabled(!on);
     if (on) {
       this.voiceHeard = true;
       this.speaking = true;
@@ -363,6 +368,15 @@ export default class OpenAiTalkCall {
     }
     this.speaking = false;
     this.h.onAgentAudioEnd?.();
+  }
+
+  /**
+   * The microphone this call listens through: shut while the seat's own voice is playing, open
+   * again the moment it has drained. The sound of the call itself is never turned off here — only
+   * what the microphone sends — so the answer the person is hearing is never touched.
+   */
+  setMicEnabled(on) {
+    if (this.track) this.track.enabled = on;
   }
 
   async stop() {
