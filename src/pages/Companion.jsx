@@ -2,7 +2,9 @@ import React, { useEffect, useRef, useState } from "react";
 import ChatComposer from "@/components/kibembe/ChatComposer";
 import CompanionHeader from "@/components/agents/CompanionHeader";
 import CompanionMessage from "@/components/agents/CompanionMessage";
+import KibembeVoicePanel from "@/components/kibembe/KibembeVoicePanel";
 import MediaDock from "@/components/media/MediaDock";
+import useCompanionCall from "@/hooks/useCompanionCall";
 import useCompanionChat from "@/hooks/useCompanionChat";
 import useMediaDock from "@/hooks/useMediaDock";
 import { KIBEMBE_CLASS } from "@/lib/providerNames";
@@ -14,9 +16,13 @@ import { KIBEMBE_CLASS } from "@/lib/providerNames";
  */
 export default function Companion() {
   const { messages, sending, error, send, restart } = useCompanionChat();
+  // the microphone on the very same conversation: the turn is heard, put to the companion, and its
+  // own answer read out — so the writing and the call are one talk and neither repeats the other
+  const call = useCompanionCall({ messages, send });
   // the app's own player, standing behind the piece the app's own selection chose
   const media = useMediaDock(messages);
   const [draft, setDraft] = useState("");
+  const [voiceOpen, setVoiceOpen] = useState(false);
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -32,7 +38,22 @@ export default function Companion() {
 
   return (
     <div className={`flex min-h-full flex-col bg-background ${KIBEMBE_CLASS}`}>
-      <CompanionHeader onRestart={restart} />
+      <CompanionHeader
+        onRestart={restart}
+        voiceOpen={voiceOpen}
+        onToggleVoice={() => setVoiceOpen((open) => !open)}
+      />
+
+      {voiceOpen ? (
+        <KibembeVoicePanel
+          status={call.status}
+          speaking={call.speaking}
+          thinking={call.thinking}
+          micActive={call.micActive}
+          onStart={call.start}
+          onEnd={call.stop}
+        />
+      ) : null}
 
       <div className="flex-1 space-y-3 px-4 py-4">
         {messages.length === 0 ? (
@@ -48,12 +69,12 @@ export default function Companion() {
 
         {sending ? <p className="font-body text-xs text-muted-foreground">Anafikiria…</p> : null}
 
-        {error ? (
+        {error || call.error || call.notice ? (
           <p
             role="alert"
             className="rounded-xl border border-destructive/40 bg-destructive/10 px-3 py-2 font-body text-sm text-destructive"
           >
-            {error}
+            {error || call.error || call.notice}
           </p>
         ) : null}
 
