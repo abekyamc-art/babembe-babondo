@@ -1,4 +1,5 @@
 import { ANSWER_LANGUAGE } from "./languageRules.ts";
+import { ASK_REPLY_RULES } from "./phraseEngine.ts";
 import { PHRASE_TEACHER } from "./phraseTeacher.ts";
 import { PRONUNCIATION_HEAD } from "./pronunciation.ts";
 import { TRANSLATE_RULES } from "./ebembeTranslation.ts";
@@ -215,6 +216,9 @@ export const KIBEMBE_GUIDE =
     TALK,
     LIVE,
     LIVE_SESSION,
+    // How an ask is heard and how a reply is given stands right beside the live rules: the admin's
+    // own engine of asks and replies is what a reply comes from, and its replies are given as written.
+    ASK_REPLY_RULES,
     MODE,
     ANSWERING,
     "THE APP'S OWN LANGUAGE RULES:",

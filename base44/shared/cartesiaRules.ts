@@ -68,7 +68,10 @@ const TOP_NOTICE = [
 // word-for-word English, the grammar words kept, the tense that was meant, and the four parts every
 // phrase or translation is given in — were written into the guide, so every agent is written again on
 // its next call carrying them.
-export const RULES_VERSION = "15";
+// Raised to 16 when the admin's own engine of asks and replies was written into the guide — an ask is
+// answered from the replies saved for it, each one exactly as the engine writes it, and never
+// re-worded or replaced — so every agent is written again on its next call carrying it.
+export const RULES_VERSION = "16";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;

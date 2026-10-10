@@ -1,4 +1,5 @@
 import { MAX_TERM, MAX_USAGE, PREFIXES, clean, glossOf } from "./knowledgeWords.ts";
+import { engineFor, engineNote } from "./phraseEngine.ts";
 import { heardForms, strongTerms, tight } from "./soundsAlike.ts";
 import { keyMatches } from "./answerKey.ts";
 import { KIBEMBE_GUIDE } from "./kibembeGuide.ts";
@@ -68,9 +69,24 @@ function saidTerm(term: string, said: string[]): string {
 }
 
 /** What one turn is, from the app's own knowledge. Nothing when nothing is close enough. */
-export function readTurn(heard: string, words: any[], patterns: any[] = []): any {
+export function readTurn(
+  heard: string,
+  words: any[],
+  patterns: any[] = [],
+  /** the admin's own engine of asks and replies, as the app's document holds it */
+  engine: any[] = []
+): any {
   const said = saidWords(heard);
   if (!said.length) return null;
+
+  // 0) The admin's own engine of asks and replies. An ask saved there is answered from the replies the
+  // engine writes for it and from nowhere else, so the reply the person is given is the engine's own
+  // form, whole, rather than a sentence written for the turn. A repeat ask never reaches here: that
+  // line is given back as it stood before any reading is made of it at all.
+  const engineAsk = engine.length ? engineFor(engine, heard) : null;
+  if (engineAsk) {
+    return { kind: "engine", ask: engineAsk, term: engineAsk.ask, meaning: engineAsk.meaning, how: "engine" };
+  }
 
   // 1) a Kibembe word or phrase exactly as the app's own Word Bank writes it. The longest phrase
   // wins, so "ole bile" is taken as the whole phrase and not as the single word inside it.
@@ -150,6 +166,10 @@ export function readTurn(heard: string, words: any[], patterns: any[] = []): any
 export function turnNote(heard: string, reading: any): string {
   if (!reading) return "";
   const said = clean(heard, 240);
+
+  // The admin's own engine of asks and replies: one of the replies saved for that ask is the reply,
+  // and it is given exactly as the engine writes it — never re-worded and never replaced.
+  if (reading.kind === "engine" && reading.ask) return engineNote(said, reading.ask);
 
   if (reading.kind === "pattern") {
     return (
