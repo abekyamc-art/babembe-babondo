@@ -35,6 +35,7 @@ export default function ExamFigure({ view, spot, image }) {
         />
         <span className="exam-figure-note">
           <span>{caption}</span>
+          {image?.credit ? <span className="exam-figure-credit">{image.credit}</span> : null}
           <span className="exam-figure-more">
             <Expand className="h-3 w-3" /> Tap to enlarge
           </span>

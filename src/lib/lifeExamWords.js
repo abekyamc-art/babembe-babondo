@@ -10,6 +10,8 @@
  * a choice that was never confirmed is never put in front of a student.
  */
 
+import { WORD_FIX_PICTURES } from "./examImages";
+
 const PICTURE = "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/";
 
 const shot = (file, scene, alt) => ({ url: `${PICTURE}${file}`, scene, alt });
@@ -383,7 +385,7 @@ export const LIFE_ROWS = [
     kb: "Fa-langa",
     en: "Money",
     wrong: ["Market", "School"],
-    image: IMAGE.paying,
+    image: WORD_FIX_PICTURES.money,
     practice: [
       { en: "Money", kb: "Fa-langa" },
       { en: "I have no money", kb: "Shiete falanga" },
@@ -433,7 +435,7 @@ export const LIFE_ROWS = [
     kb: "Shi ke",
     en: "I do not know",
     wrong: ["Okay / alright", "Please repeat"],
-    image: IMAGE.again,
+    image: WORD_FIX_PICTURES.unknown,
     practice: [
       { en: "I do not know", kb: "Shi ke" },
       { en: "Okay / alright", kb: "Sawa" },
@@ -471,7 +473,7 @@ export const LIFE_ROWS = [
     kb: "Ilepa",
     en: "Pay",
     wrong: ["Cha-uno", "Ni le njela"],
-    image: IMAGE.paying,
+    image: WORD_FIX_PICTURES.pay,
     practice: [
       { en: "Pay", kb: "Ilepa" },
       { en: "I am on my way", kb: "Ni le njela" },

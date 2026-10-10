@@ -1,3 +1,5 @@
+import { BODY_PICTURES } from "./examImages";
+
 // the pools of the examination and the words of every day live in their own files; nothing is drawn here
 
 
@@ -97,7 +99,7 @@ const VOCAB = [
     note: "The recorded word for the anus differs by sex.",
   },
   { en: "Rectum", kb: "ibe", group: "Lower bowel", view: "female" },
-];
+].map(({ view, ...row }) => ({ ...row, picture: BODY_PICTURES[row.en] }));
 
 const entryOf = (label) => VOCAB.find((row) => row.en === label);
 
@@ -160,7 +162,6 @@ function wrongs(entry, pool, pick) {
 /** One question, with the correct answer standing wherever the shuffle has put it. */
 function questionOf({ id, kind, entry, prompt, ask, right, wrong, explain, practice, kb }) {
   const options = shuffled([right, ...wrong]);
-  const view = VIEW[entry.view];
   return {
     id,
     kind,
@@ -177,9 +178,8 @@ function questionOf({ id, kind, entry, prompt, ask, right, wrong, explain, pract
     correct: options.indexOf(right),
     practice: practice || [{ en: entry.en, kb: entry.kb }],
     focus: entry.group,
-    view: view.name,
-    spot: view.spot,
-    hint: `Study ${view.where} of the illustration before you answer.`,
+    image: entry.picture,
+    hint: "Study the illustration — one confirmed structure of the body — before you answer.",
   };
 }
 
@@ -212,9 +212,9 @@ function structureQuestion(entry) {
     id: `structure:${entry.en}`,
     kind: "structure",
     entry,
-    prompt: `Look at ${VIEW[entry.view].where} of the illustration. Which confirmed Kibembe term names a structure of the ${entry.group.toLowerCase()}?`,
+    prompt: `Which confirmed Kibembe term names a structure of the ${entry.group.toLowerCase()}? Study the illustration before you answer.`,
     ask: {
-      lead: `Look at ${VIEW[entry.view].where} of the illustration. Which confirmed Kibembe term names a structure of the `,
+      lead: "Which confirmed Kibembe term names a structure of the ",
       key: entry.group.toLowerCase(),
       tail: "?",
     },

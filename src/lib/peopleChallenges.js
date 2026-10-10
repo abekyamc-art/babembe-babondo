@@ -1,7 +1,12 @@
 import { challengeQuestion } from '@/lib/challengeQuestions';
+import { PEOPLE_PICTURES } from '@/lib/examImages';
 import { shuffled } from '@/lib/examSeries';
 
-// Stable, public biographical roles; Gloire's role is supplied by the app owner.
+/**
+ * The people the examination asks about, each with the work they are known for. Every one of them is
+ * met on their own real photograph, so the student learns the face with the name. Gloire Sadiki stands
+ * with the place his photograph will fill: the picture is shown as soon as the owner gives one.
+ */
 const PEOPLE = [
   ['Diamond Platnumz', 'Artist', ['Comedian', 'President']],
   ['Gloire Sadiki', 'Artist', ['Comedian', 'President']],
@@ -35,8 +40,27 @@ const PEOPLE = [
   ['Wangari Maathai', 'Environmental activist', ['Footballer', 'Comedian']],
 ];
 
+/** “an artist”, “a singer” — the work said the way it is said. */
+function said(role) {
+  return /^[aeiou]/i.test(role) ? `an ${role.toLowerCase()}` : `a ${role.toLowerCase()}`;
+}
+
+/** One episode's paper of ten people, each on their own photograph. */
 export function buildPeoplePaper(episode) {
-  return shuffled(PEOPLE.slice((episode - 1) * 10, episode * 10).map(([name, role, wrong], at) =>
-    challengeQuestion(`people:${episode}:${at}`, 'People & culture', 'What is ', name, ' best known for?', role, wrong, `${name} is known as ${role.toLowerCase() === 'artist' ? 'an artist' : `a ${role.toLowerCase()}`}.`)
-  ));
+  const from = (episode - 1) * 10;
+  return shuffled(
+    PEOPLE.slice(from, from + 10).map(([name, role, wrong], at) =>
+      challengeQuestion(
+        `people:${episode}:${at}`,
+        'People & culture',
+        'What is ',
+        name,
+        ' best known for?',
+        role,
+        wrong,
+        `${name} is known as ${said(role)}.`,
+        PEOPLE_PICTURES[name]?.url ? PEOPLE_PICTURES[name] : null
+      )
+    )
+  );
 }

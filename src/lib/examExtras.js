@@ -1,6 +1,16 @@
 import { shuffled } from "./examSeries";
 import { LIFE_ROWS } from "./lifeExamWords";
 import { LIFE_SCENES, NUMBER_SCENES, PHRASE_SCENES, PROVERB_SCENES } from "./examPictures";
+import {
+  GREETING_PICTURES,
+  NUMBER_PICTURES,
+  PHRASE_PICTURES,
+  PROVERB_PICTURES,
+} from "./examImages";
+
+/** One picture of its own for every entry: the picture filed under the entry's own form. */
+const withPictures = (rows, table) =>
+  rows.map(({ scene, ...row }) => ({ ...row, picture: table[row.kb] }));
 
 /**
  * GLOIRE AI — the numbers, the greetings, the everyday phrases and the proverbs of the examination.
@@ -19,8 +29,7 @@ import { LIFE_SCENES, NUMBER_SCENES, PHRASE_SCENES, PROVERB_SCENES } from "./exa
  * standing in a colour of its own.
  */
 
-/** The scenes drawn for the counting, one of them standing beside every number question. */
-const COUNTING = [NUMBER_SCENES.coins, NUMBER_SCENES.tally, NUMBER_SCENES.herd];
+/** Every number stands on a scene of its own, so no two numbers share one picture. */
 
 /** The confirmed number system, one entry for every form the document holds. */
 const NUMBERS = [
@@ -52,10 +61,10 @@ const NUMBERS = [
   { n: 90, kb: "Ma omi ienda", en: "ninety" },
   { n: 100, kb: "Ikana", en: "one hundred" },
   { n: 1000, kb: "Elufu", en: "one thousand" },
-].map((row, at) => ({ ...row, scene: COUNTING[at % COUNTING.length] }));
+].map((row) => ({ ...row, picture: NUMBER_PICTURES[row.kb] }));
 
 /** The confirmed greetings, one entry for each meaning the document gives. */
-const GREETINGS = [
+const GREETINGS = withPictures([
   { kb: "Walo lala bile?", en: "How did you sleep?", scene: LIFE_SCENES.morning },
   { kb: "Na lo lalabia ngeni.", en: "I slept well", scene: LIFE_SCENES.rested },
   { kb: "Karibu lo nge.", en: "Welcome back", scene: LIFE_SCENES.arriving },
@@ -68,18 +77,18 @@ const GREETINGS = [
   { kb: "Tomo nane badae.", en: "See you later", scene: PHRASE_SCENES.parting },
   { kb: "Hongera.", en: "Congratulations", scene: PHRASE_SCENES.celebration },
   { kb: "Soa kelwa ya lu suku lui bo chwa.", en: "Happy birthday", scene: PHRASE_SCENES.celebration },
-];
+], GREETING_PICTURES);
 
 /** The confirmed everyday phrases that are not greetings. */
-const PHRASES = [
+const PHRASES = withPictures([
   { kb: "Oto ela", en: "Please repeat", scene: LIFE_SCENES.again },
   { kb: "Ya wa chibwa.", en: "It has been confirmed", scene: PHRASE_SCENES.agreement },
   { kb: "E-nywa.", en: "Word", scene: PHRASE_SCENES.agreement },
   { kb: "Ole tayari iendelea.", en: "Are you ready to continue?", scene: PHRASE_SCENES.ready },
-];
+], PHRASE_PICTURES);
 
 /** The confirmed proverbs of the document, each with the meaning the document itself gives it. */
-const PROVERBS = [
+const PROVERBS = withPictures([
   { kb: "Ikyi laanine anyonyi.", en: "An egg advised a bird", scene: PROVERB_SCENES.bird },
   { kb: "Yangéne taé lamaka.", en: "Something good never lasts", scene: PROVERB_SCENES.flower },
   {
@@ -142,7 +151,7 @@ const PROVERBS = [
     en: "One who shakes the head refuses to be shaved",
     scene: PROVERB_SCENES.barber,
   },
-];
+], PROVERB_PICTURES);
 
 /** The four kinds a mixed question is taken from. */
 const KINDS = ["number", "greeting", "phrase", "proverb"];
@@ -269,7 +278,7 @@ function numberToKibembe(row, lang) {
     wrong: others(row, NUMBERS, (other) => other.kb),
     explain: `${row.n} = ${row.kb} — ${row.en}.`,
     practice: [{ en: row.en, kb: row.kb }],
-    picture: row.scene,
+    picture: row.picture,
   });
 }
 
@@ -287,7 +296,7 @@ function numberToDigit(row, lang) {
     wrong: others(row, NUMBERS, (other) => String(other.n)),
     explain: `${row.kb} = ${row.n} — ${row.en}.`,
     practice: [{ en: row.en, kb: row.kb }],
-    picture: row.scene,
+    picture: row.picture,
   });
 }
 
@@ -316,7 +325,7 @@ function numberNext(row, lang) {
       { en: row.en, kb: row.kb },
       { en: after.en, kb: after.kb },
     ],
-    picture: row.scene,
+    picture: row.picture,
   });
 }
 
@@ -334,7 +343,7 @@ function meaningQuestion(kind, row, lang) {
     wrong: others(row, POOLS[kind], (other) => other.en),
     explain: `${row.kb} — ${row.en}.`,
     practice: [{ en: row.en, kb: row.kb }],
-    picture: row.scene,
+    picture: row.picture,
   });
 }
 
@@ -351,7 +360,7 @@ function formQuestion(kind, row, lang) {
     wrong: others(row, POOLS[kind], (other) => other.kb),
     explain: `${row.en} — ${row.kb}.`,
     practice: [{ en: row.en, kb: row.kb }],
-    picture: row.scene,
+    picture: row.picture,
   });
 }
 
