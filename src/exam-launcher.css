@@ -1,19 +1,18 @@
-/* The examination launcher: every exam of the app gathered behind one professional seal.
-   Its colours are pure and of its own, and they rotate in place — the seal steps through them while
-   everything around it holds still, so the two exam choices stay readable. Nothing here touches the
-   examinations themselves, or the screen the launcher stands on. */
-.exam-launcher {
-  display: inline-flex;
-  align-items: center;
-  gap: 12px;
-  width: max-content;
-  padding: 10px 12px;
-  border: 1px solid #e7eaf0;
-  border-radius: 18px;
-  background: #fff;
-  color: #172033;
-  box-shadow: 0 8px 24px rgba(22, 34, 58, 0.09), 0 1px 3px rgba(22, 34, 58, 0.05);
-  font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
+/* The examination launcher: every exam of the app gathered behind one professional seal, standing in
+   the home screen's lower left beside the message box. Its colours are pure and of its own, and they
+   rotate in place — the seal steps through them while everything around it holds still. Nothing here
+   touches the examinations themselves, or the screen the launcher stands on. */
+.exam-corner {
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  flex: none;
+  padding: 0;
+  border: 0;
+  background: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .exam-seal {
@@ -21,67 +20,31 @@
   place-items: center;
   width: 42px;
   height: 42px;
-  flex: none;
   color: #fff;
   background: #E11D48;
   clip-path: polygon(50% 0, 62% 8%, 77% 5%, 85% 18%, 98% 26%, 94% 42%, 100% 55%, 90% 68%, 89% 84%, 73% 88%, 62% 100%, 48% 93%, 33% 100%, 23% 88%, 7% 84%, 9% 68%, 0 55%, 6% 41%, 2% 26%, 16% 18%, 23% 5%, 39% 8%);
+  filter: drop-shadow(0 5px 12px rgba(22, 34, 58, 0.26));
   animation: seal-hues 8s steps(1, end) infinite;
   transition: filter 0.2s ease, transform 0.2s ease;
 }
 
-.exam-launcher:hover .exam-seal {
-  filter: brightness(1.08);
+.exam-corner:hover .exam-seal {
+  filter: drop-shadow(0 5px 12px rgba(22, 34, 58, 0.3)) brightness(1.06);
 }
 
-.exam-launcher:active .exam-seal {
+.exam-corner:active .exam-seal {
   transform: scale(0.94);
 }
 
-.exam-launcher:focus-visible {
+.exam-corner:focus-visible {
   outline: 3px solid #2563EB;
   outline-offset: 3px;
+  border-radius: 16px;
 }
 
 .exam-seal svg {
   width: 21px;
   height: 21px;
-}
-
-.exam-choices {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-}
-
-.exam-choice {
-  display: inline-flex;
-  align-items: center;
-  min-height: 36px;
-  padding: 0 11px;
-  border: 1px solid #e4e8ef;
-  border-radius: 11px;
-  background: #fff;
-  color: #202a3b;
-  font: 700 12px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
-  white-space: nowrap;
-  cursor: pointer;
-  text-decoration: none;
-  transition: background 0.16s ease, color 0.16s ease, border-color 0.16s ease, box-shadow 0.16s ease;
-}
-
-.exam-choice:hover {
-  background: #f7f8fb;
-  border-color: #cbd3df;
-  box-shadow: 0 2px 7px rgba(20, 30, 50, 0.08);
-}
-
-.exam-choice:active {
-  background: #eef1f6;
-}
-
-.exam-choice:focus-visible {
-  outline: 2px solid #2563EB;
-  outline-offset: 2px;
 }
 
 @keyframes seal-hues {

@@ -359,16 +359,9 @@ export default function VoiceAssistant() {
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7">
           {/* who answers, and the language they are answering in, are written on the screen itself:
                the language stands until the person changes it, here or by asking for one out loud */}
-          <div className="flex flex-col items-center gap-3">
-            <div className="flex flex-wrap items-center justify-center gap-2">
-              <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
-              <LangPill />
-            </div>
-            {/* every examination is met in one place, gathered behind one seal that keeps to the
-                 left under the badges, before anything is asked of the call itself */}
-            <div className="flex w-full justify-start">
-              <ExamLauncher onOpen={() => setLevelsOpen(true)} />
-            </div>
+          <div className="flex flex-wrap items-center justify-center gap-2">
+            <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
+            <LangPill />
           </div>
           <button
             type="button"
@@ -465,7 +458,14 @@ export default function VoiceAssistant() {
         <div className="flex h-5 items-center justify-center">
           {thinking ? <ThinkingLine /> : null}
         </div>
-        <ChatInput onSend={handleSend} onCall={handleCall} inCall={micActive} />
+        {/* every examination is met in one place: the seal keeps to the lower left of the home
+             screen, beside the message box, before anything is asked of the call itself */}
+        <div className="flex items-center gap-2">
+          <ExamLauncher onOpen={() => setLevelsOpen(true)} />
+          <div className="min-w-0 flex-1">
+            <ChatInput onSend={handleSend} onCall={handleCall} inCall={micActive} />
+          </div>
+        </div>
       </footer>
 
       <SeriesShell open={levelsOpen} onClose={() => setLevelsOpen(false)} />
