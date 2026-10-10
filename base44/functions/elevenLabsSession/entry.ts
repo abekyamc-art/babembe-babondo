@@ -11,7 +11,14 @@ const unavailable = "The voice call couldn't start. Please try again in a moment
 // everything they answer, written or spoken, and the app's two written helpers. Nothing here ever
 // falls back from one account to another, so whatever is missing is said plainly instead of being
 // answered by someone else.
-const ACCOUNTS: { id: string; name: string; key: string; agent: string; plain?: boolean }[] = [
+const ACCOUNTS: {
+  id: string;
+  name: string;
+  key: string;
+  agent: string;
+  plain?: boolean;
+  keepPace?: boolean;
+}[] = [
   { id: "", name: "", key: "ELEVENLABS_API_KEY", agent: "ELEVENLABS_AGENT_ID" },
   {
     id: "second",
@@ -34,6 +41,17 @@ const ACCOUNTS: { id: string; name: string; key: string; agent: string; plain?: 
   // The admin's own talk AIs, waiting their turn behind the standing one: the home page's calls
   // take turns on all four, each on its own account with its own key, its own agent and its own
   // knowledge, and each answering two questions before the coordinator signals the change.
+  // The voice AI 1 — the first voice of a home call — speaks through: its own agent, on its own
+  // account, holding the voice the admin gave it. Its pace is left exactly as it was set, because
+  // this voice carries its accent in its own delivery and a pace written over it would speak the
+  // accent out of it.
+  {
+    id: "ai1voice",
+    name: "AI 1",
+    key: "ELEVENLABS_AI1VOICE_API_KEY",
+    agent: "ELEVENLABS_AI1VOICE_AGENT_ID",
+    keepPace: true,
+  },
   { id: "talk2", name: "AI 2", key: "ELEVENLABS_TALK2_API_KEY", agent: "ELEVENLABS_TALK2_AGENT_ID" },
   { id: "talk3", name: "AI 3", key: "ELEVENLABS_TALK3_API_KEY", agent: "ELEVENLABS_TALK3_AGENT_ID" },
   { id: "talk4", name: "AI 4", key: "ELEVENLABS_TALK4_API_KEY", agent: "ELEVENLABS_TALK4_AGENT_ID" },
@@ -125,7 +143,7 @@ async function allowHearingSettings(apiKey: string, agentId: string, agent: any)
  * His own agent holds the opening line and the switch that turns it off for a later
  * session. Both are read here, and neither is guessed.
  */
-async function readAgent(apiKey: string, agentId: string, tune: boolean) {
+async function readAgent(apiKey: string, agentId: string, tune: boolean, pace = true) {
   try {
     const res = await fetch(
       "https://api.elevenlabs.io/v1/convai/agents/" + encodeURIComponent(agentId),
@@ -138,8 +156,9 @@ async function readAgent(apiKey: string, agentId: string, tune: boolean) {
     // on an agent that hears nothing
     if (tune) {
       // the pace lives on the agent, so it is made sure of before this call opens: read,
-      // written, and read back to confirm the write took
-      await ensureFastPace(apiKey, agentId);
+      // written, and read back to confirm the write took. One voice is left alone: AI 1's own voice
+      // is the admin's own, and it is spoken exactly as he set it
+      if (pace) await ensureFastPace(apiKey, agentId);
       // and the saved words and the language of the hearing are only taken when the agent allows them
       await allowHearingSettings(apiKey, agentId, data);
     }
@@ -202,7 +221,7 @@ export default async function (req: Request): Promise<Response> {
     // A helper asked in writing is never tuned, and the app's own words are not spent on a
     // session that hears nothing.
     const [agent, keywords] = await Promise.all([
-      readAgent(apiKey, agentId, !account.plain),
+      readAgent(apiKey, agentId, !account.plain, !account.keepPace),
       account.plain ? [] : recognitionKeywords(base44),
     ]);
 

@@ -19,7 +19,9 @@ import { earsKnowledge, earsPrompt } from '../../shared/openAiEars.ts';
 
 // the model the call runs on, and the voice that speaks it
 const MODEL = 'gpt-realtime';
-const VOICE = 'marin';
+// the voice that speaks it: the deeper of the two the service gave this model, so the first voice of
+// the call is a man's — and this seat is only reached where AI 1's own voice has not been set up yet
+const VOICE = 'cedar';
 const SESSION_URL = 'https://api.openai.com/v1/realtime/client_secrets';
 
 // How much of the app's own rules the session carries, and how much of the admin's document rides in
@@ -49,6 +51,8 @@ const OPENING = [
   'uses one of them — does that language stand, and it stands from that very word on.',
   'Listen to the whole turn before you answer, never cut the person off, and never answer with one word',
   'or with a line you have already given in this call.',
+  'Speak Kibembe the way a Babembe speaker does: every vowel opened and every syllable landing as the',
+  'guide gives it, with the warmth and the rhythm of the language rather than an English reading of it.',
   'Everything this app holds for this call is written below and is already in front of you: the guide,',
   'the saved answers and the confirmed words. Answer from them here and now — nobody is being asked for',
   'anything and no turn is being handed anywhere — and never say that something is being looked up.',

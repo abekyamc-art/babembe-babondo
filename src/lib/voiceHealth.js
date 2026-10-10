@@ -1,5 +1,6 @@
 import { base44 } from "@/api/base44Client";
 import { cartesiaFailed, cartesiaOpened, cartesiaOrder } from "@/lib/cartesiaBackup";
+import { AI1_VOICE_ACCOUNT, ai1VoiceSession, withAi1Voice } from "@/lib/ai1Voice";
 
 /**
  * Which of the home page's voices can really take a call.
@@ -65,6 +66,20 @@ async function checkOpenAi(seat) {
 }
 
 /**
+ * AI 1 — the first voice of the ring — asked for the session its call is opened with.
+ *
+ * Its own voice is asked first, and only where that voice cannot hand a session over does AI 1 take
+ * the call on the app's own OpenAI seat exactly as it always has. So a voice that has not been set up
+ * yet, or whose account is having a bad moment, is never a call that does not open — and the check
+ * never names a failure the person can do nothing about.
+ */
+async function checkAi1(seat) {
+  const session = await ai1VoiceSession();
+  if (session) return { seat: withAi1Voice(seat), session, account: AI1_VOICE_ACCOUNT };
+  return checkOpenAi(seat);
+}
+
+/**
  * One Cartesia account, asked for the token its call is opened with: either the session comes back,
  * or the reason the account gave for refusing it does.
  */
@@ -125,7 +140,7 @@ export async function checkVoiceSeats(seats) {
         seat.kind === "cartesia"
           ? checkCartesia(seat)
           : seat.kind === "openai"
-            ? checkOpenAi(seat)
+            ? checkAi1(seat)
             : checkTalk(seat);
       return Promise.race([probe, wait(CHECK_MS).then(() => ({ seat, why: gaveUp(seat.label) }))]);
     })
