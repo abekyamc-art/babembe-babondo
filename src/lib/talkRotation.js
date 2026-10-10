@@ -3,8 +3,8 @@ import { GLOIRE_AI } from "@/lib/providerNames";
 /**
  * The four talk AIs the home page's calls take turns on, and how long a turn lasts. Each one
  * answers on its own account, with its own key and its own knowledge, so a handoff is a change of
- * AI and never a change of voice on someone else's. GLOIRE AI stands first, on the account the
- * app already had; the three after it are the admin's own.
+ * AI and never a change of voice on someone else's. GLOIRE AI stands first among the talk AIs
+ * themselves, on the account the app already had; the three after it are the admin's own.
  */
 export const TALK_IDS = ["gloire", "talk2", "talk3", "talk4"];
 
@@ -17,15 +17,16 @@ export const FIRST_TALK = { id: "gloire", label: GLOIRE_AI, account: "" };
 export const TALK_ANSWERS = 2;
 
 /**
- * How many answers GLOIRE AI — the voice every home call opens on now — gives before the ring of
- * voices moves on to the next one: eight finished answers, and then it stands aside like any other
- * voice. Every answer given spends one credit.
+ * How many answers GLOIRE AI gives before the ring of voices moves on to the next one: eight
+ * finished answers, and then it stands aside like any other voice. Every answer given spends one
+ * credit.
  */
 export const GLOIRE_ANSWERS = 8;
 
 /**
- * How many answers the app's own OpenAI seat — AI 1, the voice that follows GLOIRE AI on a home call
- * — speaks before the ring of voices moves on to the next one. Every answer given spends one credit.
+ * How many answers the app's own OpenAI seat — AI 1, the voice every home call opens on, with GLOIRE
+ * AI standing behind it — speaks before the ring of voices moves on to the next one. Every answer
+ * given spends one credit.
  */
 export const OPENAI_ANSWERS = 6;
 

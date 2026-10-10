@@ -19,9 +19,10 @@ import {
 /**
  * The home page's call, and who is on it.
  *
- * Every voice the app is set up with takes the call in turn: GLOIRE AI opens it and speaks eight
- * answers, then the app's own OpenAI seat with six, then the talk AIs the admin has set up in their
- * own order, then the accounts that speak for the other modes — Mbembe AI, Mbondo AI and Sadiki AI —
+ * Every voice the app is set up with takes the call in turn: the app's own OpenAI seat — AI 1 —
+ * opens it and speaks six answers, then GLOIRE AI with eight, then the talk AIs the admin has set up
+ * in their own order, then the accounts that speak for the other modes — Mbembe AI, Mbondo AI and
+ * Sadiki AI —
  * and when the ring is complete it starts over, so the talk keeps moving from one voice to the next
  * for as long as the call runs. Every other voice answers two finished answers before standing aside,
  * and Cartesia AI seven.
