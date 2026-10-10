@@ -31,6 +31,7 @@ const StudioLayout = lazy(() => import('./components/studio/StudioLayout'));
 const StudioHome = lazy(() => import('./pages/StudioHome'));
 const StudioProject = lazy(() => import('./pages/StudioProject'));
 const KibembeChat = lazy(() => import('./pages/KibembeChat'));
+const Companion = lazy(() => import('./pages/Companion'));
 
 // A page that needs signing in remembers where the person was headed, so a link someone shared
 // opens on what it pointed at — the reel it named — instead of on the app's first screen.
@@ -111,6 +112,7 @@ const AuthenticatedApp = () => {
                   <Route path="/messages" element={<Messages />} />
                   <Route path="/messages/:threadId" element={<Chat />} />
                   <Route path="/kibembe" element={<KibembeChat />} />
+                  <Route path="/companion" element={<Companion />} />
                 </Route>
                 <Route path="*" element={<PageNotFound />} />
               </Routes>

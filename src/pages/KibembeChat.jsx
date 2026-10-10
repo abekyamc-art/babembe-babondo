@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
-import { ArrowLeft, Mic } from "lucide-react";
+import { ArrowLeft, Mic, Sparkles } from "lucide-react";
 import ChatBubble from "@/components/kibembe/ChatBubble";
 import ChatComposer from "@/components/kibembe/ChatComposer";
 import KibembeVoicePanel from "@/components/kibembe/KibembeVoicePanel";
@@ -69,17 +69,25 @@ export default function KibembeChat() {
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="min-w-0">
-          <h1 className="font-heading text-lg leading-tight text-foreground">Kibembe Assistant</h1>
+          <h1 className="truncate font-heading text-lg leading-tight text-foreground">Kibembe Assistant</h1>
           <p className="truncate font-body text-xs text-muted-foreground">
             Word Bank answers, read with {SADIKI_AI}
           </p>
         </div>
+        {/* the live companion, one tap away: its own agent, its own conversation */}
+        <Link
+          to="/companion"
+          aria-label="Open the Kibembe live companion"
+          className="ml-auto flex h-10 w-10 shrink-0 items-center justify-center rounded-full border border-border text-foreground"
+        >
+          <Sparkles className="h-4 w-4" />
+        </Link>
         <button
           type="button"
           onClick={() => setVoiceOpen((open) => !open)}
           aria-expanded={voiceOpen}
           aria-label={voiceOpen ? "Close the voice panel" : "Open the voice panel"}
-          className={`ml-auto flex h-10 shrink-0 items-center gap-2 rounded-full border px-3 font-body text-xs transition ${
+          className={`flex h-10 shrink-0 items-center gap-2 rounded-full border px-3 font-body text-xs transition ${
             voiceOpen ? "border-accent text-accent" : "border-border text-foreground"
           }`}
         >
