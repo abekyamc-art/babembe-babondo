@@ -20,9 +20,9 @@ import { MAX_MEANING, MAX_TERM, MAX_USAGE, clean } from "./knowledgeWords.ts";
  *
  * Two searches stand behind it, together: the words of the turn itself, and the confirmed words it
  * reaches by sound — so a Kibembe word said in the person's own way still finds the line that holds
- * it. The Word Bank stays the only source of a Kibembe spelling and a Kibembe meaning; the document
- * is read for its content and its rules. A turn that reaches nothing is told so plainly, and nothing
- * is invented for it.
+ * it. The Word Bank and the document are the reference a turn is answered from: a form they hold is
+ * used as it is written there. A turn that reaches nothing is answered by the voice itself, in its own
+ * words, rather than being turned away from.
  *
  * Every path that answers a voice turn reads from here, so the same question finds the same thing
  * whichever voice is on the line — and a document the admin has just published is read as it is, at
@@ -46,20 +46,20 @@ const MAX_QUESTION = 600;
 const HEAD =
   "\n# MAARIFA YA MWENYEJI — the parts of the admin's own knowledge this turn reaches, searched for it just now:\n" +
   "Sehemu hizi zimefutwa kutoka kwenye hati nzima ya admin kwa ajili ya turn hii: ni maarifa ya app " +
-  "hii, na jibu litoke kwenye hizi kwanza. Neno la Kibembe lisiloandikwa hapa halijathibitishwa: " +
-  "usilibuni, usilikisie, wala usilitafsiri — sema kwa ufupi kwamba halipo, au uliza swali moja fupi " +
-  "la kufafanua. Usiseme kamwe kwamba umetafuta wakati hukutafuta.\n";
+  "hii, na jibu likae kwenye hizi. Neno la Kibembe lililoandikwa hapa linatumika jinsi lilivyoandikwa " +
+  "hapa; lile lisiloandikwa hapa si kizuizi cha jibu: jibu turn hii kwa Kibembe cha mazungumzo jinsi " +
+  "mtu wa Babembe anavyosema. Usiseme kamwe kwamba umetafuta wakati hukutafuta.\n";
 
 const WORDS_HEAD =
   "\n# MANENO YA KIBEMBE YALIYOTHIBITISHWA — the confirmed words and expressions this turn reaches:\n" +
-  "Neno la Kibembe linaandikwa na kusemwa jinsi lilivyoandikwa hapa, na maana yake inatoka hapa pekee. " +
-  "Neno lisilo hapa halijathibitishwa: litaje kama lilivyosikika, usibuni maana yake.\n";
+  "Neno la Kibembe lililo hapa linaandikwa na kusemwa jinsi lilivyoandikwa hapa, na maana yake inatoka " +
+  "hapa. Neno lisilo hapa litajwe kama lilivyosikika.\n";
 
 const NONE =
   "\n# MAARIFA YA MWENYEJI — nothing of this turn stands in the admin's own document or in the confirmed Word Bank.\n" +
-  "Hakuna kilichopatikana kwa uhakika kuhusu hilo: sema kwa ufupi kwamba hujapata taarifa ya " +
-  "kuthibitishwa, au uliza swali moja fupi la kufafanua. Usibuni neno la Kibembe, usilikisie, na " +
-  "usijibu kwa jambo lingine lisilohusiana.\n";
+  "Neno lolote la Kibembe la turn hii haliko kwenye hati hii: jibu turn hii mwenyewe, kwa Kibembe cha " +
+  "mazungumzo jinsi mtu wa Babembe anavyosema, na usikae kimya. Usiseme kwamba umetafuta wakati " +
+  "hukutafuta.\n";
 
 type Piece = { body: string; text: string };
 
