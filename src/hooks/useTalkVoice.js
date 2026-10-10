@@ -543,6 +543,12 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
 
       const live = socketRef.current;
       if (live?.connected) {
+        // A written turn is read for what it asks of the app's own player exactly as a spoken one is,
+        // and the app's own note about its player rides in before the words — so the answer stands on
+        // what the app has really done, and a piece is never said to be playing when it is only
+        // standing in the player waiting for the person's own press.
+        const media = mediaRef.current ? await mediaRef.current(said) : null;
+        if (media?.spoken) live.sendMemory(media.spoken);
         live.sendText(said);
         return;
       }
