@@ -113,6 +113,29 @@ function pairsOf(text: string, kind: string): Pair[] {
   return out;
 }
 
+/**
+ * Whether what was read of a file is really written text, and not the noise a picture reads as.
+ *
+ * A file of written words is almost entirely ordinary letters; a picture, a sound or any other
+ * package read as letters turns into noise. That noise read as a dictionary puts words into the app
+ * that nobody ever wrote, so it is refused here rather than mined.
+ */
+function readableText(text: string): boolean {
+  const sample = text.slice(0, 4000);
+  if (!sample.trim()) return false;
+  let odd = 0;
+  for (const ch of sample) {
+    const code = ch.codePointAt(0) ?? 0;
+    const ok =
+      ch === "\n" ||
+      ch === "\r" ||
+      ch === "\t" ||
+      (code >= 32 && code !== 0x7f && code !== 0xfffd && !(code >= 0x80 && code <= 0x9f));
+    if (!ok) odd += 1;
+  }
+  return odd / sample.length <= 0.05;
+}
+
 /** The readable text of an uploaded file, or a plain reason why it cannot be read. */
 async function textOf(
   base44: any,
@@ -144,6 +167,15 @@ async function textOf(
     bytes.length > 1 && bytes[0] === 0xff && bytes[1] === 0xfe
       ? new TextDecoder("utf-16le").decode(bytes.subarray(2))
       : new TextDecoder("utf-8").decode(bytes);
+  // A picture, a sound, or anything else that is not written words is refused here: read as letters
+  // it becomes noise, and noise read as a dictionary puts words into the app that nobody wrote. A
+  // picture belongs in the pictures panel, and a Word or PDF file in the document import.
+  if (!readableText(text)) {
+    return {
+      error:
+        "That file is not written text, so no words can be read out of it. Upload a plain .txt, .csv, .md or .json dictionary, or put a picture in through the pictures panel.",
+    };
+  }
   return { text };
 }
 
