@@ -1,8 +1,9 @@
 import { buildMedicalMix } from "./examBank";
 import { buildExtraMix } from "./examExtras";
 import { lifeQuestionOf, lifeWordOrder, shuffled } from "./examSeries";
-import { buildCalculationPaper } from '@/lib/challengeQuestions';
+import { buildCalculationPaper, challengeAt } from '@/lib/challengeQuestions';
 import { buildPeoplePaper } from '@/lib/peopleChallenges';
+import { SCENE_POOL, currentQueues, poolShare } from './examPool';
 
 /**
  * The everyday words in one order for the whole season, shuffled once and then kept: every episode's
@@ -141,6 +142,90 @@ function lifeQuestions(season, episode, count) {
 
 const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "");
 
+/** The seasons whose papers are confirmed words, and the number of episodes they ask between them. */
+const WORD_POOLS = ['life', 'health', 'both'];
+const WORD_EPISODES = 300;
+
+/**
+ * How many of a paper's ten questions are confirmed words. It is worked out from what the knowledge
+ * document holds: every word paper of the examination is given as many word questions as the document
+ * can cover without ever asking one of them twice. A paper whose words run out is filled with a
+ * challenge question instead — a word that has already stood is never handed to a student again.
+ */
+function wordShare() {
+  const held = poolShare();
+  return Math.max(4, Math.min(QUESTIONS_PER_EPISODE, Math.floor(held / WORD_EPISODES)));
+}
+
+/** What one word paper is made of: its words of every day, its body and health term, and its challenges. */
+function poolParts() {
+  const words = wordShare();
+  const medical = Math.min(1, words);
+  const extras = Math.min(3, Math.max(0, words - medical - 1));
+  return { life: words - medical - extras, extras, medical, challenge: QUESTIONS_PER_EPISODE - words };
+}
+
+/**
+ * Where each paper's own run of the confirmed words begins: the words every paper before it — in the
+ * season before this one as well — has already asked, added up. So the runs follow one another without
+ * ever crossing, and a word stands in one paper only.
+ */
+let spread = { share: 0, table: null };
+
+function spreadOf() {
+  const share = wordShare();
+  if (spread.table && spread.share === share) return spread.table;
+  const table = {};
+  const parts = poolParts();
+  let everyday = 0;
+  let medical = 0;
+  let papers = 0;
+  for (const season of EXAM_SEASONS) {
+    if (!WORD_POOLS.includes(season.pool)) continue;
+    for (let episode = 1; episode <= episodesInSeason(season.no); episode += 1) {
+      table[`${season.no}:${episode}`] = {
+        everyday,
+        medical,
+        scene: papers * QUESTIONS_PER_EPISODE,
+      };
+      everyday += parts.life + parts.extras;
+      medical += parts.medical;
+      papers += 1;
+    }
+  }
+  spread = { share, table };
+  return table;
+}
+
+/** A paper's own run of a queue: the questions standing at it, and nothing beyond the end of the list. */
+function take(queue, start, count, missed) {
+  return Array.from({ length: count }, (_, step) => {
+    const at = start + step;
+    return queue[at] || challengeAt(missed + at, true);
+  });
+}
+
+/** One word paper: its own untouched run of the confirmed words, and its challenges where no word is left. */
+function poolPaper(season, episode, queues) {
+  const parts = poolParts();
+  const at = spreadOf()[`${season.no}:${episode}`];
+  const paper = [
+    ...take(queues.everyday, at.everyday, parts.life + parts.extras, 900000),
+    ...take(queues.medical, at.medical, parts.medical, 800000),
+    ...Array.from({ length: parts.challenge }, (_, step) =>
+      challengeAt(700000 + (at.scene + step) * 4, true)
+    ),
+  ];
+  // a word with no picture of its own is studied on a scene of its own within the paper
+  paper.forEach((question, slot) => {
+    if (question.image?.url) return;
+    const scene = SCENE_POOL[(at.scene + slot) % SCENE_POOL.length];
+    question.image = scene;
+    question.hint = `Study the picture — ${scene.scene} — before you answer.`;
+  });
+  return shuffled(paper);
+}
+
 /**
  * One episode's paper of ten: the everyday questions of that episode alone, taken from the season's own
  * orders so the papers beside each other never ask the same word — wherever in the season the episode
@@ -151,6 +236,10 @@ const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "")
 export function buildEpisodePaper(seasonNo, episode) {
   const season = seasonByNo(seasonNo);
   if (!season || episode < 1 || episode > episodesInSeason(seasonNo)) return [];
+  // the confirmed words of the app's own knowledge document, once they have been read: every paper takes
+  // its own run of them, so a word stands in one paper and never comes back
+  const queues = currentQueues();
+  if (queues && WORD_POOLS.includes(season.pool)) return poolPaper(season, episode, queues);
   if (season.pool === 'math') return buildCalculationPaper(episode);
   if (season.pool === 'people') return buildPeoplePaper(episode);
   if (season.pool === 'logic') return buildCalculationPaper(episode, true);

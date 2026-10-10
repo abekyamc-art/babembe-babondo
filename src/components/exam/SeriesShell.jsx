@@ -19,6 +19,7 @@ import {
   startEpisode,
 } from "@/lib/examProgress";
 import { saveScore } from "@/lib/examLeaderboard";
+import { loadExamPool } from "@/lib/examPool";
 import "@/exam.css";
 
 const HEAD = {
@@ -60,7 +61,9 @@ export default function SeriesShell({ open, onClose }) {
     setResume(null);
     setView('seasons');
     written.current = '';
-    loadStudentProgress().then((held) => {
+    // the confirmed words are read before any paper is drawn, so no episode is opened on the written
+    // lists while the document's own words are still on their way
+    Promise.all([loadExamPool().catch(() => null), loadStudentProgress()]).then(([, held]) => {
       if (!active) return;
       const half = loadAttempt();
       setProgress(held);

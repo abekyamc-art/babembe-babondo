@@ -460,3 +460,6 @@ export function buildExtraMix(count, start = 0, avoid = []) {
   }
   return picked;
 }
+
+/** The confirmed numbers and the ways they are asked, for the examination's own reading of the document. */
+export { NUMBERS as CONFIRMED_NUMBERS, numberToKibembe, numberToDigit, numberNext };
