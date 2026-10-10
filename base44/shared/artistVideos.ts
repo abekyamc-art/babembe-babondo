@@ -77,8 +77,32 @@ export function hasCounts(videos: ArtistVideo[]): boolean {
 }
 
 /**
+ * The app's own artist, for a turn that asks for their work without naming them: the story that
+ * carries the artist's own channel and their own pieces is the app's artist.
+ *
+ * Only where exactly one story carries them: where the app holds more than one artist, no one of them
+ * is picked for a request that named none. Nothing is guessed — the person is asked which artist they
+ * mean, which is what the selection does when no artist of the app's own answers a request.
+ */
+export function ownArtist(rows: any[]): any {
+  const carrying = (Array.isArray(rows) ? rows : []).filter((row: any) => carriesWork(row));
+  return carrying.length === 1 ? carrying[0] : null;
+}
+
+/** Whether a story carries the artist's own work at all: their channel, or pieces they published. */
+export function carriesWork(story: any): boolean {
+  if (!story) return false;
+  return (
+    !!String(story?.channel_url || '').trim() ||
+    (Array.isArray(story?.artist_links) && story.artist_links.length > 0)
+  );
+}
+
+/**
  * The artist's list for one turn: the story the turn is about, and the five most watched of their
- * pieces. Nothing is read at all for a turn that is not about an artist, or one no story answers.
+ * pieces. Nothing is read at all for a turn that is not about an artist, or one no story answers —
+ * apart from a request for the artist's own songs that names no artist at all, which the app's own
+ * artist answers where the app holds one.
  */
 export async function artistVideosFor(base44: any, query: any): Promise<ArtistList | null> {
   if (!asksArtist(query)) return null;
@@ -93,7 +117,12 @@ export async function artistVideosFor(base44: any, query: any): Promise<ArtistLi
         fields: ['title', 'text', 'tags', 'channel_url', 'artist_links'],
       }
     );
-    story = bestStory(page?.items || [], String(query || ''));
+    const rows = page?.items || [];
+    const matched = bestStory(rows, String(query || ''));
+    // The story the turn is about answers when it carries the artist's own work. A story that carries
+    // none — a telling only — is not what a piece of the artist's is chosen from, so the app's own
+    // artist answers instead, where the app holds one.
+    story = carriesWork(matched) ? matched : ownArtist(rows) || matched;
   } catch (error: any) {
     // a story that could not be read is no list at all: nothing is claimed about an artist here
     console.error('The artist could not be found for the video list:', error?.message);

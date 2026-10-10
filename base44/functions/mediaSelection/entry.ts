@@ -30,6 +30,11 @@ const STOP_WORDS = new Set([
   // the words a person wraps a request in, which name no piece at all
   'just', 'let', 'let me', 'me', 'my', 'we', 'you', 'can', 'could', 'would', 'want', 'like', 'give',
   'some', 'now', 'then', 'again', 'its', 'his', 'her', 'our', 'their', 'about', 'only', 'one',
+  // The words that name the artist rather than a piece — "play the song of the artist", "piga nyimbo
+  // ya msanii". They carry no title at all, so a request holding only these is a request for the
+  // artist's own work as a whole: their most watched piece answers it.
+  'artist', 'artists', 'singer', 'singers', 'musician', 'musicians', 'youtuber', 'channel', 'msanii',
+  'msani', 'wasanii', 'mwimbaji', 'mwanamuziki', 'mchezaji', 'mwandishi', 'sanaa', 'kwaya', 'band',
 ]);
 
 // what the turn asks of the app's own player, most particular first: a person who says "just listen"
@@ -157,6 +162,28 @@ export default async function (req: Request): Promise<Response> {
         channel,
         reason:
           'More than one of the artist\u2019s own pieces answers that title equally well, so the app chose none of them.',
+      });
+    }
+
+    // A request that names no piece at all — "play the artist's songs" — asks for the artist's own work
+    // rather than for one title: their most watched piece is the one asked for, and the rest of their
+    // pieces wait behind it in the player, exactly as when a title is named.
+    if (best.score <= 0 && !asked.length) {
+      const top: any = videos.find((one: any) => String(one?.url || '') === best.url) || {
+        name: best.name,
+        url: best.url,
+      };
+      return Response.json({
+        ok: true,
+        intent,
+        chosen: { name: best.name, url: best.url, views: Number(top?.views) || 0 },
+        candidates: [],
+        others: scored
+          .filter((one: any) => one.url !== best.url)
+          .slice(0, 5)
+          .map((one: any) => ({ name: one.name, url: one.url })),
+        channel,
+        reason: '',
       });
     }
 

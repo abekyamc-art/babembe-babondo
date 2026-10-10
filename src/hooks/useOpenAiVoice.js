@@ -118,8 +118,6 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       // the turn stands on the screen exactly as the session wrote it, which is the app's own spelling
       // of the person's words: the reader is pointed at the saved ones before it listens
       push("user", said);
-      // what the turn asks of the app's own player is answered by the app itself, here and now
-      mediaRef.current?.(said);
       // The app's own knowledge is searched for the turn that has just ended — the whole approved
       // document and the confirmed Word Bank, the same search every voice of the ring is handed — and
       // it is put in front of the seat before the answer is begun, so AI 1 answers from the app's own
@@ -129,17 +127,28 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       // the turn is measured from here: what follows is the app's own knowledge for it, and then the
       // answer itself beginning to be heard
       heardNow();
-      readHeardTurn(said, lastAgentRef.current).then(({ note, say, blocked }) => {
+      // What the turn asks of the app's own player is answered by the app itself, and the knowledge for
+      // the turn is searched at the same time, never one after the other. The app's own line about its
+      // own player rides into the turn with the knowledge, and it is what this seat has instead of being
+      // told mid-call: without it AI 1 answers as though it could play nothing at all, which is how a
+      // play request reads as a request the app does not understand. Only what the app has really done
+      // is handed over, and the seat is told plainly that a piece standing in the player has not started.
+      Promise.all([
+        Promise.resolve(mediaRef.current?.(said)).catch(() => null),
+        readHeardTurn(said, lastAgentRef.current),
+      ]).then(([played, heard]) => {
         knowledgeNow();
+        const { note, say, blocked } = heard || {};
         // the turn was said in a language this app does not speak: the app's own line takes the place of
         // an answer, and the screen says the same thing plainly beside it
         if (blocked) setNotice(LANGS_NOTICE);
-        // What the app holds of the turn — its reading of it, or the reply it keeps for it — rides in
-        // front of the seat; where the app holds nothing, the seat answers from the person's own words
-        // under the rules of the call. Every turn is answered: asking for no answer at all is what left
-        // a person who spoke with nothing back, and the three languages of this call are held by the
-        // rules and by the reading of the answer as it is spoken.
-        callRef.current?.answer?.(note || "", said, say || "");
+        // What the app holds of the turn — its reading of it, or the reply it keeps for it, and the line
+        // about its own player — rides in front of the seat; where the app holds nothing, the seat
+        // answers from the person's own words under the rules of the call. Every turn is answered:
+        // asking for no answer at all is what left a person who spoke with nothing back, and the three
+        // languages of this call are held by the rules and by the reading of the answer as it is spoken.
+        const player = String(played?.spoken || "").trim();
+        callRef.current?.answer?.([player, note || ""].filter(Boolean).join("\n\n"), said, say || "");
       });
     },
     [push]
