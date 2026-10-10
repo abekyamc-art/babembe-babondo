@@ -1,0 +1,132 @@
+/*
+ * GLOIRE AI — the picture puzzle the examination's last question is.
+ *
+ * It is drawn on the white question card, so it wears the card's own navy ink: the badges and the tries
+ * in the examination's blue, a found difference in its green.
+ */
+
+.diff {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.diff-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.diff-level {
+  font: 800 11.5px/1.2 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  color: #3d5a99;
+}
+
+.diff-hearts {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font: 800 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+}
+
+.diff-heart {
+  width: 15px;
+  height: 15px;
+}
+
+.diff-badges {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.diff-badge {
+  width: 27px;
+  height: 27px;
+  display: grid;
+  place-items: center;
+  border-radius: 999px;
+  background: #1d4ed8;
+  color: #ffffff;
+  font: 800 13px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  box-shadow: inset 0 0 0 2px rgba(255, 255, 255, 0.22);
+}
+
+.diff-badge.is-found {
+  background: #0f9d63;
+}
+
+.diff-panels {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.diff-panel {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  overflow: hidden;
+  border-radius: 14px;
+  background: #e8eef7;
+  border: 1px solid #d3dff0;
+  touch-action: manipulation;
+}
+
+.diff-img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.diff-overlay,
+.diff-added {
+  position: absolute;
+  border-radius: 10px;
+  pointer-events: none;
+}
+
+.diff-added {
+  display: grid;
+  place-items: center;
+}
+
+.diff-thing {
+  width: 52%;
+  height: 52%;
+  filter: drop-shadow(0 2px 3px rgba(4, 8, 20, 0.35));
+}
+
+.diff-ring {
+  position: absolute;
+  border: 2.5px solid #0f9d63;
+  border-radius: 999px;
+  background: rgba(15, 157, 99, 0.14);
+  pointer-events: none;
+}
+
+.diff-spot {
+  position: absolute;
+  padding: 0;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.diff-note {
+  margin: 0;
+  text-align: center;
+  font: 600 12.5px/1.45 system-ui, -apple-system, "Segoe UI", sans-serif;
+  color: #55658a;
+}

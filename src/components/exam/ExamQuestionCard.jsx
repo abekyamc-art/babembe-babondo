@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { ArrowRight, Flag } from "lucide-react";
 import { LETTERS } from "@/lib/examBank";
 import { stopReading } from "@/lib/examVoice";
+import ExamDifference from "./ExamDifference";
 import ExamFigure from "./ExamFigure";
 import ExamOption from "./ExamOption";
 import ExamPrompt from "./ExamPrompt";
@@ -44,6 +45,25 @@ export default function ExamQuestionCard({
   }, [question.id]);
 
   const open = heard || !!mark;
+
+  // The last question of every episode is a picture puzzle: the same picture twice, with the differences
+  // to be found between them. It is answered by tapping rather than by choosing, so it has a card of its
+  // own — taken after the hooks, so the same card can carry it and carry a question of choices alike.
+  if (question.kind === "difference") {
+    return (
+      <ExamDifference
+        question={question}
+        mark={mark}
+        at={at}
+        total={total}
+        score={score}
+        answered={answered}
+        onChoose={onChoose}
+        onNext={onNext}
+        isLast={isLast}
+      />
+    );
+  }
 
   // the voice is hung up the moment the student answers, so nothing speaks over the paper
   const choose = (choice) => {

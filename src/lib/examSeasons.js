@@ -4,6 +4,7 @@ import { lifeQuestionOf, lifeWordOrder, shuffled } from "./examSeries";
 import { buildCalculationPaper, challengeAt } from '@/lib/challengeQuestions';
 import { buildPeoplePaper } from '@/lib/peopleChallenges';
 import { SCENE_POOL, currentQueues, poolShare } from './examPool';
+import { differencePuzzle } from './diffPuzzles';
 
 /**
  * The everyday words in one order for the whole season, shuffled once and then kept: every episode's
@@ -142,6 +143,43 @@ function lifeQuestions(season, episode, count) {
 
 const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "");
 
+/**
+ * The last question of every episode: one picture shown twice, with differences standing in the lower
+ * copy for the student to find. It is the same question the whole examination ends on, and it is drawn
+ * from the app's own pictures in turn, so an episode beside this one is never given the same picture.
+ */
+function differenceQuestion(seasonNo, episode) {
+  const puzzle = differencePuzzle(seasonNo, episode);
+  return {
+    id: `difference:${seasonNo}:${episode}`,
+    kind: 'difference',
+    focus: 'Find the differences',
+    prompt: `Find the ${puzzle.differences.length} differences between the two pictures.`,
+    lead: 'Find the ',
+    key: `${puzzle.differences.length} differences`,
+    tail: ' between the two pictures.',
+    kb: '',
+    options: ['Found every difference'],
+    correct: 0,
+    explain: 'Every difference was found — the two pictures stand alike again.',
+    practice: [],
+    image: null,
+    hint: 'Tap each place where the lower picture differs from the one above it.',
+    puzzle,
+  };
+}
+
+/**
+ * One episode's paper of ten — its own questions, and the picture puzzle standing last, where the
+ * examination's own question of pictures always stands.
+ */
+export function buildEpisodePaper(seasonNo, episode) {
+  const paper = paperOf(seasonNo, episode);
+  if (!paper.length) return paper;
+  paper[paper.length - 1] = differenceQuestion(seasonNo, episode);
+  return paper;
+}
+
 /** The seasons whose papers are confirmed words, and the number of episodes they ask between them. */
 const WORD_POOLS = ['life', 'health', 'both'];
 const WORD_EPISODES = 300;
@@ -233,7 +271,7 @@ function poolPaper(season, episode, queues) {
  * no part of the language is ever met in the same place twice. The words an episode asks are its own: a
  * paper sat again asks those same words in a new order, and never the words of the episodes around it.
  */
-export function buildEpisodePaper(seasonNo, episode) {
+function paperOf(seasonNo, episode) {
   const season = seasonByNo(seasonNo);
   if (!season || episode < 1 || episode > episodesInSeason(seasonNo)) return [];
   // the confirmed words of the app's own knowledge document, once they have been read: every paper takes
