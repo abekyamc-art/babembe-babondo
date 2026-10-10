@@ -6,7 +6,7 @@ import ExamProgress from "./ExamProgress";
 import ExamQuestionCard from "./ExamQuestionCard";
 import ExamResults from "./ExamResults";
 import ExamSeasons from "./ExamSeasons";
-import { reportOf, scoreOf } from "@/lib/examSession";
+import { reportOf, scoreOf, pointsOf } from "@/lib/examSession";
 import { EXAM_SEASONS, episodeSize, episodesInSeason, seasonByNo } from "@/lib/examSeasons";
 import { loadStudentProgress, saveStudentProgress } from '@/lib/examProgressSync';
 import {
@@ -113,13 +113,20 @@ export default function SeriesShell({ open, onClose }) {
 
   // A pass opens the episode after it, and the hundredth pass of a season opens the season after it —
   // worked out from the paper in hand, so the report never waits on the store to be read back.
+  // A paper that reached more than eighty per cent of its points closes the episode and opens the one
+  // after it, and the hundredth pass of a season opens the season after it. A paper that fell short
+  // stays open: the same episode can be taken again.
   const nextNo = attempt ? attempt.episode + 1 : 0;
-  const nextOpen = !!attempt && nextNo <= episodesInSeason(attempt.season);
-  const seasonAfter = attempt && !nextOpen && seasonByNo(attempt.season + 1);
-  const note = !attempt ? '' : nextOpen
-    ? `Episode ${attempt.episode} is completed and cannot be replayed. Episode ${nextNo} is next, whatever your score.`
-    : seasonAfter ? `Season ${attempt.season} is complete. Season ${seasonAfter.no} is next.`
-    : 'All available seasons are complete. Completed episodes will not be repeated.';
+  const went = !!report?.passed;
+  const nextOpen = !!attempt && went && nextNo <= episodesInSeason(attempt.season);
+  const seasonAfter = attempt && went && !nextOpen && seasonByNo(attempt.season + 1);
+  const again = !!attempt && !went;
+  const note = !attempt ? '' : went
+    ? nextOpen
+      ? `Episode ${attempt.episode} is passed and is now closed. Episode ${nextNo} is next.`
+      : seasonAfter ? `Season ${attempt.season} is complete. Season ${seasonAfter.no} is next.`
+      : 'All available seasons are complete. Passed episodes will not be repeated.'
+    : `You scored ${report.percent}% of ${report.total} points — more than 80% opens the next episode. Take episode ${attempt.episode} again.`;
 
   const openEpisode = (no, seasonNo = season) => {
     if (loading || saving || syncError || !episodeOpen(loadProgress(), seasonNo, no)) return;
@@ -155,11 +162,18 @@ export default function SeriesShell({ open, onClose }) {
     setView("episodes");
   };
 
+  // A question of choices is answered by picking one and earns its own single point. The picture puzzle
+  // is answered by tapping: every difference found is a point of its own, and it is passed only when they
+  // have all been found.
   const choose = (choice) => {
     setAttempt((held) => {
       if (!held || held.marks[held.at]) return held;
-      const ok = choice === held.questions[held.at].correct;
-      return saveAttempt({ ...held, marks: { ...held.marks, [held.at]: { chosen: choice, ok } } });
+      const question = held.questions[held.at];
+      const mark =
+        typeof choice === "object" && choice !== null
+          ? { chosen: -1, got: choice.got, of: choice.of, ok: choice.got >= choice.of }
+          : { chosen: choice, ok: choice === question.correct };
+      return saveAttempt({ ...held, marks: { ...held.marks, [held.at]: mark } });
     });
   };
 
@@ -188,8 +202,8 @@ export default function SeriesShell({ open, onClose }) {
               <ExamResults
                 report={report}
                 note={note}
-                onNext={!saving && !syncError ? nextOpen ? () => openEpisode(nextNo, attempt.season) : seasonAfter ? () => openEpisode(1, seasonAfter.no) : null : null}
-                nextLabel={nextOpen ? `Go to episode ${nextNo}` : seasonAfter ? `Start season ${seasonAfter.no}` : ''}
+                onNext={!saving && !syncError ? nextOpen ? () => openEpisode(nextNo, attempt.season) : seasonAfter ? () => openEpisode(1, seasonAfter.no) : again ? () => openEpisode(attempt.episode, attempt.season) : null : null}
+                nextLabel={nextOpen ? `Go to episode ${nextNo}` : seasonAfter ? `Start season ${seasonAfter.no}` : again ? `Try episode ${attempt.episode} again` : ''}
                 onLevels={backToEpisodes}
               />
             ) : (
@@ -202,6 +216,7 @@ export default function SeriesShell({ open, onClose }) {
                   total={attempt.questions.length}
                   answered={Object.keys(attempt.marks || {}).length}
                   score={scoreOf(attempt)}
+                  possible={attempt.questions.reduce((sum, question) => sum + pointsOf(question), 0)}
                 />
                 <ExamQuestionCard
                   question={attempt.questions[attempt.at]}

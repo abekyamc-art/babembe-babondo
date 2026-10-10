@@ -8,6 +8,10 @@ import DifferencePuzzle from "@/components/diff/DifferencePuzzle";
  * the two pictures and their badges stand where the choices stand on every other question.
  */
 export default function ExamDifference({ question, mark, at, total, score, answered, onChoose, onNext, isLast }) {
+  // every difference found is a point of its own, and the nine questions before the puzzle are a point each
+  const of = question.puzzle.differences.length;
+  const possible = (total - 1) + of;
+
   return (
     <section className="exam-card" aria-labelledby={`exam-q-${at}`}>
       <header className="exam-card-head">
@@ -23,17 +27,20 @@ export default function ExamDifference({ question, mark, at, total, score, answe
       <DifferencePuzzle
         puzzle={question.puzzle}
         mark={mark}
-        onDone={(ok) => onChoose(ok ? 0 : -1)}
+        onDone={(got) => onChoose({ got, of })}
       />
 
       {mark ? (
         <div className={`exam-feedback ${mark.ok ? "is-right" : "is-wrong"}`} aria-live="polite">
           <p className={`exam-verdict ${mark.ok ? "is-right" : "is-wrong"}`}>
-            {mark.ok ? "✓ CORRECT!" : "✗ INCORRECT."}
+            {mark.ok ? "✓ ALL DIFFERENCES FOUND!" : "✗ NOT ALL FOUND."}
           </p>
-          <p className="exam-explain">{question.explain}</p>
           <p className="exam-explain">
-            Your score: {score}/{answered}
+            You found {mark.got} of {of} differences — {mark.got} {mark.got === 1 ? "point" : "points"}.{" "}
+            {question.explain}
+          </p>
+          <p className="exam-explain">
+            Your score: {score} of {possible} points.
           </p>
         </div>
       ) : null}

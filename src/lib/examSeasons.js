@@ -161,10 +161,10 @@ function differenceQuestion(seasonNo, episode) {
     kb: '',
     options: ['Found every difference'],
     correct: 0,
-    explain: 'Every difference was found — the two pictures stand alike again.',
+    explain: 'Every difference stood where the rings are marked.',
     practice: [],
     image: null,
-    hint: 'Tap each place where the lower picture differs from the one above it.',
+    hint: 'Look closely — nothing is marked. Tap each place where the lower picture differs from the one above it.',
     puzzle,
   };
 }

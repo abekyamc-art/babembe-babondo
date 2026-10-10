@@ -6,7 +6,7 @@ import { LETTERS, QUESTION_COUNT, buildExam } from "./examBank";
  */
 const KEY = "gloire-kibembe-exam-v1";
 
-/** The mark the examination passes at. */
+/** The mark the examination passes at: more than eighty per cent of the points. */
 export const PASS_MARK = 80;
 
 function write(state) {
@@ -42,9 +42,23 @@ export function saveExam(state) {
   return state;
 }
 
-/** How many answers stand right so far. */
+/**
+ * What one question is worth: a question of choices earns a single point, and the picture puzzle earns
+ * one point for every difference it holds — so the puzzle is passed only when they have all been found.
+ */
+export function pointsOf(question) {
+  return question?.kind === "difference" ? question?.puzzle?.differences?.length || 1 : 1;
+}
+
+/** How many points one answer has earned: the differences it found, or the point of a right choice. */
+function earned(mark) {
+  if (typeof mark?.got === "number") return mark.got;
+  return mark?.ok ? 1 : 0;
+}
+
+/** How many points stand earned so far. */
 export function scoreOf(state) {
-  return Object.values(state?.marks || {}).filter((mark) => mark?.ok).length;
+  return Object.values(state?.marks || {}).reduce((sum, mark) => sum + earned(mark), 0);
 }
 
 /** The band a finished examination stands in. */
@@ -59,7 +73,7 @@ export function gradeOf(percent) {
 export function reportOf(state) {
   const questions = state?.questions || [];
   const marks = state?.marks || {};
-  const total = questions.length;
+  const total = questions.reduce((sum, question) => sum + pointsOf(question), 0);
   const right = scoreOf(state);
   const percent = total ? Math.round((right / total) * 100) : 0;
   const missed = [];
@@ -67,8 +81,22 @@ export function reportOf(state) {
 
   questions.forEach((question, at) => {
     const mark = marks[at];
-    if (!mark) return;
-    if (!mark.ok) {
+    const worth = pointsOf(question);
+    if (!mark || earned(mark) >= worth) return;
+    // the picture puzzle is written out in the words of a puzzle: how many differences were found of
+    // how many stood, rather than a choice against a letter
+    if (question.kind === "difference") {
+      missed.push({
+        at,
+        prompt: question.prompt,
+        chosen: `${earned(mark)} of ${worth} differences found`,
+        letter: "",
+        correct: `Every one of the ${worth} differences`,
+        explain: question.explain,
+      });
+      return;
+    }
+    {
       missed.push({
         at,
         prompt: question.prompt,
@@ -90,7 +118,7 @@ export function reportOf(state) {
     wrong: total - right,
     percent,
     grade: gradeOf(percent),
-    passed: percent >= PASS_MARK,
+    passed: percent > PASS_MARK,
     missed,
     practice,
   };

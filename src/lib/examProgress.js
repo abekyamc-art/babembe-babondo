@@ -11,7 +11,9 @@ import {
  * many times each episode has been taken.
  *
  * A local, per-student copy keeps progress available between openings. The account copy is handled
- * by examProgressSync. Completion, not the pass mark, opens the next episode; no finished paper reopens.
+ * by examProgressSync. Only a paper that reached more than eighty per cent of its points closes the
+ * episode and opens the one after it: a paper that fell short is counted as an attempt and leaves the
+ * episode standing open, so it can be taken again.
  */
 const PROGRESS_KEY = "gloire-kibembe-exam-seasons-v2";
 const ATTEMPT_KEY = "gloire-kibembe-exam-episode-v2";
@@ -57,7 +59,6 @@ export function loadProgress() {
   const taken = held && held.taken && typeof held.taken === "object" ? held.taken : {};
   const completed = { ...(held?.completed || {}) };
   Object.keys(passed).forEach((key) => { completed[key] = true; });
-  Object.keys(taken).forEach((key) => { if (taken[key] > 0) completed[key] = true; });
   return { passed, taken, completed, baseline_score: held?.baseline_score || 0, baseline_passed: held?.baseline_passed || 0 };
 }
 
@@ -81,10 +82,10 @@ export function seasonOpen(progress, season) {
   return seasonCleared(progress, season - 1);
 }
 
-/** Completion permanently closes an episode and unlocks the next one. */
+/** A passed episode is closed for good, and closing it is what unlocks the episode after it. */
 export function episodeCompleted(progress, season, episode) {
   const key = episodeKey(season, episode);
-  return !!(progress?.completed?.[key] || progress?.passed?.[key] || progress?.taken?.[key]);
+  return !!(progress?.completed?.[key] || progress?.passed?.[key]);
 }
 
 export function completedIn(progress, season) {
@@ -189,23 +190,25 @@ export function startEpisode(season, episode) {
 }
 
 /**
- * A finished episode written down: the attempt counted, and — where the pass mark was reached — the
- * episode marked as passed, which is what opens the episode after it and, at the hundredth, the season
- * after it. How often an episode is taken is only ever counted, never limited.
+ * A finished episode written down: the attempt counted, and — where more than eighty per cent of its
+ * points were reached — the episode marked as passed and closed, which is what opens the episode after
+ * it and, at the hundredth, the season after it. A paper that fell short stays open and can be taken
+ * again; how often an episode is taken is only ever counted, never limited.
  */
 export function recordFinish(season, episode, report) {
   const progress = loadProgress();
   const key = episodeKey(season, episode);
 
   if (episodeCompleted(progress, season, episode)) { clearAttempt(); return progress; }
-  const completed = { ...progress.completed, [key]: true };
   const taken = { ...progress.taken, [key]: (progress.taken[key] || 0) + 1 };
   const passed = { ...progress.passed };
+  const completed = { ...progress.completed };
   if (report?.passed) {
     passed[key] = {
       best: Math.max(passed[key]?.best || 0, report.percent),
       at: new Date().toISOString(),
     };
+    completed[key] = true;
   }
 
   const next = { ...progress, passed, taken, completed };

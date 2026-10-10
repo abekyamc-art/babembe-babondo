@@ -1,10 +1,11 @@
 import React from "react";
 
 /**
- * Where the student stands: which question is on screen, the score as it stands, and the bar that
- * fills as the questions are answered.
+ * Where the student stands: which question is on screen, the points as they stand — every question of
+ * choices a point, and the picture puzzle one point for every difference — and the bar that fills as the
+ * questions are answered.
  */
-export default function ExamProgress({ at, total, answered, score }) {
+export default function ExamProgress({ at, total, answered, score, possible }) {
   const percent = total ? Math.round((answered / total) * 100) : 0;
 
   return (
@@ -14,7 +15,7 @@ export default function ExamProgress({ at, total, answered, score }) {
           Question {Math.min(at + 1, total)} of {total}
         </span>
         <span className="exam-score">
-          Score {score}/{answered}
+          Score {score} of {possible} points
         </span>
       </div>
       <div

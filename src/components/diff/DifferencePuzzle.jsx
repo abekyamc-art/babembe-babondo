@@ -4,10 +4,11 @@ import DiffPanel from "./DiffPanel";
 import "@/diff.css";
 
 /**
- * The picture puzzle of one episode: the same picture twice, the lower copy carrying differences, and
- * the student tapping each place he finds. Every difference found fills its own badge; a tap on a place
- * that holds no difference costs one of the three tries. Finding all of them, or spending the tries,
- * ends the puzzle and hands the answer to the examination.
+ * The picture puzzle of one episode: the same picture twice, the lower copy carrying the differences,
+ * and the student looking for the places himself — nothing marks where they stand. Every difference
+ * found is one point and fills its own badge; a tap on a place that holds no difference costs one of
+ * the three tries. Finding them all, or spending the tries, ends the puzzle and hands the differences it
+ * found to the examination.
  */
 export default function DifferencePuzzle({ puzzle, mark, onDone }) {
   const [found, setFound] = useState([]);
@@ -26,12 +27,13 @@ export default function DifferencePuzzle({ puzzle, mark, onDone }) {
   const shown = shut ? puzzle.differences.map((difference) => difference.id) : found;
   const left = Math.max(0, puzzle.hearts - misses);
 
+  // one difference found is one point; finding them all passes the question
   const spot = (difference) => {
     if (shut) return;
     const next = [...found, difference.id];
     setFound(next);
     setNote("");
-    if (next.length === puzzle.differences.length) onDone(true);
+    if (next.length === puzzle.differences.length) onDone(next.length);
   };
 
   const miss = () => {
@@ -40,7 +42,7 @@ export default function DifferencePuzzle({ puzzle, mark, onDone }) {
     setMisses(next);
     if (next >= puzzle.hearts) {
       setNote("Never mind — here is where the differences stood.");
-      onDone(false);
+      onDone(found.length);
       return;
     }
     setNote(`Not there — look again. ${puzzle.hearts - next} ${puzzle.hearts - next === 1 ? "try" : "tries"} left.`);
@@ -73,7 +75,7 @@ export default function DifferencePuzzle({ puzzle, mark, onDone }) {
       </div>
 
       <p className="diff-note" aria-live="polite">
-        {note || "Tap each place where the lower picture differs from the one above it."}
+        {note || "Look closely — nothing is marked. Tap each place where the lower picture differs from the one above it."}
       </p>
     </div>
   );

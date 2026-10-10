@@ -24,10 +24,10 @@ export default function ExamResults({
         <p className="exam-percent">{report.percent}%</p>
         <p className={`exam-band ${TONE[report.grade.tone]}`}>{report.grade.label}</p>
         <p className="exam-outcome">
-          {report.passed ? "Passed" : "Not passed"} — the pass mark is 80%.
+          {report.passed ? "Passed" : "Not passed"} — more than 80% of the total points is needed.
         </p>
         <p className="exam-outcome">
-          You answered {report.right} of {report.total} questions correctly.
+          You earned {report.right} of {report.total} points.
         </p>
         {note ? <p className="exam-outcome">{note}</p> : null}
       </div>
@@ -35,15 +35,15 @@ export default function ExamResults({
       <div className="exam-tally">
         <div className="exam-tile">
           <p className="exam-tile-num">{report.total}</p>
-          <p className="exam-tile-label">Questions</p>
+          <p className="exam-tile-label">Points possible</p>
         </div>
         <div className="exam-tile">
           <p className="exam-tile-num">{report.right}</p>
-          <p className="exam-tile-label">Correct</p>
+          <p className="exam-tile-label">Points earned</p>
         </div>
         <div className="exam-tile">
           <p className="exam-tile-num">{report.wrong}</p>
-          <p className="exam-tile-label">Incorrect</p>
+          <p className="exam-tile-label">Points missed</p>
         </div>
       </div>
 
@@ -55,7 +55,7 @@ export default function ExamResults({
               <p className="exam-review-q">{row.prompt}</p>
               <p className="exam-review-line is-wrong">Your answer: {row.chosen}</p>
               <p className="exam-review-line is-right">
-                Correct answer: {row.letter}. {row.correct}
+                Correct answer: {row.letter ? `${row.letter}. ` : ""}{row.correct}
               </p>
               <p className="exam-review-line">{row.explain}</p>
             </div>
