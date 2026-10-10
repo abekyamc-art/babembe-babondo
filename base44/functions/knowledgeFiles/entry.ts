@@ -1,5 +1,6 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { MAX_MEANING, MAX_TERM, clean, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
+import { pairLineOf } from "../../shared/knowledgeDoc.ts";
 
 /**
  * The files the admin's language is kept in: the corpus itself, and the two dictionaries —
@@ -93,8 +94,17 @@ function pairsOf(text: string, kind: string): Pair[] {
   body.split(/\r?\n/).forEach((line) => {
     const said = line.trim();
     if (!said || said.startsWith("#") || said.startsWith("//")) return;
-    // a pair is written with an equals sign, a bar, a tab, a semicolon or a comma — the first
-    // separator that splits the line into exactly two sides is the one that stands
+    // The admin's own pair mark comes first: a bullet, the word, a dash, its meaning — the shape the
+    // admin's own document and their own files are written in. A file written that way is read by the
+    // very same rule the document is read by, so a word the admin has written once is held by the app
+    // whether it arrived through their document or through a file they uploaded.
+    const mark = pairLineOf(said);
+    if (mark) {
+      take(mark[0], mark[1]);
+      return;
+    }
+    // otherwise a pair is written with an equals sign, a bar, a tab, a semicolon or a comma — the
+    // first separator that splits the line into exactly two sides is the one that stands
     const parts = said.split(/\s*[=|\t;]\s*|\s*,\s*/);
     if (parts.length < 2) return;
     take(parts[0], parts.slice(1).join(" "));
