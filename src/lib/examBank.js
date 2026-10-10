@@ -1,4 +1,5 @@
-import { runOf } from "./examSeries";
+// the pools of the examination and the words of every day live in their own files; nothing is drawn here
+
 
 /**
  * GLOIRE AI — the confirmed Kibembe medical vocabulary, and the examination built from it.
@@ -106,6 +107,33 @@ const entryOf = (label) => VOCAB.find((row) => row.en === label);
  * never ask the same term.
  */
 const VOCAB_ORDER = shuffled(VOCAB);
+
+/**
+ * Every question the confirmed health list can put: each term's Kibembe form asked from its meaning, its
+ * meaning asked from its Kibembe form, and the system whose structure it names — the three ways every
+ * term is met in a health paper.
+ *
+ * A term that stands for two structures is asked its meaning only toward Kibembe, and its system question
+ * once, so no question ever carries two answers and the same question is never put up twice in one round.
+ * The ways are laid out one after another, so a paper's questions come from three different passes of the
+ * list and the terms of the papers beside each other never cross.
+ */
+const MEDICAL_MASTER = (() => {
+  const out = [];
+  const systems = new Set();
+  for (const way of ["en_to_kb", "kb_to_en", "structure"]) {
+    for (const entry of VOCAB_ORDER) {
+      if (way === "kb_to_en" && entry.kb === "Mabolo") continue;
+      if (way === "structure") {
+        const key = `${entry.group}:${entry.kb}`;
+        if (systems.has(key)) continue;
+        systems.add(key);
+      }
+      out.push({ entry, way });
+    }
+  }
+  return out;
+})();
 
 /** The same list, in a different order, so no examination repeats the last one. */
 function shuffled(list) {
@@ -328,10 +356,21 @@ export function buildRulePaper() {
  * carries two answers.
  */
 export function buildMedicalMix(count, start = 0) {
-  return buildMedicalPaper(
-    runOf(VOCAB_ORDER, start, count).map((entry, at) => [
-      entry.en,
-      entry.kb === "Mabolo" ? "en_to_kb" : (start + at) % 2 === 0 ? "en_to_kb" : "kb_to_en",
-    ])
-  );
+  if (!count || count <= 0) return [];
+  const from = Math.max(0, start);
+  const asked = new Set();
+  const out = [];
+
+  for (let step = 0; step < MEDICAL_MASTER.length && out.length < count; step += 1) {
+    const plan = MEDICAL_MASTER[(from + step) % MEDICAL_MASTER.length];
+    // a term the paper already asks is stepped over, and the question after it takes its place
+    if (asked.has(plan.entry.en)) continue;
+    asked.add(plan.entry.en);
+    out.push(
+      plan.way === "structure"
+        ? structureQuestion(plan.entry)
+        : translationQuestion(plan.entry, plan.way)
+    );
+  }
+  return shuffled(out);
 }

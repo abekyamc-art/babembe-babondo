@@ -72,8 +72,14 @@ function flipped(row) {
  * Every word of every day, each asked both ways: the one order a season's episodes are cut from, so the
  * same word is met with its Kibembe asked for and with its meaning asked for as the season goes on, and
  * a word only comes back once the whole list has been round.
+ *
+ * One direction of every word stands in the first half of the order and the other direction in the second
+ * half, so the two directions of one word are never near each other: no single paper is ever handed the
+ * same word twice, and no paper has to step over a word and so take one of the next paper's.
  */
-export const LIFE_WORD_ROWS = LIFE_ROWS.flatMap((row) => [row, flipped(row)]);
+export function lifeWordOrder() {
+  return [...shuffled(LIFE_ROWS), ...shuffled(LIFE_ROWS.map((row) => flipped(row)))];
+}
 
 /** One daily-life question, with the correct answer standing wherever the shuffle has put it. */
 export function lifeQuestionOf(row) {

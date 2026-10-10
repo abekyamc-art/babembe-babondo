@@ -1,4 +1,5 @@
 import { shuffled } from "./examSeries";
+import { LIFE_ROWS } from "./lifeExamWords";
 import { LIFE_SCENES, NUMBER_SCENES, PHRASE_SCENES, PROVERB_SCENES } from "./examPictures";
 
 /**
@@ -146,9 +147,6 @@ const PROVERBS = [
 /** The four kinds a mixed question is taken from. */
 const KINDS = ["number", "greeting", "phrase", "proverb"];
 
-/** Each kind's own list of confirmed entries. */
-const POOLS = { number: NUMBERS, greeting: GREETINGS, phrase: PHRASES, proverb: PROVERBS };
-
 /** The ways one entry can be asked, taken in turn so the same form never comes back the same way twice. */
 const WAYS = {
   number: ["number_to_kibembe", "number_to_digit", "number_next"],
@@ -158,21 +156,26 @@ const WAYS = {
 };
 
 /**
- * Each kind's own list, shuffled once and then kept: an episode's mixed questions are cut from it one
- * form further on with every turn, so the episodes beside one another never ask the same form.
- */
-const ORDER = {
-  number: shuffled(NUMBERS),
-  greeting: shuffled(GREETINGS),
-  phrase: shuffled(PHRASES),
-  proverb: shuffled(PROVERBS),
-};
-
-/**
  * The form of a confirmed entry, compared apart from a trailing full stop or question mark. The two
  * lists write a few of the same phrases a little differently, and one paper must not ask it twice.
  */
 const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "");
+
+/** The forms the everyday words of the examination already ask, so no mixed question asks one of them too. */
+const EVERYDAY = new Set(LIFE_ROWS.flatMap((row) => [form(row.kb), form(row.en)]));
+
+/**
+ * Each kind's own list of confirmed entries: every confirmed form of the kind that the everyday words do
+ * not ask already. A greeting or a phrase the examination meets as a word of every day stands in that
+ * paper's own words, and is not put up again as a mixed question — so no paper asks the same form twice,
+ * and no paper's question is stepped over, which is what keeps the papers beside each other apart.
+ */
+const POOLS = {
+  number: NUMBERS,
+  greeting: GREETINGS.filter((row) => !EVERYDAY.has(form(row.kb)) && !EVERYDAY.has(form(row.en))),
+  phrase: PHRASES.filter((row) => !EVERYDAY.has(form(row.kb)) && !EVERYDAY.has(form(row.en))),
+  proverb: PROVERBS.filter((row) => !EVERYDAY.has(form(row.kb)) && !EVERYDAY.has(form(row.en))),
+};
 
 // the label the card carries over the question
 const FOCUS = { number: "Number", greeting: "Greeting", phrase: "Phrase", proverb: "Proverb" };
@@ -358,55 +361,88 @@ function extraQuestion(kind, row, way, lang) {
 }
 
 /**
- * The mixed questions of one episode: taken from the kinds whose turn it is — a number, a greeting, a
- * phrase and a proverb in turn — and from each kind's own place in its list, so the episodes beside each
- * other never ask the same form, and no paper asks two numbers or two proverbs where a greeting will do.
- *
- * Every way of asking is taken in turn as well: a number is asked for its Kibembe form, then the number
- * it stands for, then the number that comes after it, and a greeting, a phrase or a proverb is asked
- * from its Kibembe to its meaning and back again — so the counting, the greetings of every day and the
- * sayings of the language are met in the same paper, each of them more than one way.
+ * The mixed questions of one episode: taken from the one order of every mixed question, beginning where
+ * the paper before this one left off — so a number, a greeting, a phrase and a proverb are met in turn,
+ * the episodes beside each other never ask the same thing, and no question comes back until the whole
+ * order has been round.
  *
  * `avoid` carries the forms the paper is already asking — the everyday words it has just drawn — so a
  * phrase the same paper asks as a word of every day is stepped over rather than asked a second time.
  */
-/** How many times each kind has been asked in the episodes before this one. */
-function turnsBefore(episode, count) {
-  const turns = { number: 0, greeting: 0, phrase: 0, proverb: 0 };
-  for (let at = 1; at < episode; at += 1) {
-    for (let slot = 0; slot < Math.min(count, KINDS.length); slot += 1) {
-      turns[KINDS[(at - 1 + slot) % KINDS.length]] += 1;
+
+/**
+ * Every question a kind can put: each of its entries, asked the ways that kind has — a number by its
+ * Kibembe form, by the number it stands for, and by the number that comes right after it; a greeting, a
+ * phrase and a proverb from the Kibembe to its meaning and from the meaning back to the Kibembe.
+ *
+ * An entry's ways are spread apart in its own list, never side by side, so the same form is not asked
+ * twice over in the papers beside each other. A number whose next number the confirmed list does not hold
+ * is asked only the ways that stand.
+ */
+function plansOf(kind) {
+  const ways = WAYS[kind];
+  const rows = shuffled(POOLS[kind]);
+  const out = [];
+  const add = (row, way) => {
+    if (kind === "number" && way === "number_next" && !NUMBERS.some((other) => other.n === row.n + 1)) {
+      return;
     }
-  }
-  return turns;
+    out.push({ kind, row, way });
+  };
+  rows.forEach((row, at) => add(row, ways[at % ways.length]));
+  rows.forEach((row, at) => {
+    ways.forEach((way, slot) => {
+      if (slot === at % ways.length) return;
+      add(row, way);
+    });
+  });
+  return out;
 }
 
-export function buildExtraMix(count, episode = 1, avoid = []) {
-  if (!count || count <= 0) return [];
-  const at = Math.max(1, episode);
-  // each kind's own place in its list: every time a kind is asked it steps one form on, so two episodes
-  // beside each other never ask the same form, and a form only comes back once its whole list is round
-  const turns = turnsBefore(at, count);
-  const asked = new Set(avoid.map(form));
-
-  const picked = [];
-  for (let slot = 0; slot < Math.min(count, KINDS.length); slot += 1) {
-    const kind = KINDS[(at - 1 + slot) % KINDS.length];
-    const order = ORDER[kind];
-    const turn = turns[kind];
-    // step on along this kind's own list until a form the paper does not already ask stands
-    let row = order[turn % order.length];
-    for (let step = 1; step <= order.length; step += 1) {
-      if (!asked.has(form(row.kb)) && !asked.has(form(row.en))) break;
-      row = order[(turn + step) % order.length];
-    }
-    asked.add(form(row.kb));
-    asked.add(form(row.en));
-    turns[kind] = turn + 1;
-
-    const ways = WAYS[kind];
-    const lang = (at + slot) % 2 === 1 ? "en" : "sw";
-    picked.push(extraQuestion(kind, row, ways[turn % ways.length], lang));
+/**
+ * One order of every question the mixed kinds can put, the kinds taken in turn — a number, a greeting, a
+ * phrase and a proverb, over and over — each kind stepping on through its own list as its turn comes.
+ *
+ * A paper cuts its mixed questions from this order where the paper before it left off, so the episodes
+ * beside each other never ask the same thing, and no question comes back until the whole order has been
+ * round. It is what the counting, the greetings of every day and the sayings of the language are met in:
+ * each of them once, in turn, rather than the smallest lists over and over.
+ */
+const MASTER = (() => {
+  const lists = KINDS.map((kind) => plansOf(kind));
+  const cursors = KINDS.map(() => 0);
+  const out = [];
+  for (let more = true; more; ) {
+    more = false;
+    lists.forEach((plans, at) => {
+      if (cursors[at] >= plans.length) return;
+      out.push(plans[cursors[at]]);
+      cursors[at] += 1;
+      more = true;
+    });
   }
-  return picked.filter(Boolean);
+  return out;
+})();
+
+export function buildExtraMix(count, start = 0, avoid = []) {
+  if (!count || count <= 0) return [];
+  const asked = new Set(avoid.map(form));
+  const from = Math.max(0, start);
+  const picked = [];
+
+  for (let step = 0; step < MASTER.length && picked.length < count; step += 1) {
+    const at = (from + step) % MASTER.length;
+    const plan = MASTER[at];
+    // a form this paper already asks — as a word of every day, or as another of its mixed questions —
+    // is stepped over, and the question after it in the order takes its place
+    if (asked.has(form(plan.row.kb)) || asked.has(form(plan.row.en))) continue;
+
+    const question = extraQuestion(plan.kind, plan.row, plan.way, at % 2 === 0 ? "en" : "sw");
+    if (!question || picked.some((held) => held.id === question.id)) continue;
+
+    asked.add(form(plan.row.kb));
+    asked.add(form(plan.row.en));
+    picked.push(question);
+  }
+  return picked;
 }

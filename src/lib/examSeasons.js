@@ -1,6 +1,6 @@
 import { buildMedicalMix } from "./examBank";
 import { buildExtraMix } from "./examExtras";
-import { LIFE_WORD_ROWS, lifeQuestionOf, shuffled } from "./examSeries";
+import { lifeQuestionOf, lifeWordOrder, shuffled } from "./examSeries";
 
 /**
  * The everyday words in one order for the whole season, shuffled once and then kept: every episode's
@@ -10,7 +10,7 @@ import { LIFE_WORD_ROWS, lifeQuestionOf, shuffled } from "./examSeries";
  * Every confirmed word stands in it twice, once in each direction of its pair, so a word is met with its
  * Kibembe asked for and with its meaning asked for as the season goes on.
  */
-const LIFE_ORDER = shuffled(LIFE_WORD_ROWS);
+const LIFE_ORDER = lifeWordOrder();
 
 /**
  * The examination's seasons and the hundred episodes of each one.
@@ -80,18 +80,17 @@ export function episodeSize() {
  */
 function partsOf(season, episode) {
   const size = QUESTIONS_PER_EPISODE;
-  const extras = episode > 40 ? 3 : 2;
 
   if (season.pool === "life") {
+    const extras = episode > 40 ? 3 : 2;
     const medical = episode > 50 ? 3 : 0;
     return { life: size - extras - medical, extras, medical };
   }
 
-  if (season.pool === "health") {
-    return { life: 3, extras, medical: size - 3 - extras };
-  }
-
-  return { life: 3, extras, medical: size - 3 - extras };
+  // The health papers and the whole-language papers ask the same share of each part in every episode:
+  // the everyday words, the mixed questions, and the health terms — whose confirmed list is the smallest
+  // of the three — no more often than it must be, so no term comes back in the papers beside each other.
+  return { life: 3, extras: 3, medical: size - 6 };
 }
 
 /**
@@ -101,6 +100,7 @@ function partsOf(season, episode) {
  */
 const RUN = {
   life: (part) => part.life + part.extras + part.medical,
+  extras: (part) => part.extras,
   medical: (part) => part.medical,
 };
 
@@ -146,7 +146,7 @@ export function buildEpisodePaper(seasonNo, episode) {
   const everyday = lifeQuestions(season, episode, life);
   return shuffled([
     ...everyday,
-    ...buildExtraMix(extras, episode, everyday.map((question) => question.key)),
+    ...buildExtraMix(extras, runStart(season, episode, "extras"), everyday.map((question) => question.key)),
     ...buildMedicalMix(medical, runStart(season, episode, "medical")),
   ]);
 }

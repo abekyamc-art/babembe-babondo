@@ -2,8 +2,9 @@ import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { secrets } from "base44:runtime";
 
 /**
- * The examination's own voice, on Cartesia: one line of a question is spoken back in the voice the
- * examination reads in.
+ * The examination's own voice: one line of a question is spoken back in the app's own Ebembe voice, read
+ * with Kiswahili's sounds — the sounds Ebembe is spoken with — and the account's other voice stands
+ * behind it should the Ebembe voice be refused.
  *
  * The key stays on the server and is never handed to the browser, and nothing but the line itself is ever
  * passed to the voice — the function reads no record, writes nothing, and changes nothing of the paper.
@@ -19,6 +20,15 @@ const FORMATS: any[] = [
   { container: "mp3", bit_rate: 128000, sample_rate: 44100 },
   { container: "wav", encoding: "pcm_s16le", sample_rate: 44100 },
 ];
+
+// The examination's own voice: the app's own Ebembe voice — the one kept for speaking Kibembe — reading
+// the line with Kiswahili's own sounds, so a question is heard as Ebembe is spoken and not in another
+// language's accent. The voice's own id is no secret; the key that opens the voice is.
+const EBEMBE_TTS = "https://api.elevenlabs.io/v1/text-to-speech/";
+const EBEMBE_VOICE = "EOxEQjshInX6yZjFsTg5";
+const EBEMBE_MODEL = "eleven_v4";
+const EBEMBE_LANG = "sw";
+const EBEMBE_KEY = "ELEVENLABS_API_KEY";
 
 /** How long a line may be: a question of the examination is a line or two, never more. */
 const MAX_TEXT = 320;
@@ -102,6 +112,40 @@ async function voiceOfAgent(apiKey: string, saved: string) {
   }
 }
 
+/**
+ * The line spoken in the app's own Ebembe voice. Kiswahili is named as the language the voice is to read
+ * in, so it takes the sounds Ebembe is spoken with and not another language's; where a voice will not
+ * have the language named, the same line is asked for plainly rather than left unheard.
+ */
+async function speakEbembe(apiKey: string, transcript: string) {
+  for (const language of [EBEMBE_LANG, ""]) {
+    try {
+      const body: any = { text: transcript, model_id: EBEMBE_MODEL };
+      if (language) body.language_code = language;
+      const res = await fetch(EBEMBE_TTS + EBEMBE_VOICE, {
+        method: "POST",
+        headers: {
+          "xi-api-key": apiKey,
+          "Content-Type": "application/json",
+          Accept: "audio/mpeg",
+        },
+        body: JSON.stringify(body),
+        signal: AbortSignal.timeout(20000),
+      });
+      if (!res.ok) {
+        console.error("The Ebembe voice refused the line:", res.status, language || "unstated");
+        continue;
+      }
+      const bytes = new Uint8Array(await res.arrayBuffer());
+      if (!bytes.length) continue;
+      return { bytes, ext: "mp3", type: "audio/mpeg" };
+    } catch (error: any) {
+      console.error("The Ebembe voice failed:", error?.message);
+    }
+  }
+  return { bytes: null };
+}
+
 export default async function (req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -125,10 +169,16 @@ export default async function (req: Request): Promise<Response> {
     const line = clean(payload?.text, MAX_TEXT);
     if (!line) return Response.json({ error: NOTHING }, { status: 400 });
 
-    // The voice that reads: the id saved in Secrets, and — where nothing is heard from it, because what
-    // stands there is the agent's own id — the voice of the agent it names.
-    let spoken: any = await speak(apiKey, voiceId, line);
-    const why: string[] = spoken?.why || [];
+    // The voice that reads: the app's own Ebembe voice first; and where it cannot be had, the voice saved
+    // in Secrets, and, where nothing is heard from that either, the voice of the agent it names.
+    const ebembeKey = secrets.get(EBEMBE_KEY);
+    let spoken: any = ebembeKey ? await speakEbembe(ebembeKey, line) : { bytes: null };
+    const why: string[] = [];
+
+    if (!spoken?.bytes) {
+      spoken = await speak(apiKey, voiceId, line);
+      why.push(...(spoken?.why || []));
+    }
     if (!spoken?.bytes) {
       const fromAgent = await voiceOfAgent(apiKey, voiceId);
       if (fromAgent.id) {
