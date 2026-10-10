@@ -4,11 +4,13 @@ import { AI2_ID, ai2Resting, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRo
 /**
  * Who answers on the home page's calls, and in what order.
  *
- * Every voice the app offers stands on this one ring: the Cartesia voice opens the call, then the
- * talk AIs the admin has set up, then the accounts that speak for the other modes — Mbembe AI for
- * Base44 mode, then Mbondo AI, then Sadiki AI — so a call walks through every voice the app offers
- * and comes back to the Cartesia voice when the ring is complete. The Cartesia voice answers seven
- * finished answers before standing aside, and every other voice two.
+ * Every voice the app offers stands on this one ring, and the ring's order is what a call walks: the
+ * talk AIs the admin has set up come first, then the accounts that speak for the other modes — Mbembe
+ * AI for Base44 mode, then Mbondo AI, then Sadiki AI. The Cartesia voice stands last on the ring: a
+ * call still reaches it, and it still opens a call when the voices ahead of it cannot, but it is
+ * never the voice a call is given while a working one is available — its own service is standing
+ * aside for now, and its place on the ring is the only thing that changed. The Cartesia voice answers
+ * seven finished answers before standing aside, and every other voice two.
  *
  * The Cartesia voice is one seat, not three. The three Cartesia AIs the app is set up with — the
  * app's own account, then the admin's second and third — stand behind that one seat, each with its
@@ -26,13 +28,15 @@ import { AI2_ID, ai2Resting, CARTESIA_ANSWERS, TALK_ANSWERS } from "@/lib/talkRo
  * own written helpers answer on their own screens or in writing, so none of them is on this ring.
  */
 const RING = [
-  { id: "cartesia", label: CARTESIA_AI, kind: "cartesia", account: "", answers: CARTESIA_ANSWERS },
   { id: "talk2", label: "AI 2", kind: "talk", account: "talk2", answers: TALK_ANSWERS },
   { id: "talk3", label: "AI 3", kind: "talk", account: "talk3", answers: TALK_ANSWERS },
   { id: "talk4", label: "AI 4", kind: "talk", account: "talk4", answers: TALK_ANSWERS },
   { id: "mbembe", label: MBEMBE_AI, kind: "talk", account: "second", answers: TALK_ANSWERS },
   { id: "mbondo", label: MBONDO_AI, kind: "talk", account: "third", answers: TALK_ANSWERS },
   { id: "sadiki", label: SADIKI_AI, kind: "talk", account: "fourth", answers: TALK_ANSWERS },
+  // Cartesia stands last: it is still a seat of the ring, and a call reaches it once every voice
+  // ahead of it has had its turn or could not open — never before.
+  { id: "cartesia", label: CARTESIA_AI, kind: "cartesia", account: "", answers: CARTESIA_ANSWERS },
 ];
 
 // AI 2 is standing down until November 6, 2026 and comes back on its own on that date: while it is
