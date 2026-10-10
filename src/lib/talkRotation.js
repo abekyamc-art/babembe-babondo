@@ -90,6 +90,15 @@ export function musicHandoffNotice(from, next, waiting = false) {
 }
 
 /**
+ * The artist's own set was in Base44 AI's hands, and the person has opened a call of their own: the
+ * voice that opens a call takes the talk back from Base44 AI, and the line says where it stands now
+ * rather than leaving the change to be guessed at.
+ */
+export function base44GoneNotice(label) {
+  return `${label} is on the call now — Base44 AI has stood down.`;
+}
+
+/**
  * The call ended by itself in the middle of a turn: the same AI still owes its answers, so it is the
  * one waiting behind the person's tap rather than the ring starting over.
  */

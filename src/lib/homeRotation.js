@@ -35,8 +35,10 @@ import {
  * own written helpers answer on their own screens or in writing, so none of them is on this ring.
  */
 /**
- * The seat that speaks for Base44 mode. When the artist's own set has ended, or the person has said
- * stop, the call moves from AI 1 to this voice, so the talk is taken on by Base44 AI from there.
+ * The seat that speaks for Base44 mode. The moment the artist's own set really begins to play, or the
+ * person says stop, the call moves from the AI holding it to this voice, so the talk is taken on by
+ * Base44 AI from there — it is the one that answers the person and finds whatever else they ask for
+ * while the set plays on.
  */
 export const BASE44_SEAT_ID = "mbembe";
 

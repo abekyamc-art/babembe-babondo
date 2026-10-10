@@ -16,8 +16,10 @@ import { looksLikeMediaTurn, mediaLines, readMediaTurn } from "@/lib/homeMedia";
  *
  * What the app holds of an artist is a set: the piece the person asked for and the artist's own pieces
  * behind it, brought in and started by the app itself, with the player moving on to each one as it
- * plays out. When the last of them has played out — or the person says stop — the music turn is over:
- * the player is put away and the talk is handed on, so Base44 AI takes the call from there.
+ * plays out. The moment the set has really begun, the AI caller's own call is over: it is hung up and
+ * the talk is handed to the voice that speaks Base44 mode, which takes the person on from there while
+ * the set plays on in the app's own player. When the last of the pieces has played out — or the person
+ * says stop — the music turn is over and the player is put away.
  */
 export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const [item, setItem] = useState(null);
@@ -33,6 +35,9 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const [started, setStarted] = useState(false);
   // the person asked to listen on without more talk
   const [quiet, setQuiet] = useState(false);
+  // The artist's own set has really begun and the talk is in Base44 AI's hands: it is the one handling
+  // the set now. It stands until a call of the person's own takes the talk back.
+  const [ready, setReady] = useState(false);
 
   const playerRef = useRef(null);
   const itemRef = useRef(null);
@@ -42,6 +47,9 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const readingRef = useRef(false);
   // the piece standing was asked for as the artist's own set
   const autoRef = useRef(false);
+  // the artist's own set has been handed to Base44 AI: it is handed over once, however many pieces of
+  // it follow the one that began it
+  const handedRef = useRef(false);
   // the voice on the line, where one can be told anything at all, and the call's own end
   const tellRef = useRef(onTell);
   const endRef = useRef(onEndVoice);
@@ -51,11 +59,15 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   endRef.current = onEndVoice;
   handoffRef.current = onHandoff;
 
-  /** The app's own line about its own player, on the screen and — where it can be told — to the voice. */
-  const say = useCallback((step, data = {}) => {
+  /**
+   * The app's own line about its own player, on the screen and — where it can be told — to the voice.
+   * A line about something the voice on the line is not to be told is written on the screen alone: the
+   * piece that has just begun is said to the voice taking the call, never to the one leaving it.
+   */
+  const say = useCallback((step, data = {}, toVoice = true) => {
     const lines = mediaLines(step, data);
     setNote(lines.line);
-    if (lines.spoken) tellRef.current?.(lines.spoken);
+    if (toVoice && lines.spoken) tellRef.current?.(lines.spoken);
     return lines;
   }, []);
 
@@ -71,6 +83,8 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     startedRef.current = false;
     quietRef.current = false;
     autoRef.current = played === true;
+    // a set the app has just put in its own player has not been handed to anyone yet
+    handedRef.current = false;
     setItem(next);
     setQueue(queueRef.current);
     setInPlace(false);
@@ -86,6 +100,7 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     startedRef.current = false;
     quietRef.current = false;
     autoRef.current = false;
+    handedRef.current = false;
     setItem(null);
     setQueue([]);
     setInPlace(false);
@@ -115,16 +130,20 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
 
   /**
    * The artist's own set is over — the last of the pieces has played out, or the person has said stop:
-   * the player is put away and the app says so in its own words, and the talk moves on to the voice
-   * that speaks Base44 mode. A person who asked to listen on has already had the voice taken away, so
-   * nothing is handed anywhere: the set simply ends.
+   * the player is put away and the app says so in its own words. Nothing is handed anywhere here: the
+   * talk went to Base44 AI the moment the set really began, so a set that has played out leaves the
+   * call exactly where it stands. A person who asked to listen on has already had the voice taken away
+   * as well — and a set that was never really begun, and so was never handed to anyone, gives the talk
+   * to the voice that speaks Base44 mode right here, exactly as it always did.
    */
   const finishSet = useCallback(
     (line = "setDone") => {
       const listening = quietRef.current;
+      // the set standing in the player was handed to Base44 AI when it really began
+      const handed = handedRef.current;
       clear();
       say(line);
-      if (!listening) handoffRef.current?.();
+      if (!listening && !handed) handoffRef.current?.();
     },
     [clear, say]
   );
@@ -217,7 +236,26 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
       endRef.current?.();
       return;
     }
-    say("started", { name: itemRef.current?.name || "" });
+    const name = itemRef.current?.name || "";
+    // The artist's own set has really begun, and that is where the AI caller's own call ends: the talk
+    // is handed to the voice that speaks Base44 mode, which takes the person on from there. The set
+    // plays on in the app's own player while Base44 AI answers them and finds whatever else they ask
+    // for. The app's own line about its player is not said to the voice leaving the call: it is said to
+    // the voice that takes it, once that voice is on the line.
+    if (autoRef.current && !handedRef.current) {
+      handedRef.current = true;
+      setReady(true);
+      const said = say("started", { name }, false).spoken;
+      Promise.resolve(handoffRef.current?.())
+        .then(() => {
+          if (said) tellRef.current?.(said);
+        })
+        .catch(() => {
+          // a change that could not be finished never takes the piece or the talk with it
+        });
+      return;
+    }
+    say("started", { name });
   }, [say]);
 
   /** The next of the artist's own pieces, pressed on the screen. */
@@ -228,8 +266,8 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
 
   /**
    * The player itself reports that the piece standing in it has played out. The artist's own set moves
-   * on to the piece behind it by itself; where none is left, the music turn is over and the talk is
-   * handed on to the voice that speaks Base44 mode.
+   * on to the piece behind it by itself — under Base44 AI, which took the talk the moment the set
+   * began; where none is left, the music turn is over and the player is put away.
    */
   const onTrackEnd = useCallback(() => {
     if (step()) return;
@@ -238,6 +276,13 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
 
   /** The player is closed by hand: the app's own doing, so nothing is claimed about it. */
   const onClose = useCallback(() => clear(), [clear]);
+
+  /**
+   * A call of the person's own has been opened over the artist's own set, so the talk is theirs again:
+   * Base44 AI has stood down. The set still playing is never handed over a second time — only a set the
+   * app puts in its own player afresh goes to Base44 AI again.
+   */
+  const reset = useCallback(() => setReady(false), []);
 
   return {
     item,
@@ -248,6 +293,10 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     inPlace,
     started,
     quiet,
+    // the artist's own set is in Base44 AI's hands, which is what the screen says once a call of the
+    // person's own has taken the talk back
+    ready,
+    reset,
     // the piece standing was asked for as the artist's own set: it is brought in and started by the
     // app, and the player moves on to the piece behind it when it plays out
     autoStart: auto,

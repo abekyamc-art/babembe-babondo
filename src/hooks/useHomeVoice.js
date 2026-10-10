@@ -7,6 +7,7 @@ import { BASE44_SEAT_ID, HOME_SEATS, nextPlan } from "@/lib/homeRotation";
 import { checkVoiceSeats } from "@/lib/voiceHealth";
 import { keepHeard, proposeHeard } from "@/lib/homeHearing";
 import {
+  base44GoneNotice,
   handoffNotice,
   musicHandoffNotice,
   refusedNotice,
@@ -241,21 +242,22 @@ export default function useHomeVoice() {
   });
 
   /**
-   * The artist's own set is over — the last of the pieces has played out, or the person has said stop.
-   * The talk moves on to the voice that speaks Base44 mode, with the conversation so far carried with
-   * it. The change is asked for through the change's own ref, because the change itself is written
-   * below the player that asks for it.
+   * The artist's own set has really begun: the AI holding the call has its own call ended here, and the
+   * talk moves on to the voice that speaks Base44 mode, with the conversation so far carried with it.
+   * The change is asked for through the change's own ref, because the change itself is written below
+   * the player that asks for it — and the change is given back to the player, so the voice taking the
+   * call can be told what the app's own player has really done once it is on the line.
    */
   const musicHandoff = useCallback(() => {
     // The voice that speaks Base44 mode already holds the call: the talk is already where the music
-    // asks for it to be, so the set ending changes nothing.
-    if (seatRef.current.id === BASE44_SEAT_ID) return;
-    handoffRef.current?.({ preferId: BASE44_SEAT_ID, music: true });
+    // asks for it to be, so the set beginning changes nothing.
+    if (seatRef.current.id === BASE44_SEAT_ID) return Promise.resolve();
+    return handoffRef.current?.({ preferId: BASE44_SEAT_ID, music: true });
   }, []);
 
   // A piece the app chose stands in the app's own player, and the call goes quiet only where the
   // person asked to listen on — and only once the player itself reports the sound has begun. Taking
-  // the voice away never touches the player; the artist's own set ending hands the talk on instead.
+  // the voice away never touches the player; the artist's own set beginning hands the talk on instead.
   const media = useHomeMedia({
     onTell,
     onEndVoice: () => stopRef.current?.(),
@@ -318,7 +320,7 @@ export default function useHomeVoice() {
    * is lost from it.
    *
    * `preferId` names the voice the app itself wants the call handed to, where the ring still holds it:
-   * when the artist's own set has ended the talk is handed to the voice that speaks Base44 mode, and
+   * when the artist's own set has begun the talk is handed to the voice that speaks Base44 mode, and
    * every other voice of the ring still follows it, so a voice that cannot open is never a dead end.
    * `music` says the change was asked for by the music rather than by a voice having taken its own
    * number of answers: the line on the screen says which, and the voice behind the change is opened
@@ -374,8 +376,9 @@ export default function useHomeVoice() {
       turningRef.current = false;
       return;
     }
-    // The artist's own set ended under the person's own ears, so the voice that speaks Base44 mode is
-    // opened here and now rather than left waiting behind a tap: the music itself asked for the change.
+    // The artist's own set has begun under the person's own ears, so the voice that speaks Base44 mode
+    // is opened here and now rather than left waiting behind a tap: the music itself asked for the
+    // change, and the person is answered from where they stand without a tap of their own.
     // Where the phone will not open the microphone without a touch, the change is left waiting exactly
     // as any other is, and the line on the screen says plainly what is left to do.
     if (music) await resumeRef.current?.(true);
@@ -565,10 +568,17 @@ export default function useHomeVoice() {
           // the Cartesia seat's own backup accounts is named for the account that took it
           const live = liveSeat(next, opened);
           setCurrent(live);
+          // The artist's own set was in Base44 AI's hands when this call was opened: the voice that
+          // opens a call takes the talk back, so Base44 AI's own state is put down here rather than
+          // left standing over a call it is no longer on.
+          const stoodDown = mediaRef.current?.ready === true;
+          mediaRef.current?.reset();
           if (next.id !== HOME_SEATS[0].id) {
             // the voice that could not take the call is named with the reason it gave — Cartesia's own
             // refusal said as Cartesia said it — and the voice really on the line is named with it
             setNotice(refusedNotice(refused[0] || HOME_SEATS[0], live.label));
+          } else if (stoodDown) {
+            setNotice(base44GoneNotice(live.label));
           }
           return true;
         }
