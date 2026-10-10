@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { Languages, Loader2, Phone, PhoneOff, Radio, Sparkles, Users } from "lucide-react";
+import { Languages, Loader2, Phone, PhoneOff, Radio, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import useHomeVoice from "@/hooks/useHomeVoice";
 import useStoryTurn from "@/hooks/useStoryTurn";
@@ -35,7 +35,7 @@ import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 import StorySheet from "@/components/story/StorySheet";
 import StoryRail from "@/components/story/StoryRail";
-import ExamPill from "@/components/exam/ExamPill";
+import ExamLauncher from "@/components/exam/ExamLauncher";
 import ExamSheet from "@/components/exam/ExamSheet";
 import LifeExamSheet from "@/components/exam/LifeExamSheet";
 
@@ -362,15 +362,18 @@ export default function VoiceAssistant() {
         <div className="flex min-h-0 flex-1 flex-col items-center justify-center gap-7">
           {/* who answers, and the language they are answering in, are written on the screen itself:
                the language stands until the person changes it, here or by asking for one out loud */}
-          <div className="flex flex-wrap items-center justify-center gap-2">
-            <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
-            <LangPill />
-            <ExamPill onClick={() => setExamOpen(true)} />
-            <ExamPill
-              onClick={() => setLifeExamOpen(true)}
-              label="Daily life exam"
-              ariaLabel="Open the GLOIRE AI Kibembe daily life examination"
-              icon={Users} />
+          <div className="flex flex-col items-center gap-3">
+            <div className="flex flex-wrap items-center justify-center gap-2">
+              <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
+              <LangPill />
+            </div>
+            {/* every examination is met in one place, gathered behind one seal that keeps to the
+                 left under the badges, before anything is asked of the call itself */}
+            <div className="flex w-full justify-start">
+              <ExamLauncher
+                onExam={() => setExamOpen(true)}
+                onLifeExam={() => setLifeExamOpen(true)} />
+            </div>
           </div>
           <button
             type="button"
