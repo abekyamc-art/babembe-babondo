@@ -1,14 +1,16 @@
-import { LIFE_ROWS } from "./lifeExamWords";
 import { buildMedicalMix } from "./examBank";
 import { buildExtraMix } from "./examExtras";
-import { lifeQuestionOf, runOf, shuffled } from "./examSeries";
+import { LIFE_WORD_ROWS, lifeQuestionOf, shuffled } from "./examSeries";
 
 /**
  * The everyday words in one order for the whole season, shuffled once and then kept: every episode's
  * questions are cut from it where the episode before it left off, so no two episodes beside each other
  * ask the same word — a word only comes back once the whole list has been round.
+ *
+ * Every confirmed word stands in it twice, once in each direction of its pair, so a word is met with its
+ * Kibembe asked for and with its meaning asked for as the season goes on.
  */
-const LIFE_ORDER = shuffled(LIFE_ROWS);
+const LIFE_ORDER = shuffled(LIFE_WORD_ROWS);
 
 /**
  * The examination's seasons and the hundred episodes of each one.
@@ -19,46 +21,41 @@ const LIFE_ORDER = shuffled(LIFE_ROWS);
  * in the list below is a season, and its episodes are built from it.
  *
  * Nothing here is guessed at either. An episode's everyday questions come from lifeExamWords.js, its
- * numbers, greetings and proverbs from examExtras.js, and its health questions from the confirmed
- * medical list in examBank.js, each exactly as the admin's own knowledge document confirms it, and the
- * two wrong choices of every question are other confirmed forms — so no choice that was never confirmed
- * is ever put in front of a student. Every question also carries the one thing it turns on apart from
- * the rest of the line, so the card can stand it in a pure colour of its own.
+ * numbers, greetings, phrases and proverbs from examExtras.js, and its health questions from the
+ * confirmed medical list in examBank.js, each exactly as the admin's own knowledge document confirms it,
+ * and the two wrong choices of every question are other confirmed forms — so no choice that was never
+ * confirmed is ever put in front of a student. Every question also carries the one thing it turns on
+ * apart from the rest of the line, and every question a picture to study it on.
  */
 
-/** How many episodes stand inside a season. */
+/** How many episodes stand inside a season, and how many questions every episode asks. */
 export const EPISODES_PER_SEASON = 100;
+export const QUESTIONS_PER_EPISODE = 10;
 
 /**
  * The seasons themselves. Each one carries the pool its episodes are drawn from — the everyday words
- * with the numbers, the greetings and phrases and the proverbs, the body and health terms, or both at
- * once — and the length its first episode asks.
- *
- * The episodes of a season grow a little longer as the season goes on, and in the later episodes of a
- * season the other pools join in, so a student never meets one part of the language alone for long.
+ * with the numbers, the greetings, the phrases and the proverbs, the body and health terms, or both at
+ * once.
  */
 const SEASONS = [
   {
     no: 1,
     title: "The everyday language",
     blurb:
-      "Greetings, sleep, home, the village and the road — with the numbers, the phrases of every day and the proverbs",
+      "Greetings, sleep, home, the village and the road — with a number, a greeting, a phrase or a proverb in every paper",
     pool: "life",
-    base: 5,
   },
   {
     no: 2,
     title: "The body and health",
-    blurb: "The confirmed terms of the body and health, system by system",
+    blurb: "The confirmed terms of the body and health, system by system, with the everyday words beside them",
     pool: "health",
-    base: 5,
   },
   {
     no: 3,
     title: "The whole language",
     blurb: "Every confirmed word at once — the everyday language and the health terms together",
     pool: "both",
-    base: 6,
   },
 ];
 
@@ -70,36 +67,31 @@ export function seasonByNo(no) {
   return EXAM_SEASONS.find((season) => season.no === no) || null;
 }
 
-/**
- * How many questions an episode asks: its season's own first length, one question more for every
- * twenty-five episodes behind it — so a season opens gently and asks the most of its last episodes.
- */
-export function episodeSize(season, episode) {
-  const base = season?.base || 5;
-  const at = Math.min(EPISODES_PER_SEASON, Math.max(1, episode || 1));
-  return base + Math.floor((at - 1) / 25);
+/** How many questions an episode asks: ten, in every season and every episode alike. */
+export function episodeSize() {
+  return QUESTIONS_PER_EPISODE;
 }
 
-/** How one episode's questions are shared between the everyday words and the health terms. */
+/**
+ * How one episode's questions are shared between the everyday words, the mixed questions and the health
+ * terms. Every paper asks ten, and every one of them carries a number, a greeting, a phrase or a proverb
+ * — so the counting and the greetings of every day are met in season after season, beside the words and
+ * the health terms the paper is mostly about.
+ */
 function partsOf(season, episode) {
-  const size = episodeSize(season, episode);
+  const size = QUESTIONS_PER_EPISODE;
+  const extras = episode > 40 ? 3 : 2;
 
   if (season.pool === "life") {
-    // The everyday words alone at the very start. From the sixth episode on the mixed questions take
-    // their place in the paper — a number, a greeting or a phrase, a proverb — one of them at first and
-    // two from the fortieth episode on, and the health terms join them from the second half of the
-    // season. So the language is met as it is really spoken, and never one part of it alone for long.
-    const extras = episode > 40 ? 2 : episode > 5 ? 1 : 0;
-    const medical = episode > 50 ? Math.max(1, Math.round(size / 3)) : 0;
+    const medical = episode > 50 ? 3 : 0;
     return { life: size - extras - medical, extras, medical };
   }
 
   if (season.pool === "health") {
-    const life = episode > 40 ? Math.max(1, Math.round(size / 3)) : 0;
-    return { life, extras: 0, medical: size - life };
+    return { life: 3, extras, medical: size - 3 - extras };
   }
 
-  return { life: Math.ceil(size / 2), extras: 0, medical: Math.floor(size / 2) };
+  return { life: 3, extras, medical: size - 3 - extras };
 }
 
 /**
@@ -118,18 +110,34 @@ function runStart(season, episode, name) {
   return start;
 }
 
-/** One episode's everyday questions: an unbroken run of the season's own order of the confirmed words. */
+/**
+ * One episode's everyday questions: an unbroken run of the season's own order of the confirmed words.
+ * A word the paper already asks — its other direction standing close in the run — is stepped over, so
+ * no paper asks the same word twice, and the next word of the run takes its place.
+ */
 function lifeQuestions(season, episode, count) {
   if (count <= 0) return [];
-  return runOf(LIFE_ORDER, runStart(season, episode, "life"), count).map(lifeQuestionOf);
+  const start = runStart(season, episode, "life");
+  const out = [];
+  const asked = new Set();
+  for (let step = 0; step < LIFE_ORDER.length && out.length < count; step += 1) {
+    const row = LIFE_ORDER[(start + step) % LIFE_ORDER.length];
+    const word = form(row.kb);
+    if (asked.has(word)) continue;
+    asked.add(word);
+    out.push(lifeQuestionOf(row));
+  }
+  return out;
 }
 
+const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "");
+
 /**
- * One episode's paper: the everyday questions of that episode alone, taken from the season's own orders so
- * the papers beside each other never ask the same word — wherever in the season the episode falls — then
- * its mixed questions and its health questions, freshly ordered and shuffled together, so no part of the
- * language is ever met in the same place twice. The words an episode asks are its own: a paper sat again
- * asks those same words in a new order, and never the words of the episodes around it.
+ * One episode's paper of ten: the everyday questions of that episode alone, taken from the season's own
+ * orders so the papers beside each other never ask the same word — wherever in the season the episode
+ * falls — then its mixed questions and its health questions, freshly ordered and shuffled together, so
+ * no part of the language is ever met in the same place twice. The words an episode asks are its own: a
+ * paper sat again asks those same words in a new order, and never the words of the episodes around it.
  */
 export function buildEpisodePaper(seasonNo, episode) {
   const season = seasonByNo(seasonNo);

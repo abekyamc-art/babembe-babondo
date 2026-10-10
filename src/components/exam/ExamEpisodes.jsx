@@ -11,8 +11,6 @@ export default function ExamEpisodes({ season, progress, onOpen, onBack }) {
   const done = passedIn(progress, season.no);
   const next = nextEpisode(progress, season.no);
   const episodes = Array.from({ length: EPISODES_PER_SEASON }, (_, at) => at + 1);
-  const shortest = episodeSize(season, 1);
-  const longest = episodeSize(season, EPISODES_PER_SEASON);
 
   return (
     <div className="exam-episodes">
@@ -26,9 +24,9 @@ export default function ExamEpisodes({ season, progress, onOpen, onBack }) {
       </div>
 
       <p className="exam-ep-note">
-        Season {season.no} · {season.title}. Each episode asks {shortest} to {longest} questions drawn
-        from the confirmed words, and grows a little longer as the season goes on. Pass an episode at 80%
-        and the one after it opens; clear all {EPISODES_PER_SEASON} and the next season opens.
+        Season {season.no} · {season.title}. Every episode asks {episodeSize()} questions drawn from the
+        confirmed words, each of them with a picture to study it on. Pass an episode at 80% and the one
+        after it opens; clear all {EPISODES_PER_SEASON} and the next season opens.
       </p>
 
       <button type="button" className="exam-next is-go" onClick={() => onOpen(next)}>

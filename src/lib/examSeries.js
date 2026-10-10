@@ -33,6 +33,48 @@ export function runOf(order, start, count) {
   );
 }
 
+/** Every confirmed form of the everyday list, each in its own language. */
+const KB_FORMS = LIFE_ROWS.map((row) => row.kb);
+const EN_FORMS = LIFE_ROWS.map((row) => row.en);
+
+/** Two other confirmed forms of one language, so a wrong choice is a confirmed form as well. */
+function otherForms(pool, not, skip = []) {
+  const out = [];
+  for (const text of shuffled(pool)) {
+    if (!text || text === not || skip.includes(text) || out.includes(text)) continue;
+    out.push(text);
+    if (out.length === 2) break;
+  }
+  return out;
+}
+
+/**
+ * A confirmed word of every day asked the other way: the Kibembe form given and its meaning asked for
+ * where the word itself stood with its meaning given and the Kibembe asked for, and the other way
+ * round. The wrong choices are the word's own practice pairs first and the whole confirmed list after
+ * them, so every choice put in front of a student is a confirmed form and never an invented one.
+ */
+function flipped(row) {
+  const askedKibembe = row.direction === "kb_to_en";
+  const pairs = Array.isArray(row.practice) ? row.practice : [];
+  const near = pairs.map((pair) => (askedKibembe ? pair.kb : pair.en)).filter(Boolean);
+  const pool = askedKibembe ? KB_FORMS : EN_FORMS;
+  const not = askedKibembe ? row.kb : row.en;
+  return {
+    ...row,
+    id: `${row.id}:other`,
+    direction: askedKibembe ? "en_to_kb" : "kb_to_en",
+    wrong: otherForms([...near, ...pool], not, [row.kb, row.en]),
+  };
+}
+
+/**
+ * Every word of every day, each asked both ways: the one order a season's episodes are cut from, so the
+ * same word is met with its Kibembe asked for and with its meaning asked for as the season goes on, and
+ * a word only comes back once the whole list has been round.
+ */
+export const LIFE_WORD_ROWS = LIFE_ROWS.flatMap((row) => [row, flipped(row)]);
+
 /** One daily-life question, with the correct answer standing wherever the shuffle has put it. */
 export function lifeQuestionOf(row) {
   const askKibembe = row.direction === "en_to_kb";
