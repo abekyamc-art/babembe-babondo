@@ -68,8 +68,8 @@ export default function DifferencePuzzle({ puzzle, mark, onDone }) {
       </div>
 
       <div className="diff-panels">
-        <DiffPanel puzzle={puzzle} shown={shown} onSpot={spot} onMiss={miss} />
-        <DiffPanel puzzle={puzzle} layers shown={shown} onSpot={spot} onMiss={miss} />
+        <DiffPanel puzzle={puzzle} src={puzzle.top} shown={shown} onSpot={spot} onMiss={miss} />
+        <DiffPanel puzzle={puzzle} src={puzzle.bottom} shown={shown} onSpot={spot} onMiss={miss} />
       </div>
 
       <p className="diff-note" aria-live="polite">

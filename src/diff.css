@@ -89,24 +89,6 @@
   object-fit: cover;
 }
 
-.diff-overlay,
-.diff-added {
-  position: absolute;
-  border-radius: 10px;
-  pointer-events: none;
-}
-
-.diff-added {
-  display: grid;
-  place-items: center;
-}
-
-.diff-thing {
-  width: 52%;
-  height: 52%;
-  filter: drop-shadow(0 2px 3px rgba(4, 8, 20, 0.35));
-}
-
 .diff-ring {
   position: absolute;
   border: 2.5px solid #0f9d63;
