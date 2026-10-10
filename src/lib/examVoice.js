@@ -48,24 +48,27 @@ function play(url) {
 }
 
 /**
- * Read one line aloud and come back when it has been heard. `onSpeak` is called the moment the recording
- * begins, so the control can say it is reading. Nothing happens on a line that is empty, and a read that
- * was stopped while the voice was being made is dropped.
+ * Read one line aloud and come back when it has been heard. `kibembe` is the Kibembe form standing in the
+ * line, so a voice that knows no Kibembe is handed how that form sounds rather than how it is spelled;
+ * `onSpeak` is called the moment the recording begins, so the control can say it is reading. Nothing
+ * happens on a line that is empty, and a read that was stopped while the voice was being made is dropped.
  */
-export async function readAloud(text, onSpeak = () => {}) {
+export async function readAloud(text, kibembe = "", onSpeak = () => {}) {
   const line = String(text || "").trim();
   if (!line) return;
+  const form = String(kibembe || "").trim();
 
   stopReading();
   const mine = ticket;
 
-  let url = recorded.get(line);
+  const key = `${line}|${form}`;
+  let url = recorded.get(key);
   if (!url) {
-    const res = await base44.functions.invoke("examRead", { text: line });
+    const res = await base44.functions.invoke("examRead", { text: line, kibembe: form });
     if (mine !== ticket) return;
     url = res?.data?.audio_url;
     if (!url) throw new Error(res?.data?.error || "This question could not be read aloud.");
-    recorded.set(line, url);
+    recorded.set(key, url);
   }
 
   if (mine !== ticket) return;

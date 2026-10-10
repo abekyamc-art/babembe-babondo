@@ -1,10 +1,16 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { secrets } from "base44:runtime";
+import { readForVoice } from "../../shared/ebembeReading.ts";
 
 /**
  * The examination's own voice: one line of a question is spoken back in the app's own Ebembe voice, read
  * with Kiswahili's sounds — the sounds Ebembe is spoken with — and the account's other voice stands
  * behind it should the Ebembe voice be refused.
+ *
+ * The voice that reads Kibembe by Kiswahili's own letters is handed the spelling itself. A voice with no
+ * Kibembe in it — the one that stands behind the Ebembe voice — cannot say a Kibembe spelling: it is
+ * handed the Kibembe form written as it sounds instead (see shared/ebembeReading), so what is heard is
+ * the sound of the word, while the form on the screen is never touched.
  *
  * The key stays on the server and is never handed to the browser, and nothing but the line itself is ever
  * passed to the voice — the function reads no record, writes nothing, and changes nothing of the paper.
@@ -168,6 +174,10 @@ export default async function (req: Request): Promise<Response> {
 
     const line = clean(payload?.text, MAX_TEXT);
     if (!line) return Response.json({ error: NOTHING }, { status: 400 });
+    // the Kibembe form standing in the line, when the paper names it: it is what a voice that knows no
+    // Kibembe is given as a reading instead of a spelling
+    const kibembe = clean(payload?.kibembe, 120);
+    const forFallback = readForVoice(line, kibembe);
 
     // The voice that reads: the app's own Ebembe voice first; and where it cannot be had, the voice saved
     // in Secrets, and, where nothing is heard from that either, the voice of the agent it names.
@@ -176,13 +186,13 @@ export default async function (req: Request): Promise<Response> {
     const why: string[] = [];
 
     if (!spoken?.bytes) {
-      spoken = await speak(apiKey, voiceId, line);
+      spoken = await speak(apiKey, voiceId, forFallback);
       why.push(...(spoken?.why || []));
     }
     if (!spoken?.bytes) {
       const fromAgent = await voiceOfAgent(apiKey, voiceId);
       if (fromAgent.id) {
-        spoken = await speak(apiKey, fromAgent.id, line);
+        spoken = await speak(apiKey, fromAgent.id, forFallback);
         if (!spoken?.bytes) why.push(...(spoken?.why || []));
       } else {
         why.push(fromAgent.why);

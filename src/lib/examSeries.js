@@ -99,6 +99,9 @@ export function lifeQuestionOf(row) {
     key: askKibembe ? row.en : row.kb,
     tail: askKibembe ? "”?" : "” mean?",
     explain: `${row.kb} = ${row.en}.`,
+    // the Kibembe form standing in the line, when the line holds it: a meaning question quotes the
+    // Kibembe, and a question asking for the Kibembe quotes the meaning
+    kb: askKibembe ? "" : row.kb,
     options,
     correct: options.indexOf(right),
     practice: row.practice || [{ en: row.en, kb: row.kb }],

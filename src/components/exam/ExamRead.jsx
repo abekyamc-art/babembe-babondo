@@ -12,15 +12,17 @@ import { readAloud, stopReading } from "@/lib/examVoice";
  * A student who would rather not wait can skip the reading, and a line that cannot be heard is said
  * plainly here and changes nothing else about the paper.
  */
-export default function ExamRead({ text, onDone }) {
+export default function ExamRead({ text, kibembe = "", onDone }) {
   // "wait" — the voice is being made; "speak" — the line is being read; "done" — it has been hung up
   const [state, setState] = useState("wait");
   const [trouble, setTrouble] = useState("");
   const alive = useRef(true);
   const line = useRef("");
+  const form = useRef("");
   const done = useRef(onDone);
 
   line.current = String(text || "").trim();
+  form.current = String(kibembe || "").trim();
   useEffect(() => {
     done.current = onDone;
   });
@@ -35,7 +37,7 @@ export default function ExamRead({ text, onDone }) {
     }
     setState("wait");
     try {
-      await readAloud(line.current, () => {
+      await readAloud(line.current, form.current, () => {
         if (alive.current) setState("speak");
       });
     } catch (err) {
@@ -55,7 +57,7 @@ export default function ExamRead({ text, onDone }) {
       stopReading();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text]);
+  }, [text, kibembe]);
 
   const reading = state !== "done";
 

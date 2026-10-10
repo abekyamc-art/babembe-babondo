@@ -65,7 +65,11 @@ export default function ExamQuestionCard({
       </h2>
       {question.hint ? <p className="exam-hint">{question.hint}</p> : null}
 
-      <ExamRead text={question.prompt} onDone={() => setHeard(true)} />
+      <ExamRead
+        text={question.prompt}
+        kibembe={question.kb || ""}
+        onDone={() => setHeard(true)}
+      />
 
       {question.image || question.view ? (
         <ExamFigure view={question.view} spot={question.spot} image={question.image} />

@@ -158,13 +158,15 @@ function wrongs(entry, pool, pick) {
 }
 
 /** One question, with the correct answer standing wherever the shuffle has put it. */
-function questionOf({ id, kind, entry, prompt, ask, right, wrong, explain, practice }) {
+function questionOf({ id, kind, entry, prompt, ask, right, wrong, explain, practice, kb }) {
   const options = shuffled([right, ...wrong]);
   const view = VIEW[entry.view];
   return {
     id,
     kind,
     prompt,
+    // the Kibembe form standing in the line, when the line holds it, so it is read as it sounds
+    kb: kb || "",
     // the term the question turns on, written apart from the rest of the line so the card can stand
     // it in a pure colour of its own
     lead: ask?.lead || "",
@@ -197,6 +199,8 @@ function translationQuestion(entry, direction) {
       ? { lead: "What is the Kibembe word for “", key: entry.en, tail: "”?" }
       : { lead: "What does the Kibembe term “", key: entry.kb, tail: "” mean?" },
     right,
+    // the Kibembe stands in the line on the questions that quote it, and nowhere on the others
+    kb: askKibembe ? "" : entry.kb,
     wrong: wrongs(entry, VOCAB, pick),
     explain: `${entry.kb} = ${entry.en}.${entry.note ? ` ${entry.note}` : ""}`,
   });

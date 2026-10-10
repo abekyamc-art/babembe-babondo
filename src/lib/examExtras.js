@@ -233,12 +233,14 @@ function others(row, pool, pick, skip = []) {
 }
 
 /** One question, with the correct answer standing wherever the shuffle has put it. */
-function question({ id, kind, lead, key, tail, right, wrong, explain, practice, picture }) {
+function question({ id, kind, lead, key, tail, right, wrong, explain, practice, picture, kb }) {
   const options = shuffled([right, ...wrong]);
   return {
     id,
     kind,
     prompt: `${lead}${key}${tail}`,
+    // the Kibembe form standing in the line, when the line holds it, so it is read as it sounds
+    kb: kb || "",
     lead,
     key,
     tail,
@@ -281,6 +283,7 @@ function numberToDigit(row, lang) {
     key: row.kb,
     tail,
     right: String(row.n),
+    kb: row.kb,
     wrong: others(row, NUMBERS, (other) => String(other.n)),
     explain: `${row.kb} = ${row.n} — ${row.en}.`,
     practice: [{ en: row.en, kb: row.kb }],
@@ -306,6 +309,7 @@ function numberNext(row, lang) {
     key: row.kb,
     tail: en ? `” (${row.en})?` : `” (${row.en}) ni ipi?`,
     right: after.kb,
+    kb: row.kb,
     wrong: others(row, NUMBERS, (other) => other.kb, [after.kb]),
     explain: `After ${row.kb} (${row.n}) comes ${after.kb} (${after.n}).`,
     practice: [
@@ -326,6 +330,7 @@ function meaningQuestion(kind, row, lang) {
     key: row.kb,
     tail,
     right: row.en,
+    kb: row.kb,
     wrong: others(row, POOLS[kind], (other) => other.en),
     explain: `${row.kb} — ${row.en}.`,
     practice: [{ en: row.en, kb: row.kb }],
