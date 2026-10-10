@@ -1,4 +1,6 @@
+import { base44 } from "@/api/base44Client";
 import { primedAudio } from "@/lib/audioUnlock";
+import { bytesToBase64, floatToPcm16, lift, resample, wavBytes, IN_RATE } from "@/lib/pcmAudio";
 import { LANGUAGE_FALLBACK, redFlag, spokenFlag } from "@/lib/languageGate";
 
 /**
@@ -26,6 +28,35 @@ const CONNECT_MS = 20000;
 // answer is begun the moment the knowledge is handed in; where it never arrives inside that bound the
 // seat is asked for a plain answer of its own, so a person who spoke is never left in silence.
 const ANSWER_WAIT_MS = 6000;
+
+// The app's own ears write the person's turn down on this call as well — OpenAI, the one reader every
+// voice feature of this app listens through — so what stands on the screen and what is put to the seat
+// is the app's own spelling of the person's words rather than whatever the seat's own reader made of
+// them. The turn is kept here while it is being said and handed over the moment it is over: only sound
+// above this floor opens a turn, a breath of quiet this long closes it, and no turn is kept longer than
+// one turn is allowed to run.
+//
+// The seat's own writing of the same turn is what stands where the ears cannot read one, so a turn the
+// person said is never lost to ears that failed — and two turns running without a reading are ears this
+// call does without, exactly as the app's other calls do.
+const EARS_LEVEL = 0.03;
+const EARS_END_MS = 1200;
+const EARS_MAX_MS = 20000;
+// the least sound above the floor a turn of speech runs: a tap, a cough or a door is not one
+const EARS_MIN_MS = 500;
+// about 128ms of sound per chunk at 16 kHz: enough to hold a turn, short enough to hear it end
+const EAR_CHUNK = 2048;
+// how long a reading is given before the seat's own writing of the turn is used in its place
+const EAR_MS = 8000;
+// the seat's own writing is waited on this long, once the ears could not read the turn
+const SEAT_WAIT_MS = 4000;
+// two turns the ears cannot read are ears this call does without: the seat's own writing stands from
+// there, exactly as it always did, rather than every later turn waiting on ears that are not reading
+const EARS_MISSES = 2;
+// how soon after a turn has been written down a transcript still belongs to that same turn
+const TRANSCRIPT_MINE_MS = 4000;
+
+const wait = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /** A failure named by the stage it happened at, so the screen says what really went wrong. */
 function stageError(stage, message) {
@@ -94,6 +125,24 @@ export default class OpenAiTalkCall {
     // whether the answer being heard is a line of the app's own, handed over whole — the app has already
     // read that line, so it is never read again as it is said
     this.appLine = false;
+    // The app's own ears on this call: the sound of the person's turn kept while it is said, and the
+    // reading of it. The seat's own writing of the same turn is kept with it, and is what stands where
+    // the ears cannot read one.
+    this.ctx = null;
+    this.micSource = null;
+    this.micProcessor = null;
+    this.micSink = null;
+    this.captureRate = IN_RATE;
+    this.earsOn = false;
+    this.earsOff = false;
+    this.earsFrames = [];
+    this.earsAt = 0;
+    this.earsHeardAt = 0;
+    this.earsVoiced = 0;
+    this.earsMisses = 0;
+    this.reading = false;
+    this.read = null;
+    this.writtenAt = 0;
   }
 
   /** Whether the session is up and the connection carrying it is really open. */
@@ -183,6 +232,10 @@ export default class OpenAiTalkCall {
       stageError("playback", "AI 1's voice channel opened without sound — please try again.")
     );
     await this.readyAudio();
+
+    // 4. the app's own ears listen on this call too, so the person's words are the app's own reading of
+    // them rather than whatever the seat's own reader made of the same sound
+    this.startEars();
   }
 
   waitFor(check, ms, failure) {
@@ -264,6 +317,230 @@ export default class OpenAiTalkCall {
     return Math.min(1, Math.sqrt(sum / this.buf.length) * 3);
   }
 
+  /**
+   * The app's own ears listen on this call: the microphone the seat is hearing through is captured
+   * here as well, so the person's turn can be written down by the app's own reader — the one every
+   * other voice feature of this app listens through — and put to the seat in the app's own spelling of
+   * the words.
+   *
+   * A phone that will not open the capture is no reason for a call to fail: nothing is kept, and the
+   * seat hears the person itself from the first turn, exactly as it always did.
+   */
+  startEars() {
+    if (!this.stream || this.earsOff) return;
+    const Ctor = window.AudioContext || window.webkitAudioContext;
+    if (!Ctor) return;
+
+    try {
+      try {
+        this.ctx = new Ctor({ sampleRate: IN_RATE });
+      } catch (err) {
+        // a phone that will not open a context at that rate records at its own, and the turn is
+        // resampled on the way out
+        this.ctx = new Ctor();
+      }
+      if (this.ctx.state === "suspended") this.ctx.resume().catch(() => {});
+      this.captureRate = this.ctx.sampleRate || IN_RATE;
+
+      this.micSource = this.ctx.createMediaStreamSource(this.stream);
+      this.micProcessor = this.ctx.createScriptProcessor(EAR_CHUNK, 1, 1);
+      this.micProcessor.onaudioprocess = (event) => {
+        if (this.stopped) return;
+        this.hold(event.inputBuffer.getChannelData(0));
+      };
+      // the processor is kept alive without the microphone ever being played back
+      this.micSink = this.ctx.createGain();
+      this.micSink.gain.value = 0;
+      this.micSource.connect(this.micProcessor);
+      this.micProcessor.connect(this.micSink);
+      this.micSink.connect(this.ctx.destination);
+    } catch (err) {
+      // no capture, no reading: the seat's own writing of every turn stands for the whole call
+      this.earsOff = true;
+      this.teardownEars();
+    }
+  }
+
+  /**
+   * The person's turn, kept while it is being said, so the app's own ears can write it down. Only sound
+   * above the floor opens a turn, and nothing is kept while the seat's own voice is playing: the
+   * microphone is shut then, and what it would hear is the answer coming back out of the phone's own
+   * speaker.
+   */
+  hold(chunk) {
+    const now = performance.now();
+    let sum = 0;
+    for (let i = 0; i < chunk.length; i += 1) sum += chunk[i] * chunk[i];
+    const loud = Math.min(1, Math.sqrt(sum / chunk.length) * 3.5) > EARS_LEVEL;
+
+    if (!this.earsOn) {
+      if (!loud) return;
+      this.earsOn = true;
+      this.earsAt = now;
+      this.earsHeardAt = now;
+      this.earsVoiced = 0;
+      this.earsFrames = [];
+      // a new turn is its own: what the seat wrote of the turn before it is not this one's
+      this.read = null;
+    }
+    if (loud) {
+      this.earsHeardAt = now;
+      this.earsVoiced += chunk.length;
+    }
+    // the sound arrives in chunks the audio system reuses, so the turn is kept as its own copy
+    this.earsFrames.push(chunk.slice());
+
+    // a turn is over once a breath of quiet has passed, or once it has run longer than one turn is
+    // allowed to — watched from here, since this is where the sound arrives
+    if (now - this.earsHeardAt >= EARS_END_MS || now - this.earsAt >= EARS_MAX_MS) this.readTurn();
+  }
+
+  /**
+   * The turn is over, so the app's own ears write it down — the same reader, in the same spelling, that
+   * every other voice feature of this app is handed. What they come back with is the person's turn: it
+   * is what stands on the screen and what the answer is built on.
+   *
+   * Where they cannot read it, the seat's own writing of the very same turn stands in their place — so
+   * a turn nobody's reader could make out is never answered as though it were words, and a turn one of
+   * them did write down is never lost.
+   */
+  async readTurn() {
+    if (!this.earsOn || this.reading) return;
+    const frames = this.earsFrames;
+    const voiced = (this.earsVoiced / this.captureRate) * 1000;
+    this.earsOn = false;
+    this.earsFrames = [];
+    this.earsVoiced = 0;
+
+    // the ears are not reading this call at all: the seat's own writing of every turn stands, and nothing
+    // is kept here
+    if (this.earsOff) return;
+
+    // A tap, a cough, a door, a breath of the room: the sound never really stood above the floor, so
+    // there is no turn here at all and nothing is written down from it.
+    if (voiced < EARS_MIN_MS) return;
+    if (!this.read) this.read = { seat: "", timer: 0, done: false, byEars: false };
+    const read = this.read;
+    if (read.done) return;
+
+    const total = frames.reduce((count, frame) => count + frame.length, 0);
+    const joined = new Float32Array(total);
+    let put = 0;
+    frames.forEach((frame) => {
+      joined.set(frame, put);
+      put += frame.length;
+    });
+    const wav = wavBytes(
+      floatToPcm16(lift(resample(joined, this.captureRate, IN_RATE))),
+      IN_RATE
+    );
+
+    this.reading = true;
+    let text = "";
+    try {
+      const res = await Promise.race([
+        base44.functions.invoke("helperListen", { audio: bytesToBase64(wav) }),
+        wait(EAR_MS).then(() => null),
+      ]);
+      text = String(res?.data?.text || "").trim();
+    } catch (err) {
+      // ears that cannot be reached are never a reason the person's turn goes unanswered: the seat's own
+      // writing of it stands instead
+      console.error(
+        "The app's own ears could not read the turn:",
+        err?.response?.data?.error || err?.message
+      );
+      text = "";
+    } finally {
+      this.reading = false;
+    }
+    if (read.done) return;
+
+    if (text) {
+      this.settle(read, text, true);
+      return;
+    }
+
+    // The ears could not read this turn. What the seat wrote of it is used where it has already arrived,
+    // and where it has not it is waited on for a moment rather than thrown away — two turns running
+    // without a reading and this call does without the ears from there, exactly as the app's other calls
+    // do, with the seat's own writing standing for every turn.
+    this.earsMisses += 1;
+    if (this.earsMisses >= EARS_MISSES) this.earsOff = true;
+    if (read.seat) {
+      this.settle(read, read.seat, false);
+      return;
+    }
+    read.timer = setTimeout(() => {
+      read.timer = 0;
+      if (read.done) return;
+      if (read.seat) {
+        this.settle(read, read.seat, false);
+        return;
+      }
+      // neither reader made anything of the turn: it is said plainly instead of the call going quiet on it
+      this.h.onError?.("That turn could not be written down — say it again.");
+    }, SEAT_WAIT_MS);
+    this.waits.push(read.timer);
+  }
+
+  /**
+   * The person's turn, as the app's own ears wrote it down — or, where they could not read it, as the
+   * seat itself did. It stands on the screen once and it is put to the seat once: the seat's own
+   * knowledge for the turn is searched from here, and the answer is created by the app.
+   */
+  settle(read, words, byEars) {
+    const said = String(words || "").trim();
+    if (!said || read.done) return;
+    read.done = true;
+    read.byEars = !!byEars;
+    clearTimeout(read.timer);
+    read.timer = 0;
+    this.writtenAt = Date.now();
+    this.h.onUserText?.(said);
+    this.armAnswer(said);
+  }
+
+  /** The capture the app's own ears listen through is released with the call. */
+  teardownEars() {
+    if (this.micProcessor) {
+      try {
+        this.micProcessor.onaudioprocess = null;
+        this.micProcessor.disconnect();
+      } catch (err) {
+        // already gone
+      }
+    }
+    if (this.micSource) {
+      try {
+        this.micSource.disconnect();
+      } catch (err) {
+        // already gone
+      }
+    }
+    if (this.micSink) {
+      try {
+        this.micSink.disconnect();
+      } catch (err) {
+        // already gone
+      }
+    }
+    if (this.ctx) {
+      try {
+        this.ctx.close();
+      } catch (err) {
+        // already gone
+      }
+    }
+    this.micProcessor = null;
+    this.micSource = null;
+    this.micSink = null;
+    this.ctx = null;
+    this.earsOn = false;
+    this.earsFrames = [];
+    this.earsVoiced = 0;
+  }
+
   onConnectionState() {
     if (this.stopped) return;
     const state = this.pc?.connectionState;
@@ -291,17 +568,36 @@ export default class OpenAiTalkCall {
 
       case "conversation.item.input_audio_transcription.completed": {
         const said = String(msg.transcript || "").trim();
-        if (said) {
-          // the turn goes on the screen, and the app's own knowledge for it is what the answer waits
-          // on: the seat is held here until that knowledge is handed in — see armAnswer/answer
-          this.h.onUserText?.(said);
-          this.armAnswer(said);
+        if (!said) return;
+        // The app's own ears are the reader on this call: their writing of the turn is what stands on
+        // the screen and what is answered, and the seat's own writing of that same turn is kept here
+        // for the moment the ears cannot read it. Where the ears never held this turn — the sound never
+        // crossed the floor, or they are not reading this call at all — the seat's own writing is the
+        // person's turn, exactly as it always was: a turn the app's own reader never had is never lost
+        // for it.
+        const read = this.read;
+        if (read && !read.done) {
+          read.seat = said;
+          // the ears gave up on the turn and their wait is up: the seat's writing settles it now
+          if (read.timer) this.settle(read, said, false);
+          return;
         }
+        // a transcript arriving right behind a turn the ears have already written down belongs to that
+        // same turn: it is not a second turn of the person's, and nothing is said or answered twice
+        if (this.writtenAt && Date.now() - this.writtenAt < TRANSCRIPT_MINE_MS) return;
+        // the turn goes on the screen, and the app's own knowledge for it is what the answer waits
+        // on: the seat is held here until that knowledge is handed in — see armAnswer/answer
+        this.h.onUserText?.(said);
+        this.armAnswer(said);
         return;
       }
 
       case "conversation.item.input_audio_transcription.failed":
-        this.h.onError?.("That turn could not be written down — say it again.");
+        // The seat's own reader could not write the turn down. Where the app's own ears are reading this
+        // call, that is nothing to say: they write the turn down themselves and it is settled by them —
+        // a failed second reader is never the person's answer. Where they are not reading, the line the
+        // app always gave for it stands.
+        if (this.earsOff) this.h.onError?.("That turn could not be written down — say it again.");
         return;
 
       // the seat is working out its answer: the sound of it has not begun yet
@@ -613,6 +909,15 @@ export default class OpenAiTalkCall {
       }
       el.srcObject = null;
     }
+
+    // the capture the app's own ears listen through is released with the call, and a turn still waiting
+    // on its reading goes with it
+    this.teardownEars();
+    this.read = null;
+    this.reading = false;
+    this.earsOff = false;
+    this.earsMisses = 0;
+    this.writtenAt = 0;
 
     // the microphone this call was handed is released with it, so the voice that takes the next turn
     // is never waiting on a phone another call is still listening through
