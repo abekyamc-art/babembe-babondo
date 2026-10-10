@@ -133,10 +133,20 @@ function askOf(head: string[]): EngineAsk | null {
     .split(/\s*\/\s*/)
     .map((form) => clean(form, MAX_ASK))
     .filter((form) => form && form.replace(/[^\p{L}]/gu, "").length >= 2);
+  // A head line the admin wrote a note into holds the ask written after that note as well —
+  // "Add this this is other way to reply and more: Mbefalanga?" is the ask "Mbefalanga?" — so a
+  // greeting written with a note in front of it is still heard as the greeting it is.
+  const noted = clean(first.slice(first.lastIndexOf(":") + 1), MAX_ASK);
+  if (noted && noted !== first && !alt.includes(noted)) {
+    if (noted.replace(/[^\p{L}]/gu, "").length >= 2) alt.push(noted);
+  }
   if (!alt.length) return null;
 
   const meaning = lines.length > 1 && fold(lines[1]) !== fold(first) ? lines[1] : "";
-  return { ask: first, alt, meaning, replies: [], general: false };
+  // the ask is named by the form itself where the admin wrote their note into the same line: the note
+  // is not what the ask is, and it is never read out as though it were
+  const named = noted && noted !== first ? noted : first;
+  return { ask: named, alt, meaning, replies: [], general: false };
 }
 
 /** Whether a reply set is the engine's own general set, and nothing else. */

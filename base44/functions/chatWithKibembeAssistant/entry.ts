@@ -1,17 +1,23 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { secrets } from 'base44:runtime';
 import { bankRows, trimToLines, wordListBlock } from "../../shared/wordBank.ts";
-import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
+import { docPhraseRows, docWholeBlock, publishedDoc } from "../../shared/knowledgeDoc.ts";
+import { readTurn } from "../../shared/kibembeFirst.ts";
+import { notHeldLine } from "../../shared/notHeld.ts";
 import { rulesText } from "../../shared/knowledgeRules.ts";
 import { candidateList, lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { bestStory, storyNote } from "../../shared/storyMatch.ts";
 import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
-import { engineTurn } from "../../shared/phraseEngine.ts";
+import { engineReply, engineTurn } from "../../shared/phraseEngine.ts";
 import { turnPictures } from "../../shared/answerPictures.ts";
 import { isRepeatAsk } from "../../shared/repeatAsk.ts";
 import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
+
+// how many of the document's own phrases are read with its words: the greetings and the everyday lines
+// of a conversation, so a confirmed phrase typed whole is understood as the phrase it is
+const MAX_PHRASES = 600;
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
@@ -163,11 +169,16 @@ export default async function (req) {
     // named to the answer so it says plainly that it could not be read rather than answering as
     // though it had. Reading them with Promise.all was what made one failing piece — a story
     // catalogue, a document part — lose the whole Word Bank and leave the person with nothing.
+    // the Word Bank rows themselves, kept for this turn's own reading as well as for the block
+    let bankRef: any[] = [];
     const reads = await Promise.allSettled([
       rulesText(base44).then((rows) => trimToLines(rows, RULES_BUDGET)),
-      bankRows(base44).then((rows) =>
-        wordListBlock(rows, message, translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET)
-      ),
+      bankRows(base44).then((rows) => {
+        // the same rows are kept for this turn's own reading, so a word the admin confirmed is read
+        // when it is typed exactly as it is when it is said
+        bankRef = rows;
+        return wordListBlock(rows, message, translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET);
+      }),
       // the rest of the document — the admin's notes, their questions and answers, and anything they
       // filed under a heading of their own — rides with the turn too
       // the document is handed over as the parts this message needs: its rules whole, the parts the
@@ -196,7 +207,13 @@ export default async function (req) {
       // The admin's own engine of asks and replies rides with the turn as well: the ask the person
       // said is found in it, and the replies saved for that ask are handed over — one of which is the
       // reply, given exactly as the engine writes it rather than a sentence written for the turn.
-      engineTurn(base44, message).then((turn) => turn.note),
+      engineTurn(base44, message),
+      // The phrases the admin's own document confirms of more than one word: the greetings and the
+      // everyday lines of a conversation, which the word list leaves out because they are more than
+      // one word. A greeting typed whole is read as the confirmed phrase it is.
+      publishedDoc(base44)
+        .then((text) => docPhraseRows(text).slice(0, MAX_PHRASES))
+        .catch(() => []),
     ]);
     // What each read is, named for the stage it belongs to: the name is what a failure is reported by.
     const STAGE_NAMES = [
@@ -207,6 +224,7 @@ export default async function (req) {
       'the story catalogue',
       'the internet lookup',
       'the reply engine',
+      "the document's phrases",
     ];
     const missed: string[] = [];
     // A read that failed is written down by its stage and the turn carries on without it. The reason
@@ -228,7 +246,11 @@ export default async function (req) {
     const storyPage = took(3, null);
     const tales = took(4, '');
     const lookup = took(5, { material: '', needed: false, found: false, candidates: [] });
-    const engine = took(6, '');
+    const engineTurn_ = took(6, { ask: null, note: '' });
+    const engine = engineTurn_.note || '';
+    // the ask itself, kept so its own saved reply can be given whole rather than written for it
+    const engineAsk = engineTurn_.ask || null;
+    const phrases = took(7, []);
 
     // Nothing of the saved knowledge could be read at all: the turn is stopped here and the stage is
     // named, rather than an answer being written from nothing and put before the person as the app's own.
@@ -292,6 +314,41 @@ export default async function (req) {
     // Several names waiting on the person's choice: nothing that presents one of them as the answer —
     // no matched story and no catalogue of names — rides with this turn, so the answer is the
     // question itself and the person is left to say which one they mean.
+    // One of the app's own asks, with replies saved for it: the app holds that reply itself, so it is
+    // given whole — the same words and the same spelling the engine writes — rather than written fresh
+    // for the turn, and the reply is never read out as a list of the forms saved for the ask. An ask
+    // the engine keeps only its general replies for is answered naturally instead, in its own words.
+    if (engineAsk && !engineAsk.general && engineAsk.replies.length) {
+      const held = engineReply(engineAsk, lastAgent);
+      if (held) {
+        return Response.json({
+          reply: held,
+          pictures: await turnPictures(base44, message, held),
+          source: null,
+          candidates: [],
+        });
+      }
+    }
+
+    // Whether the app's own confirmed knowledge holds anything of this turn at all: a word or phrase of
+    // the Word Bank standing in it, an ask of the engine's own, a story, or something the lookup truly
+    // reached. Nothing else is knowledge of this app.
+    const reading = readTurn(message, bankRef, [], [], phrases);
+    // A turn the app holds nothing of is never answered with a Kibembe sentence built to cover the gap:
+    // the app's own confirmed line for it is the whole reply, and nothing is written around it. This is
+    // only said when every part of the knowledge was really read: a read the store refused is not the
+    // app holding nothing, and it is never answered as a "I do not know". A turn that needed the
+    // internet is left to answer for itself — it says plainly what could not be reached rather than
+    // falling back to a Kibembe line that answers nothing.
+    if (!missed.length && !reading && !engine && !story && !lookup.found && !lookup.needed && !asking) {
+      return Response.json({
+        reply: notHeldLine([...bankRef, ...phrases]),
+        pictures: [],
+        source: null,
+        candidates: [],
+      });
+    }
+
     const input = [
       saved,
       unread,

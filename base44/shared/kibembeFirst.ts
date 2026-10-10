@@ -74,10 +74,19 @@ export function readTurn(
   words: any[],
   patterns: any[] = [],
   /** the admin's own engine of asks and replies, as the app's document holds it */
-  engine: any[] = []
+  engine: any[] = [],
+  /**
+   * The phrases the admin's own document confirms of more than one word: the greetings and the
+   * everyday lines of a conversation. The word list keeps to one word, so a confirmed phrase said
+   * whole — "Oto ela", "Shi ke", "Walolalabile" — is read here as well, and not only as the single
+   * words inside it.
+   */
+  phrases: any[] = []
 ): any {
   const said = saidWords(heard);
   if (!said.length) return null;
+  // every confirmed form of the app's own, read as one list: its words and its phrases together
+  const rows: any[] = [...(words || []), ...(phrases || [])].filter((row: any) => !!row?.term);
 
   // 0) The admin's own engine of asks and replies. An ask saved there is answered from the replies the
   // engine writes for it and from nowhere else, so the reply the person is given is the engine's own
@@ -93,7 +102,7 @@ export function readTurn(
   // single word inside it — and a form written apart where one word was said ("o soo" for the
   // confirmed word "osoo") beats the shorter word hiding inside it.
   let exact: any = null;
-  for (const row of words || []) {
+  for (const row of rows) {
     const term = clean(row?.term, MAX_TERM);
     if (!term) continue;
     // the word as the bank writes it, and every way it is known to come out: a confirmed variation
@@ -146,17 +155,17 @@ export function readTurn(
   // is not what the turn is, and answering a whole sentence out of a word nobody said is where a wrong
   // Kibembe answer is born. Such a turn is left unread, and the voice answers it from the person's own
   // words under the rules of the call.
-  const near = strongTerms(heard, words || [])[0];
+  // a confirmed phrase is weighed with the words, so a greeting said a little differently is the
+  // confirmed greeting it is and never a word that merely sounds like one of its own words
+  const near = strongTerms(heard, rows)[0];
+  const nearRow = near ? rows.find((row: any) => sameTerm(row?.term, near.term)) : null;
   if (near && saidWords(near.said).length >= said.length) {
     return {
       kind: "near",
       term: near.term,
       heard: near.said,
-      meaning: glossOf(near.term, (words || []).find((row: any) => sameTerm(row?.term, near.term))?.meaning),
-      usage: clean(
-        (words || []).find((row: any) => sameTerm(row?.term, near.term))?.usage,
-        MAX_USAGE
-      ),
+      meaning: glossOf(near.term, nearRow?.meaning),
+      usage: clean(nearRow?.usage, MAX_USAGE),
       how: "near",
     };
   }

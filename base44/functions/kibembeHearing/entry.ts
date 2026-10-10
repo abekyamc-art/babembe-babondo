@@ -1,7 +1,8 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
 import { MAX_MEANING, MAX_TERM, MAX_USAGE, clean } from "../../shared/knowledgeWords.ts";
 import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.ts";
-import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
+import { docPhraseRows, docWholeBlock, publishedDoc } from "../../shared/knowledgeDoc.ts";
+import { askAgainLine, notHeldLine } from "../../shared/notHeld.ts";
 import { retrieveKnowledge } from "../../shared/knowledgeRetrieval.ts";
 import { pronunciationBlock, recordedEvidence } from "../../shared/pronunciation.ts";
 import { engineAsksOf, engineReply } from "../../shared/phraseEngine.ts";
@@ -56,6 +57,9 @@ const DOC_BUDGET = 8000;
 const PRONUNCIATION_BUDGET = 2600;
 // and how much of the search over the whole document rides with one turn: the parts that turn reaches
 const KNOWLEDGE_ROOM = 6000;
+// how many of the document's own phrases are read with its words: the greetings and the everyday lines
+// of a conversation, so a confirmed phrase said whole is understood as the phrase it is
+const MAX_PHRASES = 600;
 
 const READ_FAILED = "That turn could not be read just now.";
 
@@ -335,8 +339,10 @@ export default async function (req: Request): Promise<Response> {
         note: repeatNote(said, lastAgent),
         // the line the ask is asking for is the app's own, and it goes back whole: the voice is told to
         // say that very line again and nothing else, so it is never re-worded, never shortened and
-        // never turned into a lesson
-        say: clean(lastAgent, MAX_SAY),
+        // never turned into a lesson. Where the app holds no line at all to give back — the first turn
+        // of a call — nothing is written to fill the place: the admin's own confirmed line asking for
+        // the turn again is what is said.
+        say: clean(lastAgent, MAX_SAY) || askAgainLine(),
         // the app holds that very line itself, so this turn is answered from its own hand and never by
         // the voice on its own account
         verified: true,
@@ -380,16 +386,22 @@ export default async function (req: Request): Promise<Response> {
     // document this turn reaches, nearest first — the same search every voice of a call is handed — and
     // a turn that reaches nothing is told so plainly rather than answered from a guess.
     const wordsRead = bankRows(base44);
-    const [words, patterns, engine, search] = await Promise.all([
+    const [words, patterns, engine, search, phrases] = await Promise.all([
       wordsRead,
       patternRows(base44),
       engineAsksOf(base44).catch(() => []),
       retrieveKnowledge(base44, said, KNOWLEDGE_ROOM, wordsRead)
         .then((found) => ({ block: String(found?.block || ""), found: found?.found === true }))
         .catch(() => ({ block: "", found: false })),
+      // The phrases the admin's own document confirms of more than one word: the greetings and the
+      // everyday lines of a conversation. The word list keeps to one word, so a greeting said whole —
+      // "Oto ela", "Shi ke", "Walolalabile" — is read here as the confirmed phrase it is.
+      publishedDoc(base44)
+        .then((text) => docPhraseRows(text).slice(0, MAX_PHRASES))
+        .catch(() => []),
     ]);
 
-    const reading = readTurn(said, words, patterns, engine);
+    const reading = readTurn(said, words, patterns, engine, phrases);
     const note = reading ? turnNote(said, reading) : "";
     // Whether the app really holds anything of this turn: a reading of it — the ask it is, the word or
     // phrase it is, the saved phrase whose answer belongs to it — or a part of the admin's own knowledge
@@ -418,7 +430,25 @@ export default async function (req: Request): Promise<Response> {
     // the reply is said exactly as the app's own words — never started well and then carried on in a
     // language nobody here speaks. A turn putting something right is never forced to a saved line, and
     // neither is a turn being answered in Kiswahili or English.
-    let say = put || confirming || looksLikeFix(said) ? "" : replyFor(reading, lastAgent, lang);
+    let say = "";
+    if (put || confirming || looksLikeFix(said)) {
+      // a turn putting something right is read as a correction and never answered from a held line
+      say = "";
+    } else {
+      say = replyFor(reading, lastAgent, lang);
+      // Nothing confirmed is held for this turn at all — no word, no phrase, no saved ask and no part
+      // of the admin's document the search truly reached. What is said is the app's own confirmed line
+      // and nothing else: never a Kibembe sentence built to cover the gap, which is where a form nobody
+      // confirmed gets spoken as though it were taught. A turn that is not speech at all is left alone:
+      // it is shown to the person, and the only thing that can put it right is them.
+      //
+      // The line stands only where the app's own knowledge was really read: a read the store refused
+      // leaves no knowledge in hand, and that is never the same thing as the app holding nothing — it
+      // is never answered as a "I do not know", and the turn is left to the voice as it always was.
+      if (!say && !verified && sure && (words.length || phrases.length)) {
+        say = notHeldLine([...words, ...phrases]);
+      }
+    }
     // A reply the app holds itself that carries another language is thrown away rather than said: the app
     // speaks three languages, and a saved line in a fourth is a red flag even when it is saved. What is
     // spoken instead is the app's own line naming the three, so the person is never left with nothing and
@@ -444,11 +474,12 @@ export default async function (req: Request): Promise<Response> {
     }
 
     return Response.json({
-      // Nothing of the app's own, nothing handed over: a turn the app holds nothing of is left without
-      // an answer rather than answered from a guess — so the voice is never let write for itself, which
-      // is where a reply in a language nobody here speaks comes from.
+      // Nothing of the app's own rode with this turn, so nothing is handed over in its place: the
+      // reading block is left empty rather than filled with words the app does not hold.
       note: verified ? `${note}${languageLine}${known}` : "",
-      // the one line the app holds for this turn, or nothing at all when it holds none
+      // The one line the app holds for this turn, or the app's own confirmed line for a turn it holds
+      // nothing of — "Shi ke" (I do not know) — so what the person hears is a confirmed Kibembe line
+      // rather than a sentence written to cover a gap.
       say,
       // the app's own word on whether it holds anything of this turn: it is what the answer is gated on
       verified,

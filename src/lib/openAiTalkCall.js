@@ -1,5 +1,5 @@
 import { primedAudio } from "@/lib/audioUnlock";
-import { LANGUAGE_FALLBACK, redFlag, spokenFlag } from "@/lib/languageGate";
+import { LANGUAGE_FALLBACK, NOT_HELD, redFlag, spokenFlag } from "@/lib/languageGate";
 
 /**
  * The call AI 1 answers on: a WebRTC link straight from this browser to OpenAI's Realtime service.
@@ -428,6 +428,16 @@ export default class OpenAiTalkCall {
     if (text !== null && String(text) !== pending) return;
     const wrote = String(note || "").trim();
     const line = String(say || "").trim();
+    // The app holds nothing confirmed for this turn: what is said is the app's own confirmed line,
+    // whole, and the seat writes nothing for it. Letting an answer run on its own account here is where
+    // a Kibembe form nobody confirmed reaches the person's ears.
+    if (!wrote && !line) {
+      this.pendingText = "";
+      clearTimeout(this.gateTimer);
+      this.gateTimer = null;
+      this.speakLine(NOT_HELD);
+      return;
+    }
     // The turn is answered in every case: whatever the app knows of it rides in front of the seat, and
     // where the app knows nothing of it the seat answers from the person's own words under the rules of
     // the call. Asking for no answer at all is what left a person who spoke with nothing back, and
@@ -457,10 +467,10 @@ export default class OpenAiTalkCall {
   }
 
   /**
-   * The app's own reading of the turn never arrived — the bound on that wait is up. The turn is
-   * answered all the same rather than left hanging: the answer is asked for with the rules of the call
-   * in front of the seat and nothing of the app's own, and the call goes on listening. Silence is never
-   * an answer.
+   * The app's own reading of the turn never arrived — the bound on that wait is up, so the app holds
+   * nothing confirmed for this turn and its own line is what is said. The answer is never let run on
+   * the seat's own account here: that is where a Kibembe form nobody confirmed is spoken as though it
+   * were taught, and silence is never an answer either.
    */
   askPlain(text = null) {
     const pending = this.pendingText;
@@ -472,7 +482,7 @@ export default class OpenAiTalkCall {
     this.forced = "";
     this.appLine = false;
     this.answerText = "";
-    this.send({ type: "response.create" });
+    this.speakLine(NOT_HELD);
   }
 
   /**

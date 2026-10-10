@@ -235,6 +235,20 @@ export function docWordRows(text: any, at = ""): any[] {
   return rows;
 }
 
+/**
+ * The document's own phrases: the pairs it writes of two words or more — the greetings and the
+ * everyday lines of a conversation ("Oto ela — Please repeat.", "Ole sawa — I am fine / okay.").
+ *
+ * The word list the voices are handed keeps to one word, so a phrase the admin has confirmed is read
+ * here as well: a greeting or an everyday line said whole is understood as the confirmed phrase it is,
+ * and not only as the single words inside it.
+ */
+export function docPhraseRows(text: any): any[] {
+  return docWordRows(text).filter(
+    (row) => String(row?.term || "").trim().split(/\s+/).length >= 2
+  );
+}
+
 /** The rules the document states: how Kibembe is read, written and used. */
 export function docRules(text: any): string {
   const lines: string[] = [];
