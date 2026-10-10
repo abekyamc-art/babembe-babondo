@@ -1211,6 +1211,7 @@
     border-radius: 9999px;
     background: hsl(var(--accent));
   }
+
 }
 
 @keyframes orb-breathe {

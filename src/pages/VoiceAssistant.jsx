@@ -35,6 +35,8 @@ import AccountSheet from "@/components/voice/AccountSheet";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 import StorySheet from "@/components/story/StorySheet";
 import StoryRail from "@/components/story/StoryRail";
+import ExamPill from "@/components/exam/ExamPill";
+import ExamSheet from "@/components/exam/ExamSheet";
 
 // the outside voice the call hands over to on its own carries its own mark; the older talk AIs
 // carry the app's own, so who is answering is seen at a glance and not only read in the line
@@ -77,6 +79,8 @@ export default function VoiceAssistant() {
   const [gate, setGate] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  // the GLOIRE AI examination stands over the call screen, which it never touches
+  const [examOpen, setExamOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const [profile, setProfile] = useState(null);
   // the story picked out of the middle strip, shown in the same sheet the assistant's own stories use
@@ -358,6 +362,7 @@ export default function VoiceAssistant() {
           <div className="flex flex-wrap items-center justify-center gap-2">
             <ModeBadge icon={VOICE_ICONS[voiceLabel] || Languages} label={`${voiceLabel} answers`} />
             <LangPill />
+            <ExamPill onClick={() => setExamOpen(true)} />
           </div>
           <button
             type="button"
@@ -456,6 +461,8 @@ export default function VoiceAssistant() {
         </div>
         <ChatInput onSend={handleSend} onCall={handleCall} inCall={micActive} />
       </footer>
+
+      <ExamSheet open={examOpen} onClose={() => setExamOpen(false)} />
 
       <GateDialog
         open={gate !== null}
