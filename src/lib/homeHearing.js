@@ -66,6 +66,10 @@ export async function readHeardTurn(text, lastAgent = "") {
       verified: res?.data?.verified === true,
       // only a plain no is a no: an older reading that says nothing about it is taken as sure
       sure: res?.data?.sure !== false,
+      // the app's own word on whether this turn was said in a language it speaks: a turn in another one
+      // is not answered at all — the app's own line takes the place of the answer, and nothing else is
+      // generated for it
+      blocked: res?.data?.blocked === true,
       // the language that stands from this turn on, when the person has just asked for another one
       mode: String(res?.data?.mode || ""),
     };

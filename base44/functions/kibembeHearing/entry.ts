@@ -21,6 +21,7 @@ import {
 } from "../../shared/kibembeFirst.ts";
 import { withHeard, withRevision } from "../../shared/voiceBank.ts";
 import { langAsked, langLine, langName, langOf } from "../../shared/langMode.ts";
+import { LANGUAGE_FALLBACK, strongFlag } from "../../shared/languageGate.ts";
 
 // A turn of speech carries at least a word: two letters is the least a word of this app's languages
 // is written with.
@@ -353,6 +354,26 @@ export default async function (req: Request): Promise<Response> {
     // the person said may be one of its asks, and that ask's own replies are then the reply — given
     // exactly as the engine writes it, rather than a sentence written for the turn.
     //
+    // A turn said in another language altogether is a red flag, and this app speaks three: nothing is
+    // answered for it. What is said instead is the app's own line naming the three languages — handed
+    // over as the whole answer, so the person is never left in silence and never hears the other
+    // language — and the call goes straight back to listening. A whole turn is what is held to that
+    // bar: a single form of another language may be a word of the three the ears wrote down in another
+    // spelling, and the app never refuses a person's own words over one form alone.
+    if (strongFlag(said)) {
+      return Response.json({
+        note: "",
+        // the app's own line, whole: the seat is made to say exactly this and nothing else
+        say: LANGUAGE_FALLBACK,
+        verified: true,
+        blocked: true,
+        matched: null,
+        sure: true,
+        saved: "",
+        mode,
+      });
+    }
+
     // All four reads are made together, never one after the other: the search over the whole approved
     // document reads the very same word list that is being read here, so that read is handed to it as
     // it is still running rather than made a second time. What rides back is the few parts of the
@@ -397,8 +418,18 @@ export default async function (req: Request): Promise<Response> {
     // the reply is said exactly as the app's own words — never started well and then carried on in a
     // language nobody here speaks. A turn putting something right is never forced to a saved line, and
     // neither is a turn being answered in Kiswahili or English.
-    const say =
-      put || confirming || looksLikeFix(said) ? "" : replyFor(reading, lastAgent, lang);
+    let say = put || confirming || looksLikeFix(said) ? "" : replyFor(reading, lastAgent, lang);
+    // A reply the app holds itself that carries another language is thrown away rather than said: the app
+    // speaks three languages, and a saved line in a fourth is a red flag even when it is saved. What is
+    // spoken instead is the app's own line naming the three, so the person is never left with nothing and
+    // never hears the other language. A saved line is held to the same bar as the person's own turn: a
+    // whole line in another language carries several of those forms, and one alone is never enough to
+    // throw away the admin's own wording.
+    let blocked = false;
+    if (strongFlag(say)) {
+      say = LANGUAGE_FALLBACK;
+      blocked = true;
+    }
     const languageLine = asked
       ? `${langLine(lang)}\nThe person has just plainly asked for ${langName(asked)}. Answer in it from this very word on, and keep answering in it until they ask for another language.\n`
       : "";
@@ -421,6 +452,9 @@ export default async function (req: Request): Promise<Response> {
       say,
       // the app's own word on whether it holds anything of this turn: it is what the answer is gated on
       verified,
+      // whether this turn, or the reply held for it, was in a language this app does not speak: a blocked
+      // turn is answered with the app's own line alone, and nothing is generated for it
+      blocked,
       matched: reading,
       sure,
       saved,

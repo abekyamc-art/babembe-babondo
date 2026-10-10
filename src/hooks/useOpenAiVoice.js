@@ -4,6 +4,7 @@ import OpenAiTalkCall from "@/lib/openAiTalkCall";
 import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import { readHeardTurn } from "@/lib/homeHearing";
+import { LANGS_NOTICE } from "@/lib/languageGate";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
 import { answerNow, heardNow, knowledgeNow } from "@/lib/voiceTiming";
 import { OPENAI_AI } from "@/lib/providerNames";
@@ -131,8 +132,11 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       // the turn is measured from here: what follows is the app's own knowledge for it, and then the
       // answer itself beginning to be heard
       heardNow();
-      readHeardTurn(said, lastAgentRef.current).then(({ note, say, verified }) => {
+      readHeardTurn(said, lastAgentRef.current).then(({ note, say, verified, blocked }) => {
         knowledgeNow();
+        // the turn was said in a language this app does not speak: the app's own line takes the place of
+        // an answer, and the screen says the same thing plainly beside it
+        if (blocked) setNotice(LANGS_NOTICE);
         // The seat answers only what the app itself holds: the reading of this turn, or the reply the
         // app keeps for it. Where the app holds nothing of the turn, nothing is handed over at all —
         // that turn is left unanswered, with the app's own line saying so, rather than the seat
@@ -188,14 +192,27 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
   }, []);
 
   /** The voice has drained: the call listens again, and the answer ends for whoever counts them. */
-  const handleAudioEnd = useCallback(() => {
-    speakingRef.current = false;
-    backToListening();
-    // the voice has drained: one voice turn has been spoken out in full
-    noteVoiceTurn();
-    // an answer read out in full is reported, so a change it asked for is sent here and now
-    liveSpokeRef.current?.();
-  }, [backToListening]);
+  const handleAudioEnd = useCallback(
+    (cut) => {
+      speakingRef.current = false;
+      backToListening();
+      // an answer stopped for a language this app does not speak is not a voice turn: nothing was
+      // answered for that turn, so nothing is counted for it and no change is carried on from it
+      if (cut === true) return;
+      // the voice has drained: one voice turn has been spoken out in full
+      noteVoiceTurn();
+      // an answer read out in full is reported, so a change it asked for is sent here and now
+      liveSpokeRef.current?.();
+    },
+    [backToListening]
+  );
+
+  /**
+   * The answer turned into a language this app does not speak and was stopped: what the person hears is
+   * the app's own line naming the three languages, and the screen says the same thing plainly beside it.
+   * The line itself reaches the talk as it is spoken, exactly like any other answer.
+   */
+  const handleBlockedSpeech = useCallback(() => setNotice(LANGS_NOTICE), []);
 
   /** One answer has been given and read out: it is counted against this voice's own turn. */
   const handleAnswered = useCallback(() => liveAnsweredRef.current?.(), []);
@@ -254,6 +271,7 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       onAgentText: handleAgentText,
       onThinking: handleThinking,
       onNoReply: handleNoReply,
+      onBlockedSpeech: handleBlockedSpeech,
       onAgentAudioStart: handleAudioStart,
       onAgentAudioEnd: handleAudioEnd,
       onAnswered: handleAnswered,
@@ -283,7 +301,7 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       offTouchRef.current = resumeAudioOnTouch(() => setNotice(""));
     }
     return { ok: true, why: "" };
-  }, [handleAnswered, handleAgentText, handleAudioEnd, handleAudioStart, handleError, handleNoReply, handleStatus, handleThinking, handleUserText]);
+  }, [handleAnswered, handleAgentText, handleAudioEnd, handleAudioStart, handleBlockedSpeech, handleError, handleNoReply, handleStatus, handleThinking, handleUserText]);
 
   const stop = useCallback(async () => {
     const call = callRef.current;

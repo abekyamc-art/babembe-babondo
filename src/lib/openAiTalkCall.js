@@ -1,4 +1,5 @@
 import { primedAudio } from "@/lib/audioUnlock";
+import { LANGUAGE_FALLBACK, redFlag } from "@/lib/languageGate";
 
 /**
  * The call AI 1 answers on: a WebRTC link straight from this browser to OpenAI's Realtime service.
@@ -85,6 +86,15 @@ export default class OpenAiTalkCall {
     // the line the app is making the seat say, when a reply it holds itself is being spoken: set as
     // that answer is asked for, and emptied the moment the answer begins or the order is refused
     this.forced = "";
+    // What the answer being heard has said so far, read as it comes: a line that turns into a language
+    // this app does not speak is stopped at that very word rather than heard out.
+    this.answerText = "";
+    // whether the answer being heard was stopped for its language: what it said is not an answer, it is
+    // not shown, and it is not counted as a spoken turn
+    this.blockedSpeech = false;
+    // whether the answer being heard is a line of the app's own, handed over whole — the app has already
+    // read that line, so it is never read again as it is said
+    this.appLine = false;
   }
 
   /** Whether the session is up and the connection carrying it is really open. */
@@ -300,12 +310,33 @@ export default class OpenAiTalkCall {
         this.voiceHeard = false;
         // the order was taken, so there is nothing left to fall back on
         this.forced = "";
+        this.answerText = "";
         this.h.onThinking?.(true);
         return;
 
-      case "response.output_audio_transcript.done":
-        this.h.onAgentText?.(String(msg.transcript || ""));
+      // the answer as it is being written, word by word: a line that turns into another language is
+      // stopped here, before the person has heard it out
+      case "response.output_audio_transcript.delta":
+        if (!this.appLine) {
+          this.answerText += String(msg.delta || "");
+          this.checkAnswer();
+        }
         return;
+
+      case "response.output_audio_transcript.done": {
+        // the answer has already been stopped for its language: what it said is never shown as an answer
+        if (this.blockedSpeech) return;
+        const line = String(msg.transcript || "");
+        // A line of the app's own has already been read by the app before it was handed over, so it is
+        // never read again here; what the seat writes of its own accord is read, and a line carrying
+        // another language is stopped rather than shown.
+        if (!this.appLine && redFlag(line)) {
+          this.blockAnswer();
+          return;
+        }
+        this.h.onAgentText?.(line);
+        return;
+      }
 
       case "output_audio_buffer.started":
         this.markSpeaking(true);
@@ -318,6 +349,9 @@ export default class OpenAiTalkCall {
         return;
 
       case "response.done": {
+        // the app's own line, if that is what this answer was, has been said out: from here the seat's
+        // own answers are read again
+        this.appLine = false;
         const status = msg.response?.status;
         if (status === "failed" || status === "cancelled") {
           const why = String(msg.response?.status_details?.error?.message || "").slice(0, 160);
@@ -397,6 +431,10 @@ export default class OpenAiTalkCall {
     this.pendingText = "";
     clearTimeout(this.gateTimer);
     this.gateTimer = null;
+    // a line of the app's own, handed over whole: it has been read by the app already, so it is not read
+    // again as it is said
+    this.appLine = !!line;
+    this.answerText = "";
     this.forced = line;
     const said = [wrote, line ? fixedLine(line) : ""].filter(Boolean).join("\n\n");
     if (said) {
@@ -431,11 +469,58 @@ export default class OpenAiTalkCall {
   }
 
   /**
+   * The answer being heard, read as it is written: a line that turns into a language this app does not
+   * speak — Lingala, French, or any other — is stopped at that very word. Nothing of it is heard out,
+   * nothing of it is shown as an answer, and the app's own line takes its place. Only a little of what
+   * has been said is read at a time, so a word arriving in pieces is still read whole.
+   */
+  checkAnswer() {
+    if (this.stopped || this.blockedSpeech) return;
+    if (!redFlag(this.answerText.slice(-240))) return;
+    this.blockAnswer();
+  }
+
+  /**
+   * The answer has turned into another language: it is stopped where it stands, what has not been heard
+   * yet is thrown away, and the app's own line says plainly which three languages this call speaks — so
+   * no line in another language is ever heard out, and the person is never left with nothing. The turn
+   * is not counted as one that was answered.
+   */
+  blockAnswer() {
+    if (this.stopped || this.blockedSpeech) return;
+    this.blockedSpeech = true;
+    this.send({ type: "response.cancel" });
+    this.send({ type: "output_audio_buffer.clear" });
+    this.h.onBlockedSpeech?.(LANGUAGE_FALLBACK);
+    this.speakLine(LANGUAGE_FALLBACK);
+  }
+
+  /** One line of the app's own, said whole and nothing else. */
+  speakLine(line) {
+    const text = String(line || "").trim();
+    if (!text || this.stopped) return;
+    this.answerText = "";
+    this.appLine = true;
+    this.forced = text;
+    this.send({
+      type: "conversation.item.create",
+      item: { type: "message", role: "system", content: [{ type: "input_text", text: fixedLine(text) }] },
+    });
+    this.send({ type: "response.create", response: { instructions: onlyLine(text) } });
+  }
+
+  /**
    * Whether the answer is being spoken right now. Its beginning is what the screen shows, and its
    * end is what the call is told: an answer read out in full is reported here and nowhere else.
    */
   markSpeaking(on) {
     if (this.speaking === on) return;
+    // An answer stopped for the language it was turning into is not an answer that was given: its own
+    // end is reported as a stopped line, so nothing is counted for it and no change is carried on from
+    // it as though the turn had been answered. The flag is read once and cleared here, so the app's own
+    // line that takes its place is measured like any other.
+    const cut = on ? false : this.blockedSpeech;
+    if (!on) this.blockedSpeech = false;
     // The microphone is shut for as long as the seat's own voice is playing. Left open, the phone's
     // speaker feeds the answer straight back into the microphone as the person's turn, and a reply
     // nobody asked for is what that echo becomes. It is opened again the moment the answer has
@@ -449,7 +534,7 @@ export default class OpenAiTalkCall {
       return;
     }
     this.speaking = false;
-    this.h.onAgentAudioEnd?.();
+    this.h.onAgentAudioEnd?.(cut);
   }
 
   /**
@@ -469,6 +554,9 @@ export default class OpenAiTalkCall {
     this.gateTimer = null;
     this.pendingText = "";
     this.forced = "";
+    this.answerText = "";
+    this.appLine = false;
+    this.blockedSpeech = false;
 
     if (this.dc) {
       try {

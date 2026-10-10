@@ -29,9 +29,12 @@ export const ASKED_LANGUAGE =
 export const SWAHILI_REQUEST =
   '- HABARI AU HADITHI YA KISWAHILI: mtu aliyeongea Kibembe akiomba habari, hadithi au maelezo ya Kiswahili, tafuta kwa Kiswahili kwanza, kisha mweleze kwa KIBEMBE. Akiomba wazi kwamba iwe kwa Kiswahili, jibu liwe kwa KISWAHILI PEKEE.';
 
-// Lugha tatu pekee zipo hapa: Kibembe, Kiswahili na Kiingereza — nyingine yoyote ni alama nyekundu.
-export const ONLY_THREE_LANGUAGES =
-  '- LUGHA TATU PEKEE: Kibembe (Ebembe), Kiswahili na Kiingereza — hakuna lugha nyingine ya dunia hapa. Maneno ya lugha nyingine yoyote ni ALAMA NYEKUNDU: usiyajibu, usiyatafsiri, usiyaandike, na usichukue neno lake kwenye mstari wa Kibembe. Mtu akisema au kuandika kwa lugha nyingine, mwambie kwa Kibembe kifupi kwamba ongea Kibembe, Kiswahili au Kiingereza, kisha endelea kwa Kibembe.';
+// Lugha tatu pekee zipo hapa: Kibembe, Kiswahili na Kiingereza — nyingine yoyote ni alama nyekundu,
+// na kizuizi hicho ni cha kudumu.
+export const ONLY_THREE_LANGUAGES = [
+  '- LUGHA TATU PEKEE: Kibembe (Ebembe), Kiswahili na Kiingereza — hakuna lugha nyingine ya dunia hapa. Maneno ya lugha nyingine yoyote ni ALAMA NYEKUNDU: usiyajibu, usiyatafsiri, usiyaandike, na usichukue neno lake kwenye mstari wa Kibembe. Mtu akisema au kuandika kwa lugha nyingine, mwambie kwa Kibembe kifupi kwamba ongea Kibembe, Kiswahili au Kiingereza, kisha endelea kwa Kibembe.',
+  '- THE RED FLAG IS PERMANENT — LINGALA, FRENCH AND EVERY OTHER LANGUAGE: Lingala, French, Portuguese and every other tongue of the world are barred here for good, and so is every script that is not the Latin one. Never one such word inside a Kibembe line, never a sentence in them, never a translation into them, and never an aside about them. A line that carries one is thrown away whole rather than trimmed: it is cut at that very word and replaced by the short line that says this call speaks Kibembe, Kiswahili and English. A mixed line is therefore never heard out, and the three languages are the only ones ever spoken.',
+].join("\n");
 
 // Mazungumzo ya kawaida: Kibembe kwanza, na swali la mwisho linapofaa.
 export const KIBEMBE_FIRST =
