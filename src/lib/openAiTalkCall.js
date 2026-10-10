@@ -366,7 +366,12 @@ export default class OpenAiTalkCall {
         // reports its own end; an answer that came back with no sound at all settles here, so a voice
         // that answered nothing is never waited on.
         this.h.onAnswered?.();
-        if (!this.voiceHeard) this.h.onAgentAudioEnd?.();
+        // An answer that came back with no sound at all settles here — but only where it really left the
+        // person something: a response that said nothing at all is not a reply, and it is never charged
+        // for. A line cut for its language has already settled the way it had to.
+        if (!this.voiceHeard && !this.blockedSpeech && String(this.answerText || "").trim()) {
+          this.h.onAgentAudioEnd?.();
+        }
         return;
       }
 

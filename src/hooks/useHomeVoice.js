@@ -163,12 +163,26 @@ export default function useHomeVoice() {
   }, []);
 
   /**
-   * One answer has been given, so it is charged. The voice keeps the call until its own number of
-   * answers has been read out; the last of them only asks for the change, and the change is sent by
-   * that answer's own end, so no voice is ever cut off mid-sentence.
+   * A spoken reply has been read out in full — the only moment a turn is charged for, and it is charged
+   * exactly once. What the person is charged for is the answers they really heard: never a turn a voice
+   * took and never answered, never a line that was cut for a language this app does not speak, and never
+   * an answer the person ended the call in the middle of. A call that produces no reply costs nothing.
+   */
+  const onSpoke = useCallback(
+    (blocked) => {
+      if (blocked !== true && callingRef.current) chargeRef.current?.();
+      dueHandoff();
+    },
+    [dueHandoff]
+  );
+
+  /**
+   * One answer has been given, so it is counted against this voice's own turn. The charge does not follow
+   * it: an answer that has only begun is not an answer the person has heard. The voice keeps the call
+   * until its own number of answers has been read out; the last of them only asks for the change, and the
+   * change is sent by that answer's own end, so no voice is ever cut off mid-sentence.
    */
   const onAnswered = useCallback(() => {
-    chargeRef.current?.();
     // a change is already under way, or the call is paused on one: an answer counted here would
     // belong to the voice standing down instead of the one taking the call, whose count starts at
     // nothing
@@ -209,7 +223,7 @@ export default function useHomeVoice() {
     onTurn,
     onPictures: patchPictures,
     onAnswered,
-    onAnswerEnd: dueHandoff,
+    onAnswerEnd: onSpoke,
     onEnded: () => endedRef.current?.(),
     onMedia,
   });
@@ -222,7 +236,7 @@ export default function useHomeVoice() {
     onTurn,
     onPictures: patchPictures,
     onAnswered,
-    onAnswerEnd: dueHandoff,
+    onAnswerEnd: onSpoke,
     onMedia,
   });
 
@@ -278,13 +292,13 @@ export default function useHomeVoice() {
         label: next.label,
         session: checked?.session,
         onAnswered,
-        onAnswerEnd: dueHandoff,
+        onAnswerEnd: onSpoke,
         onEnded: () => endedRef.current?.(),
         onStuck: (text) => stuckRef.current?.(text) === true,
       });
       return why ? { ok: false, why } : { ok: true, why: "" };
     },
-    [cartesia, talk, onAnswered, dueHandoff, openai]
+    [cartesia, talk, onAnswered, dueHandoff, onSpoke, openai]
   );
 
   /** The call on air, hung up. */

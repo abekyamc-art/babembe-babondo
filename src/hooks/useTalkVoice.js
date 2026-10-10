@@ -88,6 +88,10 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
   picturesRef.current = onPictures;
   // the person's own last turn, so the answer it brings is read against the admin's own pictures
   const lastUserRef = useRef("");
+  // whether the reply being heard right now was cut for a language this app does not speak: such a turn
+  // is reported as one that was not answered, so the app's own line that takes its place is never charged
+  // for as though the person had been answered
+  const blockedRef = useRef(false);
   // where the material looked up for a turn came from, waiting for the answer that stands on it
   const freshSourceRef = useRef(null);
   // the artist's own most watched videos found for a turn, waiting for the answer that names them
@@ -169,6 +173,9 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
       setNotice("");
       lastUserRef.current = said;
       push("user", said);
+      // a fresh turn is its own: whether the turn before it was cut for its language has nothing to do
+      // with the answer coming for this one
+      blockedRef.current = false;
       // The app's own reading of the turn rides with it: the confirmed Kibembe word or phrase the
       // sound belongs to is handed to the voice before it answers, so a sound the ears were unsure
       // of is answered from the app's own word bank and in Kibembe. A correction the person makes
@@ -256,6 +263,9 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
       setNotice("");
       lastUserRef.current = said;
       push("user", said);
+      // a fresh turn is its own: whether the turn before it was cut for its language has nothing to do
+      // with the answer coming for this one
+      blockedRef.current = false;
       // The two lookups this turn needs are made together, never one after the other: what the sound
       // is read to mean and what the question is asked about are independent of each other, and
       // running them in turn is what left an ordinary turn standing on the screen, still working,
@@ -400,10 +410,15 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
     // for that turn, so nothing is counted for it and no change is carried on from it. The app's own
     // line that takes its place is measured like any other.
     if (cut === true) return;
+    // A turn that was cut for its language gave no reply to what the person asked: the app's own line
+    // that took its place is read out and the call moves on from it, but the turn itself is reported as
+    // one that was not answered — and so it is never charged for.
+    const blocked = blockedRef.current;
+    blockedRef.current = false;
     // the voice has drained: one voice turn has been spoken out in full
     noteVoiceTurn();
     // an answer read out in full is reported, so a change it asked for is sent here and now
-    liveSpokeRef.current?.();
+    liveSpokeRef.current?.(blocked);
   }, [backToListening]);
 
   /** An answer is complete and read out: it is counted against the turn this AI is on. */
@@ -415,7 +430,10 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
    * The answer turned into a language this app does not speak and was stopped: the app's own line
    * naming its three languages is what stands on the screen beside it.
    */
-  const handleBlockedSpeech = useCallback(() => setNotice(LANGS_NOTICE), []);
+  const handleBlockedSpeech = useCallback(() => {
+    blockedRef.current = true;
+    setNotice(LANGS_NOTICE);
+  }, []);
 
   /**
    * The call opens here, inside the tap that began it, on the talk AI it was asked for. Returns an

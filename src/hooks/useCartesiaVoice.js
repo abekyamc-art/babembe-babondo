@@ -75,6 +75,10 @@ export default function useCartesiaVoice({
   const lastAgentRef = useRef("");
   // the person's own last turn, so his answer is read against the admin's own pictures
   const lastUserRef = useRef("");
+  // whether the reply being heard right now was cut for a language this app does not speak: such a turn
+  // is reported as one that was not answered, so the app's own line that takes its place is never charged
+  // for as though the person had been answered
+  const blockedRef = useRef(false);
   // the turn he has taken since the last answer he gave: where he never begins answering it, these
   // are the words handed on to the next voice service
   const takenTurnRef = useRef("");
@@ -142,6 +146,9 @@ export default function useCartesiaVoice({
     setNotice("");
     lastUserRef.current = said;
     takenTurnRef.current = said;
+    // a fresh turn is its own: whether the turn before it was cut for its language has nothing to do
+    // with the answer coming for this one
+    blockedRef.current = false;
     turnRef.current?.("user", said);
     // the app's own player answers a turn that asks for media, whichever voice is on the call
     mediaRef.current?.(said);
@@ -261,10 +268,15 @@ export default function useCartesiaVoice({
     // A line stopped for a language this app does not speak is not a voice turn: nothing of what it
     // had said is counted. The app's own line that takes its place is measured like any other.
     if (cut === true) return;
+    // A turn that was cut for its language gave no reply to what the person asked: the app's own line
+    // that took its place is read out and the call moves on from it, but the turn itself is reported as
+    // one that was not answered — and so it is never charged for.
+    const blocked = blockedRef.current;
+    blockedRef.current = false;
     // his voice has drained: one voice turn has been spoken out in full
     noteVoiceTurn();
     // the answer has been read out in full: a change it asked for is sent here and now
-    answerEndRef.current?.();
+    answerEndRef.current?.(blocked);
   }, [backToListening]);
 
   const handleError = useCallback((message) => setError(message), []);
@@ -273,7 +285,10 @@ export default function useCartesiaVoice({
    * The answer turned into a language this app does not speak and was stopped: the app's own line
    * naming its three languages is what stands on the screen beside it.
    */
-  const handleBlockedSpeech = useCallback(() => setNotice(LANGS_NOTICE), []);
+  const handleBlockedSpeech = useCallback(() => {
+    blockedRef.current = true;
+    setNotice(LANGS_NOTICE);
+  }, []);
 
   /**
    * A turn the app's own ears could not read. Nothing else writes it down — the app has one reader

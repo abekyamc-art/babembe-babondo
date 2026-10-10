@@ -44,6 +44,10 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
   const labelRef = useRef(OPENAI_AI);
   // the line AI 1 said last, so a correction on a later turn is read against it
   const lastAgentRef = useRef("");
+  // whether the reply being heard right now was cut for a language this app does not speak: such a
+  // turn is reported as one that was not answered, so the app's own line that takes its place is never
+  // charged for as though the person had been answered
+  const blockedRef = useRef(false);
   // the handler the finished answers of this call are counted through, and the one that carries the
   // change on once the last of them has been read out
   const liveAnsweredRef = useRef(onAnswered);
@@ -118,6 +122,9 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       // the turn stands on the screen exactly as the session wrote it, which is the app's own spelling
       // of the person's words: the reader is pointed at the saved ones before it listens
       push("user", said);
+      // a fresh turn is its own: whether the turn before it was cut for its language has nothing to do
+      // with the answer coming for this one
+      blockedRef.current = false;
       // The app's own knowledge is searched for the turn that has just ended — the whole approved
       // document and the confirmed Word Bank, the same search every voice of the ring is handed — and
       // it is put in front of the seat before the answer is begun, so AI 1 answers from the app's own
@@ -195,10 +202,15 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       // an answer stopped for a language this app does not speak is not a voice turn: nothing was
       // answered for that turn, so nothing is counted for it and no change is carried on from it
       if (cut === true) return;
+      // A turn that was cut for its language gave no reply to what the person asked: the app's own line
+      // that took its place is read out and the call moves on from it, but the turn itself is reported
+      // as one that was not answered — and so it is never charged for.
+      const blocked = blockedRef.current;
+      blockedRef.current = false;
       // the voice has drained: one voice turn has been spoken out in full
       noteVoiceTurn();
       // an answer read out in full is reported, so a change it asked for is sent here and now
-      liveSpokeRef.current?.();
+      liveSpokeRef.current?.(blocked);
     },
     [backToListening]
   );
@@ -208,7 +220,10 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
    * the app's own line naming the three languages, and the screen says the same thing plainly beside it.
    * The line itself reaches the talk as it is spoken, exactly like any other answer.
    */
-  const handleBlockedSpeech = useCallback(() => setNotice(LANGS_NOTICE), []);
+  const handleBlockedSpeech = useCallback(() => {
+    blockedRef.current = true;
+    setNotice(LANGS_NOTICE);
+  }, []);
 
   /** One answer has been given and read out: it is counted against this voice's own turn. */
   const handleAnswered = useCallback(() => liveAnsweredRef.current?.(), []);
