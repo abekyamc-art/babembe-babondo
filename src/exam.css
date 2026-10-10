@@ -668,3 +668,204 @@
     transition: none;
   }
 }
+
+/* Every answer choice is filled with a pure colour of its own — one solid colour per choice, the same
+   three colours in every examination — so a student tells the choices apart at a glance, and the
+   correct answer and the wrong one are laid over that colour rather than replacing it. */
+.exam-option[data-choice="0"] {
+  color: #ffffff;
+  background: #c1440e;
+  border-color: #9b3508;
+}
+
+.exam-option[data-choice="1"] {
+  color: #ffffff;
+  background: #1f6fb2;
+  border-color: #175a92;
+}
+
+.exam-option[data-choice="2"] {
+  color: #ffffff;
+  background: #2e7d4f;
+  border-color: #236b41;
+}
+
+.exam-option[data-choice] .exam-letter {
+  color: #ffffff;
+  background: rgba(255, 255, 255, 0.24);
+}
+
+/* a choice keeps its own pure colour under the thumb, lifted only by a little light */
+.exam-option[data-choice]:hover:not(:disabled) {
+  filter: brightness(1.09);
+}
+
+.exam-option[data-choice="0"]:hover:not(:disabled) {
+  background: #c1440e;
+  border-color: #9b3508;
+}
+
+.exam-option[data-choice="1"]:hover:not(:disabled) {
+  background: #1f6fb2;
+  border-color: #175a92;
+}
+
+.exam-option[data-choice="2"]:hover:not(:disabled) {
+  background: #2e7d4f;
+  border-color: #236b41;
+}
+
+.exam-option[data-choice].is-right {
+  color: #ffffff;
+  background: #0f7a4f;
+  border-color: #0a5637;
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.85);
+}
+
+.exam-option[data-choice].is-wrong {
+  color: #ffffff;
+  background: #b3261e;
+  border-color: #871b15;
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.55);
+}
+
+/* the choice that was the right one, when another was picked: its own colour, ringed in white */
+.exam-option[data-choice].is-shown {
+  box-shadow: inset 0 0 0 3px rgba(255, 255, 255, 0.85);
+}
+
+.exam-option[data-choice].is-dim {
+  opacity: 0.42;
+}
+
+.exam-option[data-choice].is-right .exam-letter,
+.exam-option[data-choice].is-wrong .exam-letter,
+.exam-option[data-choice].is-shown .exam-letter {
+  background: rgba(255, 255, 255, 0.3);
+  color: #ffffff;
+}
+
+/* The paper of levels: what is passed, what is open, and what waits behind a pass. */
+.exam-levels {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exam-levels-note {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: #9ba9c6;
+}
+
+.exam-level {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 13px 14px;
+  color: #f5f6ff;
+  background: #101728;
+  border: 1px solid #26304d;
+  border-radius: 16px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.exam-level:hover:not(:disabled) {
+  background: #16203a;
+  border-color: #3d5686;
+}
+
+.exam-level:disabled {
+  cursor: default;
+}
+
+.exam-level:focus-visible {
+  outline: 2px solid #6ba8ff;
+  outline-offset: 3px;
+}
+
+.exam-level-no {
+  flex: none;
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  color: #ffffff;
+  background: #1f6fb2;
+  border-radius: 50%;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.exam-level.is-passed .exam-level-no {
+  background: #0f7a4f;
+}
+
+.exam-level.is-locked {
+  opacity: 0.62;
+}
+
+.exam-level.is-locked .exam-level-no {
+  background: #26304d;
+  color: #9ba9c6;
+}
+
+.exam-level-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.exam-level-title {
+  font-size: 15px;
+  font-weight: 750;
+  letter-spacing: -0.2px;
+}
+
+.exam-level-blurb {
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #9ba9c6;
+}
+
+.exam-level-tag {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: #8ebaff;
+}
+
+.exam-level.is-passed .exam-level-tag {
+  color: #8ff0c8;
+}
+
+.exam-level.is-locked .exam-level-tag {
+  color: #9ba9c6;
+}
+
+.exam-level-mark {
+  flex: none;
+  font-size: 12.5px;
+  font-weight: 800;
+  color: #8ff0c8;
+}
+
+.exam-report-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exam-report-actions .exam-ghost {
+  width: 100%;
+  text-align: center;
+}

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from "react";
-import { X } from "lucide-react";
 import { reportOf, scoreOf } from "@/lib/examSession";
+import ExamHeader from "./ExamHeader";
 import ExamProgress from "./ExamProgress";
 import ExamQuestionCard from "./ExamQuestionCard";
 import ExamResults from "./ExamResults";
@@ -58,22 +58,14 @@ export default function ExamShell({ open, onClose, exam }) {
     <div className="exam-shell" role="dialog" aria-modal="true" aria-label={exam.ariaLabel}>
       <div className="exam-scroll">
         <div className="exam-inner">
-          <header className="exam-head">
-            <div>
-              <p className="exam-title">{exam.title}</p>
-              <p className="exam-sub">{exam.subtitle}</p>
-              <p className="exam-system">{exam.system}</p>
-              <p className="exam-credit">{exam.credit}</p>
-            </div>
-            <button
-              type="button"
-              className="exam-close"
-              onClick={onClose}
-              aria-label={exam.closeLabel}
-            >
-              <X className="h-4 w-4" />
-            </button>
-          </header>
+          <ExamHeader
+            title={exam.title}
+            subtitle={exam.subtitle}
+            system={exam.system}
+            credit={exam.credit}
+            closeLabel={exam.closeLabel}
+            onClose={onClose}
+          />
 
           {finished ? (
             <ExamResults report={reportOf(state)} onRestart={() => setState(exam.start())} />

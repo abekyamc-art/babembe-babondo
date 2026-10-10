@@ -1,5 +1,5 @@
 import React from "react";
-import { RotateCcw } from "lucide-react";
+import { ArrowRight, RotateCcw } from "lucide-react";
 
 // the band a finished examination stands in, written out so the colour is never guessed at
 const TONE = { top: "is-top", good: "is-good", mid: "is-mid", low: "is-low" };
@@ -9,7 +9,15 @@ const TONE = { top: "is-top", good: "is-good", mid: "is-mid", low: "is-low" };
  * band it falls in, every question that was answered wrongly with the confirmed answer beside it,
  * the vocabulary to take away, and the way to begin again.
  */
-export default function ExamResults({ report, onRestart }) {
+export default function ExamResults({
+  report,
+  onRestart,
+  restartLabel = "Restart Examination",
+  onNext,
+  nextLabel = "",
+  onLevels,
+  note = "",
+}) {
   return (
     <div className="exam-report">
       <div className="exam-verdict-card">
@@ -21,6 +29,7 @@ export default function ExamResults({ report, onRestart }) {
         <p className="exam-outcome">
           You answered {report.right} of {report.total} questions correctly.
         </p>
+        {note ? <p className="exam-outcome">{note}</p> : null}
       </div>
 
       <div className="exam-tally">
@@ -70,9 +79,27 @@ export default function ExamResults({ report, onRestart }) {
         )}
       </section>
 
-      <button type="button" className="exam-next is-go" onClick={onRestart}>
-        <RotateCcw className="h-4 w-4" /> Restart Examination
-      </button>
+      <div className="exam-report-actions">
+        {onNext ? (
+          <button type="button" className="exam-next is-go" onClick={onNext}>
+            {nextLabel} <ArrowRight className="h-4 w-4" />
+          </button>
+        ) : null}
+
+        <button
+          type="button"
+          className={`exam-next ${onNext ? "" : "is-go"}`}
+          onClick={onRestart}
+        >
+          <RotateCcw className="h-4 w-4" /> {restartLabel}
+        </button>
+
+        {onLevels ? (
+          <button type="button" className="exam-ghost" onClick={onLevels}>
+            Choose another level
+          </button>
+        ) : null}
+      </div>
     </div>
   );
 }

@@ -47,6 +47,7 @@ export default function ExamQuestionCard({
           <ExamOption
             key={`${question.id}:${choice}`}
             letter={LETTERS[choice]}
+            choice={choice}
             text={text}
             look={lookOf(choice, question, mark)}
             disabled={!!mark}
