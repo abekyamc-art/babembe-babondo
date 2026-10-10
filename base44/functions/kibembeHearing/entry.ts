@@ -4,7 +4,7 @@ import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.t
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { retrieveKnowledge } from "../../shared/knowledgeRetrieval.ts";
 import { pronunciationBlock, recordedEvidence } from "../../shared/pronunciation.ts";
-import { engineAsksOf } from "../../shared/phraseEngine.ts";
+import { engineAsksOf, engineReply } from "../../shared/phraseEngine.ts";
 import { isRepeatAsk, repeatNote } from "../../shared/repeatAsk.ts";
 import {
   FIX_SCHEMA,
@@ -41,6 +41,8 @@ function isRealTurn(text: string): boolean {
 const MAX_SAID = 400;
 const MAX_AGENT = 400;
 const PATTERNS = 300;
+// the longest a reply the app holds itself may be: one line of talk, and no more
+const MAX_SAY = 400;
 // how much of the confirmed word bank rides into a call as it opens: the whole bank where it fits,
 // and the words the call can carry where it does not
 const WORDS_BUDGET = 6000;
@@ -113,6 +115,25 @@ async function patternRows(base44: any): Promise<any[]> {
 // list every reader of the knowledge is pointed at, so a way of saying a word that the person
 // confirms here, or that one of their own recordings was approved as, is heard by every one of them
 // and can never drift apart from the word it belongs to.
+
+/**
+ * The reply the app itself holds for one turn, when it holds one.
+ *
+ * Where the turn is one of the admin's own asks, one of the replies saved for that ask is chosen here,
+ * by the app, and handed over whole — so the reply that comes back is the engine's own form rather than
+ * a sentence written for the turn. Where the turn is a saved question with its own answer, that answer
+ * is the reply. Nothing is held for a turn the app holds no reply for: an ordinary turn is answered by
+ * the voice itself out of the confirmed words, which is what the rules it carries are for.
+ *
+ * A turn being answered in Kiswahili or English is never forced to a Kibembe line: there the reply's
+ * own meaning is what the answer says in the language the person used, as the reading already tells it.
+ */
+function replyFor(reading: any, lastAgent: string, lang: string): string {
+  if (!reading || lang !== "kibembe") return "";
+  if (reading.kind === "engine" && reading.ask) return engineReply(reading.ask, lastAgent);
+  if (reading.kind === "pattern") return clean(reading.answer, MAX_SAY);
+  return "";
+}
 
 /** The saved word or phrase a confirmed form belongs to, or nothing when the app holds no such word. */
 function place(words: any[], term: string, canonical: string) {
@@ -306,6 +327,10 @@ export default async function (req: Request): Promise<Response> {
     if (isRepeatAsk(said)) {
       return Response.json({
         note: repeatNote(said, lastAgent),
+        // the line the ask is asking for is the app's own, and it goes back whole: the voice is told to
+        // say that very line again and nothing else, so it is never re-worded, never shortened and
+        // never turned into a lesson
+        say: clean(lastAgent, MAX_SAY),
         // an ask is not a word and not a phrase: there is no reading to be sure or unsure of
         matched: null,
         sure: true,
@@ -315,25 +340,25 @@ export default async function (req: Request): Promise<Response> {
     }
 
     // The reading is made from the app's own knowledge, which is admin-held: the whole bank is read
-    // here because only the app can, and only the reading of this person's own turn goes back.
-    // The admin's own engine of asks and replies is read with them, out of the very same document:
-    // what the person said may be one of its asks, and that ask's own replies are then the reply —
-    // given exactly as the engine writes it, rather than a sentence written for the turn.
-    const [words, patterns, engine] = await Promise.all([
-      bankRows(base44),
+    // here because only the app can, and only the reading of this person's own turn goes back. The
+    // admin's own engine of asks and replies is read with them, out of the very same document: what
+    // the person said may be one of its asks, and that ask's own replies are then the reply — given
+    // exactly as the engine writes it, rather than a sentence written for the turn.
+    //
+    // All four reads are made together, never one after the other: the search over the whole approved
+    // document reads the very same word list that is being read here, so that read is handed to it as
+    // it is still running rather than made a second time. What rides back is the few parts of the
+    // document this turn reaches, nearest first — the same search every voice of a call is handed — and
+    // a turn that reaches nothing is told so plainly rather than answered from a guess.
+    const wordsRead = bankRows(base44);
+    const [words, patterns, engine, known] = await Promise.all([
+      wordsRead,
       patternRows(base44),
       engineAsksOf(base44).catch(() => []),
+      retrieveKnowledge(base44, said, KNOWLEDGE_ROOM, wordsRead)
+        .then((found) => found.block)
+        .catch(() => ""),
     ]);
-
-    // The turn is searched for in the whole of the admin's approved document and in the confirmed
-    // Word Bank — the same search every voice of a call is handed — and only the few parts it reaches
-    // ride back with the reading. The words already read above are the very same list this search
-    // reads, so they are handed over rather than read again. A word said in the person's own way
-    // still finds the line that holds it, and a turn that reaches nothing is told so plainly rather
-    // than answered from a guess.
-    const known = await retrieveKnowledge(base44, said, KNOWLEDGE_ROOM, words)
-      .then((found) => found.block)
-      .catch(() => "");
 
     const reading = readTurn(said, words, patterns, engine);
     const note = reading ? turnNote(said, reading) : "";
@@ -352,6 +377,12 @@ export default async function (req: Request): Promise<Response> {
     // nothing has to be confirmed and no turn is answered in the language they have just left.
     const asked = langAsked(said);
     const lang = asked || mode;
+    // The reply the app holds itself, when it holds one. It goes to the voice as the whole answer, so
+    // the reply is said exactly as the app's own words — never started well and then carried on in a
+    // language nobody here speaks. A turn putting something right is never forced to a saved line, and
+    // neither is a turn being answered in Kiswahili or English.
+    const say =
+      put || confirming || looksLikeFix(said) ? "" : replyFor(reading, lastAgent, lang);
     const languageLine = asked
       ? `${langLine(lang)}\nThe person has just plainly asked for ${langName(asked)}. Answer in it from this very word on, and keep answering in it until they ask for another language.\n`
       : "";
@@ -367,6 +398,8 @@ export default async function (req: Request): Promise<Response> {
 
     return Response.json({
       note: `${note}${languageLine}${known}`,
+      // the one line the app holds for this turn, or nothing at all when it holds none
+      say,
       matched: reading,
       sure,
       saved,

@@ -33,6 +33,32 @@ function stageError(stage, message) {
   return err;
 }
 
+/**
+ * The order that makes one line of the app's own the whole reply: said exactly as it stands, in the
+ * language it is written in, and nothing said on top of it. It rides in with the turn, so the seat
+ * reads it before it answers.
+ */
+function fixedLine(line) {
+  return (
+    "THE APP HOLDS THIS REPLY ITSELF — IT IS THE WHOLE ANSWER\n" +
+    `The reply, word for word: "${line}"\n` +
+    "- Say that line exactly as it stands, in the language it is written in, and then stop. Add nothing to it and leave nothing out of it: no greeting, no second sentence, no translation, no meaning in another language, no syllable reading, and no explanation of it.\n"
+  );
+}
+
+/**
+ * The same order as the response's own instructions. It is read in place of everything the session
+ * carries, so the seat is given no rule to weigh that line against and nothing of its own to add — which
+ * is what keeps a saved reply the app's own words rather than a line started well and then carried on
+ * in a language nobody here speaks.
+ */
+function onlyLine(line) {
+  return (
+    "Say exactly and only this line, word for word, and then stop. Add nothing to it and leave nothing out of it — no greeting, no second sentence, no translation, no explanation:\n" +
+    line
+  );
+}
+
 export default class OpenAiTalkCall {
   constructor(handlers = {}) {
     this.h = handlers;
@@ -55,6 +81,9 @@ export default class OpenAiTalkCall {
     // wait. The service never answers on its own here: the answer is created by the app.
     this.pendingText = "";
     this.gateTimer = null;
+    // the line the app is making the seat say, when a reply it holds itself is being spoken: set as
+    // that answer is asked for, and emptied the moment the answer begins or the order is refused
+    this.forced = "";
   }
 
   /** Whether the session is up and the connection carrying it is really open. */
@@ -268,6 +297,8 @@ export default class OpenAiTalkCall {
       // the seat is working out its answer: the sound of it has not begun yet
       case "response.created":
         this.voiceHeard = false;
+        // the order was taken, so there is nothing left to fall back on
+        this.forced = "";
         this.h.onThinking?.(true);
         return;
 
@@ -305,6 +336,14 @@ export default class OpenAiTalkCall {
       }
 
       case "error":
+        // A reply the app fixed to one line can be refused by a service that does not take a
+        // response's own instructions. The turn is never left unanswered for it: the app's knowledge
+        // for that turn is already in front of the seat, so a plain answer is asked for instead.
+        if (this.forced) {
+          this.forced = "";
+          this.send({ type: "response.create" });
+          return;
+        }
         this.h.onError?.(
           String(msg.error?.message || "").slice(0, 160) || "AI 1's voice session reported an error."
         );
@@ -330,22 +369,35 @@ export default class OpenAiTalkCall {
    * The app's own knowledge for the turn that just ended, put in front of the seat before its answer
    * begins. A turn that has already been left behind — the person has said something else since —
    * changes nothing here.
+   *
+   * Where the app holds the reply itself — a saved ask with the replies saved for it, a saved question
+   * with its own answer, or the line a "what did you say?" is asking for — that line is handed over as
+   * the reply, and the answer is made to say it and nothing else. The seat is given no room to write a
+   * sentence of its own around it, which is what keeps the reply the app's own words word for word.
    */
-  answer(note = "", text = null) {
+  answer(note = "", text = null, say = "") {
     const pending = this.pendingText;
     if (this.stopped || !pending) return;
     if (text !== null && String(text) !== pending) return;
     this.pendingText = "";
     clearTimeout(this.gateTimer);
     this.gateTimer = null;
-    const said = String(note || "").trim();
+    const line = String(say || "").trim();
+    this.forced = line;
+    const said = [String(note || "").trim(), line ? fixedLine(line) : ""].filter(Boolean).join("\n\n");
     if (said) {
       this.send({
         type: "conversation.item.create",
         item: { type: "message", role: "system", content: [{ type: "input_text", text: said }] },
       });
     }
-    this.send({ type: "response.create" });
+    // the reply is fixed: this response carries only that order, so there is nothing of the seat's own
+    // to add to it and nothing to weigh it against
+    this.send(
+      line
+        ? { type: "response.create", response: { instructions: onlyLine(line) } }
+        : { type: "response.create" }
+    );
   }
 
   /**
@@ -386,6 +438,7 @@ export default class OpenAiTalkCall {
     clearTimeout(this.gateTimer);
     this.gateTimer = null;
     this.pendingText = "";
+    this.forced = "";
 
     if (this.dc) {
       try {

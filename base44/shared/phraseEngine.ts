@@ -272,6 +272,24 @@ export function engineFor(rows: EngineAsk[], said: any): EngineAsk | null {
 }
 
 /**
+ * The one reply the app itself gives for an ask: chosen here, out of the replies the engine saves for
+ * that ask, and handed over whole.
+ *
+ * The choice is the app's own and not the model's: a reply the voice has just given is passed over, so
+ * the same ask asked again in one call is given another of its own replies, and where only one is saved
+ * that one stands again. What goes back is the engine's own form, exactly as it is written — the same
+ * words and the same spelling — and it is the whole answer: nothing is built around it and nothing is
+ * replaced.
+ */
+export function engineReply(ask: EngineAsk, lastSaid: any = ""): string {
+  const replies = ask?.replies || [];
+  if (!replies.length) return "";
+  const last = wordsOf(lastSaid).join(" ");
+  const fresh = last ? replies.find((one) => wordsOf(one.term).join(" ") !== last) : null;
+  return clean((fresh || replies[0]).term, MAX_TERM);
+}
+
+/**
  * The ask of one turn as the voice or the written answer is told: what was said, which ask it is, and
  * the replies the engine saves for it — one of which is the reply, given exactly as it stands.
  */

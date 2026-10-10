@@ -5,6 +5,7 @@ import { primedAudio, primeAudio, resumeAudioOnTouch } from "@/lib/audioUnlock";
 import { claimMic, micMessage, primeMic } from "@/lib/micAccess";
 import { readHeardTurn } from "@/lib/homeHearing";
 import { noteVoiceTurn } from "@/lib/kpiEvents";
+import { answerNow, heardNow, knowledgeNow } from "@/lib/voiceTiming";
 import { OPENAI_AI } from "@/lib/providerNames";
 
 /**
@@ -124,8 +125,15 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       // knowledge rather than from its own memory. A search that finds nothing, or that cannot be
       // made at all, never leaves the person unanswered: the seat answers on its own with what it has.
       if (activeRef.current) setStatus("thinking");
-      readHeardTurn(said, lastAgentRef.current).then(({ note }) => {
-        callRef.current?.answer?.(note || "", said);
+      // the turn is measured from here: what follows is the app's own knowledge for it, and then the
+      // answer itself beginning to be heard
+      heardNow();
+      readHeardTurn(said, lastAgentRef.current).then(({ note, say }) => {
+        knowledgeNow();
+        // The reply the app holds itself rides with the turn and is the whole answer, so a saved reply
+        // is heard exactly as the app's own words instead of a sentence written fresh by the seat — and
+        // a turn the app holds no reply for carries an empty line and is answered as it always was.
+        callRef.current?.answer?.(note || "", said, say || "");
       });
     },
     [push]
@@ -159,6 +167,9 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
     if (!activeRef.current) return;
     speakingRef.current = true;
     setStatus("speaking");
+    // the person's turn has been heard, the app's knowledge for it has come back and the answer is
+    // being heard: the whole turn is measured here, and the measuring is done
+    answerNow();
   }, []);
 
   /** The voice has drained: the call listens again, and the answer ends for whoever counts them. */

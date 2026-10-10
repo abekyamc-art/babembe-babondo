@@ -31,15 +31,21 @@ export async function openHearingNote() {
 
 /**
  * The reading of one heard turn, as the voice answering it is told: the note that rides into the call
- * with the turn, whether the app's own knowledge holds anything of it, and the language that stands
- * from this turn on. A turn the knowledge holds nothing of comes back `sure: false` — it is answered
- * on the voice's own account like any other, and the turn is never held waiting on the person's word.
+ * with the turn, the one line the app itself holds for that turn, whether the app's own knowledge holds
+ * anything of it, and the language that stands from this turn on. A turn the knowledge holds nothing of
+ * comes back `sure: false` — it is answered on the voice's own account like any other, and the turn is
+ * never held waiting on the person's word.
+ *
+ * `say` is the reply the app holds itself, and it is empty for an ordinary turn: a saved ask with its
+ * own replies, a saved question with its own answer, or the line a "what did you say?" is asking for.
+ * Where one comes back, the voice is given it as the whole answer, so the reply that is heard is the
+ * app's own words word for word rather than a sentence written fresh for the turn.
  *
  * A reading that cannot be made is never a reason to hold a call up: it comes back sure, with no note.
  */
 export async function readHeardTurn(text, lastAgent = "") {
   const said = String(text || "").trim();
-  if (!said) return { note: "", sure: true, mode: "" };
+  if (!said) return { note: "", say: "", sure: true, mode: "" };
   try {
     const res = await base44.functions.invoke("kibembeHearing", {
       text: said,
@@ -48,13 +54,15 @@ export async function readHeardTurn(text, lastAgent = "") {
     });
     return {
       note: String(res?.data?.note || ""),
+      // the reply the app itself holds for this turn, or nothing when it holds none
+      say: String(res?.data?.say || ""),
       // only a plain no is a no: an older reading that says nothing about it is taken as sure
       sure: res?.data?.sure !== false,
       // the language that stands from this turn on, when the person has just asked for another one
       mode: String(res?.data?.mode || ""),
     };
   } catch (err) {
-    return { note: "", sure: true, mode: "" };
+    return { note: "", say: "", sure: true, mode: "" };
   }
 }
 

@@ -176,7 +176,7 @@ export function turnNote(heard: string, reading: any): string {
       "HOW TO HEAR THIS TURN\n" +
       `One turn was just said: "${said}"\n` +
       `It is the saved Kibembe phrase "${reading.term}", and the answer saved for it is: "${reading.answer}"\n` +
-      "Give that answer, in Kibembe, in your own voice — in fresh words, never the same sentence you have already used in this call.\n"
+      "That saved answer is the whole reply, given exactly as it stands: the same words and the same spelling, nothing added to it and nothing left out of it, never re-worded and never replaced by another form.\n"
     );
   }
 

@@ -154,7 +154,10 @@ export async function retrieveKnowledge(
   // read, so a live call does not pay for the same read on every turn
   const text = await publishedDoc(base44);
   const stamp = await docStamp(base44);
-  const bank = already && already.length ? already : await bankRows(base44).catch(() => []);
+  // The list may be handed over as it was read, or as the read that is still running: either way the
+  // very same words are used, and the read is never made twice.
+  const given = already ? await already : null;
+  const bank = given && given.length ? given : await bankRows(base44).catch(() => []);
 
   const doc = String(text || "").trim();
   const rows = Array.isArray(bank) ? bank : bank?.items || [];
