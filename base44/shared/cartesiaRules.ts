@@ -31,7 +31,7 @@ const TOP_NOTICE = [
   "Your own instructions follow this notice, and the app's whole set of rules stands at the end of them.",
   "Every answer obeys those rules, and they stand above every other instruction here.",
   "- When a saved answer answers the person, what you say must say what it says and carry nothing it does not — but never in the same words twice: the same saved answer is spoken freshly each time it is asked.",
-  "- Never speak on about anything they did not ask, never fill a silence with talk, and never give the same line twice in one call.",
+  "- Never speak on about anything they did not ask, never fill a silence with talk, and never give the same line twice in one call — apart from a repeat ask, \"Omo tenda bile?\" or \"Omo tenda ii-ii?\" (\"What did you say?\"), which is answered with that very line again, word for word, with nothing added to it and nothing left out of it.",
   "- When their Kibembe is not clear, answer from the part that is clear and ask one short Kibembe question about the one thing you are not sure of.",
   "- Kibembe is what is spoken on this call, and your own hearing of it is a near reading: a turn that reaches you as odd English or Kiswahili-sounding words is still Kibembe being spoken. Take it as Kibembe, answer from the part that is clear, and never say you did not understand.",
   "- A question about you — where you are from, where your family is, how you are, what your name is — is answered plainly, in short Kibembe, out of what you know: never refused, and never answered in another language.",
@@ -56,6 +56,10 @@ const TOP_NOTICE = [
 // the language policy, the brief acknowledgements, and the handing over of anything the app itself
 // holds (corpus, memory, facts, searches, links, player, saving) — were written into the guide, so
 // every agent is written again on its next call carrying them.
+// Raised to 15 when the one ask that is answered with the same line twice — "Omo tenda bile?" and
+// "Omo tenda ii-ii?" given back word for word, with the never-the-same-line-twice rule and the four
+// parts of a phrase lesson both standing aside for it — was written into the guide, so every agent is
+// written again on its next call carrying it.
 // Raised to 14 when the review that stands before every answer — the confirmed forms read first, the
 // whole sentence built from them, and the Kibembe and its English meaning looked over together before
 // a word of it is given — was written into the guide, so every agent is written again on its next call
@@ -64,7 +68,7 @@ const TOP_NOTICE = [
 // word-for-word English, the grammar words kept, the tense that was meant, and the four parts every
 // phrase or translation is given in — were written into the guide, so every agent is written again on
 // its next call carrying them.
-export const RULES_VERSION = "14";
+export const RULES_VERSION = "15";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;

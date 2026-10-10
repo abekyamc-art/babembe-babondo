@@ -549,6 +549,12 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
         // standing in the player waiting for the person's own press.
         const media = mediaRef.current ? await mediaRef.current(said) : null;
         if (media?.spoken) live.sendMemory(media.spoken);
+        // The call's own last line is handed over with a written turn exactly as it is with a spoken
+        // one, so a person asking for that line again — "omo tenda bile?" — is given that very line
+        // back rather than a fresh answer written for the ask.
+        const read = await readHeardTurn(said, lastAgentRef.current);
+        if (read.mode) saveLangMode(read.mode);
+        if (read.note) live.sendMemory(read.note);
         live.sendText(said);
         return;
       }
@@ -560,6 +566,9 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
         const res = await base44.functions.invoke("chatWithKibembeAssistant", {
           message: said,
           asked: askedRef.current,
+          // the call's own last line rides with a written turn, so the person asking for it again is
+          // given that very line back rather than a new answer written for the ask
+          lastAgent: lastAgentRef.current,
         });
         const data = res?.data || {};
         if (data.error) {

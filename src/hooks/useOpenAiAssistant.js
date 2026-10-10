@@ -46,6 +46,9 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
   const rafRef = useRef(0);
   // the answer is always charged through the handler as the allowance stands right now
   const answeredRef = useRef(null);
+  // the app's own last answer, kept so a person asking for it again is given that very line back
+  // rather than a new answer written for the ask
+  const lastAgentRef = useRef("");
   // the several different people or artists the app put before the person, waiting on their answer:
   // they stand on the answer that asks which one is meant, and ride back in with their own turn, so
   // the one they chose is the one that is looked up
@@ -77,6 +80,8 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
         choices: choices || [],
       },
     ]);
+    // the answer just given is kept here as well, so the person asking for it again gets that line
+    if (role === "assistant") lastAgentRef.current = text;
     turnRef.current?.(role, text);
   }, []);
 
@@ -98,6 +103,9 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
         const res = await base44.functions.invoke("chatWithKibembeAssistant", {
           message: line,
           asked: askedRef.current,
+          // the app's own last answer rides with the turn, so a person asking for it again is given
+          // that very line back
+          lastAgent: lastAgentRef.current,
         });
         const data = res?.data || {};
         if (data.error) {
@@ -112,11 +120,12 @@ export default function useOpenAiAssistant({ onTurn, onMisheard } = {}) {
         // this answer for the person to choose between, and ride back in with the turn that chooses
         const choices = Array.isArray(data.candidates) ? data.candidates : [];
         askedRef.current = choices.length >= 2 ? choices : [];
-        // Sadiki AI reads the answer before the person is given it, and what stands is what he hands
-        // back; where he could not be asked at all, the answer the assistant wrote stands instead
-        const reviewed = await reviewAnswer(line, draft);
+        // A line the person asked to hear again — "Omo tenda bile?" — is their own last answer coming
+        // straight back: it is not put to the reviewer at all, since a second reading is the very thing
+        // that would re-word it. Every other answer is read before it is given, as it always was.
+        const reviewed = data.repeated ? draft : await reviewAnswer(line, draft);
         const reply = reviewed || draft;
-        if (!reviewed) setNotice(REVIEW_MISSED);
+        if (!reviewed && !data.repeated) setNotice(REVIEW_MISSED);
         pushTurn("assistant", reply, pictures, data.source || null, choices);
         // the answer has been given, so it is counted against the allowance
         answeredRef.current?.();

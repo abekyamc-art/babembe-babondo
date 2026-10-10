@@ -9,6 +9,7 @@ import { storyCatalogueBlock } from "../../shared/storyCatalogue.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
 import { turnPictures } from "../../shared/answerPictures.ts";
+import { isRepeatAsk } from "../../shared/repeatAsk.ts";
 import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
@@ -19,6 +20,11 @@ import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
 // named and its address written out — rather than for a line of it.
 const MODEL = 'gpt-4.1-mini';
 const MAX_MESSAGE = 2000;
+// the app's own last answer, sent back with a turn where the screen holding it has one
+const MAX_LAST = 1200;
+// a repeat ask with nothing yet said: the app asks quietly for the turn again rather than inventing a
+// line nobody gave, and no answer is written for the ask at all
+const REPEAT_NONE = "Sema tena, nakusikiliza.";
 const MAX_REPLY_TOKENS = 900;
 
 // How much of the app's own saved knowledge rides with one turn: the rule book the admin keeps in
@@ -115,6 +121,23 @@ export default async function (req) {
     // artists that came back under names that look alike — sent back with their answer, so this turn
     // is read as the choice it is.
     const asked = candidateList(body?.asked);
+    // The app's own last answer, sent back with the turn where the screen holding it has one: it is
+    // what a repeat ask gives back, word for word, and it is never guessed at.
+    const lastAgent = String(body?.lastAgent || '').trim().slice(0, MAX_LAST);
+
+    // The person has asked for their own last answer again — "Omo tenda bile?". That answer is already
+    // in the app's own hand — the screen holds the line it gave them — so the same line goes back
+    // exactly as it stands, and no answer is written for the ask at all. Nothing of it can then be
+    // re-worded, shortened, translated or turned into a lesson. Where no line is held, nothing is
+    // invented: the turn is answered as any other, with the ask laid out in front of the answer.
+    const repeating = isRepeatAsk(message);
+    if (repeating) {
+      // The line the app holds, where it holds one. Where it holds none — the very first turn of a
+      // conversation — nothing is invented to fill the place: the app's own quiet line asks for the
+      // turn again. Either way no answer is written for the ask, so nothing of it can be re-worded,
+      // translated or turned into a lesson.
+      return Response.json({ reply: lastAgent || REPEAT_NONE, repeated: true });
+    }
 
     // The key and the Word Bank live only in Secrets, and are read here on the server: neither is
     // ever sent to the app, and a missing one is said plainly rather than guessed at.

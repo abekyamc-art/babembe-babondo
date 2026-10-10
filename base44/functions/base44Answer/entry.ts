@@ -11,6 +11,7 @@ import { lookupForTurn, lookupSource } from "../../shared/freshLookup.ts";
 import { withoutCues } from "../../shared/cues.ts";
 import { ANSWER_LANGUAGE, SOURCE_RULES } from "../../shared/languageRules.ts";
 import { KIBEMBE_GUIDE } from "../../shared/kibembeGuide.ts";
+import { isRepeatAsk, lastOwnLine } from "../../shared/repeatAsk.ts";
 import { correctEbembe, earsKnowledge, writeDown } from "../../shared/openAiEars.ts";
 
 /**
@@ -100,7 +101,7 @@ const HOW = [
   "Never write a stage direction or an emotion cue between brackets — [curious], [laughs], (softly) — in any part: they are not words a person reads or hears.",
   "Never say that you do not know, and never say that something is not in the knowledge. When they ask about a person, a place, an event or a thing that the knowledge below does not answer, say briefly that you are looking it up, and answer from the material that comes back: who or what it is, where it is from, and what is known about it — naming where it came from, and saying plainly when it is not confirmed.",
   SOURCE_RULES,
-  "Never repeat a line you have already given in this conversation: say something new.",
+  "Never repeat a line you have already given in this conversation: say something new — apart from a repeat ask (\"Omo tenda bile?\" or \"Omo tenda ii-ii?\"), where that very line is given again, word for word, in every part.",
 ].join("\n");
 
 // The admin's own rule book rides ahead of every other kind of knowledge: how Kibembe is read,
@@ -364,6 +365,20 @@ export default async function (req: Request): Promise<Response> {
     const memory = textOf(payload?.memory, MAX_MEMORY);
     const history = textOf(payload?.history, MAX_HISTORY);
 
+    // The person has asked for their own last answer again — "Omo tenda bile?". His own last line is
+    // read off the talk so far and given back: the same Kibembe words, word for word, in every part of
+    // this answer, with nothing added to it and nothing left out of it. Where no line of his own
+    // stands — the very first turn of a call — nothing is invented to fill the place: the app's own
+    // quiet line asks for the turn again, exactly as it does for a turn nothing could be made of.
+    const repeating = isRepeatAsk(asked);
+    const own = repeating ? lastOwnLine(history) : "";
+    if (repeating && !own) {
+      return Response.json({ answer: REASK, say: REASK });
+    }
+    const repeat = repeating
+      ? `The person has just asked you to say that again — "Omo tenda bile?" means "What did you say?". Your own last line was, word for word: "${own}". That line is what they are given back: the Kibembe part is that line word for word, unchanged, and every other part says exactly what it says, with nothing added to it and nothing left out of it. Never write a new sentence, never explain what you said, and never answer it in other words. The rule that a line already given is never given again does not stand here: this is that same line being asked for.`
+      : "";
+
     const prompt = [
       ROLE,
       KIBEMBE_GUIDE,
@@ -377,6 +392,7 @@ export default async function (req: Request): Promise<Response> {
       lookup.material,
       memory ? KNOWLEDGE_HEAD + "\n" + memory : "",
       history ? "The talk so far, oldest first:\n" + history : "",
+      repeat,
       "What they just said: " + asked,
     ]
       .filter(Boolean)

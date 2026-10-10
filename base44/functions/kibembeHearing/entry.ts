@@ -4,6 +4,7 @@ import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.t
 import { docWholeBlock } from "../../shared/knowledgeDoc.ts";
 import { retrieveKnowledge } from "../../shared/knowledgeRetrieval.ts";
 import { pronunciationBlock, recordedEvidence } from "../../shared/pronunciation.ts";
+import { isRepeatAsk, repeatNote } from "../../shared/repeatAsk.ts";
 import {
   FIX_SCHEMA,
   SAYS_SCHEMA,
@@ -291,6 +292,21 @@ export default async function (req: Request): Promise<Response> {
         )}${doc}`,
         matched: null,
         // nothing has been said yet: there is no reading to be sure or unsure of
+        sure: true,
+        saved: "",
+        mode,
+      });
+    }
+
+    // The person has asked for their own last answer again — "Omo tenda bile?". That line is already in
+    // the app's own hand: it is the line the app itself put before them, sent back with this turn. It
+    // goes back whole, to be said again word for word, and no reading is made of the ask at all — so
+    // nothing of it can be turned into a lesson, a translation or a new answer written for the ask.
+    if (isRepeatAsk(said)) {
+      return Response.json({
+        note: repeatNote(said, lastAgent),
+        // an ask is not a word and not a phrase: there is no reading to be sure or unsure of
+        matched: null,
         sure: true,
         saved: "",
         mode,

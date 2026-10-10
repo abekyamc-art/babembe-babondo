@@ -51,6 +51,7 @@ const FOUR_PARTS = [
   "4. Briefly, where the words begin and end — the final vowel is never swallowed.",
   "- English is read in natural American English.",
   "- On a spoken call the same order holds: what is answered is the whole phrase, said out loud as it is written here, and never a broken run of words.",
+  '- This order belongs to a phrase or a translation that was asked for, and to nothing else: an ordinary turn is answered plainly, and a line the person has asked to hear again — "Omo tenda bile?", "Omo tenda ii-ii?" — is given again exactly as it was, with none of these four parts.',
 ].join("\n");
 
 /** The rule as every AI of the app reads it. */
