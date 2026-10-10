@@ -97,11 +97,13 @@ const ACCOUNTS: {
 // written down the same way. The app's own ears are the ones that write every turn down, so the
 // language the voice answers in is left alone completely: the one the admin gave his agent stands.
 
-// How much of the admin's one knowledge document rides onto a voice agent. The document is far larger
-// than any voice can carry, so the agent is given the app's own rules whole, its guide, the admin's
-// saved answers, their notes and their confirmed words, and as much of the document as is left of the
-// room — never a part of it passed off as the whole of it.
-const AGENT_DOC_ROOM = 6000;
+// How much of the admin's one document — the app's own master language engine — rides onto a voice
+// agent. The engine is far larger than any voice can carry, so the agent is given the app's own rules
+// whole, its guide, the admin's saved answers, their notes and their confirmed words, and the engine
+// is offered the whole of what is left of the agent's room, spread over every part of it rather than
+// one slab from its front. The block itself decides what stays and says plainly which part gave way,
+// so a part of the engine is never passed off as the whole of it.
+const AGENT_DOC_ROOM = AGENT_ROOM;
 
 /** Where the agent keeps its own instructions, and what they say. */
 function promptOf(agent: any) {

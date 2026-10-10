@@ -83,7 +83,11 @@ const TOP_NOTICE = [
 // thing called confirmed, what the app's knowledge does not hold is said plainly to be unconfirmed, and
 // no Kibembe word, spelling or meaning is ever invented — so every agent is written again on its next
 // call carrying that law with the rest of the rules.
-export const RULES_VERSION = "19";
+// Raised to 20 when the app's own master language engine was named in the block as the whole corpus
+// every word, phrase, rule and reading below is read from, and when the engine was given the whole of
+// an agent's remaining room rather than one small slab of it — so every agent is written again on its
+// next call carrying the engine's own name, and as much of the engine itself as a voice really holds.
+export const RULES_VERSION = "20";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
@@ -120,6 +124,7 @@ const HEAD = [
   "",
   "2. KIBEMBE — SPEAK IT AS THE CONFIRMED BANK WRITES IT",
   "- The words below are the ones the admin confirmed: use them as they are written. Where none of them covers one part of what you need, carry that part with the nearest word of the three languages and keep the line whole.",
+  "- MUUNDO WA LUGHA — the app's own master language engine (Gloire Sadiki Kibembe, v7) is the whole corpus of this app, and the words, the phrases, the rules and the readings written below are read from it. A Kibembe form you give stands in that engine; a form outside it is never given as confirmed Kibembe, and never invented.",
   "- Say every letter the Kibembe way and never the English letter-name: a = ah, e = eh, i = ee, o = oh, u = oo. Never swallow the final vowel, and give the last syllable of a line a small lift.",
   "- Read a bank word exactly as the bank writes it — accents, apostrophes, hyphens and spaces included — and let the guide below decide every sound the bank does not.",
   "",

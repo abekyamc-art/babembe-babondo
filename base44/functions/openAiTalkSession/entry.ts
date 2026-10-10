@@ -35,7 +35,9 @@ const SESSION_URL = 'https://api.openai.com/v1/realtime/client_secrets';
 // with the rules and no vocabulary at all — greeting in Kibembe and then falling into a language
 // nobody here speaks, with nothing of the app's own knowledge to answer from.
 const RULES_ROOM = AGENT_ROOM;
-const DOC_ROOM = 6000;
+// the engine is offered the whole of what is left of that room, spread over every part of it, so this
+// seat carries the app's own master language engine as far as a voice's instructions can hold it
+const DOC_ROOM = RULES_ROOM;
 
 // Every spoken turn of this call is written down by OpenAI too, pointed at the admin's own words
 // before it listens: the nearest language the reader knows is Kiswahili, so a Kibembe turn comes back

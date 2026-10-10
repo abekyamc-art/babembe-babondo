@@ -1,6 +1,6 @@
 import { secrets } from "base44:runtime";
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
-import { appRulesBlock, blockKey, RULES_MARK, RULES_VERSION, withAppRules } from "../../shared/cartesiaRules.ts";
+import { AGENT_ROOM, appRulesBlock, blockKey, RULES_MARK, RULES_VERSION, withAppRules } from "../../shared/cartesiaRules.ts";
 import { knowledgeStamp } from "../../shared/wordBank.ts";
 import { loadSavedMaterial } from "../../shared/voiceRules.ts";
 import { agentKeywords } from "../../shared/hearingKeywords.ts";
@@ -19,14 +19,15 @@ const HEAR_LANGUAGE = "sw";
 // the admin's saved answers and saved notes, newest first: what the agent answers with
 
 /**
- * How much of the admin's document rides onto the agent. The document is far larger than any voice
- * can carry — it runs to hundreds of thousands of characters — and an agent whose instructions are
- * longer than it can read loses the app's own rules entirely, which is heard as a voice that repeats
- * one line or says nothing at all. So the agent is given the document's rules whole and the parts
- * that matter, inside a room a voice can hold; the whole of the document stands in the app, and the
- * turns that need it are answered from it there.
+ * How much of the admin's document — the app's own master language engine — rides onto the agent.
+ * The engine is far larger than any voice can carry — it runs to hundreds of thousands of characters
+ * — and an agent whose instructions are longer than it can read loses the app's own rules entirely,
+ * which is heard as a voice that repeats one line or says nothing at all. So the agent is given the
+ * engine's rules whole and every other part of it, spread inside the room the app keeps for this whole
+ * block; the whole of the engine stands in the app, and the turns that need it are answered from it
+ * there.
  */
-const AGENT_DOC_ROOM = 6000;
+const AGENT_DOC_ROOM = AGENT_ROOM;
 
 /**
  * The Cartesia accounts a home call's voices open on, each with its own key and its own agent.
