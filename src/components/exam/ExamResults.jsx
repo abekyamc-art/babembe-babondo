@@ -96,7 +96,7 @@ export default function ExamResults({
 
         {onLevels ? (
           <button type="button" className="exam-ghost" onClick={onLevels}>
-            Choose another level
+            Choose another episode
           </button>
         ) : null}
       </div>

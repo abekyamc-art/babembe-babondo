@@ -1,0 +1,67 @@
+{
+  "name": "ExamRecord",
+  "type": "object",
+  "properties": {
+    "user_email": {
+      "type": "string",
+      "description": "Email of the student this record belongs to. One record stands for each student, and it is what their score is written to and found by."
+    },
+    "username": {
+      "type": "string",
+      "description": "Public handle shown beside the student on the leaderboard, taken from their profile when the score was last written down."
+    },
+    "avatar_url": {
+      "type": "string",
+      "description": "Public address of the student's picture, as it stood when the score was last written down."
+    },
+    "score": {
+      "type": "number",
+      "default": 0,
+      "description": "The student's total score: the best mark of every episode they have passed, added together. The leaderboard stands in this number's order."
+    },
+    "passed": {
+      "type": "number",
+      "default": 0,
+      "description": "How many episodes the student has passed, over every season."
+    },
+    "season": {
+      "type": "number",
+      "default": 1,
+      "description": "The furthest season the student has reached."
+    },
+    "episode": {
+      "type": "number",
+      "default": 1,
+      "description": "The episode of that season the student stands on."
+    },
+    "at": {
+      "type": "string",
+      "description": "ISO time the score was last written down."
+    }
+  },
+  "required": [
+    "user_email",
+    "score"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "data.user_email": "{{user.email}}"
+    },
+    "update": {
+      "created_by_id": "{{user.id}}"
+    },
+    "delete": {
+      "$or": [
+        {
+          "created_by_id": "{{user.id}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    }
+  }
+}

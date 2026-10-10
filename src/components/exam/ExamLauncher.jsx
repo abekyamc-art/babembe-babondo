@@ -15,7 +15,7 @@ export default function ExamLauncher({ onOpen }) {
       type="button"
       className="exam-corner"
       onClick={onOpen}
-      aria-label="Open the GLOIRE AI Kibembe examination levels"
+      aria-label="Open the GLOIRE AI Kibembe examination seasons"
     >
       <span className="exam-seal" aria-hidden="true">
         <BookmarkCheck />

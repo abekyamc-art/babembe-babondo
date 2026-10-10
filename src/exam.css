@@ -745,14 +745,15 @@
   color: #ffffff;
 }
 
-/* The paper of levels: what is passed, what is open, and what waits behind a pass. */
-.exam-levels {
+/* The seasons of the examination: what is cleared, what stands open, and what waits behind a cleared
+   season, with the public leaderboard met in a single tap above them. */
+.exam-seasons {
   display: flex;
   flex-direction: column;
   gap: 10px;
 }
 
-.exam-levels-note {
+.exam-seasons-note {
   margin: 0;
   font-size: 12.5px;
   font-weight: 600;
@@ -760,7 +761,38 @@
   color: #9ba9c6;
 }
 
-.exam-level {
+.exam-board-open {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px 14px;
+  color: #ffd9a8;
+  background: #241d10;
+  border: 1px solid #5c4a2c;
+  border-radius: 14px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: 0.2px;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.exam-board-open:hover {
+  background: #2f2614;
+  color: #ffe7c4;
+}
+
+.exam-board-open:focus-visible,
+.exam-season:focus-visible,
+.exam-ep:focus-visible {
+  outline: 2px solid #6ba8ff;
+  outline-offset: 3px;
+}
+
+.exam-season {
   display: flex;
   align-items: center;
   gap: 12px;
@@ -776,21 +808,16 @@
   transition: background 0.18s ease, border-color 0.18s ease;
 }
 
-.exam-level:hover:not(:disabled) {
+.exam-season:hover:not(:disabled) {
   background: #16203a;
   border-color: #3d5686;
 }
 
-.exam-level:disabled {
+.exam-season:disabled {
   cursor: default;
 }
 
-.exam-level:focus-visible {
-  outline: 2px solid #6ba8ff;
-  outline-offset: 3px;
-}
-
-.exam-level-no {
+.exam-season-no {
   flex: none;
   width: 38px;
   height: 38px;
@@ -803,20 +830,21 @@
   font-weight: 800;
 }
 
-.exam-level.is-passed .exam-level-no {
+.exam-season.is-passed .exam-season-no {
   background: #0f7a4f;
 }
 
-.exam-level.is-locked {
+.exam-season.is-locked {
   opacity: 0.62;
 }
 
-.exam-level.is-locked .exam-level-no {
+.exam-season.is-locked .exam-season-no {
   background: #26304d;
   color: #9ba9c6;
 }
 
-.exam-level-body {
+.exam-season-body,
+.exam-board-body {
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -824,37 +852,220 @@
   min-width: 0;
 }
 
-.exam-level-title {
+.exam-season-title {
   font-size: 15px;
   font-weight: 750;
   letter-spacing: -0.2px;
 }
 
-.exam-level-blurb {
+.exam-season-blurb {
   font-size: 12px;
   font-weight: 600;
   line-height: 1.4;
   color: #9ba9c6;
 }
 
-.exam-level-tag {
+.exam-season-tag {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 0.3px;
   color: #8ebaff;
 }
 
-.exam-level.is-passed .exam-level-tag {
+.exam-season.is-passed .exam-season-tag {
   color: #8ff0c8;
 }
 
-.exam-level.is-locked .exam-level-tag {
+.exam-season.is-locked .exam-season-tag {
   color: #9ba9c6;
 }
 
-.exam-level-mark {
+.exam-season-mark {
   flex: none;
   font-size: 12.5px;
+  font-weight: 800;
+  color: #8ff0c8;
+}
+
+/* One season's hundred episodes: what is passed with the mark it was passed at, the one standing open,
+   and everything waiting behind it. */
+.exam-episodes {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exam-ep-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.exam-ep-head .exam-ghost {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  width: auto;
+  padding: 9px 12px;
+}
+
+.exam-ep-count {
+  margin: 0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #8ebaff;
+}
+
+.exam-ep-note {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+  color: #9ba9c6;
+}
+
+.exam-ep-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
+  gap: 8px;
+}
+
+.exam-ep {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+  aspect-ratio: 1 / 1;
+  padding: 6px 4px;
+  color: #f5f6ff;
+  background: #101728;
+  border: 1px solid #26304d;
+  border-radius: 12px;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease;
+}
+
+.exam-ep:disabled {
+  cursor: default;
+}
+
+.exam-ep-no {
+  font-size: 14px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.exam-ep-tag {
+  display: inline-flex;
+  align-items: center;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #9ba9c6;
+}
+
+.exam-ep.is-open {
+  border-color: #3d5686;
+  background: #16203a;
+}
+
+.exam-ep.is-open .exam-ep-tag {
+  color: #8ebaff;
+}
+
+.exam-ep.is-passed {
+  border-color: #275c4b;
+  background: #0f241f;
+}
+
+.exam-ep.is-passed .exam-ep-tag {
+  color: #8ff0c8;
+}
+
+.exam-ep.is-locked {
+  opacity: 0.5;
+}
+
+/* The public leaderboard: the hundred highest scores, with the student's own standing among them. */
+.exam-board {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.exam-board-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.exam-board-row,
+.exam-board-mine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #101728;
+  border: 1px solid #1c2440;
+  border-radius: 14px;
+}
+
+.exam-board-row.is-me {
+  border-color: #3f5e97;
+  background: #16203a;
+}
+
+/* the student's own standing, standing above the list when their place is below the hundred */
+.exam-board-mine {
+  border-color: #5c4a2c;
+  background: #241d10;
+}
+
+.exam-board-rank {
+  flex: none;
+  min-width: 34px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #8ebaff;
+}
+
+.exam-board-avatar {
+  flex: none;
+  width: 34px;
+  height: 34px;
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+  color: #8ebaff;
+  background: #1b2948;
+  border: 1px solid #354568;
+  border-radius: 50%;
+  font-size: 13px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.exam-board-name {
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: -0.2px;
+  overflow-wrap: anywhere;
+}
+
+.exam-board-meta {
+  font-size: 11px;
+  font-weight: 600;
+  color: #9ba9c6;
+}
+
+.exam-board-points {
+  flex: none;
+  font-size: 15px;
   font-weight: 800;
   color: #8ff0c8;
 }

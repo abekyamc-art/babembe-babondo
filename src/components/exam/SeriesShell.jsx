@@ -1,51 +1,64 @@
 import React, { useEffect, useRef, useState } from "react";
+import ExamEpisodes from "./ExamEpisodes";
 import ExamHeader from "./ExamHeader";
-import ExamLevels from "./ExamLevels";
+import ExamLeaderboard from "./ExamLeaderboard";
 import ExamProgress from "./ExamProgress";
 import ExamQuestionCard from "./ExamQuestionCard";
 import ExamResults from "./ExamResults";
+import ExamSeasons from "./ExamSeasons";
 import { reportOf, scoreOf } from "@/lib/examSession";
-import { EXAM_LEVELS, levelByNo } from "@/lib/examSeries";
+import { EPISODES_PER_SEASON, EXAM_SEASONS, episodeSize, seasonByNo } from "@/lib/examSeasons";
 import {
   attemptsOf,
-  levelOpen,
   loadAttempt,
   loadProgress,
   recordFinish,
   saveAttempt,
-  startLevel,
+  startEpisode,
 } from "@/lib/examProgress";
+import { saveScore } from "@/lib/examLeaderboard";
 import "@/exam.css";
 
 const HEAD = {
   title: "GLOIRE AI",
-  subtitle: `Kibembe Examination · Levels 1–${EXAM_LEVELS.length}`,
+  subtitle: `Kibembe Examination · ${EXAM_SEASONS.length} seasons · ${EPISODES_PER_SEASON} episodes each`,
   system: "Kibembe Learning & Examination System",
   credit: "Created by Gloire Sadiki Asende.",
   closeLabel: "Close the examination",
 };
 
 /**
- * The one examination of the app, taken level by level: the paper of numbered levels, the level being
- * taken, and the report of a finished one.
+ * The one examination of the app, taken season by season and episode by episode: the seasons, the
+ * hundred episodes of one of them, the paper being taken, the report of a finished one, and the public
+ * leaderboard.
  *
- * Every level mixes everyday Kibembe with the confirmed health terms. Passing a level at 80% writes the
- * pass down and opens the next; failing it writes only the attempt down, and the same level waits to be
- * taken again — as often as the student likes, with no day's limit.
+ * Every episode asks from the confirmed everyday words and the confirmed body and health terms, and
+ * grows a little longer as its season goes on. Passing an episode at 80% writes the pass down and opens
+ * the one after it; clearing all hundred of a season opens the season after it, and a season opens only
+ * once the one before it has been cleared. Failing writes only the attempt down, and the same episode
+ * waits to be taken again — as often as the student likes, with no day's limit. Every finished episode
+ * writes the student's own standing onto the public leaderboard.
  */
 export default function SeriesShell({ open, onClose }) {
   const [progress, setProgress] = useState({ passed: {}, taken: {} });
   const [attempt, setAttempt] = useState(null);
   const [resume, setResume] = useState(null);
+  const [season, setSeason] = useState(1);
+  const [view, setView] = useState("seasons");
   // the finish of one attempt is written down once, never twice however the screen redraws
   const written = useRef("");
 
-  // Each time the series is opened: what is passed on this phone, and the level left half-answered.
+  // Each time the examination is opened: what stands passed on this phone, the episode left
+  // half-answered, and the season it belongs to.
   useEffect(() => {
     if (!open) return;
-    setProgress(loadProgress());
-    setResume(loadAttempt());
+    const held = loadProgress();
+    const half = loadAttempt();
+    setProgress(held);
+    setResume(half);
     setAttempt(null);
+    setSeason(half?.season || 1);
+    setView("seasons");
     written.current = "";
   }, [open]);
 
@@ -64,30 +77,63 @@ export default function SeriesShell({ open, onClose }) {
   useEffect(() => {
     if (!finished || written.current === attempt.id) return;
     written.current = attempt.id;
-    setProgress(recordFinish(attempt.level, reportOf(attempt)));
+    const held = recordFinish(attempt.season, attempt.episode, reportOf(attempt));
+    setProgress(held);
+    // the student's own standing is written onto the public leaderboard from here; a score that cannot
+    // be written down changes nothing, and the examination carries on
+    saveScore(held);
   }, [finished, attempt]);
 
   if (!open) return null;
 
-  const level = attempt ? levelByNo(attempt.level) : null;
-  const nextNo =
-    attempt && report?.passed && attempt.level < EXAM_LEVELS.length ? attempt.level + 1 : null;
-  const canNext = nextNo && levelOpen(progress, nextNo);
+  const seasonOf =
+    (attempt ? seasonByNo(attempt.season) : seasonByNo(season)) || EXAM_SEASONS[0];
 
-  const openLevel = (no) => {
+  // A pass opens the episode after it, and the hundredth pass of a season opens the season after it —
+  // worked out from the paper in hand, so the report never waits on the store to be read back.
+  const passed = !!report?.passed;
+  const nextNo = attempt ? attempt.episode + 1 : 0;
+  const nextOpen = passed && !!attempt && nextNo <= EPISODES_PER_SEASON;
+  const seasonCleared = passed && !!attempt && attempt.episode >= EPISODES_PER_SEASON;
+  const seasonAfter = seasonCleared && seasonByNo(attempt.season + 1);
+
+  const note = !attempt
+    ? ""
+    : !passed
+      ? `The pass mark is 80% — take season ${attempt.season} episode ${attempt.episode} again as often as you like.`
+      : nextOpen
+        ? `Season ${attempt.season} episode ${nextNo} is now open.`
+        : seasonAfter
+          ? `Season ${attempt.season} is cleared — season ${attempt.season + 1} is now open.`
+          : "Every season is cleared — the whole examination is yours.";
+
+  const openEpisode = (no) => {
     written.current = "";
     setResume(null);
-    setAttempt(startLevel(no));
+    setAttempt(startEpisode(season, no));
   };
 
-  const resumeLevel = () => setAttempt(resume);
+  const openSeason = (no) => {
+    setResume(null);
+    setSeason(no);
+    setView("episodes");
+  };
 
-  // back to the paper of levels: a level left half-answered is kept, so it waits to be taken up again
-  const backToLevels = () => {
+  const resumeEpisode = () => {
+    setSeason(resume.season);
+    setAttempt(resume);
+  };
+
+  // back to the season's own paper of episodes: an episode left half-answered is kept, so it waits to be
+  // taken up again where it was left
+  const backToEpisodes = () => {
     if (attempt && attempt.at < attempt.questions.length) saveAttempt(attempt);
+    const at = attempt ? attempt.season : season;
     setAttempt(null);
     setResume(loadAttempt());
     setProgress(loadProgress());
+    setSeason(at);
+    setView("episodes");
   };
 
   const choose = (choice) => {
@@ -109,67 +155,73 @@ export default function SeriesShell({ open, onClose }) {
       className="exam-shell"
       role="dialog"
       aria-modal="true"
-      aria-label="GLOIRE AI Kibembe examination levels"
+      aria-label="GLOIRE AI Kibembe examination seasons"
     >
       <div className="exam-scroll">
         <div className="exam-inner">
           <ExamHeader {...HEAD} onClose={onClose} />
 
-          {!attempt ? (
-            <ExamLevels
-              levels={EXAM_LEVELS}
+          {attempt ? (
+            finished ? (
+              <ExamResults
+                report={report}
+                note={note}
+                onRestart={() => openEpisode(attempt.episode)}
+                restartLabel={`Take episode ${attempt.episode} again`}
+                onNext={nextOpen ? () => openEpisode(nextNo) : null}
+                nextLabel={nextOpen ? `Go to episode ${nextNo}` : ""}
+                onLevels={backToEpisodes}
+              />
+            ) : (
+              <>
+                <p className="exam-count">
+                  Season {attempt.season} · Episode {attempt.episode} · {seasonOf.title}
+                </p>
+                <ExamProgress
+                  at={attempt.at}
+                  total={attempt.questions.length}
+                  answered={Object.keys(attempt.marks || {}).length}
+                  score={scoreOf(attempt)}
+                />
+                <ExamQuestionCard
+                  question={attempt.questions[attempt.at]}
+                  mark={attempt.marks[attempt.at] || null}
+                  at={attempt.at}
+                  total={attempt.questions.length}
+                  score={scoreOf(attempt)}
+                  answered={Object.keys(attempt.marks || {}).length}
+                  onChoose={choose}
+                  onNext={goNext}
+                  isLast={attempt.at === attempt.questions.length - 1}
+                />
+                <div className="exam-tools">
+                  <button type="button" className="exam-ghost" onClick={backToEpisodes}>
+                    Back to episodes
+                  </button>
+                  <span className="exam-credit">
+                    {episodeSize(seasonOf, attempt.episode)} questions · attempt{" "}
+                    {attemptsOf(progress, attempt.season, attempt.episode) + 1} · no daily limit
+                  </span>
+                </div>
+              </>
+            )
+          ) : view === "board" ? (
+            <ExamLeaderboard onBack={() => setView("seasons")} />
+          ) : view === "episodes" ? (
+            <ExamEpisodes
+              season={seasonOf}
               progress={progress}
-              resume={resume}
-              onOpen={openLevel}
-              onResume={resumeLevel}
-            />
-          ) : finished ? (
-            <ExamResults
-              report={report}
-              note={
-                report.passed
-                  ? nextNo
-                    ? `Level ${nextNo} is now open.`
-                    : "Every level is passed — the whole series is yours."
-                  : `The pass mark is 80% — take level ${attempt.level} again as often as you like.`
-              }
-              onRestart={() => openLevel(attempt.level)}
-              restartLabel={`Take level ${attempt.level} again`}
-              onNext={canNext ? () => openLevel(nextNo) : null}
-              nextLabel={canNext ? `Go to level ${nextNo}` : ""}
-              onLevels={backToLevels}
+              onOpen={openEpisode}
+              onBack={() => setView("seasons")}
             />
           ) : (
-            <>
-              <p className="exam-count">
-                Level {attempt.level} · {level?.title}
-              </p>
-              <ExamProgress
-                at={attempt.at}
-                total={attempt.questions.length}
-                answered={Object.keys(attempt.marks || {}).length}
-                score={scoreOf(attempt)}
-              />
-              <ExamQuestionCard
-                question={attempt.questions[attempt.at]}
-                mark={attempt.marks[attempt.at] || null}
-                at={attempt.at}
-                total={attempt.questions.length}
-                score={scoreOf(attempt)}
-                answered={Object.keys(attempt.marks || {}).length}
-                onChoose={choose}
-                onNext={goNext}
-                isLast={attempt.at === attempt.questions.length - 1}
-              />
-              <div className="exam-tools">
-                <button type="button" className="exam-ghost" onClick={backToLevels}>
-                  Back to levels
-                </button>
-                <span className="exam-credit">
-                  Attempt {attemptsOf(progress, attempt.level) + 1} · no daily limit
-                </span>
-              </div>
-            </>
+            <ExamSeasons
+              progress={progress}
+              resume={resume}
+              onOpenSeason={openSeason}
+              onResume={resumeEpisode}
+              onBoard={() => setView("board")}
+            />
           )}
         </div>
       </div>
