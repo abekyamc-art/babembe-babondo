@@ -163,7 +163,12 @@ const CREDIT = "Photograph from Wikimedia Commons";
  */
 export const PEOPLE_PICTURES = {
   "Diamond Platnumz": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Diamond_Platnumz.jpg/800px-Diamond_Platnumz.jpg", scene: "Diamond Platnumz", alt: "Photograph of Diamond Platnumz", credit: CREDIT },
-  "Gloire Sadiki": { url: "", scene: "Gloire Sadiki", alt: "", credit: "" },
+  "Gloire Sadiki": {
+    url: "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/32334803d_DSC02592.jpeg",
+    scene: "Gloire Sadiki",
+    alt: "Photograph of Gloire Sadiki, the performer",
+    credit: "Photograph courtesy of the artist",
+  },
   "Koffi Olomide": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Koffi_Olomd%C3%A9_%C3%A0_la_c%C3%A9l%C3%A9bration_du_Vodoun_Days_2024_%C3%A0_Ouidah_au_B%C3%A9nin01_37.png/800px-Koffi_Olomd%C3%A9_%C3%A0_la_c%C3%A9l%C3%A9bration_du_Vodoun_Days_2024_%C3%A0_Ouidah_au_B%C3%A9nin01_37.png", scene: "Koffi Olomide", alt: "Photograph of Koffi Olomide", credit: CREDIT },
   "Fally Ipupa": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Fally_Ipupa_a_Paris%2C_en_France.jpg/800px-Fally_Ipupa_a_Paris%2C_en_France.jpg", scene: "Fally Ipupa", alt: "Photograph of Fally Ipupa", credit: CREDIT },
   "Papa Wemba": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Papa_Wemba.jpg/800px-Papa_Wemba.jpg", scene: "Papa Wemba", alt: "Photograph of Papa Wemba", credit: CREDIT },
