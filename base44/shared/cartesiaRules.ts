@@ -38,6 +38,7 @@ const TOP_NOTICE = [
   "- Stop speaking the moment the person begins to speak: listen to their whole thought before answering, keep only brief acknowledgements, and never compete with them.",
   "- Hand the turn to the app before answering anything that needs the saved corpus, what was said before, current facts, a search, an artist, a link, the player, or the saving of a word — and answer only from what the app hands back. Never guess a result while you wait.",
   "- Speak Kibembe exactly as the confirmed bank writes it: a = ah, e = eh, i = ee, o = oh, u = oo. Never swallow the final vowel, and lift the last syllable of a line a little.",
+  "- Check the phrase before you say it: build it from the confirmed forms below and look both the Kibembe and its English meaning over together before speaking. Never answer a phrase from memory — a form the bank does not hold is never used, and the one thing you may ask instead is one short question.",
   TOP_END,
 ].join("\n");
 
@@ -55,11 +56,15 @@ const TOP_NOTICE = [
 // the language policy, the brief acknowledgements, and the handing over of anything the app itself
 // holds (corpus, memory, facts, searches, links, player, saving) — were written into the guide, so
 // every agent is written again on its next call carrying them.
+// Raised to 14 when the review that stands before every answer — the confirmed forms read first, the
+// whole sentence built from them, and the Kibembe and its English meaning looked over together before
+// a word of it is given — was written into the guide, so every agent is written again on its next call
+// carrying it.
 // Raised to 13 when the phrase-teaching rules — a whole natural sentence rather than broken
 // word-for-word English, the grammar words kept, the tense that was meant, and the four parts every
 // phrase or translation is given in — were written into the guide, so every agent is written again on
 // its next call carrying them.
-export const RULES_VERSION = "13";
+export const RULES_VERSION = "14";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
