@@ -20,7 +20,7 @@ import { earsKnowledge, earsPrompt } from '../../shared/openAiEars.ts';
 // the model the call runs on, and the voice that speaks it
 const MODEL = 'gpt-realtime';
 // the voice that speaks it: the deeper of the two the service gave this model, so the first voice of
-// the call is a man's — and this seat is only reached where AI 1's own voice has not been set up yet
+// the call is a man's
 const VOICE = 'cedar';
 const SESSION_URL = 'https://api.openai.com/v1/realtime/client_secrets';
 
