@@ -41,11 +41,15 @@ export async function openHearingNote() {
  * Where one comes back, the voice is given it as the whole answer, so the reply that is heard is the
  * app's own words word for word rather than a sentence written fresh for the turn.
  *
- * A reading that cannot be made is never a reason to hold a call up: it comes back sure, with no note.
+ * `verified` is the app's own word on whether it holds anything of this turn at all — a reading of it
+ * as a confirmed word, phrase or ask, or a part of the admin's knowledge the search really reached. It
+ * is what the seat's answer is gated on: where the app holds nothing of the turn, no answer is asked
+ * for, the turn is left unanswered and the call listens again. A reading that cannot be made is the
+ * same thing — nothing is held for that turn, and nothing is answered for it.
  */
 export async function readHeardTurn(text, lastAgent = "") {
   const said = String(text || "").trim();
-  if (!said) return { note: "", say: "", sure: true, mode: "" };
+  if (!said) return { note: "", say: "", verified: false, sure: true, mode: "" };
   try {
     const res = await base44.functions.invoke("kibembeHearing", {
       text: said,
@@ -56,13 +60,17 @@ export async function readHeardTurn(text, lastAgent = "") {
       note: String(res?.data?.note || ""),
       // the reply the app itself holds for this turn, or nothing when it holds none
       say: String(res?.data?.say || ""),
+      // Only a plain yes is a yes: the app's own word on whether it holds anything of the turn is what
+      // the answer is gated on, so a reading that says nothing about it leaves the turn unanswered
+      // rather than answered from a guess.
+      verified: res?.data?.verified === true,
       // only a plain no is a no: an older reading that says nothing about it is taken as sure
       sure: res?.data?.sure !== false,
       // the language that stands from this turn on, when the person has just asked for another one
       mode: String(res?.data?.mode || ""),
     };
   } catch (err) {
-    return { note: "", say: "", sure: true, mode: "" };
+    return { note: "", say: "", verified: false, sure: true, mode: "" };
   }
 }
 

@@ -75,6 +75,11 @@ const READ_FAILED = "That turn could not be read just now.";
  * the hearing service of every later call is pointed at as well, so the Kibembe the person confirms
  * is understood the first time it is said next.
  *
+ * A turn the app's own knowledge holds nothing of is handed over as exactly that: the reading says so
+ * plainly, and no answer is written for it at all. The voice answering such a turn is not asked to
+ * answer it on its own account, because that is where a reply in a language nobody here speaks comes
+ * from — that turn is left unanswered rather than answered from a guess.
+ *
  * A turn the person puts right on the screen — their own words in place of what the ears wrote — is
  * read the same way, but it is not saved by being read: the app answers with what it would keep, and
  * it is the person's own answer to that offer which writes it into the bank. A word that is only
@@ -331,6 +336,9 @@ export default async function (req: Request): Promise<Response> {
         // say that very line again and nothing else, so it is never re-worded, never shortened and
         // never turned into a lesson
         say: clean(lastAgent, MAX_SAY),
+        // the app holds that very line itself, so this turn is answered from its own hand and never by
+        // the voice on its own account
+        verified: true,
         // an ask is not a word and not a phrase: there is no reading to be sure or unsure of
         matched: null,
         sure: true,
@@ -351,17 +359,25 @@ export default async function (req: Request): Promise<Response> {
     // document this turn reaches, nearest first — the same search every voice of a call is handed — and
     // a turn that reaches nothing is told so plainly rather than answered from a guess.
     const wordsRead = bankRows(base44);
-    const [words, patterns, engine, known] = await Promise.all([
+    const [words, patterns, engine, search] = await Promise.all([
       wordsRead,
       patternRows(base44),
       engineAsksOf(base44).catch(() => []),
       retrieveKnowledge(base44, said, KNOWLEDGE_ROOM, wordsRead)
-        .then((found) => found.block)
-        .catch(() => ""),
+        .then((found) => ({ block: String(found?.block || ""), found: found?.found === true }))
+        .catch(() => ({ block: "", found: false })),
     ]);
 
     const reading = readTurn(said, words, patterns, engine);
     const note = reading ? turnNote(said, reading) : "";
+    // Whether the app really holds anything of this turn: a reading of it — the ask it is, the word or
+    // phrase it is, the saved phrase whose answer belongs to it — or a part of the admin's own knowledge
+    // the search truly reached. Nothing else is knowledge: a search that reached nothing is not, and
+    // neither is a reading that was never made.
+    const verified = !!reading || search.found;
+    // the parts of the document the search reached, and nothing at all where it reached none: a plain
+    // line saying nothing was found is not knowledge and is never handed over as if it were
+    const known = search.found ? search.block : "";
 
     // Whether the app is sure of what it heard. A turn is unsure when what came back is not a turn
     // of speech at all — the fragments and stray marks the ears write for a breath of room noise —
@@ -397,9 +413,14 @@ export default async function (req: Request): Promise<Response> {
     }
 
     return Response.json({
-      note: `${note}${languageLine}${known}`,
+      // Nothing of the app's own, nothing handed over: a turn the app holds nothing of is left without
+      // an answer rather than answered from a guess — so the voice is never let write for itself, which
+      // is where a reply in a language nobody here speaks comes from.
+      note: verified ? `${note}${languageLine}${known}` : "",
       // the one line the app holds for this turn, or nothing at all when it holds none
       say,
+      // the app's own word on whether it holds anything of this turn: it is what the answer is gated on
+      verified,
       matched: reading,
       sure,
       saved,

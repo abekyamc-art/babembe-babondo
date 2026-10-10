@@ -25,6 +25,9 @@ import { OPENAI_AI } from "@/lib/providerNames";
 
 const NO_REACH = "AI 1 couldn't be reached. Please try again.";
 const TOUCH_TO_HEAR = "Tap the screen to let the sound through.";
+// said plainly when the app's own knowledge holds nothing of the turn, so the seat is not left to
+// answer it on its own account — which is where a reply in a language nobody here speaks comes from
+const NO_REPLY = "I have nothing confirmed for that turn — say it another way.";
 
 export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswerEnd, onMedia } = {}) {
   const [active, setActive] = useState(false);
@@ -128,16 +131,28 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       // the turn is measured from here: what follows is the app's own knowledge for it, and then the
       // answer itself beginning to be heard
       heardNow();
-      readHeardTurn(said, lastAgentRef.current).then(({ note, say }) => {
+      readHeardTurn(said, lastAgentRef.current).then(({ note, say, verified }) => {
         knowledgeNow();
-        // The reply the app holds itself rides with the turn and is the whole answer, so a saved reply
-        // is heard exactly as the app's own words instead of a sentence written fresh by the seat — and
-        // a turn the app holds no reply for carries an empty line and is answered as it always was.
-        callRef.current?.answer?.(note || "", said, say || "");
+        // The seat answers only what the app itself holds: the reading of this turn, or the reply the
+        // app keeps for it. Where the app holds nothing of the turn, nothing is handed over at all —
+        // that turn is left unanswered, with the app's own line saying so, rather than the seat
+        // answering a Kibembe turn in a language nobody here speaks.
+        callRef.current?.answer?.(verified ? note || "" : "", said, say || "");
       });
     },
     [push]
   );
+
+  /**
+   * The app's own knowledge holds nothing of that turn: no answer is asked for at all, so nothing is
+   * said for a language nobody here speaks and nothing is charged for an answer. The turn stays on the
+   * screen, the app's own line says what happened, and the call goes on listening.
+   */
+  const handleNoReply = useCallback(() => {
+    if (!activeRef.current) return;
+    setNotice(NO_REPLY);
+    backToListening();
+  }, [backToListening]);
 
   /** The answer, as the session itself wrote it down: the words it has just spoken. */
   const handleAgentText = useCallback(
@@ -238,6 +253,7 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       onUserText: handleUserText,
       onAgentText: handleAgentText,
       onThinking: handleThinking,
+      onNoReply: handleNoReply,
       onAgentAudioStart: handleAudioStart,
       onAgentAudioEnd: handleAudioEnd,
       onAnswered: handleAnswered,
@@ -267,7 +283,7 @@ export default function useOpenAiVoice({ onTurn, onPictures, onAnswered, onAnswe
       offTouchRef.current = resumeAudioOnTouch(() => setNotice(""));
     }
     return { ok: true, why: "" };
-  }, [handleAnswered, handleAgentText, handleAudioEnd, handleAudioStart, handleError, handleStatus, handleThinking, handleUserText]);
+  }, [handleAnswered, handleAgentText, handleAudioEnd, handleAudioStart, handleError, handleNoReply, handleStatus, handleThinking, handleUserText]);
 
   const stop = useCallback(async () => {
     const call = callRef.current;

@@ -22,8 +22,9 @@ const CALLS_URL = "https://api.openai.com/v1/realtime/calls";
 // how long the session and the sound are given to come up
 const CONNECT_MS = 20000;
 // How long the turn that has just ended is held while the app searches its own knowledge for it. The
-// answer is begun the moment the knowledge is handed in; where it never arrives, the seat still
-// answers on its own rather than a call sitting silent on a turn nobody answered.
+// answer is begun the moment the knowledge is handed in; where it never arrives, that turn is left
+// unanswered — the app says so plainly and the call listens again, and the seat is never asked to
+// speak for itself, which is where an answer in a language nobody here speaks comes from.
 const ANSWER_WAIT_MS = 6000;
 
 /** A failure named by the stage it happened at, so the screen says what really went wrong. */
@@ -356,13 +357,14 @@ export default class OpenAiTalkCall {
 
   /**
    * The turn has just ended, and the app is searching its own knowledge for what that turn reaches.
-   * The seat is held here until the knowledge is handed in, and the wait is bounded so a search that
-   * never arrives still leaves the person answered.
+   * The seat is held here until the knowledge is handed in. The wait is bounded, and the bound is
+   * where the turn settles: a turn whose knowledge never arrives is left unanswered rather than
+   * handed to the seat to answer on its own.
    */
   armAnswer(text) {
     this.pendingText = String(text || "");
     clearTimeout(this.gateTimer);
-    this.gateTimer = setTimeout(() => this.answer("", this.pendingText), ANSWER_WAIT_MS);
+    this.gateTimer = setTimeout(() => this.noReply(this.pendingText), ANSWER_WAIT_MS);
   }
 
   /**
@@ -374,17 +376,29 @@ export default class OpenAiTalkCall {
    * with its own answer, or the line a "what did you say?" is asking for — that line is handed over as
    * the reply, and the answer is made to say it and nothing else. The seat is given no room to write a
    * sentence of its own around it, which is what keeps the reply the app's own words word for word.
+   *
+   * Nothing of the app's own, nothing answered: where both the reading of the turn and the reply the
+   * app keeps for it are empty, no answer is asked for at all — see noReply, which is the very path the
+   * bounded wait takes as well. The seat is never left to answer a Kibembe turn on its own account,
+   * because that is where a reply in a language nobody here speaks comes from.
    */
   answer(note = "", text = null, say = "") {
     const pending = this.pendingText;
     if (this.stopped || !pending) return;
     if (text !== null && String(text) !== pending) return;
+    const wrote = String(note || "").trim();
+    const line = String(say || "").trim();
+    // the app's own knowledge is what every answer is built from: where the app holds nothing of the
+    // turn, there is nothing to answer from, and the seat is left out of it altogether
+    if (!wrote && !line) {
+      this.noReply(text);
+      return;
+    }
     this.pendingText = "";
     clearTimeout(this.gateTimer);
     this.gateTimer = null;
-    const line = String(say || "").trim();
     this.forced = line;
-    const said = [String(note || "").trim(), line ? fixedLine(line) : ""].filter(Boolean).join("\n\n");
+    const said = [wrote, line ? fixedLine(line) : ""].filter(Boolean).join("\n\n");
     if (said) {
       this.send({
         type: "conversation.item.create",
@@ -398,6 +412,22 @@ export default class OpenAiTalkCall {
         ? { type: "response.create", response: { instructions: onlyLine(line) } }
         : { type: "response.create" }
     );
+  }
+
+  /**
+   * A turn the app's own knowledge holds nothing of, left as such: no answer is asked for, so nothing
+   * is spoken for the turn and no answer is charged for it. The turn stays on the screen, the app's own
+   * line says what happened, and the call goes on listening for the person's next word.
+   */
+  noReply(text = null) {
+    const pending = this.pendingText;
+    if (this.stopped || !pending) return;
+    if (text !== null && String(text) !== pending) return;
+    this.pendingText = "";
+    clearTimeout(this.gateTimer);
+    this.gateTimer = null;
+    this.forced = "";
+    this.h.onNoReply?.(pending);
   }
 
   /**
