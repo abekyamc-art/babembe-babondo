@@ -18,6 +18,7 @@
 
 import { requiredCount } from "./places";
 import { PHOTO_PUZZLE_UPDATES } from '@/lib/differenceGame/photoPuzzleUpdates';
+import { TOON_LEVELS } from '@/lib/differenceGame/toon/toonLevels';
 
 
 /** The scene is drawn on this grid, whatever size the phone shows it at. */
@@ -709,9 +710,12 @@ export const LEVELS = [
       { id: "birds", x: 0.5, y: 0.22, w: 0.13, h: 0.14, label: "Two birds fly over the hill", extra: true },
     ],
   },
-].map((level) => PHOTO_PUZZLE_UPDATES[level.scene]
-  ? { ...level, differences: PHOTO_PUZZLE_UPDATES[level.scene].differences }
-  : level);
+]
+  .map((level) => PHOTO_PUZZLE_UPDATES[level.scene]
+    ? { ...level, differences: PHOTO_PUZZLE_UPDATES[level.scene].differences }
+    : level)
+  // the four seasons' cartoon episodes stand after the picture and drawn ones, season by season
+  .concat(TOON_LEVELS);
 
 /** What a level is called by how much it asks of the player: five places, seven, or ten. */
 export function tierOf(level) {
@@ -720,19 +724,20 @@ export function tierOf(level) {
   return places >= 10 ? "Hard" : places >= 7 ? "Normal" : "Easy";
 }
 
-/** How many cards the episode map shows: the episodes that stand, and the ones still to come. */
-export const LEVEL_SLOTS = 39;
+/** How many episodes the game stands on in all: fifty-one in each of the four seasons. */
+export const LEVEL_SLOTS = 204;
 
 /**
- * The four seasons the game is planned in, each named by the episode it opens with. A season whose
- * episodes are still being drawn keeps its own cover with nothing inside it to open, so all four covers
- * stand from the first day, and an episode joins the season it belongs to the moment it is drawn.
+ * The four seasons the game is played in, each named by the episode it opens with. Every season stands
+ * whole — fifty-one episodes — so all four covers open on their own season, and season by season the
+ * episodes grow harder. A season opens once the episode before it has been passed, so the seasons are
+ * played in their own order.
  */
 export const SEASONS = [
   { no: 1, at: 1 },
-  { no: 2, at: 37 },
-  { no: 3, at: 40 },
-  { no: 4, at: 41 },
+  { no: 2, at: 52 },
+  { no: 3, at: 103 },
+  { no: 4, at: 154 },
 ];
 
 /**

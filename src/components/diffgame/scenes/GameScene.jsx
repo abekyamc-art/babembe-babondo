@@ -1,6 +1,8 @@
 import React from "react";
 import { Image } from "@/components/ui/image";
 import { picturesOf } from "@/lib/differenceGame/scenePictures";
+import ToonScene from "@/lib/differenceGame/toon/ToonScene";
+import { toonSpecOf } from "@/lib/differenceGame/toon/toonLevels";
 import VillageScene from "./VillageScene";
 import MarketScene from "./MarketScene";
 import ClassroomScene from "./ClassroomScene";
@@ -29,6 +31,10 @@ const SCENES = {
  * Found rings are added only after a player spots a difference.
  */
 export default function GameScene({ scene, changed, uid, differences = [], onLoad }) {
+  // a cartoon episode is drawn from its own recipe, so its two copies are the same picture in every line
+  const toon = toonSpecOf(scene);
+  if (toon) return <ToonScene spec={toon} changed={changed} uid={uid} />;
+
   const pictures = picturesOf(scene);
 
   if (pictures) {
