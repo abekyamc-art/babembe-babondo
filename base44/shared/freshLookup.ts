@@ -3,6 +3,7 @@ import { bankRows } from "./wordBank.ts";
 import { docWordRows, publishedDoc } from "./knowledgeDoc.ts";
 import { artistVideosBlock, artistVideosFor } from "./artistVideos.ts";
 import type { ArtistVideo } from "./artistVideos.ts";
+import { geminiText } from "./gemini.ts";
 
 /**
  * The material a turn needs from outside the admin's saved knowledge — a story, the news, who
@@ -128,7 +129,8 @@ const NAMES_SCHEMA = {
  */
 async function sameNameCheck(base44: any, query: string, material: string): Promise<Candidate[]> {
   try {
-    const out = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const out = await geminiText({
+      base44,
       prompt:
         "Read one request of a person and the material that was found for it, and answer one question " +
         "only: are there TWO OR MORE DIFFERENT PEOPLE OR ARTISTS in this material whose names look or " +
@@ -599,7 +601,8 @@ async function lookUp(
 
   let out: any = {};
   try {
-    const found = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const found = await geminiText({
+      base44,
       prompt: PROMPT(query, results, asking),
       add_context_from_internet: true,
       model: "gemini_3_flash",

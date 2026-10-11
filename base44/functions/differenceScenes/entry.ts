@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import OpenAI from 'npm:openai@6.45.0';
 import { photoPuzzle } from '../../shared/photoPuzzle.ts';
+import { geminiText } from '../../shared/gemini.ts';
 
 /**
  * The new picture scenes of GLOIRE AI — FIND THE DIFFERENCES, drawn as 4K pictures.
@@ -614,7 +615,8 @@ export default async function differenceScenes(req) {
       const change = scene.changes[i];
       if (only && !only.includes(i + 1)) continue;
       {
-        const said = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        const said = await geminiText({
+          base44,
           prompt:
             'Two pictures of the same scene stand here: the first, and the second drawn from it with exactly ' +
             `one place changed in it. The change is this: ${bare(change)} Look at both pictures and find the ` +
@@ -666,7 +668,8 @@ export default async function differenceScenes(req) {
     const crowded = [...parts.values()].filter((group) => group.length > 1).flat();
     for (const reading of crowded) {
       {
-        const within = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        const within = await geminiText({
+            base44,
             prompt:
               'Two pictures of the same scene stand here: the first, and the second drawn from it with a few ' +
               `places changed in it. One of those changes is this: ${reading.change} Its place stands inside ` +

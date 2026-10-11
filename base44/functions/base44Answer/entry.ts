@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+import { geminiText } from "../../shared/gemini.ts";
 import { secrets } from "base44:runtime";
 import { alikeTerms } from "../../shared/soundsAlike.ts";
 import { glossOf, knowledgeWordRows } from "../../shared/knowledgeWords.ts";
@@ -38,8 +39,7 @@ import { correctEbembe, earsKnowledge, writeDown } from "../../shared/openAiEars
 // cannot be said right. English is read on the service's own English.
 const SPEECH_VOICE = "honey";
 const SPEECH_LANG: Record<string, string> = { ebembe: "ms", swahili: "ms", english: "en" };
-// the model the Admin's Base44 AI mode answers on, pinned so every answer is written by it
-const ANSWER_MODEL = "gpt_6_sol";
+// which reading writes the answer is settled in one place now, in shared/gemini.ts
 // the room one answer is given, and the room the voice line is read in: wide enough for a whole answer
 // with its source named, so nothing the assistant writes is cut off on its way to the person
 const MAX_ANSWER = 1800;
@@ -408,9 +408,9 @@ export default async function (req: Request): Promise<Response> {
       .filter(Boolean)
       .join("\n\n");
 
-    const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const out: any = await geminiText({
+      base44,
       prompt,
-      model: ANSWER_MODEL,
       response_json_schema: REPLY_SCHEMA,
     });
 

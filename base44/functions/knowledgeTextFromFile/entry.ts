@@ -1,4 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import { geminiText } from '../../shared/gemini.ts';
 
 const PROMPT =
   "You are lifting the written text out of a document so it can be filed away. " +
@@ -35,7 +36,8 @@ export default async function (req: Request): Promise<Response> {
       return Response.json({ error: "Could not open that document." }, { status: 400 });
     }
 
-    const lifted = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const lifted = await geminiText({
+      base44,
       prompt: PROMPT,
       file_urls: [signedUrl],
     });

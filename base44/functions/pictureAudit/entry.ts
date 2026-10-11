@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+import { geminiText } from "../../shared/gemini.ts";
 import { docWordRows, publishedDoc, readDocText, rowsOf } from "../../shared/knowledgeDoc.ts";
 
 /**
@@ -133,7 +134,8 @@ function bestFit(entries: Entry[], said: string[]): Entry | null {
 
 /** What the picture actually shows, as the AI sees it. */
 async function look(base44: any, url: string) {
-  const seen = await base44.asServiceRole.integrations.Core.InvokeLLM({
+  const seen = await geminiText({
+    base44,
     prompt:
       "You are shown one picture from a picture dictionary of Ebembe (Kibembe), the Bantu language of " +
       "the Babembe people. The word the picture is filed under is often wrong, and you are looking at " +

@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+import { geminiText } from "../../shared/gemini.ts";
 import { flowOf, flowStyle } from "../../shared/rapFlows.ts";
 import { LANG_NAME, rapLang, usesStore, type RapLang } from "../../shared/rapLangs.ts";
 import {
@@ -726,7 +727,8 @@ async function rewriteBars(
   ].join("\n");
 
   try {
-    const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const out: any = await geminiText({
+      base44,
       prompt,
       response_json_schema: FIX_SCHEMA,
     });
@@ -819,7 +821,8 @@ async function freshTake(
     .join("\n");
 
   try {
-    const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const out: any = await geminiText({
+      base44,
       prompt,
       response_json_schema: LINES_SCHEMA,
     });
@@ -848,7 +851,8 @@ async function verifyPlan(base44: any, planned: any[], language: RapLang): Promi
   ].join("\n");
 
   try {
-    const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const out: any = await geminiText({
+      base44,
       prompt,
       response_json_schema: VERIFY_SCHEMA,
     });
@@ -928,7 +932,8 @@ export default async function (req: Request): Promise<Response> {
       const asked = clean(payload?.prompt, 240);
       const rules = await rulesText(base44);
       const doc = await docWholeBlock(base44);
-      const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+      const out: any = await geminiText({
+        base44,
         prompt: songPrompt(asked, words, words.length > 0, bpm, rules, doc),
         response_json_schema: SONG_SCHEMA,
       });
@@ -984,7 +989,8 @@ export default async function (req: Request): Promise<Response> {
 
       const rules = await rulesText(base44);
       const doc = await docWholeBlock(base44);
-      const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+      const out: any = await geminiText({
+        base44,
         prompt: planPrompt(
           window.list,
           bpm,
@@ -1043,7 +1049,8 @@ export default async function (req: Request): Promise<Response> {
 
     const rules = await rulesText(base44);
     const doc = await docWholeBlock(base44);
-    const out: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const out: any = await geminiText({
+      base44,
       prompt: writePrompt(
         words,
         {

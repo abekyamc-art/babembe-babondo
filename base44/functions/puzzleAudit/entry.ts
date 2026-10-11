@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import jpeg from 'npm:jpeg-js@0.4.4';
 import pngjs from 'npm:pngjs@7.0.0';
 import { puzzleAuditCrop } from '../../shared/puzzleAuditCrop.ts';
+import { geminiText } from '../../shared/gemini.ts';
 
 /**
  * GLOIRE AI — the places of one prize pair, read from the two photographs themselves.
@@ -280,7 +281,8 @@ export default async function puzzleAudit(req: Request) {
         const at = area(place);
         const read = async () => {
         const cropUrl = await puzzleAuditCrop(base44, first, second, at);
-        const seen = await base44.asServiceRole.integrations.Core.InvokeLLM({
+        const seen = await geminiText({
+          base44,
           prompt: 'This image contains TWO tightly cropped views side by side: original on LEFT, edited on RIGHT. Compare only what is actually visible here. Return differs=true only for a clearly identifiable object that was added, removed, or recolored. Ignore lighting shifts, texture, JPEG noise and tiny geometric drift. If uncertain or no identifiable object differs, return false. Describe the left view in first, right view in second, and the actual object change in label. Never infer an object outside these crops.',
           file_urls: [cropUrl],
           response_json_schema: {

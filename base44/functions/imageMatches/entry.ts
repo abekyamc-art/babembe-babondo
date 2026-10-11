@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+import { geminiText } from "../../shared/gemini.ts";
 import { docWordRows, publishedDoc, readDocText, rowsOf } from "../../shared/knowledgeDoc.ts";
 
 /**
@@ -337,7 +338,9 @@ export default async function (req: Request): Promise<Response> {
         );
       }
 
-      const answer: any = await base44.asServiceRole.integrations.Core.InvokeLLM({
+      const answer: any = await geminiText({
+        base44,
+        size: 1024,
         prompt:
           "These pictures are for a Kibembe (Ebembe) picture dictionary of the Babembe people of the eastern " +
           "Democratic Republic of the Congo. For each picture, choose the one word from the list below that the " +

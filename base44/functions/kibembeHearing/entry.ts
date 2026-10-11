@@ -1,4 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
+import { geminiText } from "../../shared/gemini.ts";
 import { MAX_MEANING, MAX_TERM, MAX_USAGE, clean } from "../../shared/knowledgeWords.ts";
 import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.ts";
 import { docPhraseRows, docWholeBlock, publishedDoc } from "../../shared/knowledgeDoc.ts";
@@ -153,7 +154,8 @@ function place(words: any[], term: string, canonical: string) {
 /** One correction, as the app's own reading of it. Nothing is written down by this. */
 async function readCorrection(base44: any, prompt: string, schema: any): Promise<any> {
   try {
-    const res = await base44.asServiceRole.integrations.Core.InvokeLLM({
+    const res = await geminiText({
+      base44,
       prompt,
       response_json_schema: schema,
     });
