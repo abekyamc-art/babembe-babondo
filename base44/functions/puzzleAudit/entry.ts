@@ -37,9 +37,9 @@ const DOWN = 144;
 const TRULY = 22;
 
 /** A change this small, this faint, this loose a shape, or this big is drift of the light — not a change. */
-const LEAST_BLOCKS = 25;
-const LEAST_STRENGTH = 32;
-const LEAST_PACKED = 0.28;
+const LEAST_BLOCKS = 30;
+const LEAST_STRENGTH = 50;
+const LEAST_PACKED = 0.35;
 const MOST_AREA = 0.06;
 
 type Picture = { width: number; height: number; data: Uint8Array };

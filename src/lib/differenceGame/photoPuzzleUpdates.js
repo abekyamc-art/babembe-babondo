@@ -57,17 +57,17 @@ export const PHOTO_PUZZLE_UPDATES = {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/dab829fc4_generated_59ca7a38.jpg',
     differences: [
       { id: 'fishing-photo-1', x: 0.1575, y: 0.454, w: 0.07, h: 0.07, label: 'One fish on the drying rack is bright yellow' },
-      { id: 'fishing-photo-2', x: 0.038, y: 0.487, w: 0.088, h: 0.196, label: 'A wooden paddle leans against the rock' },
-      { id: 'fishing-photo-3', x: 0.693, y: 0.554, w: 0.07, h: 0.07, label: 'The tallest fisherman wears a bright red shirt' },
+      { id: 'fishing-photo-2', x: 0, y: 0.4801, w: 0.1409, h: 0.2203, label: 'A wooden paddle leans against the rock' },
+      { id: 'fishing-photo-3', x: 0.6935, y: 0.5704, w: 0.07, h: 0.0814, label: 'The tallest fisherman wears a bright red shirt' },
       { id: 'fishing-photo-4', x: 0.707, y: 0.772, w: 0.107, h: 0.195, label: 'A brown dog sits on the sand' },
     ],
   },
   well: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/8d33f02bd_generated_75051566.jpg',
     differences: [
-      { id: 'well-photo-1', x: 0.473, y: 0.403, w: 0.136, h: 0.204, label: 'The bucket on the rope is bright red' },
-      { id: 'well-photo-2', x: 0.781, y: 0.682, w: 0.147, h: 0.208, label: 'A jerrycan has turned bright green' },
-      { id: 'well-photo-3', x: 0.067, y: 0.694, w: 0.139, h: 0.142, label: 'A second brown hen stands on the ground' },
+      { id: 'well-photo-1', x: 0.4628, y: 0.4037, w: 0.0784, h: 0.2134, label: 'The bucket on the rope is bright red' },
+      { id: 'well-photo-2', x: 0.7596, y: 0.6369, w: 0.1018, h: 0.24, label: 'A jerrycan has turned bright green' },
+      { id: 'well-photo-3', x: 0.0643, y: 0.6954, w: 0.0823, h: 0.1231, label: 'A second brown hen stands on the ground' },
     ],
   },
   schoolyard: {
@@ -76,15 +76,15 @@ export const PHOTO_PUZZLE_UPDATES = {
       { id: 'schoolyard-photo-1', x: 0.478, y: 0.0705, w: 0.07, h: 0.07, label: 'A yellow bird sits in the big tree' },
       { id: 'schoolyard-photo-2', x: 0.654, y: 0.6775, w: 0.07, h: 0.07, label: 'One uniform shirt is bright red' },
       { id: 'schoolyard-photo-3', x: 0.499, y: 0.7395, w: 0.07, h: 0.07, label: 'The football has gone from the ground' },
-      { id: 'schoolyard-photo-4', x: 0.87, y: 0.714, w: 0.13, h: 0.07, label: 'A wooden bench stands beside the wall' },
+      { id: 'schoolyard-photo-4', x: 0.8849, y: 0.7093, w: 0.07, h: 0.1023, label: 'A wooden bench stands beside the wall' },
     ],
   },
   kitchen: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/a2ce38747_generated_e89e0e57.jpg',
     differences: [
-      { id: 'kitchen-photo-1', x: 0.1925, y: 0.565, w: 0.34, h: 0.218, label: 'The pot on the fire is silver' },
+      { id: 'kitchen-photo-1', x: 0.1698, y: 0.5496, w: 0.2112, h: 0.2064, label: 'The pot on the fire is silver' },
       { id: 'kitchen-photo-2', x: 0.22, y: 0.489, w: 0.07, h: 0.085, label: 'The wooden spoon is bright green' },
-      { id: 'kitchen-photo-3', x: 0.763, y: 0.81, w: 0.085, h: 0.07, label: 'A white plate stands on the mat' },
+      { id: 'kitchen-photo-3', x: 0.6776, y: 0.8134, w: 0.1839, h: 0.1092, label: 'White plates stand on the mat' },
       { id: 'kitchen-photo-4', x: 0.93, y: 0.715, w: 0.07, h: 0.082, label: 'The clay water pot is missing' },
     ],
   },
@@ -116,11 +116,11 @@ export const PHOTO_PUZZLE_UPDATES = {
   washing: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/aaf82f0ac_generated_b7f55fda.jpg',
     differences: [
-      { id: 'washing-photo-1', x: 0.1755, y: 0.341, w: 0.07, h: 0.07, label: 'A yellow cloth has gone from the bush' },
-      { id: 'washing-photo-2', x: 0.4575, y: 0.686, w: 0.34, h: 0.147, label: 'The basin on the stones is bright red' },
-      { id: 'washing-photo-3', x: 0.42, y: 0.33, w: 0.07, h: 0.07, label: 'A shirt on the bush is bright green' },
+      { id: 'washing-photo-1', x: 0.2365, y: 0.3551, w: 0.07, h: 0.0814, label: 'The yellow cloth on the bush has turned brown' },
+      { id: 'washing-photo-2', x: 0.3612, y: 0.6676, w: 0.1175, h: 0.0884, label: 'The basin on the stones is bright red' },
+      { id: 'washing-photo-3', x: 0.4142, y: 0.3204, w: 0.07, h: 0.0884, label: 'A cloth on the bush is bright green' },
       { id: 'washing-photo-4', x: 0.1675, y: 0.805, w: 0.07, h: 0.07, label: 'A bar of soap lies on the stone' },
-      { id: 'washing-photo-5', x: 0.824, y: 0.7115, w: 0.1, h: 0.07, label: 'A white duck swims in the water' },
+      { id: 'washing-photo-5', x: 0.8182, y: 0.7162, w: 0.0901, h: 0.0953, label: 'A white duck swims in the water' },
     ],
   },
   palms: {
