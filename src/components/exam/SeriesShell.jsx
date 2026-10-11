@@ -5,6 +5,7 @@ import ExamLeaderboard from "./ExamLeaderboard";
 import ExamProgress from "./ExamProgress";
 import ExamQuestionCard from "./ExamQuestionCard";
 import ExamResults from "./ExamResults";
+import ExamPrizes from "./ExamPrizes";
 import ExamSeasons from "./ExamSeasons";
 import { reportOf, scoreOf, pointsOf } from "@/lib/examSession";
 import { EXAM_SEASONS, episodeSize, episodesInSeason, seasonByNo } from "@/lib/examSeasons";
@@ -127,8 +128,8 @@ export default function SeriesShell({ open, onClose }) {
   const note = !report ? '' : went
     ? nextOpen
       ? `Episode ${attempt.episode} is passed and is now closed. Episode ${nextNo} is next.`
-      : seasonAfter ? `Season ${attempt.season} is complete. Season ${seasonAfter.no} is next.`
-      : 'All available seasons are complete. Passed episodes will not be repeated.'
+      : seasonAfter ? `Season ${attempt.season} is complete — its gold trophy now stands on the prize shelf. Season ${seasonAfter.no} is next.`
+      : "All available seasons are complete, and every season's gold trophy stands on the prize shelf. Passed episodes will not be repeated."
     : `You scored ${report.percent}% of ${report.total} points — more than 80% opens the next episode. Take episode ${attempt.episode} again.`;
 
   // An episode is opened whatever the account syncing is doing: a slow or a failed save is written down
@@ -245,6 +246,8 @@ export default function SeriesShell({ open, onClose }) {
                 </div>
               </>
             )
+          ) : view === "prizes" ? (
+            <ExamPrizes progress={progress} onBack={() => setView("seasons")} />
           ) : view === "board" ? (
             <ExamLeaderboard onBack={() => setView("seasons")} />
           ) : view === "episodes" ? (
@@ -261,6 +264,7 @@ export default function SeriesShell({ open, onClose }) {
               onOpenSeason={openSeason}
               onResume={resumeEpisode}
               onBoard={() => setView("board")}
+              onPrizes={() => setView("prizes")}
             />
           )}
         </div>

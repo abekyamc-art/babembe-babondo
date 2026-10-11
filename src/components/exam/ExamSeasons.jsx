@@ -1,5 +1,5 @@
 import React from "react";
-import { Lock, Trophy } from "lucide-react";
+import { Award, Lock, Trophy } from "lucide-react";
 import { EXAM_SEASONS, episodesInSeason } from "@/lib/examSeasons";
 import { nextEpisode, completedIn, seasonCleared, seasonOpen } from "@/lib/examProgress";
 
@@ -11,13 +11,17 @@ import { nextEpisode, completedIn, seasonCleared, seasonOpen } from "@/lib/examP
  * before it is passed, and the season after it opens only when all hundred of this one are done. The
  * public leaderboard is met in one tap at the head of them.
  */
-export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, onBoard }) {
+export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, onBoard, onPrizes }) {
   const cleared = EXAM_SEASONS.filter((season) => seasonCleared(progress, season.no)).length;
 
   return (
     <div className="exam-seasons">
       <button type="button" className="exam-board-open" onClick={onBoard}>
         <Trophy className="h-4 w-4" /> Public leaderboard — the 100 highest scores
+      </button>
+
+      <button type="button" className="exam-shelf-open" onClick={onPrizes}>
+        <Award className="h-4 w-4" /> Prize shelf — a gold trophy for every season you clear
       </button>
 
       <p className="exam-seasons-note">
