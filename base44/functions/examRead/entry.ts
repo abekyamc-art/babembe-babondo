@@ -37,6 +37,11 @@ const EBEMBE_LANG = "sw";
 const EBEMBE_KEY = "ELEVENLABS_API_KEY";
 
 /** How long a line may be: a question of the examination is a line or two, never more. */
+// The app's own voice service, standing last behind the examination's own voices: the same warm voice,
+// and the same voice language, the app already reads its Kibembe answers in (see kibembeVoice).
+const APP_VOICE = "honey";
+const APP_VOICE_LANG = "ms";
+
 const MAX_TEXT = 320;
 const UNAVAILABLE = "The question could not be read aloud. Please try again.";
 const NOTHING = "There is nothing to read.";
@@ -124,6 +129,7 @@ async function voiceOfAgent(apiKey: string, saved: string) {
  * have the language named, the same line is asked for plainly rather than left unheard.
  */
 async function speakEbembe(apiKey: string, transcript: string) {
+  const why: string[] = [];
   for (const language of [EBEMBE_LANG, ""]) {
     try {
       const body: any = { text: transcript, model_id: EBEMBE_MODEL };
@@ -139,7 +145,9 @@ async function speakEbembe(apiKey: string, transcript: string) {
         signal: AbortSignal.timeout(20000),
       });
       if (!res.ok) {
-        console.error("The Ebembe voice refused the line:", res.status, language || "unstated");
+        const said = (await res.text()).slice(0, 160);
+        console.error("The Ebembe voice refused the line:", res.status, language || "unstated", said);
+        why.push(`ebembe/${language || "unstated"}: ${res.status} ${said}`);
         continue;
       }
       const bytes = new Uint8Array(await res.arrayBuffer());
@@ -147,9 +155,10 @@ async function speakEbembe(apiKey: string, transcript: string) {
       return { bytes, ext: "mp3", type: "audio/mpeg" };
     } catch (error: any) {
       console.error("The Ebembe voice failed:", error?.message);
+      why.push(`ebembe/${language || "unstated"}: ${error?.message}`);
     }
   }
-  return { bytes: null };
+  return { bytes: null, why };
 }
 
 export default async function (req: Request): Promise<Response> {
@@ -182,8 +191,11 @@ export default async function (req: Request): Promise<Response> {
     // The voice that reads: the app's own Ebembe voice first; and where it cannot be had, the voice saved
     // in Secrets, and, where nothing is heard from that either, the voice of the agent it names.
     const ebembeKey = secrets.get(EBEMBE_KEY);
-    let spoken: any = ebembeKey ? await speakEbembe(ebembeKey, line) : { bytes: null };
-    const why: string[] = [];
+    let spoken: any = ebembeKey
+      ? await speakEbembe(ebembeKey, line)
+      : { bytes: null, why: ["the Ebembe voice's key is not set"] };
+    // what every voice refused the line with, so a reading that fails can be traced to its account
+    const why: string[] = [...(spoken?.why || [])];
 
     if (!spoken?.bytes) {
       spoken = await speak(apiKey, voiceId, forFallback);
@@ -198,7 +210,25 @@ export default async function (req: Request): Promise<Response> {
         why.push(fromAgent.why);
       }
     }
+    // An account can run dry: the account holding the Ebembe voice may have no characters left, and the
+    // one holding the examination's own voice may be past its credit limit. The examination is not left
+    // silent for it — the line is read through the app's own voice service instead, on the voice and the
+    // voice language the app already reads its Kibembe answers in, so a question is always heard while
+    // the accounts are set right again.
     if (!spoken?.bytes) {
+      try {
+        const made: any = await base44.asServiceRole.integrations.Core.GenerateSpeech({
+          text: forFallback,
+          voice: APP_VOICE,
+          language_code: APP_VOICE_LANG,
+        });
+        if (made?.url) return Response.json({ audio_url: made.url, voice: "app" });
+        console.error("The app's own voice came back empty.");
+        why.push("the app's own voice came back empty");
+      } catch (error: any) {
+        console.error("The app's own voice could not read the line:", error?.message);
+        why.push(`app voice: ${error?.message}`);
+      }
       return Response.json({ error: UNAVAILABLE, detail: why }, { status: 502 });
     }
 

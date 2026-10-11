@@ -16,6 +16,9 @@ export default function ExamRead({ text, kibembe = "", onDone }) {
   // "wait" — the voice is being made; "speak" — the line is being read; "done" — it has been hung up
   const [state, setState] = useState("wait");
   const [trouble, setTrouble] = useState("");
+  // how often this question's reading has failed, so a phone that will not play sound can never keep a
+  // student out of the paper
+  const fails = useRef(0);
   const alive = useRef(true);
   const line = useRef("");
   const form = useRef("");
@@ -41,7 +44,15 @@ export default function ExamRead({ text, kibembe = "", onDone }) {
         if (alive.current) setState("speak");
       });
     } catch (err) {
-      if (alive.current) setTrouble(err?.message || "This question could not be read aloud.");
+      if (!alive.current) return;
+      fails.current += 1;
+      setTrouble(err?.message || "This question could not be read aloud.");
+      // a reading that failed is not a reading that was heard: the choices stay shut and the line is
+      // offered again — and only a second failure opens them, so nobody is ever kept out of the paper
+      if (fails.current < 2) {
+        setState("failed");
+        return;
+      }
     }
     if (!alive.current) return;
     setState("done");
@@ -51,6 +62,7 @@ export default function ExamRead({ text, kibembe = "", onDone }) {
   // every new question is read as it appears, and the one before it is hung up as it goes
   useEffect(() => {
     alive.current = true;
+    fails.current = 0;
     speak();
     return () => {
       alive.current = false;
@@ -59,7 +71,9 @@ export default function ExamRead({ text, kibembe = "", onDone }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [text, kibembe]);
 
-  const reading = state !== "done";
+  // the voice is being made, or the line is being read: the control offers to skip it. A reading that
+  // failed is over for this attempt, so the control offers to try it again instead.
+  const reading = state === "wait" || state === "speak";
 
   return (
     <div className="exam-read-wrap">
@@ -78,7 +92,7 @@ export default function ExamRead({ text, kibembe = "", onDone }) {
         ) : (
           <RotateCcw />
         )}
-        {reading ? "Skip reading" : "Read again"}
+        {reading ? "Skip reading" : state === "failed" ? "Try the reading again" : "Read again"}
       </button>
       {reading ? (
         <p className="exam-read-note" aria-live="polite">
