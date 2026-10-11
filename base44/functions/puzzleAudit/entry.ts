@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import jpeg from 'npm:jpeg-js@0.4.4';
 import pngjs from 'npm:pngjs@7.0.0';
+import { puzzleAuditCrop } from '../../shared/puzzleAuditCrop.ts';
 
 /**
  * GLOIRE AI — the places of one prize pair, read from the two photographs themselves.
@@ -65,7 +66,7 @@ function small(url: string) {
 /** One of the pair, opened as plain colour. */
 async function open(url: string): Promise<Picture> {
   const address = small(url);
-  const res = await fetch(address);
+  const res = await fetch(address, { signal: AbortSignal.timeout(20000) });
   if (!res.ok) throw new Error(`A photograph of the pair could not be opened (${res.status}).`);
   const bytes = new Uint8Array(await res.arrayBuffer());
   const kind = res.headers.get('content-type') || address;
@@ -220,9 +221,11 @@ export default async function puzzleAudit(req: Request) {
     if (!pair?.scene || typeof pair?.base !== 'string' || typeof pair?.changed !== 'string') {
       return Response.json({ error: 'One pair of pictures was not named.' }, { status: 400 });
     }
+    const ownMedia = 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/';
+    if (![pair.base, pair.changed].every((url) => url.startsWith(ownMedia)) || !/^[a-z]+$/.test(pair.scene)) {
+      return Response.json({ error: 'Only this game’s own photograph pairs can be audited.' }, { status: 400 });
+    }
     const target = Math.min(10, Math.max(1, Number(pair.target) || 5));
-    const planned = Array.isArray(pair.changes) ? pair.changes.slice(0, 20).map((one: any) => String(one || '').trim()) : [];
-    const listed = planned.map((one: string, i: number) => `(${i + 1}) ${one}`).join(' ');
 
     // ── what the pictures themselves hold ────────────────────────────────────────────────────────────
     const first = await open(pair.base);
@@ -236,75 +239,34 @@ export default async function puzzleAudit(req: Request) {
     }
     const found = places(movement(firstBlocks, blocks(second)));
 
-    // ── every place looked at by eye, so nothing faint or drifted is ever asked for ──────────────────
-    const looked = await Promise.allSettled(
-      found.map((place) => {
-        const at = area(place);
-        const box = `Look at exactly this box of the picture — a share of the whole picture's width and ` +
-          `height counted from its top-left corner: x ${at.x.toFixed(3)}, y ${at.y.toFixed(3)}, width ` +
-          `${at.w.toFixed(3)}, height ${at.h.toFixed(3)}`;
-        return Promise.all([
-          // what the eye sees inside that one box, and whether the two photographs truly differ there
-          base44.asServiceRole.integrations.Core.InvokeLLM({
-            prompt:
-              'Two photographs of one and the same scene stand here: the first is the original, and the second ' +
-              `was edited from it to make its differences. ${box}. Answer about what stands inside that box ` +
-              'only, and nothing else in the picture. In three to five plain words, what stands inside that box ' +
-              'in the FIRST photograph; in three to five plain words, what stands inside it in the SECOND ' +
-              'photograph; and whether those two truly differ there (true), or are the same thing seen the same ' +
-              'way (false).',
-            file_urls: [pair.base, pair.changed],
-            response_json_schema: {
-              type: 'object',
-              properties: {
-                first: { type: 'string' },
-                second: { type: 'string' },
-                differs: { type: 'boolean' },
-              },
-              required: ['first', 'second', 'differs'],
-            },
-          }),
-          // which of the changes the pair was drawn from stands inside that box, so it is named truly
-          base44.asServiceRole.integrations.Core.InvokeLLM({
-            prompt:
-              'Two photographs of one and the same scene stand here: the first is the original, and the second ' +
-              `was edited from it. ${box}. The pair was drawn from these changes, numbered: ` +
-              `${listed || '(none of them was written down)'} Say which one of those changes stands inside that ` +
-              'box: its number, or 0 if what stands there is none of them.',
-            file_urls: [pair.base, pair.changed],
-            response_json_schema: {
-              type: 'object',
-              properties: { match: { type: 'number' } },
-              required: ['match'],
-            },
-          }),
-        ]);
-      })
-    );
-
+    // Verify each measured region independently; never assign a label from the requested edit plan.
     const differences = [];
-    looked.forEach((answer: any, i: number) => {
-      const pairOfReadings = answer?.status === 'fulfilled' ? answer.value : null;
-      const seen = pairOfReadings?.[0] || null;
-      const named = pairOfReadings?.[1] || null;
-      const place = found[i];
-      const at = area(place);
-      // a place the eye finds unchanged is drift of the light: it is not a difference to be asked for
-      if (seen && seen.differs === false) return;
-      const numbered = Number(named?.match);
-      const text = numbered > 0 && planned[numbered - 1] ? planned[numbered - 1] : '';
-      differences.push({
-        x: at.x,
-        y: at.y,
-        w: at.w,
-        h: at.h,
-        strength: place.strength,
-        label:
-          (text ? text.replace(/^(in|on|at)\b[^,]*,\s*/i, '').trim() : '') ||
-          String(seen?.second || '').trim() ||
-          'A change in the picture',
-      });
-    });
+    const candidates = found.slice(0, 24);
+    for (let start = 0; start < candidates.length; start += 4) {
+      const batch = candidates.slice(start, start + 4);
+      const looked = await Promise.allSettled(batch.map(async (place) => {
+        const at = area(place);
+        const cropUrl = await puzzleAuditCrop(base44, first, second, at);
+        const seen = await base44.asServiceRole.integrations.Core.InvokeLLM({
+          prompt: 'This image contains TWO tightly cropped views side by side: original on LEFT, edited on RIGHT. Compare only what is actually visible here. Return differs=true only for a clearly identifiable object that was added, removed, or recolored. Ignore lighting shifts, texture, JPEG noise and tiny geometric drift. If uncertain or no identifiable object differs, return false. Describe the left view in first, right view in second, and the actual object change in label. Never infer an object outside these crops.',
+          file_urls: [cropUrl],
+          response_json_schema: {
+            type: 'object',
+            properties: { first: { type: 'string' }, second: { type: 'string' }, differs: { type: 'boolean' }, label: { type: 'string' } },
+            required: ['first', 'second', 'differs', 'label'],
+          },
+        });
+        return seen?.differs === true && seen.label?.trim()
+          ? { ...at, label: seen.label.trim() }
+          : null;
+      }));
+      if (looked.some((result) => result.status === 'rejected')) {
+        throw new Error('A picture region could not be verified; no partial audit was returned.');
+      }
+      for (const result of looked) {
+        if (result.status === 'fulfilled' && result.value) differences.push(result.value);
+      }
+    }
 
     const written = differences.map((one, i) => ({
       id: `${pair.scene}-photo-${i + 1}`,
