@@ -1,54 +1,210 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
+import jpeg from 'npm:jpeg-js@0.4.4';
+import pngjs from 'npm:pngjs@7.0.0';
 
 /**
- * GLOIRE AI — reading the places of one prize pair, one pair at a time.
+ * GLOIRE AI — the places of one prize pair, read from the two photographs themselves.
  *
- * A prize puzzle is played on a pair of photographs drawn long ago, and the places that truly differ
- * between them are read here off the two pictures themselves — never taken on trust from the plan the
- * pair was drawn from. One pair is read per call, and every change of that pair is read twice, in two
- * different ways at once:
+ * A prize puzzle is played on a pair of photographs drawn long ago, and every touch area of it is found
+ * here — not guessed at, and not taken on trust from the plan the pair was drawn from. One pair is read
+ * per call, and each place is settled twice over:
  *
- *   · a box around the changed object, and
- *   · the one centre point where the change stands.
+ *   · the two photographs are compared pixel by pixel, part by part. The very pixels that moved are where
+ *     the picture changed, and a run of them that stands together, moves clearly, and stands as a compact
+ *     shape rather than a thin smear of drift, is one place — so a touch area always stands on a change
+ *     that is truly in the picture, and never on a place where the light merely shifted.
+ *   · every place the pixels found is then looked at by eye, in the two photographs, and named: what stood
+ *     there in the original, what stands there in the edited copy, and whether those two really differ. A
+ *     place that only drifted is thrown out here, so nothing faint is ever asked for.
  *
- * Two readings of one place that land in the same spot confirm each other, and the touch area is then
- * drawn around that spot — never larger than a change and never smaller than a finger. Where the two
- * readings disagree, the pair is asked about that one place a third time before anything is written
- * down. Where a change never came out in the picture at all, both readings say so and it is left out:
- * the level then asks only for the places its own picture truly holds.
- *
- * Nothing is drawn here and nothing is re-drawn: the photographs stand exactly as they are.
+ * The level then asks only for the places its own picture truly holds. Nothing is drawn or re-drawn here:
+ * the photographs stand exactly as they are.
  */
 const share = (n: number) => Math.round(Math.max(0, Math.min(1, n)) * 10000) / 10000;
 
 /** A touch area is never drawn smaller than this, or a finger has nothing to land on. */
 const LEAST = 0.07;
 
-/** Nor wider than this, or it starts covering what stands beside the change. */
+/** Nor wider or taller than this, or it reaches across into what stands beside the change. */
 const MOST = 0.24;
 
-/** Two readings this close stand on the very same place. */
-const AGREE = 0.06;
+/** The pictures are compared in this many parts across and down. */
+const ACROSS = 256;
+const DOWN = 144;
 
-/** A box of the named size, kept inside the picture and built round the named centre. */
-function area(cx: number, cy: number, w: number, h: number) {
-  const hold = (n: number) => Math.max(LEAST, Math.min(MOST, n));
-  const width = hold(Number.isFinite(w) && w > 0 ? w : LEAST);
-  const height = hold(Number.isFinite(h) && h > 0 ? h : LEAST);
-  const left = Math.max(0, Math.min(cx - width / 2, 1 - width));
-  const top = Math.max(0, Math.min(cy - height / 2, 1 - height));
+/** A part is only taken for changed when its colour truly moves by this much. */
+const TRULY = 22;
+
+/** A change this small, this faint, this loose a shape, or this big is drift of the light — not a change. */
+const LEAST_BLOCKS = 25;
+const LEAST_STRENGTH = 32;
+const LEAST_PACKED = 0.28;
+const MOST_AREA = 0.06;
+
+type Picture = { width: number; height: number; data: Uint8Array };
+
+/**
+ * A small copy of the same photograph, asked of the picture service. Two copies of a pair are opened
+ * together and held in the hand at once, and a pair read at full size is far larger than the reading
+ * needs: the places are found part by part, and every part is a few pixels of the small copy anyway.
+ */
+function small(url: string) {
+  try {
+    const at = new URL(url);
+    if (at.hostname !== 'media.base44.com' && at.hostname !== 'static.wixstatic.com') return url;
+    const cut = at.pathname.match(/^(.*?)\/v1\/(?:fill|fit)\//i);
+    const basePath = cut ? cut[1] : at.pathname;
+    const name = basePath.split('/').pop() || 'picture';
+    const outName = `${name.replace(/\.[a-z0-9]+$/i, '')}.jpg`;
+    return `${at.origin}${basePath}/v1/fit/w_1600,h_1600,q_92,enc_jpg/${outName}`;
+  } catch {
+    return url;
+  }
+}
+
+/** One of the pair, opened as plain colour. */
+async function open(url: string): Promise<Picture> {
+  const address = small(url);
+  const res = await fetch(address);
+  if (!res.ok) throw new Error(`A photograph of the pair could not be opened (${res.status}).`);
+  const bytes = new Uint8Array(await res.arrayBuffer());
+  const kind = res.headers.get('content-type') || address;
+  if (/\.png$/i.test(kind)) {
+    const png = pngjs.PNG.sync.read(Buffer.from(bytes));
+    return { width: png.width, height: png.height, data: new Uint8Array(png.data) };
+  }
+  const photo = jpeg.decode(bytes, { useTArray: true });
+  return { width: photo.width, height: photo.height, data: photo.data as Uint8Array };
+}
+
+/** The picture read down to one colour for each of its parts, so the two can be held together. */
+function blocks(picture: Picture) {
+  const blockW = picture.width / ACROSS;
+  const blockH = picture.height / DOWN;
+  const out = new Float64Array(ACROSS * DOWN * 3);
+  for (let by = 0; by < DOWN; by += 1) {
+    const y0 = Math.floor(by * blockH);
+    const y1 = Math.max(y0 + 1, Math.floor((by + 1) * blockH));
+    for (let bx = 0; bx < ACROSS; bx += 1) {
+      const x0 = Math.floor(bx * blockW);
+      const x1 = Math.max(x0 + 1, Math.floor((bx + 1) * blockW));
+      let r = 0;
+      let g = 0;
+      let b = 0;
+      let n = 0;
+      for (let y = y0; y < y1; y += 1) {
+        for (let x = x0; x < x1; x += 1) {
+          const i = (y * picture.width + x) * 4;
+          r += picture.data[i];
+          g += picture.data[i + 1];
+          b += picture.data[i + 2];
+          n += 1;
+        }
+      }
+      const at = (by * ACROSS + bx) * 3;
+      out[at] = r / n;
+      out[at + 1] = g / n;
+      out[at + 2] = b / n;
+    }
+  }
+  return out;
+}
+
+/** How far each part moved between the two, with the whole picture's own drift of light taken off it. */
+function movement(one: Float64Array, two: Float64Array) {
+  let dr = 0;
+  let dg = 0;
+  let db = 0;
+  for (let i = 0; i < one.length; i += 3) {
+    dr += two[i] - one[i];
+    dg += two[i + 1] - one[i + 1];
+    db += two[i + 2] - one[i + 2];
+  }
+  const parts = one.length / 3;
+  dr /= parts;
+  dg /= parts;
+  db /= parts;
+  const out = new Float64Array(ACROSS * DOWN);
+  for (let i = 0, j = 0; i < one.length; i += 3, j += 1) {
+    out[j] =
+      (Math.abs(two[i] - one[i] - dr) +
+        Math.abs(two[i + 1] - one[i + 1] - dg) +
+        Math.abs(two[i + 2] - one[i + 2] - db)) /
+      3;
+  }
+  return out;
+}
+
+/** The places the picture truly changed in: each run of moved parts that stands as a change. */
+function places(moved: Float64Array) {
+  const taken = new Uint8Array(ACROSS * DOWN);
+  const out: any[] = [];
+  for (let i = 0; i < ACROSS * DOWN; i += 1) {
+    if (taken[i] || moved[i] < TRULY) continue;
+    const stack = [i];
+    taken[i] = 1;
+    let x0 = ACROSS;
+    let x1 = -1;
+    let y0 = DOWN;
+    let y1 = -1;
+    let sum = 0;
+    let n = 0;
+    while (stack.length) {
+      const at = stack.pop() as number;
+      const x = at % ACROSS;
+      const y = (at - x) / ACROSS;
+      x0 = Math.min(x0, x);
+      x1 = Math.max(x1, x);
+      y0 = Math.min(y0, y);
+      y1 = Math.max(y1, y);
+      sum += moved[at];
+      n += 1;
+      for (let dy = -1; dy <= 1; dy += 1) {
+        for (let dx = -1; dx <= 1; dx += 1) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (nx < 0 || ny < 0 || nx >= ACROSS || ny >= DOWN) continue;
+          const next = ny * ACROSS + nx;
+          if (!taken[next] && moved[next] >= TRULY) {
+            taken[next] = 1;
+            stack.push(next);
+          }
+        }
+      }
+    }
+    const w = (x1 - x0 + 1) / ACROSS;
+    const h = (y1 - y0 + 1) / DOWN;
+    const strength = sum / n;
+    const packed = n / ((x1 - x0 + 1) * (y1 - y0 + 1));
+    if (n < LEAST_BLOCKS) continue;
+    if (strength < LEAST_STRENGTH) continue;
+    if (packed < LEAST_PACKED) continue;
+    if (w * h > MOST_AREA) continue;
+    out.push({
+      x: x0 / ACROSS,
+      y: y0 / DOWN,
+      w,
+      h,
+      blocks: n,
+      strength: Math.round(strength),
+      centre: [x0 / ACROSS + w / 2, y0 / DOWN + h / 2] as [number, number],
+    });
+  }
+  return out.sort((one, two) => two.strength - one.strength);
+}
+
+/** The touch area drawn round a place the pixels found: room for a finger, never more than the change. */
+function area(place: any) {
+  const width = Math.min(MOST, Math.max(LEAST, place.w + 0.012));
+  const height = Math.min(MOST, Math.max(LEAST, place.h + 0.012));
+  const left = Math.max(0, Math.min(place.centre[0] - width / 2, 1 - width));
+  const top = Math.max(0, Math.min(place.centre[1] - height / 2, 1 - height));
   return {
     x: share(left),
     y: share(top),
     w: share(width),
     h: share(height),
-    centre: [left + width / 2, top + height / 2] as [number, number],
   };
-}
-
-/** How far apart two readings stand. */
-function apart(one: [number, number], two: [number, number]) {
-  return Math.hypot(one[0] - two[0], one[1] - two[1]);
 }
 
 export default async function puzzleAudit(req: Request) {
@@ -60,233 +216,112 @@ export default async function puzzleAudit(req: Request) {
     }
 
     const body = await req.json().catch(() => ({}));
-    const one = body?.pair;
-    if (
-      !one?.scene ||
-      typeof one?.base !== 'string' ||
-      typeof one?.changed !== 'string' ||
-      !Array.isArray(one?.changes) ||
-      !one.changes.length
-    ) {
+    const pair = body?.pair;
+    if (!pair?.scene || typeof pair?.base !== 'string' || typeof pair?.changed !== 'string') {
       return Response.json({ error: 'One pair of pictures was not named.' }, { status: 400 });
     }
+    const target = Math.min(10, Math.max(1, Number(pair.target) || 5));
+    const planned = Array.isArray(pair.changes) ? pair.changes.slice(0, 20).map((one: any) => String(one || '').trim()) : [];
+    const listed = planned.map((one: string, i: number) => `(${i + 1}) ${one}`).join(' ');
 
-    const target = Math.min(10, Math.max(1, Number(one.target) || 5));
-    const changes = one.changes.slice(0, 10).map((change: any) => String(change || '').trim());
-    const pair = [one.base, one.changed];
+    // ── what the pictures themselves hold ────────────────────────────────────────────────────────────
+    const first = await open(pair.base);
+    const firstBlocks = blocks(first);
+    const second = await open(pair.changed);
+    if (first.width !== second.width || first.height !== second.height) {
+      return Response.json(
+        { error: 'The two photographs are not the same size, so their places cannot be held together.' },
+        { status: 422 }
+      );
+    }
+    const found = places(movement(firstBlocks, blocks(second)));
 
-    const ask = (prompt: string, properties: any, required: string[]) =>
-      base44.asServiceRole.integrations.Core.InvokeLLM({
-        prompt,
-        file_urls: pair,
-        response_json_schema: { type: 'object', properties, required },
-      });
-
-    // The box reading: where the changed object stands, and what stands at that spot in each picture.
-    const boxPrompt = (change: string) =>
-      'Two photographs of one and the same scene stand here: the first is the original, and the second ' +
-      `was edited from it to make this one change: ${change} Answer about that one change and nothing ` +
-      'else. Look carefully: is the change truly VISIBLE between the two photographs, or is that place the ' +
-      'same in both (only lighting, jpeg noise or a slight drift of the camera)? Never say a change is ' +
-      'visible when the two photographs look the same there. Then, if it is visible, give a box tightly ' +
-      'around the changed object alone: x and y of its top-left corner, its width w and its height h, as ' +
-      'whole numbers on a 1000 by 1000 grid laid over the WHOLE photograph, x from the left edge and y from ' +
-      'the top edge, whatever the photograph\'s real pixel size is. An object that was removed stands in the ' +
-      'first photograph; an object that was added or altered stands in the second. Box that single object — ' +
-      'never several objects together and never a whole region of the picture.';
-
-    // The centre reading: the one point the change stands at, told in another way, so the two answers
-    // can be held against one another.
-    const centrePrompt = (change: string) =>
-      'Two photographs of one and the same scene stand here: the first is the original, and the second ' +
-      `was edited from it to make this one change: ${change} Look at the two photographs and answer about ` +
-      'that one change only. Is that place the same in both photographs (only lighting, jpeg noise or a ' +
-      'slight drift of the camera differ there) — or is it truly different? If it is truly different, give ' +
-      'the very centre point of the changed object as two whole numbers on a 1000 by 1000 grid laid over the ' +
-      'WHOLE photograph: cx across from the left edge, cy down from the top edge, whatever the photograph\'s ' +
-      'real pixel size is. Then name, in three or four plain words each, what stands at that very point in ' +
-      'the first photograph and what stands there in the second.';
-
-    const boxSchema = {
-      properties: {
-        visible: { type: 'boolean' },
-        x: { type: 'number' },
-        y: { type: 'number' },
-        w: { type: 'number' },
-        h: { type: 'number' },
-        at: { type: 'string' },
-      },
-      required: ['visible'],
-    };
-    const centreSchema = {
-      properties: {
-        same: { type: 'boolean' },
-        cx: { type: 'number' },
-        cy: { type: 'number' },
-        first: { type: 'string' },
-        second: { type: 'string' },
-      },
-      required: ['same'],
-    };
-
-    const read = await Promise.allSettled(
-      changes.map(async (change: string) => {
-        const [boxedAny, centredAny] = await Promise.all([
-          ask(boxPrompt(change), boxSchema.properties, boxSchema.required),
-          ask(centrePrompt(change), centreSchema.properties, centreSchema.required),
+    // ── every place looked at by eye, so nothing faint or drifted is ever asked for ──────────────────
+    const looked = await Promise.allSettled(
+      found.map((place) => {
+        const at = area(place);
+        const box = `Look at exactly this box of the picture — a share of the whole picture's width and ` +
+          `height counted from its top-left corner: x ${at.x.toFixed(3)}, y ${at.y.toFixed(3)}, width ` +
+          `${at.w.toFixed(3)}, height ${at.h.toFixed(3)}`;
+        return Promise.all([
+          // what the eye sees inside that one box, and whether the two photographs truly differ there
+          base44.asServiceRole.integrations.Core.InvokeLLM({
+            prompt:
+              'Two photographs of one and the same scene stand here: the first is the original, and the second ' +
+              `was edited from it to make its differences. ${box}. Answer about what stands inside that box ` +
+              'only, and nothing else in the picture. In three to five plain words, what stands inside that box ' +
+              'in the FIRST photograph; in three to five plain words, what stands inside it in the SECOND ' +
+              'photograph; and whether those two truly differ there (true), or are the same thing seen the same ' +
+              'way (false).',
+            file_urls: [pair.base, pair.changed],
+            response_json_schema: {
+              type: 'object',
+              properties: {
+                first: { type: 'string' },
+                second: { type: 'string' },
+                differs: { type: 'boolean' },
+              },
+              required: ['first', 'second', 'differs'],
+            },
+          }),
+          // which of the changes the pair was drawn from stands inside that box, so it is named truly
+          base44.asServiceRole.integrations.Core.InvokeLLM({
+            prompt:
+              'Two photographs of one and the same scene stand here: the first is the original, and the second ' +
+              `was edited from it. ${box}. The pair was drawn from these changes, numbered: ` +
+              `${listed || '(none of them was written down)'} Say which one of those changes stands inside that ` +
+              'box: its number, or 0 if what stands there is none of them.',
+            file_urls: [pair.base, pair.changed],
+            response_json_schema: {
+              type: 'object',
+              properties: { match: { type: 'number' } },
+              required: ['match'],
+            },
+          }),
         ]);
-        const boxed = boxedAny || {};
-        const centred = centredAny || {};
-
-        const boxCentre: [number, number] = [Number(boxed.x) / 1000, Number(boxed.y) / 1000];
-        const boxSize = [Number(boxed.w) / 1000, Number(boxed.h) / 1000];
-        const hasBox =
-          boxed.visible === true && [boxCentre[0], boxCentre[1], boxSize[0], boxSize[1]].every(Number.isFinite);
-        const centrePoint: [number, number] | null =
-          centred.same === false && Number.isFinite(Number(centred.cx)) && Number.isFinite(Number(centred.cy))
-            ? [Number(centred.cx) / 1000, Number(centred.cy) / 1000]
-            : null;
-
-        // both readings must see the change for it to stand in the pair
-        if (!hasBox && !centrePoint) {
-          return { change, stands: false, why: 'both readings found that place unchanged' };
-        }
-
-        // where the two readings of one place disagree, that one place is asked about once more
-        if (hasBox && !centrePoint) {
-          const again = await ask(boxPrompt(`${change}. One reading placed it near x ${Math.round(
-            boxCentre[0] * 1000
-          )}, y ${Math.round(boxCentre[1] * 1000)}.`), boxSchema.properties, boxSchema.required);
-          const said = again || {};
-          if (said.visible !== true) {
-            return { change, stands: false, why: 'the second look found that place unchanged' };
-          }
-          const againCentre: [number, number] = [Number(said.x) / 1000, Number(said.y) / 1000];
-          const centre =
-            Number.isFinite(againCentre[0]) && apart(againCentre, boxCentre) <= AGREE
-              ? [(againCentre[0] + boxCentre[0]) / 2, (againCentre[1] + boxCentre[1]) / 2] as [number, number]
-              : boxCentre;
-          return {
-            change,
-            stands: true,
-            sure: Number.isFinite(againCentre[0]) && apart(againCentre, boxCentre) <= AGREE,
-            at: area(centre[0], centre[1], boxSize[0], boxSize[1]),
-            said: [boxed.at, said.at].filter(Boolean).join(' · '),
-          };
-        }
-
-        if (centrePoint && !hasBox) {
-          const again = await ask(centrePrompt(`${change}. One reading placed its centre near x ${Math.round(
-            centrePoint[0] * 1000
-          )}, y ${Math.round(centrePoint[1] * 1000)}.`), centreSchema.properties, centreSchema.required);
-          const said = again || {};
-          if (said.same !== false || !Number.isFinite(Number(said.cx)) || !Number.isFinite(Number(said.cy))) {
-            return { change, stands: false, why: 'the second look found that place unchanged' };
-          }
-          const againCentre: [number, number] = [Number(said.cx) / 1000, Number(said.cy) / 1000];
-          return {
-            change,
-            stands: true,
-            sure: apart(againCentre, centrePoint) <= AGREE,
-            at: area(centrePoint[0], centrePoint[1], LEAST, LEAST),
-            said: [centred.first, centred.second].filter(Boolean).join(' → '),
-          };
-        }
-
-        // both readings stood: they confirm each other where they land together
-        const width = Math.min(boxSize[0], MOST);
-        const height = Math.min(boxSize[1], MOST);
-        if (apart(boxCentre, centrePoint as [number, number]) <= AGREE) {
-          const centre = [
-            (boxCentre[0] + (centrePoint as [number, number])[0]) / 2,
-            (boxCentre[1] + (centrePoint as [number, number])[1]) / 2,
-          ] as [number, number];
-          return {
-            change,
-            stands: true,
-            sure: true,
-            at: area(centre[0], centre[1], width, height),
-            said: [centred.first, centred.second].filter(Boolean).join(' → '),
-          };
-        }
-
-        const again = await ask(
-          `${boxPrompt(change)} One reading of this change placed it near x ${Math.round(
-            boxCentre[0] * 1000
-          )}, y ${Math.round(boxCentre[1] * 1000)} and another near x ${Math.round(
-            (centrePoint as [number, number])[0] * 1000
-          )}, y ${Math.round((centrePoint as [number, number])[1] * 1000)}. Give the one box that truly holds ` +
-            'the changed object.',
-          boxSchema.properties,
-          boxSchema.required
-        );
-        const said = again || {};
-        if (said.visible !== true) {
-          return { change, stands: false, why: 'the third look found that place unchanged' };
-        }
-        const thirdCentre: [number, number] = [Number(said.x) / 1000, Number(said.y) / 1000];
-        const thirdSize = [Number(said.w) / 1000, Number(said.h) / 1000];
-        if (!Number.isFinite(thirdCentre[0]) || !Number.isFinite(thirdCentre[1])) {
-          return { change, stands: true, sure: false, at: area(boxCentre[0], boxCentre[1], width, height), said: '' };
-        }
-        const nearBox = apart(thirdCentre, boxCentre) <= AGREE;
-        const nearCentre = apart(thirdCentre, centrePoint as [number, number]) <= AGREE;
-        if (nearBox || nearCentre) {
-          const hold = nearBox ? boxCentre : (centrePoint as [number, number]);
-          const centre = [(thirdCentre[0] + hold[0]) / 2, (thirdCentre[1] + hold[1]) / 2] as [number, number];
-          return {
-            change,
-            stands: true,
-            sure: true,
-            at: area(centre[0], centre[1], Number.isFinite(thirdSize[0]) ? thirdSize[0] : width, Number.isFinite(thirdSize[1]) ? thirdSize[1] : height),
-            said: [boxed.at, said.at].filter(Boolean).join(' · '),
-          };
-        }
-        return {
-          change,
-          stands: true,
-          sure: false,
-          at: area(boxCentre[0], boxCentre[1], width, height),
-          said: [boxed.at, said.at].filter(Boolean).join(' · '),
-        };
       })
     );
 
-    const found: any[] = [];
-    const left: any[] = [];
-    read.forEach((answer: any, i: number) => {
-      const said = answer?.status === 'fulfilled' ? answer.value : null;
-      if (!said || !said.stands || !said.at) {
-        left.push({ change: changes[i], why: said?.why || 'that change could not be read' });
-        return;
-      }
-      const at = said.at;
-      // a place that two readings landed on the same spot for is one and the same change
-      const held = found.some((other) => apart(at.centre, other.at.centre) <= AGREE);
-      if (held) {
-        left.push({ change: changes[i], why: 'the same place as a change already found' });
-        return;
-      }
-      found.push({ change: changes[i], sure: said.sure !== false, said: said.said || '', at });
+    const differences = [];
+    looked.forEach((answer: any, i: number) => {
+      const pairOfReadings = answer?.status === 'fulfilled' ? answer.value : null;
+      const seen = pairOfReadings?.[0] || null;
+      const named = pairOfReadings?.[1] || null;
+      const place = found[i];
+      const at = area(place);
+      // a place the eye finds unchanged is drift of the light: it is not a difference to be asked for
+      if (seen && seen.differs === false) return;
+      const numbered = Number(named?.match);
+      const text = numbered > 0 && planned[numbered - 1] ? planned[numbered - 1] : '';
+      differences.push({
+        x: at.x,
+        y: at.y,
+        w: at.w,
+        h: at.h,
+        strength: place.strength,
+        label:
+          (text ? text.replace(/^(in|on|at)\b[^,]*,\s*/i, '').trim() : '') ||
+          String(seen?.second || '').trim() ||
+          'A change in the picture',
+      });
     });
 
-    const differences = found.map((oneBox, i) => ({
-      id: `${one.scene}-photo-${i + 1}`,
-      x: oneBox.at.x,
-      y: oneBox.at.y,
-      w: oneBox.at.w,
-      h: oneBox.at.h,
-      label: oneBox.change.replace(/^(in|on|at)\b[^,]*,\s*/i, '').trim() || oneBox.change,
+    const written = differences.map((one, i) => ({
+      id: `${pair.scene}-photo-${i + 1}`,
+      x: one.x,
+      y: one.y,
+      w: one.w,
+      h: one.h,
+      label: one.label,
       ...(i >= target ? { extra: true } : {}),
     }));
 
     return Response.json({
-      scene: one.scene,
-      asked: changes.length,
+      scene: pair.scene,
       target,
-      found: differences.length,
-      differences,
-      left,
+      places: found.length,
+      found: written.length,
+      differences: written,
     });
   } catch (error: any) {
     return Response.json({ error: error.message }, { status: 500 });
