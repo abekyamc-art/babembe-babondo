@@ -38,7 +38,7 @@ const READ_MODEL = "gemini-3.8-flash";
  * knowledge, every look at a picture or a photograph, and the writing of songs. Drawing stands on the
  * next five, one family of pictures to an account: the lettered pictures of the dictionary, the edited
  * copy of a puzzle, the two photographs of a prize pair, and the season trophies. The last account
- * (GEMINI_API_KEY9) is kept ready, to be named to the next family that asks for pictures.
+ * (GEMINI_API_KEY9) draws the season covers of the differences game, the last family that asks for pictures.
  */
 const KEYS: Record<string, string> = {
   answer: "GEMINI_API_KEY",
@@ -49,6 +49,7 @@ const KEYS: Record<string, string> = {
   sceneone: "GEMINI_API_KEY6",
   scenetwo: "GEMINI_API_KEY7",
   trophies: "GEMINI_API_KEY8",
+  covers: "GEMINI_API_KEY9",
 };
 
 /**
