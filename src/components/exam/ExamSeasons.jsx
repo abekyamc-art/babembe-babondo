@@ -1,6 +1,8 @@
 import React from "react";
 import { Award, Lock, Trophy } from "lucide-react";
+import { Image } from "@/components/ui/image";
 import { EXAM_SEASONS, episodesInSeason } from "@/lib/examSeasons";
+import { examCoverOf } from "@/lib/examSeasonCovers";
 import { nextEpisode, completedIn, seasonCleared, seasonOpen } from "@/lib/examProgress";
 
 /**
@@ -47,6 +49,8 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
         // the season that really stands before this one, since a season may go by a number past the ones
         // that are there
         const before = EXAM_SEASONS.filter((held) => held.no < season.no).pop();
+        // the season's own 4K cover, where one has been drawn for it
+        const cover = examCoverOf(season.no);
 
         return (
           <button
@@ -59,25 +63,40 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
             disabled={!open}
             aria-label={`Season ${season.no}: ${season.title}${open ? "" : " — locked"}`}
           >
-            <span className="exam-season-no">
-              {open ? season.no : <Lock className="h-4 w-4" />}
+            {cover ? (
+              <span className="exam-season-art">
+                <Image
+                  src={cover}
+                  alt=""
+                  className="exam-season-img"
+                  draggable={false}
+                  quality={95}
+                  fittingType="fill"
+                />
+              </span>
+            ) : null}
+
+            <span className="exam-season-row">
+              <span className="exam-season-no">
+                {open ? season.no : <Lock className="h-4 w-4" />}
+              </span>
+              <span className="exam-season-body">
+                <span className="exam-season-title">
+                  Season {season.no} · {season.title}
+                </span>
+                <span className="exam-season-blurb">
+                  {season.blurb} · {total} episodes
+                </span>
+                <span className="exam-season-tag">
+                  {clearedSeason
+                    ? `Completed · ${done} of ${total} episodes`
+                    : open
+                      ? `${done} of ${total} episodes completed · next is episode ${next}`
+                      : `Clear season ${before ? before.no : 1} to join`}
+                </span>
+              </span>
+              <span className="exam-season-mark">{clearedSeason ? "✓" : open ? "Open" : ""}</span>
             </span>
-            <span className="exam-season-body">
-              <span className="exam-season-title">
-                Season {season.no} · {season.title}
-              </span>
-              <span className="exam-season-blurb">
-                {season.blurb} · {total} episodes
-              </span>
-              <span className="exam-season-tag">
-                {clearedSeason
-                  ? `Completed · ${done} of ${total} episodes`
-                  : open
-                    ? `${done} of ${total} episodes completed · next is episode ${next}`
-                    : `Clear season ${before ? before.no : 1} to join`}
-              </span>
-            </span>
-            <span className="exam-season-mark">{clearedSeason ? "✓" : open ? "Open" : ""}</span>
           </button>
         );
       })}

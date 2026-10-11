@@ -821,10 +821,11 @@
 
 .exam-season {
   display: flex;
-  align-items: center;
-  gap: 12px;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 11px;
   width: 100%;
-  padding: 13px 14px;
+  padding: 11px 12px 13px;
   color: #f5f6ff;
   background: #101728;
   border: 1px solid #26304d;
@@ -842,6 +843,36 @@
 
 .exam-season:disabled {
   cursor: default;
+}
+
+/* The season's own 4K photograph laid at the head of its tile, the number and the season's words
+   standing under it — the shape the game's own season tiles stand in. */
+.exam-season-art {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0d1633;
+}
+
+.exam-season-img {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+/* a season that cannot be opened yet keeps its cover, dimmed, under everything written on it */
+.exam-season.is-locked .exam-season-img {
+  filter: grayscale(0.85) brightness(0.55);
+}
+
+.exam-season-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
 }
 
 .exam-season-no {
