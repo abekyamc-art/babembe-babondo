@@ -388,6 +388,114 @@
   color: #9fb0d8;
 }
 
+/* The one cover that holds every level: the game's own scenes laid small in a block, opened in one tap
+   to show the level map itself. */
+.dg-cover {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 10px 12px;
+  width: 100%;
+  padding: 10px;
+  color: #f4f7ff;
+  background: #16224a;
+  border: 1px solid var(--dg-line);
+  border-radius: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dg-cover:active {
+  transform: scale(0.99);
+}
+
+.dg-cover:focus-visible,
+.dg-map-back:focus-visible {
+  outline: 2px solid #ffd23f;
+  outline-offset: 3px;
+}
+
+/* the cover's own picture: the first scenes of the game beside each other */
+.dg-cover-art {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0d1633;
+}
+
+.dg-cover-cell {
+  display: block;
+  aspect-ratio: 1000 / 560;
+  overflow: hidden;
+}
+
+.dg-cover-body {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.dg-cover-name {
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.dg-cover-sub {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #9fb0d8;
+}
+
+.dg-cover-go {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: #ffd23f;
+}
+
+.dg-cover-go svg {
+  width: 21px;
+  height: 21px;
+}
+
+/* the way back from the level map to its cover */
+.dg-map-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.dg-map-back {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 0;
+  color: #cdd9f6;
+  background: none;
+  border: 0;
+  font-size: 13px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dg-map-back svg {
+  width: 16px;
+  height: 16px;
+}
+
+.dg-map-count {
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #9fb0d8;
+}
+
 .dg-levels {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));

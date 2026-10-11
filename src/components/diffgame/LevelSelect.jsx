@@ -1,16 +1,25 @@
-import React from "react";
+import React, { useState } from "react";
 import { ChevronLeft, Lock, Star, Trophy, Volume2, VolumeX, Vibrate, Hourglass } from "lucide-react";
 import LevelCard from "./LevelCard";
+import LevelsCover from "./LevelsCover";
 import { LEVEL_SLOTS, levelById } from "@/lib/differenceGame/levels";
 import { levelRecord, levelsPassed, starsEarned, unlocked } from "@/lib/differenceGame/store";
 
 /**
  * The game's own menu: every level that stands, the ones still to come, the stars and the score earned,
  * and the three switches the player sets — a level without a clock, the sound, and the phone's own shake.
+ *
+ * The levels themselves stand behind one cover: the menu opens on a single cover for the whole game, and
+ * the map of level cards — in its own order, with its own locks, stars and scores — is shown the moment
+ * that cover is opened.
  */
 export default function LevelSelect({ state, onPrefs, onOpen, onExit }) {
   const slots = Array.from({ length: LEVEL_SLOTS }, (_, i) => i + 1);
   const passed = levelsPassed(state);
+  const [map, setMap] = useState(false);
+
+  // the cover's own picture: the first scenes of the game, drawn small beside each other
+  const previews = slots.map(levelById).filter(Boolean).slice(0, 4);
 
   return (
     <div className="dg-shell">
@@ -71,31 +80,50 @@ export default function LevelSelect({ state, onPrefs, onOpen, onExit }) {
         wrong touches are then only counted.
       </p>
 
-      <div className="dg-levels">
-        {slots.map((id) => {
-          const level = levelById(id);
-          if (!level) {
-            return (
-              <div key={id} className="dg-card is-soon" aria-label={`Level ${id} is coming soon`}>
-                <span className="dg-soon-mark" aria-hidden="true">
-                  <Lock />
-                </span>
-                <span className="dg-card-no">Level {id}</span>
-                <span className="dg-card-name">Coming soon</span>
-              </div>
-            );
-          }
-          return (
-            <LevelCard
-              key={id}
-              level={level}
-              record={levelRecord(state, id)}
-              locked={!unlocked(state, id)}
-              onOpen={() => onOpen(id)}
-            />
-          );
-        })}
-      </div>
+      {map ? (
+        <>
+          <div className="dg-map-head">
+            <button type="button" className="dg-map-back" onClick={() => setMap(false)}>
+              <ChevronLeft aria-hidden="true" /> All levels
+            </button>
+            <span className="dg-map-count">{LEVEL_SLOTS} levels</span>
+          </div>
+
+          <div className="dg-levels">
+            {slots.map((id) => {
+              const level = levelById(id);
+              if (!level) {
+                return (
+                  <div key={id} className="dg-card is-soon" aria-label={`Level ${id} is coming soon`}>
+                    <span className="dg-soon-mark" aria-hidden="true">
+                      <Lock />
+                    </span>
+                    <span className="dg-card-no">Level {id}</span>
+                    <span className="dg-card-name">Coming soon</span>
+                  </div>
+                );
+              }
+              return (
+                <LevelCard
+                  key={id}
+                  level={level}
+                  record={levelRecord(state, id)}
+                  locked={!unlocked(state, id)}
+                  onOpen={() => onOpen(id)}
+                />
+              );
+            })}
+          </div>
+        </>
+      ) : (
+        <LevelsCover
+          previews={previews}
+          slots={LEVEL_SLOTS}
+          passed={passed}
+          stars={starsEarned(state)}
+          onOpen={() => setMap(true)}
+        />
+      )}
     </div>
   );
 }
