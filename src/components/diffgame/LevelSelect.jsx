@@ -1,35 +1,34 @@
 import React, { useState } from "react";
-import { ChevronLeft, Lock, Star, Trophy, Volume2, VolumeX, Vibrate, Hourglass } from "lucide-react";
+import { ChevronLeft, Star, Trophy, Volume2, VolumeX, Vibrate, Hourglass } from "lucide-react";
 import LevelCard from "./LevelCard";
-import LevelsCover from "./LevelsCover";
-import { LEVEL_SLOTS, SEASON_STARTS, levelById } from "@/lib/differenceGame/levels";
+import SeasonsCover from "./SeasonsCover";
+import { LEVEL_SLOTS, SEASONS, episodesIn } from "@/lib/differenceGame/levels";
 import { levelRecord, levelsPassed, starsEarned, unlocked } from "@/lib/differenceGame/store";
 
 /**
- * The game's own menu: every episode that stands, the ones still to come, the stars and the score earned,
- * and the three switches the player sets — an episode without a clock, the sound, and the phone's own shake.
+ * The game's own menu: the four seasons the game is planned in, the stars and the score earned, and the
+ * three switches the player sets — an episode without a clock, the sound, and the phone's own shake.
  *
- * The episodes stand behind one cover: the menu opens on the cover that stands for Episode 1, and the map
- * of episodes — each under the season it belongs to, with its own number, its own lock, stars and score —
- * is shown the moment that cover is opened.
+ * The menu opens on the four season covers. A season stands open when its own episodes stand and the
+ * episode before them has been passed, so a season is opened by finishing the one before it; a season
+ * whose episodes are still being drawn keeps its cover, locked. Opening a cover shows that season's
+ * episodes alone, each with its own lock, its stars and its score.
  */
 export default function LevelSelect({ state, onPrefs, onOpen, onExit }) {
-  const slots = Array.from({ length: LEVEL_SLOTS }, (_, i) => i + 1);
   const passed = levelsPassed(state);
-  const [map, setMap] = useState(false);
+  const [season, setSeason] = useState(null);
 
-  // the cover's own picture: the first scenes of the game, drawn small beside each other
-  const previews = slots.map(levelById).filter(Boolean).slice(0, 4);
-
-  // every season, with the episode it opens on and how many episodes stand in it
-  const starts = Object.entries(SEASON_STARTS)
-    .map(([at, no]) => ({ no, at: Number(at) }))
-    .sort((one, two) => one.at - two.at);
-  const seasons = starts.map((season, i) => ({
-    no: season.no,
-    count: (starts[i + 1] ? starts[i + 1].at : LEVEL_SLOTS + 1) - season.at,
-  }));
-  const seasonAt = (id) => starts.filter((season) => season.at === id).map((season) => season.no)[0] || 0;
+  // every season with its own episodes, how far the player has come in it, and whether it can be opened
+  const seasons = SEASONS.map((held) => {
+    const episodes = episodesIn(held.no);
+    return {
+      no: held.no,
+      episodes,
+      passed: episodes.filter((level) => levelRecord(state, level.id).completed).length,
+      open: episodes.length > 0 && unlocked(state, held.at),
+    };
+  });
+  const shown = seasons.find((held) => held.no === season) || null;
 
   return (
     <div className="dg-shell">
@@ -90,52 +89,31 @@ export default function LevelSelect({ state, onPrefs, onOpen, onExit }) {
         wrong touches are then only counted.
       </p>
 
-      {map ? (
+      {shown ? (
         <>
           <div className="dg-map-head">
-            <button type="button" className="dg-map-back" onClick={() => setMap(false)}>
-              <ChevronLeft aria-hidden="true" /> The cover
+            <button type="button" className="dg-map-back" onClick={() => setSeason(null)}>
+              <ChevronLeft aria-hidden="true" /> All seasons
             </button>
-            <span className="dg-map-count">{LEVEL_SLOTS} episodes</span>
+            <span className="dg-map-count">
+              Season {shown.no} · {shown.episodes.length} episodes
+            </span>
           </div>
 
           <div className="dg-levels">
-            {slots.map((id) => {
-              const level = levelById(id);
-              const season = seasonAt(id);
-              return (
-                <React.Fragment key={id}>
-                  {season ? <p className="dg-season">Season {season}</p> : null}
-                  {level ? (
-                    <LevelCard
-                      level={level}
-                      record={levelRecord(state, id)}
-                      locked={!unlocked(state, id)}
-                      onOpen={() => onOpen(id)}
-                    />
-                  ) : (
-                    <div className="dg-card is-soon" aria-label={`Episode ${id} is coming soon`}>
-                      <span className="dg-soon-mark" aria-hidden="true">
-                        <Lock />
-                      </span>
-                      <span className="dg-card-no">EPISODE {id}</span>
-                      <span className="dg-card-name">Coming soon</span>
-                    </div>
-                  )}
-                </React.Fragment>
-              );
-            })}
+            {shown.episodes.map((level) => (
+              <LevelCard
+                key={level.id}
+                level={level}
+                record={levelRecord(state, level.id)}
+                locked={!unlocked(state, level.id)}
+                onOpen={() => onOpen(level.id)}
+              />
+            ))}
           </div>
         </>
       ) : (
-        <LevelsCover
-          previews={previews}
-          slots={LEVEL_SLOTS}
-          seasons={seasons}
-          passed={passed}
-          stars={starsEarned(state)}
-          onOpen={() => setMap(true)}
-        />
+        <SeasonsCover seasons={seasons} onOpen={setSeason} />
       )}
     </div>
   );

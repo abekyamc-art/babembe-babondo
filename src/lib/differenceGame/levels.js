@@ -724,11 +724,29 @@ export function tierOf(level) {
 export const LEVEL_SLOTS = 39;
 
 /**
- * Where each season begins. The first season is the episodes the game opened with, and the season after
- * it is the episodes drawn for it afterwards: an episode belongs to the season it stands in, and the map
- * names the season above the first episode of it.
+ * The four seasons the game is planned in, each named by the episode it opens with. A season whose
+ * episodes are still being drawn keeps its own cover with nothing inside it to open, so all four covers
+ * stand from the first day, and an episode joins the season it belongs to the moment it is drawn.
  */
-export const SEASON_STARTS = { 1: 1, 37: 2 };
+export const SEASONS = [
+  { no: 1, at: 1 },
+  { no: 2, at: 37 },
+  { no: 3, at: 40 },
+  { no: 4, at: 41 },
+];
+
+/**
+ * The episodes that stand in one season: the drawn levels between its own opening and the opening of the
+ * season after it. A season whose episodes are not drawn yet comes back empty, so nothing that does not
+ * stand is ever offered to the player.
+ */
+export function episodesIn(no) {
+  const held = SEASONS.find((season) => season.no === no);
+  if (!held) return [];
+  const next = SEASONS.find((season) => season.at > held.at);
+  const end = next ? next.at - 1 : Infinity;
+  return LEVELS.filter((level) => level.id >= held.at && level.id <= end);
+}
 
 export function levelById(id) {
   return LEVELS.find((level) => level.id === id) || null;

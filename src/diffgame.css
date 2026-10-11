@@ -388,15 +388,20 @@
   color: #9fb0d8;
 }
 
-/* The one cover that holds every level: the game's own scenes laid small in a block, opened in one tap
-   to show the level map itself. */
-.dg-cover {
+/* The four season covers: the game's own picture laid small in a tile each, two to a row, so the whole
+   cover takes its own room in the menu instead of lying over anything. */
+.dg-covers {
   display: grid;
-  grid-template-columns: 1fr auto;
-  align-items: center;
-  gap: 10px 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.dg-season-tile {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
   width: 100%;
-  padding: 10px;
+  padding: 9px;
   color: #f4f7ff;
   background: #16224a;
   border: 1px solid var(--dg-line);
@@ -405,72 +410,99 @@
   cursor: pointer;
 }
 
-.dg-cover:active {
-  transform: scale(0.99);
+.dg-season-tile:active:not(:disabled) {
+  transform: scale(0.98);
 }
 
-.dg-cover:focus-visible,
+.dg-season-tile:disabled {
+  cursor: default;
+}
+
+.dg-season-tile.is-locked {
+  background: #121c40;
+}
+
+.dg-season-tile:focus-visible,
 .dg-map-back:focus-visible {
   outline: 2px solid #ffd23f;
   outline-offset: 3px;
 }
 
-/* the cover's own picture: the first scenes of the game beside each other */
-.dg-cover-art {
-  grid-column: 1 / -1;
-  display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 6px;
+/* the season's picture, with the lock laid over it while the season cannot be opened */
+.dg-season-art {
+  position: relative;
+  display: block;
+  aspect-ratio: 1000 / 560;
   overflow: hidden;
   border-radius: 12px;
   background: #0d1633;
 }
 
-.dg-cover-cell {
-  display: block;
-  aspect-ratio: 1000 / 560;
-  overflow: hidden;
+/* a season whose episodes are still being drawn keeps an empty frame */
+.dg-season-art.is-empty {
+  border: 1px dashed var(--dg-line);
 }
 
-.dg-cover-body {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 3px;
+.dg-season-tile.is-locked .dg-art {
+  filter: grayscale(0.85) brightness(0.55);
 }
 
-/* what the cover is: it stands for Episode 1 */
-.dg-cover-kicker {
-  font-size: 9.5px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #8ea0c9;
-}
-
-.dg-cover-name {
-  font-size: 17px;
-  font-weight: 800;
-  letter-spacing: -0.2px;
-}
-
-.dg-cover-sub {
-  font-size: 11.5px;
-  font-weight: 600;
-  color: #9fb0d8;
-}
-
-.dg-cover-go {
+.dg-season-lock {
+  position: absolute;
+  inset: 0;
   display: grid;
   place-items: center;
-  width: 32px;
-  height: 32px;
+  color: #fff;
+  background: rgba(9, 16, 44, 0.42);
+}
+
+.dg-season-lock svg {
+  width: 26px;
+  height: 26px;
+}
+
+.dg-season-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dg-season-no {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+/* what the season still waits for: the season before it, or its own episodes */
+.dg-season-chip {
+  padding: 3px 8px;
+  border-radius: 999px;
+  color: #dbe4fb;
+  background: #2b3b6e;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.dg-season-go {
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
   color: #ffd23f;
 }
 
-.dg-cover-go svg {
-  width: 21px;
-  height: 21px;
+.dg-season-go svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dg-season-sub {
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1.4;
+  color: #9fb0d8;
 }
 
 /* the way back from the level map to its cover */
@@ -511,17 +543,6 @@
   gap: 10px;
 }
 
-/* the season the episodes under it belong to */
-.dg-season {
-  grid-column: 1 / -1;
-  margin: 4px 0 -2px;
-  font-size: 10px;
-  font-weight: 800;
-  letter-spacing: 0.16em;
-  text-transform: uppercase;
-  color: #9fb0d8;
-}
-
 .dg-card {
   display: flex;
   flex-direction: column;
@@ -545,15 +566,6 @@
 
 .dg-card.is-selected {
   border-color: #ffd23f;
-}
-
-.dg-card.is-soon {
-  align-items: center;
-  justify-content: center;
-  min-height: 150px;
-  color: #8ea0c9;
-  background: #121c40;
-  border-style: dashed;
 }
 
 .dg-thumb {
