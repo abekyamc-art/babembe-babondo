@@ -117,7 +117,11 @@ export default function SeriesShell({ open, onClose }) {
   const nextNo = attempt ? attempt.episode + 1 : 0;
   const went = !!report?.passed;
   const nextOpen = !!attempt && went && nextNo <= episodesInSeason(attempt.season);
-  const seasonAfter = attempt && went && !nextOpen && seasonByNo(attempt.season + 1);
+  // the season standing after this one in the examination's own order, whatever number it goes by, so a
+  // season numbered past the ones that are there is still reached when the season before it is complete
+  const afterAt = EXAM_SEASONS.findIndex((held) => held.no === attempt?.season) + 1;
+  const seasonAfter =
+    attempt && went && !nextOpen && afterAt > 0 ? EXAM_SEASONS[afterAt] || null : null;
   const again = !!attempt && !went;
   // the note is written from a finished paper's report, so it stands empty while the paper is still open
   const note = !report ? '' : went

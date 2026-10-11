@@ -20,8 +20,11 @@ import { CONFIRMED_NUMBERS, numberToDigit, numberNext, numberToKibembe } from '.
 const CACHE_KEY = 'gloire-kibembe-exam-pool-v1';
 const CACHE_HOURS = 24;
 
-/** The sections of the document that hold the terms of the body and health. */
-const MEDICAL = ['BODY AND HEALTH', 'ADULT ANATOMY'];
+/** The section that holds the terms of the body and health, asked among the words of every day. */
+const MEDICAL = ['BODY AND HEALTH'];
+
+/** The section that holds the terms of the adult body, asked on the anatomy season of its own. */
+const ANATOMY = ['ADULT ANATOMY'];
 
 /** The scenes a word with no picture of its own is studied on — none of them names an answer. */
 export const SCENE_POOL = [
@@ -36,7 +39,7 @@ const FOCUS = {
   'GREETINGS AND EVERYDAY CONVERSATION': 'Words of every day',
   'PEOPLE AND FAMILY': 'People and family',
   'BODY AND HEALTH': 'Body & health',
-  'ADULT ANATOMY': 'Body & health',
+  'ADULT ANATOMY': 'Anatomy',
   'NATURE AND ANIMALS': 'Nature and animals',
   'VERBS AND TENSE FORMS': 'Verbs',
   'REACTIONS AND SHORT RESPONSES': 'Reactions',
@@ -145,11 +148,15 @@ function withNumbers(list) {
 /** Every confirmed word made into questions: the words of every day in one run, the body and health in another. */
 export function buildQueues(pairs) {
   const safe = Array.isArray(pairs) ? pairs.filter((pair) => pair && pair.kb && pair.en) : [];
-  const everyday = safe.filter((pair) => !MEDICAL.includes(pair.section));
+  const anatomy = safe.filter((pair) => ANATOMY.includes(pair.section));
   const medical = safe.filter((pair) => MEDICAL.includes(pair.section));
+  const everyday = safe.filter(
+    (pair) => !MEDICAL.includes(pair.section) && !ANATOMY.includes(pair.section)
+  );
   return {
     everyday: withNumbers(queueOf(everyday, 'everyday')),
     medical: queueOf(medical, 'medical'),
+    anatomy: queueOf(anatomy, 'anatomy'),
   };
 }
 

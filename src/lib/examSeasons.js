@@ -36,6 +36,9 @@ const LIFE_ORDER = lifeWordOrder();
 export const EPISODES_PER_SEASON = 100;
 export const QUESTIONS_PER_EPISODE = 10;
 
+/** How many terms of the adult body stand before the picture puzzle on one of the anatomy papers. */
+export const ANATOMY_PER_PAPER = QUESTIONS_PER_EPISODE - 1;
+
 /**
  * The seasons themselves. Each one carries the pool its episodes are drawn from — the everyday words
  * with the numbers, the greetings, the phrases and the proverbs, the body and health terms, or both at
@@ -63,7 +66,14 @@ const SEASONS = [
   },
   { no: 4, title: 'Calculation champions', blurb: 'Addition, subtraction, multiplication and division — new calculations in every episode', pool: 'math' },
   { no: 5, title: 'People and culture', blurb: 'Artists, comedians, athletes and pioneers — including Diamond Platnumz and Gloire Sadiki', pool: 'people', episodes: 3 },
-  { no: 6, title: 'Everyday problem solving', blurb: 'Shopping, sharing, time and number-pattern challenges', pool: 'logic' },
+  { no: 6, title: 'Everyday problem solving', blurb: 'Adding, taking away, multiplying and sharing — a plain calculation in every question', pool: 'logic' },
+  {
+    no: 9,
+    title: 'The anatomy',
+    blurb: 'The confirmed terms of the adult body, one after another, on a season of their own',
+    pool: 'anatomy',
+    episodes: 24,
+  },
 ];
 
 /** The seasons of the examination, in their own order. */
@@ -235,33 +245,49 @@ function spreadOf() {
   return table;
 }
 
-/** A paper's own run of a queue: the questions standing at it, and nothing beyond the end of the list. */
-function take(queue, start, count, missed) {
-  return Array.from({ length: count }, (_, step) => {
-    const at = start + step;
-    return queue[at] || challengeAt(missed + at, true);
-  });
+/**
+ * A paper's own run of a queue: the questions standing at it, in their own order. A run that reaches the
+ * end of the list takes up at its head again, so a bank shorter than the season asks its own terms again
+ * once the whole list has been round rather than putting a calculation where a word of the language stands.
+ */
+function take(queue, start, count) {
+  if (!queue || !queue.length) return [];
+  return Array.from({ length: count }, (_, step) => queue[(start + step) % queue.length]);
 }
 
-/** One word paper: its own untouched run of the confirmed words, and its challenges where no word is left. */
+/** Every question of a paper that carries no picture of its own is studied on a scene of its own in it. */
+function withScenes(paper, seed) {
+  paper.forEach((question, slot) => {
+    if (question.image?.url) return;
+    const scene = SCENE_POOL[(seed + slot) % SCENE_POOL.length];
+    question.image = scene;
+    question.hint = `Study the picture — ${scene.scene} — before you answer.`;
+  });
+  return paper;
+}
+
+/** One word paper: its own run of the words of every day and of the body, and its own calculations. */
 function poolPaper(season, episode, queues) {
   const parts = poolParts();
   const at = spreadOf()[`${season.no}:${episode}`];
   const paper = [
-    ...take(queues.everyday, at.everyday, parts.life + parts.extras, 900000),
-    ...take(queues.medical, at.medical, parts.medical, 800000),
+    ...take(queues.everyday, at.everyday, parts.life + parts.extras),
+    ...take(queues.medical, at.medical, parts.medical),
     ...Array.from({ length: parts.challenge }, (_, step) =>
-      challengeAt(700000 + (at.scene + step) * 4, true)
+      challengeAt(700000 + at.scene + step, true)
     ),
   ];
-  // a word with no picture of its own is studied on a scene of its own within the paper
-  paper.forEach((question, slot) => {
-    if (question.image?.url) return;
-    const scene = SCENE_POOL[(at.scene + slot) % SCENE_POOL.length];
-    question.image = scene;
-    question.hint = `Study the picture — ${scene.scene} — before you answer.`;
-  });
-  return shuffled(paper);
+  return shuffled(withScenes(paper, at.scene));
+}
+
+/**
+ * The anatomy season's own paper: the terms of the adult body — its bank's own run of nine, beginning
+ * where the episode before it left off, so the terms of the papers beside each other never cross — with
+ * the picture puzzle standing last, where every paper of the examination ends.
+ */
+function anatomyPaper(episode, queues) {
+  const paper = take(queues.anatomy, (episode - 1) * ANATOMY_PER_PAPER, QUESTIONS_PER_EPISODE);
+  return withScenes(paper, (episode - 1) * QUESTIONS_PER_EPISODE);
 }
 
 /**
@@ -278,6 +304,9 @@ function paperOf(seasonNo, episode) {
   // its own run of them, so a word stands in one paper and never comes back
   const queues = currentQueues();
   if (queues && WORD_POOLS.includes(season.pool)) return poolPaper(season, episode, queues);
+  // the anatomy season asks the terms of the adult body itself, and falls back to the written lists of
+  // the examination only when the document could not be read and holds no anatomy at all
+  if (season.pool === 'anatomy' && queues?.anatomy?.length) return anatomyPaper(episode, queues);
   if (season.pool === 'math') return buildCalculationPaper(episode);
   if (season.pool === 'people') return buildPeoplePaper(episode);
   if (season.pool === 'logic') return buildCalculationPaper(episode, true);

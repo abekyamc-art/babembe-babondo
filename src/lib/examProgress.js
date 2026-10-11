@@ -84,10 +84,16 @@ export function seasonCleared(progress, season) {
   return completedIn(progress, season) >= episodesInSeason(season);
 }
 
-/** A season is open when it is the first one, or when the season before it has been cleared. */
+/**
+ * A season is open when it is the first one, or when the season standing right before it in the
+ * examination's own order has been cleared. The season before a season is the one that stands nearest
+ * above it and really exists, so a season numbered past the ones that are there — the anatomy season —
+ * waits behind the season it really follows, and not behind a number that was never used.
+ */
 export function seasonOpen(progress, season) {
-  if (season <= 1) return true;
-  return seasonCleared(progress, season - 1);
+  const before = EXAM_SEASONS.filter((held) => held.no < season).pop();
+  if (!before) return true;
+  return seasonCleared(progress, before.no);
 }
 
 /** A passed episode is closed for good, and closing it is what unlocks the episode after it. */
@@ -134,7 +140,7 @@ export function episodesPassed(progress) {
 /**
  * The total the leaderboard stands in: the best mark of every episode the student has passed, added
  * together. Every episode counts for at most a hundred, so a whole cleared season is ten thousand and
- * the whole examination is thirty thousand.
+ * the whole examination is every season's ten thousand added up.
  */
 export function totalScore(progress) {
   let total = progress?.baseline_score || 0;

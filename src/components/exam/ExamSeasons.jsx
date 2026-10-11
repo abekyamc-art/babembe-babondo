@@ -40,6 +40,9 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
         const total = episodesInSeason(season.no);
         const clearedSeason = seasonCleared(progress, season.no);
         const next = nextEpisode(progress, season.no);
+        // the season that really stands before this one, since a season may go by a number past the ones
+        // that are there
+        const before = EXAM_SEASONS.filter((held) => held.no < season.no).pop();
 
         return (
           <button
@@ -67,7 +70,7 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
                   ? `Completed · ${done} of ${total} episodes`
                   : open
                     ? `${done} of ${total} episodes completed · next is episode ${next}`
-                    : `Clear season ${season.no - 1} to join`}
+                    : `Clear season ${before ? before.no : 1} to join`}
               </span>
             </span>
             <span className="exam-season-mark">{clearedSeason ? "✓" : open ? "Open" : ""}</span>
