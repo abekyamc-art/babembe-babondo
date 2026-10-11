@@ -1,7 +1,10 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import OpenAI from 'npm:openai@6.45.0';
 import { photoPuzzle } from '../../shared/photoPuzzle.ts';
-import { geminiText } from '../../shared/gemini.ts';
+import { geminiText, geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
+
+/** The least side a prize photograph is accepted at: a true 4K photograph, or the app draws it itself. */
+const LEAST_4K = 3000;
 
 /**
  * The new picture scenes of GLOIRE AI — FIND THE DIFFERENCES, drawn as 4K pictures.
@@ -572,38 +575,75 @@ export default async function differenceScenes(req) {
 
     // a pair already drawn is read again as it stands; only a scene without one is drawn here
     if (!baseUrl || !changedUrl) {
-      const first = await client.images.generate({
-        model: 'seedream_5_0_lite',
-        prompt: `${scene.look}. ${LOOK}`,
-        n: 1,
-        response_format: 'url',
-        aspect_ratio: '16:9',
-        resolution: '4K',
-        output_format: 'jpeg',
-        quality: 'auto',
-      });
-      baseUrl = first.data?.[0]?.url || '';
+      // Each photograph of a pair stands on an account of its own; a picture that comes back smaller than
+      // a true 4K photograph is refused, and the app's own 4K picture service draws it exactly as before.
+      let drawnCredits = 0;
+      try {
+        baseUrl = await geminiImage({
+          base44,
+          group: 'sceneone',
+          model: DRAW_BIG,
+          prompt: `${scene.look}. ${LOOK}`,
+          aspect: '16:9',
+          imageSize: '4K',
+          least: LEAST_4K,
+        });
+      } catch (error: any) {
+        console.error('The first photograph was not drawn on its own account:', error?.message);
+      }
+      if (!baseUrl) {
+        const first = await client.images.generate({
+          model: 'seedream_5_0_lite',
+          prompt: `${scene.look}. ${LOOK}`,
+          n: 1,
+          response_format: 'url',
+          aspect_ratio: '16:9',
+          resolution: '4K',
+          output_format: 'jpeg',
+          quality: 'auto',
+        });
+        baseUrl = first.data?.[0]?.url || '';
+        drawnCredits += first.usage?.base44_credits || 0;
+      }
       if (!baseUrl) throw new Error('The first picture could not be drawn.');
 
-      const second = await client.images.generate({
-        model: 'seedream_5_0_lite',
-        prompt:
-          'Keep this picture exactly as it is — the same scene, the same people, the same animals, the same ' +
-          'ground, the same sky, the same light, the same framing and the same detail — and change only these ' +
-          `five places: ${listed} Everything else must stay identical, so the two pictures differ in exactly ` +
-          'those five places and in nothing else.',
-        reference_image_urls: [baseUrl],
-        n: 1,
-        response_format: 'url',
-        aspect_ratio: '16:9',
-        resolution: '4K',
-        output_format: 'jpeg',
-        quality: 'auto',
-      });
-      changedUrl = second.data?.[0]?.url || '';
+      const changedPrompt =
+        'Keep this picture exactly as it is — the same scene, the same people, the same animals, the same ' +
+        'ground, the same sky, the same light, the same framing and the same detail — and change only these ' +
+        `five places: ${listed} Everything else must stay identical, so the two pictures differ in exactly ` +
+        'those five places and in nothing else.';
+      try {
+        changedUrl = await geminiImage({
+          base44,
+          group: 'scenetwo',
+          model: DRAW_BIG,
+          prompt: changedPrompt,
+          reference_urls: [baseUrl],
+          aspect: '16:9',
+          imageSize: '4K',
+          least: LEAST_4K,
+        });
+      } catch (error: any) {
+        console.error('The changed photograph was not drawn on its own account:', error?.message);
+      }
+      if (!changedUrl) {
+        const second = await client.images.generate({
+          model: 'seedream_5_0_lite',
+          prompt: changedPrompt,
+          reference_image_urls: [baseUrl],
+          n: 1,
+          response_format: 'url',
+          aspect_ratio: '16:9',
+          resolution: '4K',
+          output_format: 'jpeg',
+          quality: 'auto',
+        });
+        changedUrl = second.data?.[0]?.url || '';
+        drawnCredits += second.usage?.base44_credits || 0;
+      }
       if (!changedUrl) throw new Error('The second picture could not be drawn.');
 
-      credits = (first.usage?.base44_credits || 0) + (second.usage?.base44_credits || 0);
+      credits = drawnCredits;
     }
 
     // Every change is looked for on its own, and all five at once: one question about one place is what a

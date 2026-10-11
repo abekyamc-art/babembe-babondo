@@ -1,5 +1,9 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import OpenAI from 'npm:openai@6.45.0';
+import { geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
+
+/** The least side a trophy card is accepted at: a full card, or the app's own picture service draws it. */
+const LEAST_4K = 3000;
 
 /**
  * The season trophies of the examination, drawn as 4K pictures of shiny 3D gold cups.
@@ -50,15 +54,37 @@ export default async function prizeTrophies(req) {
 
     const drawn = [];
     for (const no of seasons) {
-      const { data, usage } = await client.images.generate({
-        model: 'automatic',
-        prompt: `A shiny 3D gold trophy cup for season ${no} of a Kibembe language examination, with ${MOTIFS[no]}. ${LOOK}`,
-        n: 1,
-        response_format: 'url',
-        aspect_ratio: '3:4',
-        resolution: '4K',
-      });
-      drawn.push({ season: no, url: data?.[0]?.url || null, credits: usage?.base44_credits || 0 });
+      const wanted = `A shiny 3D gold trophy cup for season ${no} of a Kibembe language examination, with ${MOTIFS[no]}. ${LOOK}`;
+      // the trophies' own account draws first, and a card smaller than a full card is refused, so the
+      // app's own picture service draws it instead — a trophy is never quietly hung on a small card
+      let url = '';
+      let credits = 0;
+      try {
+        url = await geminiImage({
+          base44,
+          group: 'trophies',
+          model: DRAW_BIG,
+          prompt: wanted,
+          aspect: '3:4',
+          imageSize: '4K',
+          least: LEAST_4K,
+        });
+      } catch (error: any) {
+        console.error('A trophy was not drawn on its own account:', error?.message);
+      }
+      if (!url) {
+        const { data, usage } = await client.images.generate({
+          model: 'automatic',
+          prompt: wanted,
+          n: 1,
+          response_format: 'url',
+          aspect_ratio: '3:4',
+          resolution: '4K',
+        });
+        url = data?.[0]?.url || '';
+        credits = usage?.base44_credits || 0;
+      }
+      drawn.push({ season: no, url: url || null, credits });
     }
 
     return Response.json({ trophies: drawn });

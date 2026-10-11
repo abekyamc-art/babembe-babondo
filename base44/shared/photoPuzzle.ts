@@ -1,6 +1,9 @@
 import OpenAI from 'npm:openai@6.45.0';
 import { photoPuzzleAreas } from './photoPuzzleAreas.ts';
-import { geminiText } from './gemini.ts';
+import { geminiText, geminiImage, DRAW_BIG } from './gemini.ts';
+
+/** The least side a prize photograph is accepted at: a true 4K photograph, or the app draws it itself. */
+const LEAST_4K = 3000;
 
 /**
  * GLOIRE AI — one 4K photograph turned into a spot-the-difference puzzle.
@@ -67,20 +70,42 @@ export async function photoPuzzle(base44, scene, body) {
     ? `Edit this exact photograph into a spot-the-difference puzzle. Preserve its photographic realism, camera angle, framing, lighting and every untouched pixel as closely as possible. Make exactly these ${edits.length} changes, each one large, unmistakable and far from the others:\n${wanted}\n${style}`
     : `Edit this exact photograph into a spot-the-difference puzzle. Preserve its photographic realism, camera angle, framing, lighting and every untouched pixel as closely as possible. Make exactly ${count} large, unmistakable, widely separated edits, including one person's clothing turned to a bright contrasting colour, one person removed with what stands behind them left in their place, one realistic dog added, and either a realistic cat or a cow added. ${style}`;
 
-  const edited = reuse && !supplement
-    ? { data: [{ url: body.changed }], usage: { base44_credits: 0 } }
-    : await client.images.generate({
-        model: 'seedream_5_0_lite',
-        output_format: 'jpeg',
-        quality: 'auto',
-        resolution: '4K',
-        aspect_ratio: '16:9',
-        response_format: 'url',
-        n: 1,
-        reference_image_urls: [source],
+  // The puzzle's own account draws the edited copy first, and it must come back a true 4K photograph: a
+  // picture smaller than that is refused here and the app's own 4K picture service draws it instead, so a
+  // level is never quietly played on a small picture.
+  let changed = reuse && !supplement ? String(body.changed || '') : '';
+  let credits = 0;
+  if (!changed) {
+    try {
+      changed = await geminiImage({
+        base44,
+        group: 'puzzledraw',
+        model: DRAW_BIG,
         prompt,
+        reference_urls: [source],
+        aspect: '16:9',
+        imageSize: '4K',
+        least: LEAST_4K,
       });
-  const changed = edited.data?.[0]?.url;
+    } catch (error: any) {
+      console.error("The puzzle's edited copy was not drawn on its own account:", error?.message);
+    }
+  }
+  if (!changed) {
+    const edited = await client.images.generate({
+      model: 'seedream_5_0_lite',
+      output_format: 'jpeg',
+      quality: 'auto',
+      resolution: '4K',
+      aspect_ratio: '16:9',
+      response_format: 'url',
+      n: 1,
+      reference_image_urls: [source],
+      prompt,
+    });
+    changed = edited.data?.[0]?.url || '';
+    credits = edited.usage?.base44_credits || 0;
+  }
   if (!changed) throw new Error('The edited photograph was not returned.');
 
   const audit = await geminiText({
@@ -98,5 +123,5 @@ export async function photoPuzzle(base44, scene, body) {
     return { error: `Only ${seen.length} clear differences found; need ${target + 3} including three extras. Photo was not installed.`, changed, base, audit };
   }
   const differences = seen.map((d, i) => ({ ...d, w: Math.min(d.w, 1-d.x), h: Math.min(d.h, 1-d.y), id: `${scene.name}-photo-${i+1}`, extra: i >= target }));
-  return { scene: scene.name, base, changed, differences, target, resolution: '4K', credits: edited.usage?.base44_credits || 0 };
+  return { scene: scene.name, base, changed, differences, target, resolution: '4K', credits };
 }

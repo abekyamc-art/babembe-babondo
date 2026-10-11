@@ -1,5 +1,5 @@
 import { createClientFromRequest } from "npm:@base44/sdk@0.8.52";
-import { geminiText } from "../../shared/gemini.ts";
+import { geminiText, geminiImage } from "../../shared/gemini.ts";
 import { docWordRows, publishedDoc, readDocText, rowsOf } from "../../shared/knowledgeDoc.ts";
 
 /**
@@ -610,15 +610,22 @@ export default async function (req: Request): Promise<Response> {
         return Response.json({ error: "Name the word the picture is to be drawn for." }, { status: 400 });
       }
 
-      const drawn: any = await base44.asServiceRole.integrations.Core.GenerateImage({
-        prompt:
-          `A clear, warm, uncluttered picture for a Kibembe language lesson about the Ebembe word "${term}"` +
-          (meaning ? ` (${meaning})` : "") +
-          ". Show plainly what the word means, as it would be seen in the world of the Babembe people of the " +
-          "eastern Democratic Republic of the Congo — one subject, centred, natural daylight, friendly and " +
-          "teaching-simple. No letters, no words and no writing anywhere in the picture.",
-      });
-      const url = String(drawn?.url || "").trim();
+      const wanted =
+        `A clear, warm, uncluttered picture for a Kibembe language lesson about the Ebembe word "${term}"` +
+        (meaning ? ` (${meaning})` : "") +
+        ". Show plainly what the word means, as it would be seen in the world of the Babembe people of the " +
+        "eastern Democratic Republic of the Congo — one subject, centred, natural daylight, friendly and " +
+        "teaching-simple. No letters, no words and no writing anywhere in the picture.";
+      // The account the dictionary's own pictures stand on is asked first, and the app's own picture
+      // service stands behind it, so a word is never left without a picture because an account could not draw.
+      let url = "";
+      try {
+        url = await geminiImage({ base44, group: "drawing", prompt: wanted });
+      } catch (error: any) {
+        console.error("The word's picture was not drawn on the dictionary's own account:", error?.message);
+        const drawn: any = await base44.asServiceRole.integrations.Core.GenerateImage({ prompt: wanted });
+        url = String(drawn?.url || "").trim();
+      }
       if (!isUrl(url)) {
         return Response.json(
           { error: "That picture could not be drawn just now. Try again." },

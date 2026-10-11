@@ -197,8 +197,8 @@ export async function geminiText({
 
 /** Where a picture is asked for, and the two models the app asks it of. */
 const DRAW_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
-const DRAW_MODEL = "gemini-2.5-flash-image";
-const DRAW_BIG = "gemini-3-pro-image-preview";
+export const DRAW_MODEL = "gemini-2.5-flash-image";
+export const DRAW_BIG = "gemini-3-pro-image-preview";
 
 /** How wide and tall a picture that came back is: its longest side, or nothing when it cannot be read. */
 function drawnSide(bytes: Uint8Array, mime: string) {
@@ -236,6 +236,7 @@ export async function geminiImage({
   reference_urls = [],
   model = DRAW_MODEL,
   aspect = null,
+  imageSize = null,
   least = 0,
   size = SHOWN,
 }: any = {}) {
@@ -248,7 +249,12 @@ export async function geminiImage({
   }
 
   const shape: any = { responseModalities: ["IMAGE"] };
-  if (aspect) shape.imageConfig = { aspectRatio: aspect };
+  if (aspect || imageSize) {
+    shape.imageConfig = {
+      ...(aspect ? { aspectRatio: aspect } : {}),
+      ...(imageSize ? { imageSize } : {}),
+    };
+  }
 
   const res = await fetch(`${DRAW_ENDPOINT}/${model}:generateContent`, {
     method: "POST",
