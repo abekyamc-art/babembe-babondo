@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, MessageCircle } from "lucide-react";
+import { Loader2, MessageCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
@@ -72,14 +72,6 @@ export default function Messages() {
   return (
     <div className="flex h-full w-full flex-col bg-background">
       <header className="flex shrink-0 items-center gap-2 px-4 pb-2 pt-[max(0.6rem,env(safe-area-inset-top))]">
-        <button
-          type="button"
-          onClick={() => navigate("/reels")}
-          aria-label="Back"
-          className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card/70"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
         <h1 className="font-display text-[16px] tracking-tight">Messages</h1>
       </header>
 

@@ -60,7 +60,7 @@ export default function KibembeChat() {
 
   return (
     <div className={`flex min-h-full flex-col bg-background ${KIBEMBE_CLASS}`}>
-      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
+      <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
         <Link
           to="/"
           aria-label="Back to the voice screen"

@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Loader2, MessageCircle, Plus, Radio, Search } from "lucide-react";
+import { Loader2, MessageCircle, Plus, Radio, Search } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { BOOST_COST, BOOST_HOURS, balanceOf, spendCoins } from "@/lib/coins";
@@ -283,14 +283,6 @@ export default function Reels() {
   return (
     <div className="relative flex h-full w-full flex-col overflow-hidden bg-background">
       <header className="relative z-20 flex items-center gap-2 px-4 pb-2 pt-[max(0.6rem,env(safe-area-inset-top))]">
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          aria-label="Back"
-          className="grid h-9 w-9 place-items-center rounded-full border border-border bg-card/70"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
         <h1 className="flex-1 font-display text-[16px] tracking-tight">Reels</h1>
         <button
           type="button"

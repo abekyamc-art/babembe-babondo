@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { ArrowLeft, Coins, Loader2, MessageCircle, Rocket, Sparkles } from "lucide-react";
+import { Coins, Loader2, MessageCircle, Rocket, Sparkles } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import {
   BOOST_COST,
@@ -13,7 +12,6 @@ import {
 import { ensureProfile } from "@/lib/social";
 
 export default function Markets() {
-  const navigate = useNavigate();
   const [profile, setProfile] = useState(null);
   const [ready, setReady] = useState(false);
 
@@ -42,14 +40,6 @@ export default function Markets() {
   return (
     <div className="h-full overflow-y-auto overscroll-none bg-background px-5 pb-10 pt-[max(0.75rem,env(safe-area-inset-top))]">
       <header className="flex items-center gap-3">
-        <button
-          type="button"
-          onClick={() => navigate("/")}
-          aria-label="Back"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-border bg-card"
-        >
-          <ArrowLeft className="h-4 w-4" />
-        </button>
         <h1 className="font-display text-[18px] tracking-tight">Coins</h1>
       </header>
 
