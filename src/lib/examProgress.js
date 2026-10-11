@@ -18,7 +18,9 @@ import {
 const PROGRESS_KEY = "gloire-kibembe-exam-seasons-v2";
 const ATTEMPT_KEY = "gloire-kibembe-exam-episode-v2";
 let progressOwner = 'guest';
-export function setProgressOwner(id) { progressOwner = id; }
+/** The progress this session holds in memory, standing beside the phone's own copy. */
+let kept = null;
+export function setProgressOwner(id) { progressOwner = id; kept = null; }
 const scoped = (key) => `${key}:${progressOwner}`;
 export function storeProgress(progress) { write(PROGRESS_KEY, progress); }
 
@@ -45,6 +47,10 @@ function read(key, fallback) {
 }
 
 function write(key, value) {
+  // The progress is kept in memory as well as in the phone's store. A phone that refuses to store —
+  // private browsing, a store that has filled up — would otherwise find nothing written down the moment
+  // it looked again, and would lock the episode that was just earned.
+  if (key === PROGRESS_KEY) kept = value;
   try {
     window.localStorage.setItem(scoped(key), JSON.stringify(value));
   } catch (err) {
@@ -54,7 +60,9 @@ function write(key, value) {
 
 /** How far the student has come: every episode passed with its best mark, and how often each was taken. */
 export function loadProgress() {
-  const held = read(PROGRESS_KEY, null);
+  // the copy this session holds comes first, so what has just been passed is what the next episode is
+  // opened against, whether or not the phone agreed to write it down
+  const held = kept || read(PROGRESS_KEY, null);
   const passed = held && held.passed && typeof held.passed === "object" ? held.passed : {};
   const taken = held && held.taken && typeof held.taken === "object" ? held.taken : {};
   const completed = { ...(held?.completed || {}) };

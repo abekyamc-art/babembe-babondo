@@ -127,8 +127,10 @@ export default function SeriesShell({ open, onClose }) {
       : 'All available seasons are complete. Passed episodes will not be repeated.'
     : `You scored ${report.percent}% of ${report.total} points — more than 80% opens the next episode. Take episode ${attempt.episode} again.`;
 
+  // An episode is opened whatever the account syncing is doing: a slow or a failed save is written down
+  // and retried, but it never stands between the student and the episode they have just earned.
   const openEpisode = (no, seasonNo = season) => {
-    if (loading || saving || syncError || !episodeOpen(loadProgress(), seasonNo, no)) return;
+    if (loading || !episodeOpen(loadProgress(), seasonNo, no)) return;
     const fresh = startEpisode(seasonNo, no);
     if (!fresh) return;
     written.current = '';
@@ -201,7 +203,7 @@ export default function SeriesShell({ open, onClose }) {
               <ExamResults
                 report={report}
                 note={note}
-                onNext={!saving && !syncError ? nextOpen ? () => openEpisode(nextNo, attempt.season) : seasonAfter ? () => openEpisode(1, seasonAfter.no) : again ? () => openEpisode(attempt.episode, attempt.season) : null : null}
+                onNext={nextOpen ? () => openEpisode(nextNo, attempt.season) : seasonAfter ? () => openEpisode(1, seasonAfter.no) : again ? () => openEpisode(attempt.episode, attempt.season) : null}
                 nextLabel={nextOpen ? `Go to episode ${nextNo}` : seasonAfter ? `Start season ${seasonAfter.no}` : again ? `Try episode ${attempt.episode} again` : ''}
                 onLevels={backToEpisodes}
               />

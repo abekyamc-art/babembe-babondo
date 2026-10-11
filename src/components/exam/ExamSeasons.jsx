@@ -21,8 +21,10 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
       </button>
 
       <p className="exam-seasons-note">
-        Finish an episode to unlock the next one, whatever your score. Completed episodes stay closed
-        and are never given to you again. Finish a season to unlock the next. There is no daily limit.{" "}
+        Pass an episode — more than 80% of its points — to open the one after it. An episode that falls
+        short stays open to be taken again, as often as you need. A passed episode stays closed and is
+        never given to you again, and passing all hundred of a season is what opens the season after it.
+        There is no daily limit.{" "}
         {cleared} of {EXAM_SEASONS.length} seasons cleared.
       </p>
 

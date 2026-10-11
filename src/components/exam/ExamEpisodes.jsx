@@ -26,7 +26,8 @@ export default function ExamEpisodes({ season, progress, onOpen, onBack }) {
 
       <p className="exam-ep-note">
         Season {season.no} · {season.title}. Every episode asks {episodeSize()} questions.
-        Finish an episode to unlock the next one, whatever your score. Completed episodes cannot be replayed.
+        Score more than 80% to pass an episode and open the next one — an episode that falls short stays
+        open and can be taken again as often as you like. A passed episode is closed for good.
       </p>
 
       {next ? <button type="button" className="exam-next is-go" onClick={() => onOpen(next)}>
