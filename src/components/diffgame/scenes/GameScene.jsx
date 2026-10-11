@@ -22,13 +22,14 @@ const SCENES = {
  * Photo levels show the original and its edited 4K photograph, with no illustrated overlays.
  * Found rings are added only after a player spots a difference.
  */
-export default function GameScene({ scene, changed, uid, differences = [] }) {
+export default function GameScene({ scene, changed, uid, differences = [], onLoad }) {
   const pictures = picturesOf(scene);
 
   if (pictures) {
     return (
       <Image src={changed?.size ? pictures.changed : pictures.base}
-        alt="" className="dg-art" draggable={false} quality={95} fittingType="fit" />
+        alt="" className="dg-art" draggable={false} quality={95} fittingType="fit"
+        style={{ objectFit: 'contain' }} onLoad={onLoad} />
     );
   }
 

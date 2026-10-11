@@ -1,8 +1,7 @@
-import React, { useRef } from "react";
+import React, { useRef, useState } from "react";
 import { X } from "lucide-react";
 import GameScene from "./scenes/GameScene";
-/** A small finger margin in screen pixels, not a broad guessed region of the picture. */
-const REACH = 12;
+import pickDifference from "@/components/diffgame/pickDifference";
 
 const place = (difference) => ({
   left: `${difference.x * 100}%`,
@@ -33,6 +32,13 @@ export default function PuzzlePanel({
   onWrong,
 }) {
   const panel = useRef(null);
+  const [imageRatio, setImageRatio] = useState(null);
+  const imageLoaded = (event) => {
+    const image = event.target;
+    if (image.naturalWidth && image.naturalHeight) {
+      setImageRatio(image.naturalWidth / image.naturalHeight);
+    }
+  };
 
   // A touch is measured against the picture itself and belongs to the nearest difference it landed on —
   // or just beside. A place is small on a phone, so a touch near one finds it, and two places standing
@@ -42,23 +48,9 @@ export default function PuzzlePanel({
     if (!rect || !rect.width || !rect.height) return;
     const x = (event.clientX - rect.left) / rect.width;
     const y = (event.clientY - rect.top) / rect.height;
-    let best = null;
-    let closest = Infinity;
-    differences.forEach((difference) => {
-      const left = difference.x;
-      const top = difference.y;
-      const across = Math.max(left - x, 0, x - (left + difference.w)) * rect.width;
-      const down = Math.max(top - y, 0, y - (top + difference.h)) * rect.height;
-      if (Math.hypot(across, down) > REACH) return;
-      const distance = Math.hypot(
-        (x - left - difference.w / 2) * rect.width,
-        (y - top - difference.h / 2) * rect.height
-      );
-      if (distance < closest) { closest = distance; best = difference; }
-    });
-    if (best) {
-      if (!found.includes(best.id)) onFound(best.id);
-    } else onWrong(x, y, uid);
+    const { difference, alreadyFound } = pickDifference(differences, found, x, y, rect);
+    if (difference) onFound(difference.id);
+    else if (!alreadyFound) onWrong(x, y, uid);
   };
 
   const hint = hintId ? differences.find((difference) => difference.id === hintId) : null;
@@ -67,11 +59,12 @@ export default function PuzzlePanel({
     <div
       className={"dg-panel" + (reveal ? " is-reveal" : "")}
       ref={panel}
+      style={imageRatio ? { aspectRatio: imageRatio } : undefined}
       role="group"
       aria-label={label}
       onPointerDown={touched}
     >
-      <GameScene scene={scene} changed={changed} uid={uid} differences={differences} />
+      <GameScene scene={scene} changed={changed} uid={uid} differences={differences} onLoad={imageLoaded} />
 
       {differences.map((difference, i) => {
         const isFound = found.includes(difference.id);
