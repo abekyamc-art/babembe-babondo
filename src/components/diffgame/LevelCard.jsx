@@ -2,6 +2,7 @@ import React from "react";
 import { Lock, Star } from "lucide-react";
 import GameScene from "./scenes/GameScene";
 import { tierOf } from "@/lib/differenceGame/levels";
+import { requiredCount } from "@/lib/differenceGame/places";
 
 /** The untouched drawing, so a card's picture is the scene as it was made. */
 const NONE = new Set();
@@ -41,7 +42,7 @@ export default function LevelCard({ level, record, locked, onOpen }) {
           ))}
         </span>
         <span className="dg-best">
-          {record.best ? `${record.best} pts` : `${level.differences.length} to find`}
+          {record.best ? `${record.best} pts` : `${requiredCount(level)} to find`}
         </span>
       </span>
     </button>

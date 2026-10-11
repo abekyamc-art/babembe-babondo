@@ -1,5 +1,6 @@
 import React from "react";
 import { HeartCrack, LifeBuoy, RotateCcw, Grid2x2, LogOut } from "lucide-react";
+import { extraCount, requiredCount } from "@/lib/differenceGame/places";
 
 /**
  * The level was not passed — the time ran out, or the three wrong touches were spent. Nothing here is
@@ -7,8 +8,10 @@ import { HeartCrack, LifeBuoy, RotateCcw, Grid2x2, LogOut } from "lucide-react";
  * were missed stood — softly, in yellow, on both pictures — so the player learns them for the next try.
  */
 export default function FailSheet({ level, result, mistakesUsed, onRetry, canContinue, onContinue, onLevels, onMenu }) {
-  const found = result.found;
-  const total = level.differences.length;
+  // what is shown is what the level asked for, never the extras a picture may hold beside them
+  const found = result.foundRequired ?? result.found;
+  const total = requiredCount(level);
+  const extras = extraCount(level);
   return (
     <div className="dg-sheet-wrap" role="dialog" aria-modal="true" aria-label="Level not passed">
       <div className="dg-sheet is-lose">
@@ -21,6 +24,9 @@ export default function FailSheet({ level, result, mistakesUsed, onRetry, canCon
             ? "The time ran out."
             : "The three wrong touches were used up."}{" "}
           The places you missed stand in yellow on both pictures.
+          {extras > 0
+            ? ` ${extras} of the places shown were extra ones: the level never asked for them.`
+            : ""}
         </p>
 
         <dl className="dg-facts">

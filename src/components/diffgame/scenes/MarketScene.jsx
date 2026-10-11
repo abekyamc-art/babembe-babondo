@@ -89,7 +89,7 @@ export default function MarketScene({ changed, uid }) {
         s={0.95}
         shirt={changed.has("shirt") ? "#2f6fb0" : "#d94f4f"}
         hat
-        hatColor={changed.has("hat-color") ? "#2f6fb0" : "#f0a020"}
+        hatColor="#f0a020"
       />
 
       {!changed.has("basket") ? <Basket x={150} y={500} s={1} /> : null}

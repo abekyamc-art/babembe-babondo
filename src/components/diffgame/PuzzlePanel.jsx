@@ -73,6 +73,8 @@ export default function PuzzlePanel({
   };
 
   const hint = hintId ? differences.find((difference) => difference.id === hintId) : null;
+  // the places the level asks for, apart from the extras standing beside them
+  const required = differences.filter((difference) => !difference.extra).length;
 
   return (
     <div
@@ -96,7 +98,7 @@ export default function PuzzlePanel({
             aria-label={
               isFound
                 ? `Found: ${difference.label}`
-                : `Hidden difference ${i + 1} of ${differences.length}`
+                : `Hidden difference ${i + 1} of ${required}`
             }
           />
         );

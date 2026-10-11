@@ -1,5 +1,6 @@
 import { LEVELS } from "./differenceGame/levels";
 import { picturesOf } from "./differenceGame/scenePictures";
+import { requiredCount } from "./differenceGame/places";
 
 /**
  * GLOIRE AI — the picture puzzle of one episode: one drawn scene shown twice, the lower copy carrying
@@ -29,7 +30,7 @@ export const DIFFERENCE_COUNT = 5;
  * hand instead.
  */
 const PUZZLES = LEVELS.filter(
-  (level) => level.differences.length === DIFFERENCE_COUNT && picturesOf(level.scene)
+  (level) => requiredCount(level) === DIFFERENCE_COUNT && picturesOf(level.scene)
 );
 
 export function differencePuzzle(seasonNo, episode) {

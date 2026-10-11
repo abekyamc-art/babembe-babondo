@@ -7,6 +7,7 @@ import WinSheet from "./WinSheet";
 import FailSheet from "./FailSheet";
 import PauseSheet from "./PauseSheet";
 import { HINTS_PER_LEVEL, POINTS, nextLevel, tierOf } from "@/lib/differenceGame/levels";
+import { extraCount, extraPlaces, requiredCount, requiredPlaces } from "@/lib/differenceGame/places";
 import { sfx, buzz } from "@/lib/differenceGame/sfx";
 
 /**
@@ -14,12 +15,18 @@ import { sfx, buzz } from "@/lib/differenceGame/sfx";
  *
  * The same drawing stands twice, one above the other, and the copy below carries the level's own
  * differences. The player may touch either picture; a right touch rings the place out on both and turns a
- * circle green, a wrong touch is marked where it landed. The level ends when every difference is found —
- * or when the clock runs out, or the three wrong touches are spent. Both pictures of a level are drawn by
- * the app itself, so they are on screen the moment the level opens and never come up blank.
+ * circle green, a wrong touch is marked where it landed. The level ends when every place it asks for is
+ * found — or when the clock runs out, or the three wrong touches are spent. A picture may hold a place or
+ * two more than the level asks for: they are real differences, a touch finds them and they earn their
+ * points, and the level is passed without them, so a player who finds the number asked for still has the
+ * extras standing beside it. Both pictures of a level are drawn by the app itself, so they are on screen
+ * the moment the level opens and never come up blank.
  */
 export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLevels, onMenu }) {
-  const total = level.differences.length;
+  // the level asks for its own number of places, and the picture may hold a few more: the places asked for
+  // must be found, and the extras stand open to a touch and are free to leave
+  const required = requiredCount(level);
+  const extras = extraCount(level);
   const timed = !prefs.relaxed;
 
   const [found, setFound] = useState([]);
@@ -73,7 +80,12 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
   useEffect(() => {
     if (!timed || phase !== "playing" || timeLeft > 0) return;
     setPhase("lost");
-    setResult({ reason: "time", score, found: found.length });
+    setResult({
+      reason: "time",
+      score,
+      found: found.length,
+      foundRequired: requiredPlaces(level).filter((place) => found.includes(place.id)).length,
+    });
     sfx.lose(prefs.sound);
   }, [timeLeft, phase, timed, found.length, score, prefs.sound]);
 
@@ -89,11 +101,20 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
     setFound(next);
     sfx.found(prefs.sound);
     buzz(35, prefs.vibration);
-    if (next.length < total) return;
+    // an extra place found does not pass the level: every place the level asks for must be standing
+    if (requiredPlaces(level).some((place) => !next.includes(place.id))) return;
     const stars = mistakes === 0 ? 3 : mistakes === 1 ? 2 : 1;
     const finalScore = scoreOf(next.length, mistakes, timeLeft, hintsLeft);
     setPhase("won");
-    setResult({ score: finalScore, stars, mistakes, timeLeft, timed, found: next.length });
+    setResult({
+      score: finalScore,
+      stars,
+      mistakes,
+      timeLeft,
+      timed,
+      found: next.length,
+      foundRequired: required,
+    });
     sfx.win(prefs.sound);
     buzz([40, 60, 40], prefs.vibration);
     onWin(level.id, { score: finalScore, stars });
@@ -116,14 +137,23 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
     setMistakes(used);
     if (timed && used >= level.mistakes) {
       setPhase("lost");
-      setResult({ reason: "mistakes", score: scoreOf(found.length, used, timeLeft, hintsLeft), found: found.length });
+      setResult({
+        reason: "mistakes",
+        score: scoreOf(found.length, used, timeLeft, hintsLeft),
+        found: found.length,
+        foundRequired: requiredPlaces(level).filter((place) => found.includes(place.id)).length,
+      });
       sfx.lose(prefs.sound);
     }
   };
 
   const hint = () => {
     if (phase !== "playing" || hintsLeft <= 0) return;
-    const missing = level.differences.filter((difference) => !found.includes(difference.id));
+    // the hint points at a place the level asks for, so it carries the level on; an extra waits behind them
+    const missing = [
+      ...requiredPlaces(level).filter((place) => !found.includes(place.id)),
+      ...extraPlaces(level).filter((place) => !found.includes(place.id)),
+    ];
     if (!missing.length) return;
     setHintsLeft((held) => held - 1);
     setHintId(missing[0].id);
@@ -201,7 +231,12 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
         </span>
       </div>
 
-      <DifferenceTracker total={total} found={found.length} />
+      <DifferenceTracker
+        total={required}
+        found={requiredPlaces(level).filter((place) => found.includes(place.id)).length}
+        extras={extras}
+        extrasFound={extraPlaces(level).filter((place) => found.includes(place.id)).length}
+      />
 
       <div className="dg-board">
         <PuzzlePanel

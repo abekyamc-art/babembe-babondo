@@ -60,7 +60,7 @@ export default function VillageScene({ changed, uid }) {
 
       <Flower x={72} y={505} s={0.9} petal={changed.has("flower") ? "#ffd23f" : "#e0453f"} />
       <Chicken x={318} y={482} s={0.9} />
-      <Person x={620} y={470} s={0.75} shirt="#2f6fb0" hat={changed.has("hat")} />
+      <Person x={620} y={470} s={0.75} shirt="#2f6fb0" />
       {!changed.has("bucket") ? <Bucket x={790} y={500} s={0.9} /> : null}
     </svg>
   );

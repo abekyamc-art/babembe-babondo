@@ -9,7 +9,14 @@
  * A difference carries the place it stands in the picture as a share of the picture's own width and
  * height, so its touch area is the same on every phone: x and y are its top-left corner, w and h its
  * size. No two touch areas overlap, so a touch can only ever mean one difference.
+ *
+ * A difference marked extra: true is one of the spare places a picture may hold beyond the number the
+ * level asks for. It is a real change in the picture, a touch finds it and it earns its points like any
+ * other, but the level is passed without it: what must be found is the level's own number, the extras are
+ * never counted into it, and what a level is called by how much it asks (tierOf) is read from that number.
  */
+
+import { requiredCount } from "./places";
 
 /** The scene is drawn on this grid, whatever size the phone shows it at. */
 export const PANEL = { width: 1000, height: 560 };
@@ -35,9 +42,8 @@ export const LEVELS = [
       { id: "door-color", x: 0.462, y: 0.583, w: 0.106, h: 0.19, label: "The door changed colour" },
       { id: "tree-fruit", x: 0.795, y: 0.553, w: 0.137, h: 0.175, label: "The fruit has gone from the tree" },
       { id: "bucket", x: 0.742, y: 0.828, w: 0.108, h: 0.148, label: "The water bucket is missing" },
-      { id: "cloud", x: 0.71, y: 0.03, w: 0.19, h: 0.21, label: "A cloud has gone from the sky" },
-      { id: "hat", x: 0.575, y: 0.635, w: 0.12, h: 0.12, label: "The woman has put on a red hat" },
-      { id: "flower", x: 0.03, y: 0.79, w: 0.12, h: 0.2, label: "The flower turned yellow" },
+      { id: "cloud", x: 0.71, y: 0.03, w: 0.19, h: 0.21, label: "A cloud has gone from the sky", extra: true },
+      { id: "flower", x: 0.03, y: 0.79, w: 0.12, h: 0.2, label: "The flower turned yellow", extra: true },
     ],
   },
   {
@@ -54,9 +60,8 @@ export const LEVELS = [
       { id: "tomatoes", x: 0.378, y: 0.495, w: 0.125, h: 0.14, label: "The tomatoes changed colour" },
       { id: "shirt", x: 0.875, y: 0.65, w: 0.105, h: 0.145, label: "The vendor's shirt changed colour" },
       { id: "crate", x: 0.712, y: 0.787, w: 0.117, h: 0.19, label: "The crate has gone from the ground" },
-      { id: "cloud", x: 0.16, y: 0.02, w: 0.19, h: 0.21, label: "A cloud has gone from the sky" },
-      { id: "hat-color", x: 0.88, y: 0.55, w: 0.11, h: 0.1, label: "The vendor's hat turned blue" },
-      { id: "basket", x: 0.09, y: 0.78, w: 0.14, h: 0.2, label: "The basket has gone from the ground" },
+      { id: "cloud", x: 0.16, y: 0.02, w: 0.19, h: 0.21, label: "A cloud has gone from the sky", extra: true },
+      { id: "basket", x: 0.09, y: 0.78, w: 0.14, h: 0.2, label: "The basket has gone from the ground", extra: true },
     ],
   },
   {
@@ -73,9 +78,8 @@ export const LEVELS = [
       { id: "window-birds", x: 0.705, y: 0.185, w: 0.155, h: 0.15, label: "The birds have flown away" },
       { id: "book-top", x: 0.12, y: 0.59, w: 0.145, h: 0.13, label: "The top book changed colour" },
       { id: "backpack", x: 0.012, y: 0.8, w: 0.115, h: 0.185, label: "The backpack is missing" },
-      { id: "plant", x: 0.87, y: 0.8, w: 0.13, h: 0.2, label: "The plant has gone from the corner" },
-      { id: "globe-sea", x: 0.795, y: 0.55, w: 0.1, h: 0.19, label: "The sea on the globe turned yellow" },
-      { id: "pupil-hat", x: 0.69, y: 0.56, w: 0.095, h: 0.13, label: "A pupil has put on a red cap" },
+      { id: "plant", x: 0.87, y: 0.8, w: 0.13, h: 0.2, label: "The plant has gone from the corner", extra: true },
+      { id: "globe-sea", x: 0.795, y: 0.55, w: 0.1, h: 0.19, label: "The sea on the globe turned yellow", extra: true },
     ],
   },
   {
@@ -651,7 +655,8 @@ export const LEVELS = [
 
 /** What a level is called by how much it asks of the player: five places, seven, or ten. */
 export function tierOf(level) {
-  const places = level?.differences?.length || 0;
+  // counted by what the level asks for, so the spare places a picture may hold never raise its calling
+  const places = level ? requiredCount(level) : 0;
   return places >= 10 ? "Hard" : places >= 7 ? "Normal" : "Easy";
 }
 

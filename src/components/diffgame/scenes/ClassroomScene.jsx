@@ -58,7 +58,7 @@ export default function ClassroomScene({ changed, uid }) {
 
       <Globe x={840} y={380} s={0.9} sea={changed.has("globe-sea") ? "#ffd23f" : "#6cc0e5"} />
       <Desk x={610} y={400} w={280} />
-      <Person x={750} y={422} s={0.62} shirt="#3f9d54" hat={changed.has("pupil-hat")} />
+      <Person x={750} y={422} s={0.62} shirt="#3f9d54" />
 
       <Books x={190} y={400} s={1.35} top={changed.has("book-top") ? "#3f9d54" : "#e0453f"} />
       <Desk x={110} y={400} w={280} />
