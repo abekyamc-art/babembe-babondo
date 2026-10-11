@@ -6,10 +6,10 @@ import { LEVEL_SLOTS, SEASONS, episodesIn } from "@/lib/differenceGame/levels";
 import { levelRecord, levelsPassed, starsEarned, unlocked } from "@/lib/differenceGame/store";
 
 /**
- * The game's own menu: the four seasons the game is planned in, the stars and the score earned, and the
+ * The game's own menu: the ten seasons the game is planned in, the stars and the score earned, and the
  * three switches the player sets — an episode without a clock, the sound, and the phone's own shake.
  *
- * The menu opens on the four season covers. A season stands open when its own episodes stand and the
+ * The menu opens on the ten season covers. A season stands open when its own episodes stand and the
  * episode before them has been passed, so a season is opened by finishing the one before it; a season
  * whose episodes are still being drawn keeps its cover, locked. Opening a cover shows that season's
  * episodes alone, each with its own lock, its stars and its score.

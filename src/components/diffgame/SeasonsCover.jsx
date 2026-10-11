@@ -2,7 +2,7 @@ import React from "react";
 import SeasonTile from "./SeasonTile";
 
 /**
- * The game's cover: the four seasons side by side, two to a row, sized to the screen rather than laid
+ * The game's cover: the ten seasons side by side, two to a row, sized to the screen rather than laid
  * over anything. Each tile carries its own season — the scenes of it, how much of it is passed, and the
  * lock where it cannot be opened yet. Opening a tile shows that season's episodes alone.
  */

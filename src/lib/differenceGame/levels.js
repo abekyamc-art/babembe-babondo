@@ -714,7 +714,7 @@ export const LEVELS = [
   .map((level) => PHOTO_PUZZLE_UPDATES[level.scene]
     ? { ...level, differences: PHOTO_PUZZLE_UPDATES[level.scene].differences }
     : level)
-  // the four seasons' cartoon episodes stand after the picture and drawn ones, season by season
+  // the ten seasons' cartoon episodes stand after the picture and drawn ones, season by season
   .concat(TOON_LEVELS);
 
 /** What a level is called by how much it asks of the player: five places, seven, or ten. */
@@ -724,20 +724,26 @@ export function tierOf(level) {
   return places >= 10 ? "Hard" : places >= 7 ? "Normal" : "Easy";
 }
 
-/** How many episodes the game stands on in all: fifty-one in each of the four seasons. */
-export const LEVEL_SLOTS = 204;
+/** How many episodes the game stands on in all: fifty-one in each of the ten seasons. */
+export const LEVEL_SLOTS = 510;
 
 /**
- * The four seasons the game is played in, each named by the episode it opens with. Every season stands
- * whole — fifty-one episodes — so all four covers open on their own season, and season by season the
- * episodes grow harder. A season opens once the episode before it has been passed, so the seasons are
- * played in their own order.
+ * The ten seasons the game is played in, each named by the episode it opens with. Every season stands
+ * whole — fifty-one episodes — so every cover opens on its own season, and season by season the episodes
+ * grow harder. A season opens once the episode before it has been passed, so the seasons are played in
+ * their own order.
  */
 export const SEASONS = [
   { no: 1, at: 1 },
   { no: 2, at: 52 },
   { no: 3, at: 103 },
   { no: 4, at: 154 },
+  { no: 5, at: 205 },
+  { no: 6, at: 256 },
+  { no: 7, at: 307 },
+  { no: 8, at: 358 },
+  { no: 9, at: 409 },
+  { no: 10, at: 460 },
 ];
 
 /**

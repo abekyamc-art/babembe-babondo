@@ -7,7 +7,7 @@
  * is that piece's own box. Nothing is guessed at: a difference always stands exactly on the piece it
  * belongs to, and two neighbours that would be touched as one place are marked as standing together.
  *
- * Every episode of the four seasons is built here in one pass, and each one keeps its own copy of its
+ * Every episode of the ten seasons is built here in one pass, and each one keeps its own copy of its
  * scene, so the same picture is never built twice and no episode is a copy of another.
  */
 import { KINDS, boxOf, labelOf } from "./toonParts.js";
@@ -16,6 +16,12 @@ import season1 from "./recipesS1.js";
 import season2 from "./recipesS2.js";
 import season3 from "./recipesS3.js";
 import season4 from "./recipesS4.js";
+import season5 from "./recipesS5.js";
+import season6 from "./recipesS6.js";
+import season7 from "./recipesS7.js";
+import season8 from "./recipesS8.js";
+import season9 from "./recipesS9.js";
+import season10 from "./recipesS10.js";
 
 /** Where each season's cartoon episodes stand, counting from the first, and the recipes they are drawn from. */
 const SEASON_STARTS = [
@@ -23,6 +29,12 @@ const SEASON_STARTS = [
   { first: 52, recipes: season2 },
   { first: 103, recipes: season3 },
   { first: 154, recipes: season4 },
+  { first: 205, recipes: season5 },
+  { first: 256, recipes: season6 },
+  { first: 307, recipes: season7 },
+  { first: 358, recipes: season8 },
+  { first: 409, recipes: season9 },
+  { first: 460, recipes: season10 },
 ];
 
 /** What an episode asks of the player, read from where it stands in its own season. */
