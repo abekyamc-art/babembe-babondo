@@ -42,6 +42,29 @@ const LEAST_STRENGTH = 50;
 const LEAST_PACKED = 0.35;
 const MOST_AREA = 0.06;
 
+/**
+ * A pair whose own two photographs are not quite the same size — one was drawn before the other was
+ * replaced — is still read together: the second is held over the first at the first's own size, so the
+ * same place in both photographs is the same part of the grid. Nothing of either picture is changed: this
+ * is only how the two are laid over one another while they are read.
+ */
+function held(picture: Picture, width: number, height: number): Picture {
+  const data = new Uint8Array(width * height * 4);
+  for (let y = 0; y < height; y += 1) {
+    const sy = Math.min(picture.height - 1, Math.round((y / height) * picture.height));
+    for (let x = 0; x < width; x += 1) {
+      const sx = Math.min(picture.width - 1, Math.round((x / width) * picture.width));
+      const from = (sy * picture.width + sx) * 4;
+      const to = (y * width + x) * 4;
+      data[to] = picture.data[from];
+      data[to + 1] = picture.data[from + 1];
+      data[to + 2] = picture.data[from + 2];
+      data[to + 3] = 255;
+    }
+  }
+  return { width, height, data };
+}
+
 type Picture = { width: number; height: number; data: Uint8Array };
 
 /**
@@ -137,7 +160,7 @@ function movement(one: Float64Array, two: Float64Array) {
 }
 
 /** The places the picture truly changed in: each run of moved parts that stands as a change. */
-function places(moved: Float64Array) {
+function places(moved: Float64Array, tune: { blocks: number; strength: number; packed: number }) {
   const taken = new Uint8Array(ACROSS * DOWN);
   const out: any[] = [];
   for (let i = 0; i < ACROSS * DOWN; i += 1) {
@@ -177,9 +200,9 @@ function places(moved: Float64Array) {
     const h = (y1 - y0 + 1) / DOWN;
     const strength = sum / n;
     const packed = n / ((x1 - x0 + 1) * (y1 - y0 + 1));
-    if (n < LEAST_BLOCKS) continue;
-    if (strength < LEAST_STRENGTH) continue;
-    if (packed < LEAST_PACKED) continue;
+    if (n < tune.blocks) continue;
+    if (strength < tune.strength) continue;
+    if (packed < tune.packed) continue;
     if (w * h > MOST_AREA) continue;
     out.push({
       x: x0 / ACROSS,
@@ -227,25 +250,35 @@ export default async function puzzleAudit(req: Request) {
     }
     const target = Math.min(10, Math.max(1, Number(pair.target) || 5));
 
+    // a stubborn pair may be read a little more finely, within bounds, but never so loosely that
+    // ordinary drift of the light is taken for a change
+    const clamp = (n: any, least: number, most: number, fallback: number) => {
+      const value = Number(n);
+      return Number.isFinite(value) ? Math.min(most, Math.max(least, value)) : fallback;
+    };
+    const tune = {
+      blocks: clamp(pair?.least?.blocks, 12, 80, LEAST_BLOCKS),
+      strength: clamp(pair?.least?.strength, 20, 120, LEAST_STRENGTH),
+      packed: clamp(pair?.least?.packed, 0.15, 0.9, LEAST_PACKED),
+    };
+
     // ── what the pictures themselves hold ────────────────────────────────────────────────────────────
     const first = await open(pair.base);
+    const measured = await open(pair.changed);
+    const sameSize = first.width === measured.width && first.height === measured.height;
+    const second = sameSize ? measured : held(measured, first.width, first.height);
     const firstBlocks = blocks(first);
-    const second = await open(pair.changed);
-    if (first.width !== second.width || first.height !== second.height) {
-      return Response.json(
-        { error: 'The two photographs are not the same size, so their places cannot be held together.' },
-        { status: 422 }
-      );
-    }
-    const found = places(movement(firstBlocks, blocks(second)));
+    const found = places(movement(firstBlocks, blocks(second)), tune);
 
     // Verify each measured region independently; never assign a label from the requested edit plan.
     const differences = [];
+    let unverified = 0;
     const candidates = found.slice(0, 24);
     for (let start = 0; start < candidates.length; start += 4) {
       const batch = candidates.slice(start, start + 4);
       const looked = await Promise.allSettled(batch.map(async (place) => {
         const at = area(place);
+        const read = async () => {
         const cropUrl = await puzzleAuditCrop(base44, first, second, at);
         const seen = await base44.asServiceRole.integrations.Core.InvokeLLM({
           prompt: 'This image contains TWO tightly cropped views side by side: original on LEFT, edited on RIGHT. Compare only what is actually visible here. Return differs=true only for a clearly identifiable object that was added, removed, or recolored. Ignore lighting shifts, texture, JPEG noise and tiny geometric drift. If uncertain or no identifiable object differs, return false. Describe the left view in first, right view in second, and the actual object change in label. Never infer an object outside these crops.',
@@ -259,12 +292,18 @@ export default async function puzzleAudit(req: Request) {
         return seen?.differs === true && seen.label?.trim()
           ? { ...at, label: seen.label.trim() }
           : null;
+        };
+        // one unanswered region must not throw the whole pair away: it is asked for once more, and
+        // only what is still unanswered is set aside — never taken as a difference
+        try {
+          return await read();
+        } catch {
+          return await read();
+        }
       }));
-      if (looked.some((result) => result.status === 'rejected')) {
-        throw new Error('A picture region could not be verified; no partial audit was returned.');
-      }
       for (const result of looked) {
         if (result.status === 'fulfilled' && result.value) differences.push(result.value);
+        else if (result.status === 'rejected') unverified += 1;
       }
     }
 
@@ -281,8 +320,11 @@ export default async function puzzleAudit(req: Request) {
     return Response.json({
       scene: pair.scene,
       target,
+      heldTogether: !sameSize,
+      least: tune,
       places: found.length,
       found: written.length,
+      unverified,
       differences: written,
     });
   } catch (error: any) {

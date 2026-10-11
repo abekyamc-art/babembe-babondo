@@ -14,10 +14,10 @@ export const PHOTO_PUZZLE_UPDATES = {
     differences: [
       { id: 'lake-photo-cat', x: 0.197, y: 0.756, w: 0.141, h: 0.219, label: 'A cat sits beside the baskets' },
       { id: 'lake-photo-dog', x: 0.417, y: 0.723, w: 0.106, h: 0.214, label: 'A dog sits on the shore' },
-      { id: 'lake-photo-buoy', x: 0.269, y: 0.557, w: 0.058, h: 0.097, label: 'A large buoy floats in the lake' },
+      { id: 'lake-photo-buoy', x: 0.2619, y: 0.5565, w: 0.07, h: 0.1439, label: 'A large buoy floats in the lake' },
       { id: 'lake-photo-tree', x: 0, y: 0.302, w: 0.103, h: 0.193, label: 'A large tree stands on the left shore' },
       { id: 'lake-photo-shirt', x: 0.613, y: 0.562, w: 0.039, h: 0.096, label: 'The middle fisherman wears blue' },
-      { id: 'lake-photo-person', x: 0.786, y: 0.555, w: 0.055, h: 0.132, label: 'The right-hand fisherman is missing', extra: true },
+      { id: 'lake-photo-person', x: 0.7736, y: 0.5565, w: 0.07, h: 0.1231, label: 'The right-hand fisherman is missing', extra: true },
       { id: 'lake-photo-birds', x: 0.82, y: 0.317, w: 0.07, h: 0.059, label: 'A flock of birds appears in the right-hand sky', extra: true },
     ],
   },
@@ -40,7 +40,7 @@ export const PHOTO_PUZZLE_UPDATES = {
     differences: [
       { id: 'crossing-photo-towel', x: 0.262, y: 0.048, w: 0.07, h: 0.265, label: 'A blue towel hangs from the tree' },
       { id: 'crossing-photo-flower', x: 0.035, y: 0.213, w: 0.117, h: 0.128, label: 'A red flower appears on the left' },
-      { id: 'crossing-photo-boy', x: 0.032, y: 0.441, w: 0.091, h: 0.145, label: 'A boy sits on the left bank' },
+      { id: 'crossing-photo-boy', x: 0.0292, y: 0.4246, w: 0.0745, h: 0.1717, label: 'A boy sits on the left bank' },
       { id: 'crossing-photo-basket', x: 0.145, y: 0.49, w: 0.133, h: 0.143, label: 'A wicker basket stands on the left bank' },
       { id: 'crossing-photo-parrot', x: 0.662, y: 0.164, w: 0.059, h: 0.178, label: 'A parrot appears above the river' },
       { id: 'crossing-photo-dog', x: 0.707, y: 0.458, w: 0.117, h: 0.162, label: 'A dog sits on the right bank' },
@@ -48,7 +48,7 @@ export const PHOTO_PUZZLE_UPDATES = {
       { id: 'crossing-photo-hat', x: 0.01, y: 0.696, w: 0.153, h: 0.152, label: 'A straw hat lies in the foreground', extra: true },
       { id: 'crossing-photo-bucket', x: 0.409, y: 0.813, w: 0.104, h: 0.182, label: 'A blue bucket stands at the river edge', extra: true },
       { id: 'crossing-photo-jug', x: 0.815, y: 0.558, w: 0.124, h: 0.188, label: 'A red water jug stands on the right bank', extra: true },
-      { id: 'crossing-photo-crate', x: 0.926, y: 0.506, w: 0.073, h: 0.065, label: 'A wooden crate appears on the right bank', extra: true },
+      { id: 'crossing-photo-crate', x: 0.9099, y: 0.4871, w: 0.0901, h: 0.1231, label: 'A wooden crate appears on the right bank', extra: true },
       { id: 'crossing-photo-woman-left', x: 0.421, y: 0.307, w: 0.044, h: 0.213, label: 'The left woman is missing from the bridge', extra: true },
       { id: 'crossing-photo-woman-middle', x: 0.487, y: 0.313, w: 0.034, h: 0.204, label: 'The middle woman is missing from the bridge', extra: true },
     ],
@@ -91,10 +91,10 @@ export const PHOTO_PUZZLE_UPDATES = {
   grove: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/6aceaf444_generated_25c251ab.jpg',
     differences: [
-      { id: 'grove-photo-1', x: 0.455, y: 0.298, w: 0.07, h: 0.14, label: 'A bunch of bananas has turned bright yellow' },
+      { id: 'grove-photo-1', x: 0.4276, y: 0.2724, w: 0.1331, h: 0.24, label: 'A bunch of bananas has turned bright yellow' },
       { id: 'grove-photo-2', x: 0.217, y: 0.4645, w: 0.105, h: 0.34, label: 'The man wears a blue cloth wrapper' },
       { id: 'grove-photo-3', x: 0.101, y: 0.873, w: 0.109, h: 0.07, label: 'A second machete lies on the ground' },
-      { id: 'grove-photo-4', x: 0.673, y: 0.802, w: 0.154, h: 0.149, label: 'A small red hen has appeared' },
+      { id: 'grove-photo-4', x: 0.6424, y: 0.7926, w: 0.1253, h: 0.2064, label: 'A small red hen has appeared' },
     ],
   },
   chapel: {
@@ -102,15 +102,15 @@ export const PHOTO_PUZZLE_UPDATES = {
     differences: [
       { id: 'chapel-photo-1', x: 0.465, y: 0.139, w: 0.07, h: 0.085, label: 'The cross on the roof is gold' },
       { id: 'chapel-photo-2', x: 0.673, y: 0.5405, w: 0.178, h: 0.07, label: 'A woman carries a green umbrella' },
-      { id: 'chapel-photo-3', x: 0.082, y: 0.76, w: 0.172, h: 0.222, label: 'A small wooden stool stands on the path' },
+      { id: 'chapel-photo-3', x: 0, y: 0.7585, w: 0.2347, h: 0.24, label: 'A small wooden stool stands on the path' },
     ],
   },
   tailor: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/2284bd21b_generated_f5f1a584.jpg',
     differences: [
-      { id: 'tailor-photo-1', x: 0.763, y: 0.3485, w: 0.147, h: 0.34, label: 'The shirt on the hook is bright green' },
-      { id: 'tailor-photo-2', x: 0.439, y: 0.574, w: 0.139, h: 0.128, label: 'The sewing machine is red' },
-      { id: 'tailor-photo-3', x: 0.296, y: 0.901, w: 0.086, h: 0.098, label: 'Brown shoes stand under the table' },
+      { id: 'tailor-photo-1', x: 0.7596, y: 0.2967, w: 0.1565, h: 0.24, label: 'The shirt on the hook is bright green' },
+      { id: 'tailor-photo-2', x: 0.4237, y: 0.5704, w: 0.1331, h: 0.1787, label: 'The sewing machine is red' },
+      { id: 'tailor-photo-3', x: 0.297, y: 0.8412, w: 0.07, h: 0.0814, label: 'Brown shoes stand under the table' },
     ],
   },
   washing: {
@@ -126,7 +126,7 @@ export const PHOTO_PUZZLE_UPDATES = {
   palms: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/45be89be8_generated_bbe9d38a.jpg',
     differences: [
-      { id: 'palms-photo-1', x: 0.434, y: 0.685, w: 0.07, h: 0.07, label: 'A cup on the mat is bright blue' },
+      { id: 'palms-photo-1', x: 0.4471, y: 0.7023, w: 0.0823, h: 0.0814, label: 'A cup on the mat is bright blue' },
       { id: 'palms-photo-2', x: 0.133, y: 0.2195, w: 0.172, h: 0.34, label: 'The bamboo ladder is red' },
       { id: 'palms-photo-3', x: 0.147, y: 0.698, w: 0.182, h: 0.221, label: 'A second gourd stands beside the mat' },
     ],
@@ -137,7 +137,7 @@ export const PHOTO_PUZZLE_UPDATES = {
       { id: 'taxistand-photo-1', x: 0.2575, y: 0.125, w: 0.07, h: 0.07, label: 'A thin cloud has gone from the sky' },
       { id: 'taxistand-photo-2', x: 0.213, y: 0.668, w: 0.113, h: 0.149, label: 'The middle motorbike is bright green' },
       { id: 'taxistand-photo-3', x: 0.434, y: 0.581, w: 0.07, h: 0.07, label: 'A rider wears a yellow helmet' },
-      { id: 'taxistand-photo-4', x: 0, y: 0.88, w: 0.105, h: 0.12, label: 'A black tyre lies on the ground' },
+      { id: 'taxistand-photo-4', x: 0, y: 0.8699, w: 0.1253, h: 0.1301, label: 'A black tyre lies on the ground' },
       { id: 'taxistand-photo-5', x: 0.9025, y: 0.574, w: 0.07, h: 0.226, label: 'A wooden signpost stands by the road' },
     ],
   },
@@ -145,8 +145,8 @@ export const PHOTO_PUZZLE_UPDATES = {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/e159b429d_generated_f6a4b14d.jpg',
     differences: [
       { id: 'rainclouds-photo-1', x: 0.376, y: 0.0625, w: 0.126, h: 0.34, label: 'Lightning stands in the sky' },
-      { id: 'rainclouds-photo-2', x: 0.251, y: 0.601, w: 0.105, h: 0.109, label: 'The cloth over her head is bright yellow' },
-      { id: 'rainclouds-photo-3', x: 0.1, y: 0.79, w: 0.085, h: 0.125, label: 'A grey goat runs along the path' },
+      { id: 'rainclouds-photo-2', x: 0.2167, y: 0.5773, w: 0.1526, h: 0.137, label: 'The cloth over her head is bright yellow' },
+      { id: 'rainclouds-photo-3', x: 0.0526, y: 0.7857, w: 0.1292, h: 0.1717, label: 'A grey goat runs along the path' },
     ],
   },
   boatyard: {
@@ -154,16 +154,16 @@ export const PHOTO_PUZZLE_UPDATES = {
     differences: [
       { id: 'boatyard-photo-1', x: 0.655, y: 0.668, w: 0.34, h: 0.305, label: 'The bow of the canoe is painted bright blue' },
       { id: 'boatyard-photo-2', x: 0.147, y: 0.432, w: 0.072, h: 0.07, label: 'The adze handle is red' },
-      { id: 'boatyard-photo-3', x: 0.0335, y: 0.699, w: 0.07, h: 0.07, label: 'A tin of paint stands on the sand' },
-      { id: 'boatyard-photo-4', x: 0.771, y: 0.503, w: 0.105, h: 0.146, label: 'A white egret stands in the water' },
+      { id: 'boatyard-photo-3', x: 0.0353, y: 0.6954, w: 0.07, h: 0.1023, label: 'A tin of paint stands on the sand' },
+      { id: 'boatyard-photo-4', x: 0.7831, y: 0.5148, w: 0.1097, h: 0.137, label: 'A white egret stands in the water' },
     ],
   },
   festival: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/e92ed133d_generated_c65f8a3e.jpg',
     differences: [
       { id: 'festival-photo-1', x: 0.0465, y: 0.111, w: 0.34, h: 0.07, label: 'A string of small flags has gone' },
-      { id: 'festival-photo-2', x: 0.435, y: 0.284, w: 0.133, h: 0.133, label: 'The big drum is bright yellow' },
-      { id: 'festival-photo-3', x: 0.2005, y: 0.775, w: 0.07, h: 0.087, label: 'A small wooden stool stands before the dancers' },
+      { id: 'festival-photo-2', x: 0.4276, y: 0.2787, w: 0.1448, h: 0.1995, label: 'The big drum is bright yellow' },
+      { id: 'festival-photo-3', x: 0.201, y: 0.7718, w: 0.0706, h: 0.1301, label: 'A small wooden stool stands before the dancers' },
     ],
   },
   sunrise: {
@@ -173,14 +173,14 @@ export const PHOTO_PUZZLE_UPDATES = {
       { id: 'sunrise-photo-2', x: 0.584, y: 0.384, w: 0.072, h: 0.085, label: 'The rising sun is bigger and deeper orange' },
       { id: 'sunrise-photo-3', x: 0, y: 0.1845, w: 0.182, h: 0.34, label: 'A tall tree in outline has gone from the side' },
       { id: 'sunrise-photo-4', x: 0.246, y: 0.7365, w: 0.07, h: 0.07, label: 'A second thatched roof has appeared' },
-      { id: 'sunrise-photo-5', x: 0.668, y: 0.668, w: 0.086, h: 0.169, label: 'A wisp of cooking smoke has appeared' },
+      { id: 'sunrise-photo-5', x: 0.6932, y: 0.6815, w: 0.0784, h: 0.1856, label: 'A wisp of cooking smoke has appeared' },
     ],
   },
   mangotree: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/702a18da8_generated_f133e510.jpg',
     differences: [
-      { id: 'mangotree-photo-1', x: 0, y: 0, w: 0.133, h: 0.165, label: 'A branch of mangoes has gone from the tree' },
-      { id: 'mangotree-photo-2', x: 0.361, y: 0.824, w: 0.086, h: 0.07, label: 'A mango on the ground is bright red' },
+      { id: 'mangotree-photo-1', x: 0.4865, y: 0.1108, w: 0.07, h: 0.07, label: 'A branch of mangoes has gone from the tree' },
+      { id: 'mangotree-photo-2', x: 0.3495, y: 0.8204, w: 0.0706, h: 0.0884, label: 'A mango on the ground is bright red' },
       { id: 'mangotree-photo-3', x: 0.089, y: 0.4015, w: 0.326, h: 0.34, label: 'The bicycle at the trunk is blue' },
       { id: 'mangotree-photo-4', x: 0.721, y: 0.6585, w: 0.07, h: 0.07, label: 'The white hen has gone from the post' },
     ],
@@ -191,7 +191,7 @@ export const PHOTO_PUZZLE_UPDATES = {
       { id: 'schoolwalk-photo-1', x: 0.039, y: 0.048, w: 0.182, h: 0.314, label: 'A tall banana plant has gone from the path' },
       { id: 'schoolwalk-photo-2', x: 0.254, y: 0.5595, w: 0.07, h: 0.07, label: 'The school bag is bright yellow' },
       { id: 'schoolwalk-photo-3', x: 0.5615, y: 0.618, w: 0.07, h: 0.169, label: 'The bicycle is red' },
-      { id: 'schoolwalk-photo-4', x: 0.2215, y: 0.662, w: 0.07, h: 0.113, label: 'A white goat walks behind the children' },
+      { id: 'schoolwalk-photo-4', x: 0.2088, y: 0.6537, w: 0.1136, h: 0.1787, label: 'A white goat walks behind the children' },
     ],
   },
 };
