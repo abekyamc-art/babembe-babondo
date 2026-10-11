@@ -168,9 +168,9 @@ export const Scale = ({ x, y, s = 1 }) => (
   </g>
 );
 
-export const Globe = ({ x, y, s = 1 }) => (
+export const Globe = ({ x, y, s = 1, sea = "#6cc0e5" }) => (
   <g transform={`translate(${x} ${y}) scale(${s})`}>
-    <circle cx="0" cy="-14" r="34" fill="#6cc0e5" stroke={INK} strokeWidth="5" />
+    <circle cx="0" cy="-14" r="34" fill={sea} stroke={INK} strokeWidth="5" />
     <path d="M-28 -24 q16 12 34 4 q14 -6 24 8" fill="none" stroke="#3f9d54" strokeWidth="10" />
     <ellipse cx="0" cy="-14" rx="34" ry="13" fill="none" stroke="#3b82c4" strokeWidth="3" />
     <path d="M-12 18 q12 -22 24 0" fill="none" stroke="#7d8794" strokeWidth="8" />

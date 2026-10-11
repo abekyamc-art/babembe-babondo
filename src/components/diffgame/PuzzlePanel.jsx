@@ -1,6 +1,14 @@
 import React, { useRef } from "react";
 import { X } from "lucide-react";
 import GameScene from "./scenes/GameScene";
+import { PANEL } from "@/lib/differenceGame/levels";
+
+/**
+ * How far from a difference a touch may land and still find it, measured in the picture's own units — the
+ * picture stands 1000 wide and 560 high. A place is small beside the whole picture, and a finger is not a
+ * pointer: a touch that lands beside a place finds it rather than counting as a touch that found nothing.
+ */
+const REACH = 120;
 
 const place = (difference) => ({
   left: `${difference.x * 100}%`,
@@ -32,24 +40,29 @@ export default function PuzzlePanel({
 }) {
   const panel = useRef(null);
 
-  // A touch is measured against the picture itself, and it belongs to the nearest difference whose place
-  // it landed in. Two places may stand side by side, so a touch between them, or at the very edge of one,
-  // finds the place it went looking for rather than the one laid over it.
+  // A touch is measured against the picture itself and belongs to the nearest difference it landed on —
+  // or just beside. A place is small on a phone, so a touch near one finds it, and two places standing
+  // side by side still take the touch that went to the nearer of them rather than both at once.
   const touched = (event) => {
     const rect = panel.current ? panel.current.getBoundingClientRect() : null;
     if (!rect || !rect.width || !rect.height) return;
     const x = (event.clientX - rect.left) / rect.width;
     const y = (event.clientY - rect.top) / rect.height;
+    // the touch and the places are both held in the picture's own units, so the reach is the same share
+    // of the picture, and so the same distance under a finger, on every phone
+    const px = x * PANEL.width;
+    const py = y * PANEL.height;
     let best = null;
     let closest = Infinity;
     differences.forEach((difference) => {
       if (found.includes(difference.id)) return;
-      if (x < difference.x || x > difference.x + difference.w) return;
-      if (y < difference.y || y > difference.y + difference.h) return;
-      const away = Math.hypot(
-        x - (difference.x + difference.w / 2),
-        y - (difference.y + difference.h / 2)
-      );
+      const left = difference.x * PANEL.width;
+      const top = difference.y * PANEL.height;
+      // how far outside the place's own area the touch landed — nothing at all when it landed on it
+      const across = Math.max(left - px, 0, px - (left + difference.w * PANEL.width));
+      const down = Math.max(top - py, 0, py - (top + difference.h * PANEL.height));
+      const away = Math.hypot(across, down);
+      if (away > REACH) return;
       if (away < closest) {
         closest = away;
         best = difference;

@@ -23,7 +23,7 @@ export default function MarketScene({ changed, uid }) {
         </clipPath>
       </defs>
       <rect width="1000" height="560" fill={`url(#${uid}-sky)`} />
-      <Cloud x={250} y={70} s={0.6} />
+      {!changed.has("cloud") ? <Cloud x={250} y={70} s={0.6} /> : null}
       <Cloud x={700} y={56} s={0.5} />
 
       <rect y="400" width="1000" height="160" fill="#e8d3a9" />
@@ -89,10 +89,10 @@ export default function MarketScene({ changed, uid }) {
         s={0.95}
         shirt={changed.has("shirt") ? "#2f6fb0" : "#d94f4f"}
         hat
-        hatColor="#f0a020"
+        hatColor={changed.has("hat-color") ? "#2f6fb0" : "#f0a020"}
       />
 
-      <Basket x={150} y={500} s={1} />
+      {!changed.has("basket") ? <Basket x={150} y={500} s={1} /> : null}
       <Sack x={430} y={516} s={1} />
       {!changed.has("crate") ? <Crate x={770} y={500} s={1} /> : null}
     </svg>

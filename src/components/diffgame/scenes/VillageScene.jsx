@@ -23,7 +23,7 @@ export default function VillageScene({ changed, uid }) {
       <rect width="1000" height="560" fill={`url(#${uid}-sky)`} />
       <Sun x={140} y={92} r={46} face={!changed.has("sun-face")} />
       <Cloud x={330} y={64} s={0.58} />
-      <Cloud x={800} y={74} s={0.78} />
+      {!changed.has("cloud") ? <Cloud x={800} y={74} s={0.78} /> : null}
 
       <path
         d="M0 452 Q 240 414 520 444 Q 760 468 1000 424 L1000 560 L0 560 Z"
@@ -58,9 +58,9 @@ export default function VillageScene({ changed, uid }) {
       </g>
       <Pot x={205} y={415} steam={!changed.has("pot-steam")} />
 
-      <Flower x={72} y={505} s={0.9} />
+      <Flower x={72} y={505} s={0.9} petal={changed.has("flower") ? "#ffd23f" : "#e0453f"} />
       <Chicken x={318} y={482} s={0.9} />
-      <Person x={620} y={470} s={0.75} shirt="#2f6fb0" />
+      <Person x={620} y={470} s={0.75} shirt="#2f6fb0" hat={changed.has("hat")} />
       {!changed.has("bucket") ? <Bucket x={790} y={500} s={0.9} /> : null}
     </svg>
   );

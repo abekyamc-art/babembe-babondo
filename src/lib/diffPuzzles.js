@@ -15,8 +15,12 @@ import { picturesOf } from "./differenceGame/scenePictures";
  * episode alone, so the same episode is the same puzzle every time it is met.
  */
 
-/** How many differences every puzzle holds. */
-export const DIFFERENCE_COUNT = LEVELS[0].differences.length;
+/**
+ * How many differences every puzzle of a paper holds: the five places the drawn picture pairs were drawn
+ * with. It stands on its own rather than being read off a level of the game, so giving a level of the game
+ * more places to find never changes what a paper asks for — a paper's pictures hold only their own five.
+ */
+export const DIFFERENCE_COUNT = 5;
 
 /**
  * The levels the exam draws from: the ones whose picture holds exactly the five places a paper asks for,
