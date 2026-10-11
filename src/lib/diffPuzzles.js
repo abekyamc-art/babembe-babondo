@@ -1,6 +1,7 @@
 import { LEVELS } from "./differenceGame/levels";
 import { picturesOf } from "./differenceGame/scenePictures";
-import { requiredCount, requiredPlaces } from "./differenceGame/places";
+import { PHOTO_PUZZLE_UPDATES } from "./differenceGame/photoPuzzleUpdates";
+import { requiredPlaces } from "./differenceGame/places";
 
 /**
  * GLOIRE AI — the picture puzzle of one episode: one drawn scene shown twice, the lower copy carrying
@@ -17,21 +18,18 @@ import { requiredCount, requiredPlaces } from "./differenceGame/places";
  */
 
 /**
- * How many differences every puzzle of a paper holds: the five places the drawn picture pairs were drawn
- * with. It stands on its own rather than being read off a level of the game, so giving a level of the game
- * more places to find never changes what a paper asks for — a paper's pictures hold only their own five.
+ * How many differences a paper asks for at most: the five places a picture is read for. A picture that
+ * truly holds fewer than five — the reading of its pair found no more — has its paper ask for the places
+ * it really holds, so a paper never asks for a place that cannot be seen or touched.
  */
 export const DIFFERENCE_COUNT = 5;
 
 /**
- * The levels the exam draws from: the ones whose picture holds exactly the five places a paper asks for,
- * and that stand as a drawn pair — so the exam's puzzle is always a real pair of photographs whose places
- * were read from the pictures themselves, never one of the app's own drawings, whose places were set by
- * hand instead.
+ * The levels the exam draws from: the ones that stand as a real pair of photographs whose places were read
+ * off the pictures themselves — never one of the app's own drawings, whose places were set by hand, and
+ * never a picture whose places have not yet been read.
  */
-const PUZZLES = LEVELS.filter(
-  (level) => requiredCount(level) === DIFFERENCE_COUNT && picturesOf(level.scene)
-);
+const PUZZLES = LEVELS.filter((level) => PHOTO_PUZZLE_UPDATES[level.scene] && picturesOf(level.scene));
 
 export function differencePuzzle(seasonNo, episode) {
   const index = seasonNo * 1000 + episode;
@@ -41,7 +39,10 @@ export function differencePuzzle(seasonNo, episode) {
     level: `Season ${seasonNo} · Episode ${episode}`,
     scene: drawn.scene,
     alt: `${drawn.title} — ${drawn.about}.`,
-    differences: requiredPlaces(drawn).map((difference) => ({ ...difference })), 
+    differences: requiredPlaces(drawn)
+      .slice(0, DIFFERENCE_COUNT)
+      .map((difference) => ({ ...difference })),
+
     hearts: 3,
   };
 }
