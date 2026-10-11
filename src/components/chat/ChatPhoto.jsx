@@ -3,12 +3,19 @@ import { Loader2, X } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { photoUrl } from "@/lib/chat";
 
-/** A photo in a thread: opened through a short-lived private link. */
-export default function ChatPhoto({ fileUri }) {
+/**
+ * A photo in a thread: opened through a short-lived private link, or, while it is still on its way
+ * up, shown straight from the phone itself.
+ */
+export default function ChatPhoto({ fileUri, localUrl }) {
   const [url, setUrl] = useState("");
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
+    if (localUrl) {
+      setUrl(localUrl);
+      return undefined;
+    }
     let alive = true;
     photoUrl(fileUri)
       .then((next) => {
@@ -18,7 +25,7 @@ export default function ChatPhoto({ fileUri }) {
     return () => {
       alive = false;
     };
-  }, [fileUri]);
+  }, [fileUri, localUrl]);
 
   if (!url) {
     return (

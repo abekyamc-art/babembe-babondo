@@ -7,6 +7,7 @@ import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'r
 import { isTabPath } from '@/lib/tabs';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { loadVoiceMode } from '@/lib/voiceMode';
+import { TabMemoryProvider } from '@/lib/tabMemory';
 import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
@@ -135,7 +136,9 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <ScrollToTop />
-          <AuthenticatedApp />
+          <TabMemoryProvider>
+            <AuthenticatedApp />
+          </TabMemoryProvider>
         </Router>
         <Toaster />
       </QueryClientProvider>

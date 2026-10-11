@@ -63,22 +63,49 @@ export default function Chat() {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
 
-  const add = (line) =>
-    setMessages((prev) => (prev.some((item) => item.id === line.id) ? prev : [...prev, line]));
+  // The line stands on screen the moment it is written, marked as still on its way. When the server
+  // answers it becomes the saved line; if the answer never comes it is shown as not sent. A saved line
+  // the thread's own stream has already brought in is folded into that same place, so it never shows twice.
+  const settle = (tempId, saved) =>
+    setMessages((prev) =>
+      prev.flatMap((item) => {
+        if (item.id === tempId) return saved ? [saved] : [{ ...item, pending: false, failed: true }];
+        if (saved && item.id === saved.id) return [];
+        return [item];
+      })
+    );
 
   const sendLine = async (text) => {
+    const tempId = `sending-${Date.now()}`;
+    setMessages((prev) => [
+      ...prev,
+      { id: tempId, sender_email: me.email, kind: "text", text, pending: true },
+    ]);
     setSending(true);
     try {
-      add(await sendText(thread, me.email, text));
+      settle(tempId, await sendText(thread, me.email, text));
+    } catch {
+      settle(tempId, null);
     } finally {
       setSending(false);
     }
   };
 
   const sendPhotoLine = async (file) => {
+    const tempId = `sending-${Date.now()}`;
+    // the picture stands from the phone itself while it is on its way up
+    const local = URL.createObjectURL(file);
+    setMessages((prev) => [
+      ...prev,
+      { id: tempId, sender_email: me.email, kind: "photo", text: "", local_url: local, pending: true },
+    ]);
     setSending(true);
     try {
-      add(await sendPhoto(thread, me.email, file));
+      const saved = await sendPhoto(thread, me.email, file);
+      URL.revokeObjectURL(local);
+      settle(tempId, saved);
+    } catch {
+      settle(tempId, null);
     } finally {
       setSending(false);
     }

@@ -25,8 +25,11 @@ export default function DeleteAccount() {
     try {
       const res = await base44.functions.invoke("deleteAccount", {});
       if (res?.data?.error) throw new Error(res.data.error);
-      // the session ends with the account, so the way back in is the sign-in screen
-      await base44.auth.logout("/login");
+      // nothing of the account is left behind on the phone: its stored keys and tokens go with it
+      window.localStorage.clear();
+      window.sessionStorage.clear();
+      // the account is gone, so the app opens again at its first screen
+      await base44.auth.logout("/");
     } catch (err) {
       setError("Could not delete your account. Please try again.");
       setBusy(false);
@@ -52,8 +55,9 @@ export default function DeleteAccount() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete your account?</AlertDialogTitle>
             <AlertDialogDescription>
-              Your profile and your sign-in are permanently deleted, and you will be signed out.
-              The reels, comments and chats you posted stay as they are. This cannot be undone.
+              Your profile, your sign-in and everything saved about you are permanently purged, and you
+              will be signed out. The reels, comments and chats you posted stay as they are. This cannot
+              be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error ? <p className="text-[14px] text-destructive">{error}</p> : null}

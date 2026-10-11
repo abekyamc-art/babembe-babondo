@@ -6,7 +6,7 @@ export default function MessageBubble({ message, mine }) {
   const photo = message.kind === "photo";
 
   return (
-    <div className={cn("flex", mine ? "justify-end" : "justify-start")}>
+    <div className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
       <div
         className={cn(
           "conversation-text max-w-[78%] overflow-hidden rounded-2xl text-[14px] leading-snug",
@@ -15,11 +15,18 @@ export default function MessageBubble({ message, mine }) {
         )}
       >
         {photo ? (
-          <ChatPhoto fileUri={message.file_uri} />
+          <ChatPhoto fileUri={message.file_uri} localUrl={message.local_url} />
         ) : (
           <p className="whitespace-pre-wrap break-words">{message.text}</p>
         )}
       </div>
+
+      {message.pending ? (
+        <span className="mt-1 px-1 text-[11px] text-muted-foreground">Sending…</span>
+      ) : null}
+      {message.failed ? (
+        <span className="mt-1 px-1 text-[11px] text-destructive">Not sent</span>
+      ) : null}
     </div>
   );
 }
