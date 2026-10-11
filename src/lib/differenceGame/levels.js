@@ -17,6 +17,8 @@
  */
 
 import { requiredCount } from "./places";
+import { picturesOf } from "./scenePictures";
+import photoDifferences from "./photoDifferences";
 
 /** The scene is drawn on this grid, whatever size the phone shows it at. */
 export const PANEL = { width: 1000, height: 560 };
@@ -40,7 +42,7 @@ export const LEVELS = [
       { id: "sun-face", x: 0.075, y: 0.055, w: 0.145, h: 0.235, label: "The sun lost its smile" },
       { id: "pot-steam", x: 0.16, y: 0.57, w: 0.092, h: 0.215, label: "The steam has gone from the pot" },
       { id: "door-color", x: 0.462, y: 0.583, w: 0.106, h: 0.19, label: "The door changed colour" },
-      { id: "tree-fruit", x: 0.795, y: 0.553, w: 0.137, h: 0.175, label: "The fruit has gone from the tree" },
+      { id: "tree-fruit", x: 0.798, y: 0.557, w: 0.116, h: 0.157, label: "The fruit has gone from the tree" },
       { id: "bucket", x: 0.742, y: 0.828, w: 0.108, h: 0.148, label: "The water bucket is missing" },
       { id: "cloud", x: 0.71, y: 0.03, w: 0.19, h: 0.21, label: "A cloud has gone from the sky", extra: true },
       { id: "flower", x: 0.03, y: 0.79, w: 0.12, h: 0.2, label: "The flower turned yellow", extra: true },
@@ -74,12 +76,12 @@ export const LEVELS = [
     about: "The blackboard, the clock and the desks",
     differences: [
       { id: "chalk-letter", x: 0.205, y: 0.205, w: 0.115, h: 0.18, label: "A letter has been rubbed off the board" },
-      { id: "clock-hands", x: 0.475, y: 0.145, w: 0.145, h: 0.21, label: "The clock shows a different time" },
+      { id: "clock-hands", x: 0.48, y: 0.134, w: 0.13, h: 0.232, label: "The clock shows a different time" },
       { id: "window-birds", x: 0.705, y: 0.185, w: 0.155, h: 0.15, label: "The birds have flown away" },
-      { id: "book-top", x: 0.12, y: 0.59, w: 0.145, h: 0.13, label: "The top book changed colour" },
+      { id: "book-top", x: 0.124, y: 0.592, w: 0.132, h: 0.058, label: "The top book changed colour" },
       { id: "backpack", x: 0.012, y: 0.8, w: 0.115, h: 0.185, label: "The backpack is missing" },
-      { id: "plant", x: 0.87, y: 0.8, w: 0.13, h: 0.2, label: "The plant has gone from the corner", extra: true },
-      { id: "globe-sea", x: 0.795, y: 0.55, w: 0.1, h: 0.19, label: "The sea on the globe turned yellow", extra: true },
+      { id: "plant", x: 0.897, y: 0.78, w: 0.103, h: 0.17, label: "The plant has gone from the corner", extra: true },
+      { id: "globe-sea", x: 0.807, y: 0.593, w: 0.066, h: 0.122, label: "The sea on the globe turned yellow", extra: true },
     ],
   },
   {
@@ -651,7 +653,9 @@ export const LEVELS = [
       { id: "schoolwalk-5", x: 0.029, y: 0.575, w: 0.18, h: 0.25, label: "A grey stone has gone from the path", group: "0:3" },
     ],
   },
-];
+].map((level) => picturesOf(level.scene)
+  ? { ...level, differences: photoDifferences(level) }
+  : level);
 
 /** What a level is called by how much it asks of the player: five places, seven, or ten. */
 export function tierOf(level) {

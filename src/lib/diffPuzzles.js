@@ -1,6 +1,6 @@
 import { LEVELS } from "./differenceGame/levels";
 import { picturesOf } from "./differenceGame/scenePictures";
-import { requiredCount } from "./differenceGame/places";
+import { requiredCount, requiredPlaces } from "./differenceGame/places";
 
 /**
  * GLOIRE AI — the picture puzzle of one episode: one drawn scene shown twice, the lower copy carrying
@@ -41,7 +41,7 @@ export function differencePuzzle(seasonNo, episode) {
     level: `Season ${seasonNo} · Episode ${episode}`,
     scene: drawn.scene,
     alt: `${drawn.title} — ${drawn.about}.`,
-    differences: drawn.differences.map((difference) => ({ ...difference })),
+    differences: requiredPlaces(drawn).map((difference) => ({ ...difference })), 
     hearts: 3,
   };
 }

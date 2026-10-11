@@ -23,8 +23,7 @@ import { sfx, buzz } from "@/lib/differenceGame/sfx";
  * the moment the level opens and never come up blank.
  */
 export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLevels, onMenu }) {
-  // the level asks for its own number of places, and the picture may hold a few more: the places asked for
-  // must be found, and the extras stand open to a touch and are free to leave
+  // Keep the original target; any visible difference counts, including the two spare choices.
   const required = requiredCount(level);
   const extras = extraCount(level);
   const timed = !prefs.relaxed;
@@ -84,25 +83,19 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
       reason: "time",
       score,
       found: found.length,
-      foundRequired: requiredPlaces(level).filter((place) => found.includes(place.id)).length,
+      foundRequired: Math.min(required, found.length),
     });
     sfx.lose(prefs.sound);
   }, [timeLeft, phase, timed, found.length, score, prefs.sound]);
 
   const find = (id) => {
     if (phase !== "playing" || found.includes(id)) return;
-    // the places read into one and the same part of the picture are found together: the ring falls on all of
-    // them at once, so a place read a little to the side still opens the whole part it truly stands in
-    const group = level.differences.find((difference) => difference.id === id)?.group;
-    const mates = group
-      ? level.differences.filter((difference) => difference.group === group).map((difference) => difference.id)
-      : [id];
-    const next = [...found, ...mates.filter((one) => !found.includes(one))];
+    // Each touch credits one actual difference. Any of the visible places counts toward the target.
+    const next = [...found, id];
     setFound(next);
     sfx.found(prefs.sound);
     buzz(35, prefs.vibration);
-    // an extra place found does not pass the level: every place the level asks for must be standing
-    if (requiredPlaces(level).some((place) => !next.includes(place.id))) return;
+    if (next.length < required) return;
     const stars = mistakes === 0 ? 3 : mistakes === 1 ? 2 : 1;
     const finalScore = scoreOf(next.length, mistakes, timeLeft, hintsLeft);
     setPhase("won");
@@ -141,7 +134,7 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
         reason: "mistakes",
         score: scoreOf(found.length, used, timeLeft, hintsLeft),
         found: found.length,
-        foundRequired: requiredPlaces(level).filter((place) => found.includes(place.id)).length,
+        foundRequired: Math.min(required, found.length),
       });
       sfx.lose(prefs.sound);
     }
@@ -233,9 +226,8 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
 
       <DifferenceTracker
         total={required}
-        found={requiredPlaces(level).filter((place) => found.includes(place.id)).length}
+        found={Math.min(required, found.length)}
         extras={extras}
-        extrasFound={extraPlaces(level).filter((place) => found.includes(place.id)).length}
       />
 
       <div className="dg-board">

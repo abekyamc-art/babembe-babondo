@@ -25,7 +25,7 @@ export default function FailSheet({ level, result, mistakesUsed, onRetry, canCon
             : "The three wrong touches were used up."}{" "}
           The places you missed stand in yellow on both pictures.
           {extras > 0
-            ? ` ${extras} of the places shown were extra ones: the level never asked for them.`
+            ? ` Find any ${total} of the ${total + extras} visible differences to pass.`
             : ""}
         </p>
 

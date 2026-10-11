@@ -7,7 +7,7 @@ import { Check } from "lucide-react";
  * the player has come is read at a glance. The extra places a picture may hold stand apart from the
  * circles, so what is asked for and what is spare are told apart while the level is played.
  */
-export default function DifferenceTracker({ total, found, extras = 0, extrasFound = 0 }) {
+export default function DifferenceTracker({ total, found, extras = 0 }) {
   const left = Math.max(0, total - found);
   return (
     <div className="dg-tracker">
@@ -24,9 +24,9 @@ export default function DifferenceTracker({ total, found, extras = 0, extrasFoun
       </div>
       <p className="dg-left" role="status">
         {left === 0
-          ? "Every difference found!"
+          ? "Target reached!"
           : `${left} ${left === 1 ? "difference" : "differences"} left`}
-        {extras > 0 ? ` · ${extrasFound} of ${extras} extra found` : ""}
+        {extras > 0 ? ` · Find any ${total} of ${total + extras}` : ""}
       </p>
     </div>
   );

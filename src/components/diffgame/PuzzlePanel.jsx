@@ -1,14 +1,8 @@
 import React, { useRef } from "react";
 import { X } from "lucide-react";
 import GameScene from "./scenes/GameScene";
-import { PANEL } from "@/lib/differenceGame/levels";
-
-/**
- * How far from a difference a touch may land and still find it, measured in the picture's own units — the
- * picture stands 1000 wide and 560 high. A place is small beside the whole picture, and a finger is not a
- * pointer: a touch that lands beside a place finds it rather than counting as a touch that found nothing.
- */
-const REACH = 120;
+/** A small finger margin in screen pixels, not a broad guessed region of the picture. */
+const REACH = 12;
 
 const place = (difference) => ({
   left: `${difference.x * 100}%`,
@@ -48,33 +42,26 @@ export default function PuzzlePanel({
     if (!rect || !rect.width || !rect.height) return;
     const x = (event.clientX - rect.left) / rect.width;
     const y = (event.clientY - rect.top) / rect.height;
-    // the touch and the places are both held in the picture's own units, so the reach is the same share
-    // of the picture, and so the same distance under a finger, on every phone
-    const px = x * PANEL.width;
-    const py = y * PANEL.height;
     let best = null;
     let closest = Infinity;
     differences.forEach((difference) => {
-      if (found.includes(difference.id)) return;
-      const left = difference.x * PANEL.width;
-      const top = difference.y * PANEL.height;
-      // how far outside the place's own area the touch landed — nothing at all when it landed on it
-      const across = Math.max(left - px, 0, px - (left + difference.w * PANEL.width));
-      const down = Math.max(top - py, 0, py - (top + difference.h * PANEL.height));
-      const away = Math.hypot(across, down);
-      if (away > REACH) return;
-      if (away < closest) {
-        closest = away;
-        best = difference;
-      }
+      const left = difference.x;
+      const top = difference.y;
+      const across = Math.max(left - x, 0, x - (left + difference.w)) * rect.width;
+      const down = Math.max(top - y, 0, y - (top + difference.h)) * rect.height;
+      if (Math.hypot(across, down) > REACH) return;
+      const distance = Math.hypot(
+        (x - left - difference.w / 2) * rect.width,
+        (y - top - difference.h / 2) * rect.height
+      );
+      if (distance < closest) { closest = distance; best = difference; }
     });
-    if (best) onFound(best.id);
-    else onWrong(x, y, uid);
+    if (best) {
+      if (!found.includes(best.id)) onFound(best.id);
+    } else onWrong(x, y, uid);
   };
 
   const hint = hintId ? differences.find((difference) => difference.id === hintId) : null;
-  // the places the level asks for, apart from the extras standing beside them
-  const required = differences.filter((difference) => !difference.extra).length;
 
   return (
     <div
@@ -84,7 +71,7 @@ export default function PuzzlePanel({
       aria-label={label}
       onPointerDown={touched}
     >
-      <GameScene scene={scene} changed={changed} uid={uid} />
+      <GameScene scene={scene} changed={changed} uid={uid} differences={differences} />
 
       {differences.map((difference, i) => {
         const isFound = found.includes(difference.id);
@@ -98,7 +85,7 @@ export default function PuzzlePanel({
             aria-label={
               isFound
                 ? `Found: ${difference.label}`
-                : `Hidden difference ${i + 1} of ${required}`
+                : `Hidden difference ${i + 1} of ${differences.length}`
             }
           />
         );

@@ -60,8 +60,8 @@ export default function ClassroomScene({ changed, uid }) {
       <Desk x={610} y={400} w={280} />
       <Person x={750} y={422} s={0.62} shirt="#3f9d54" />
 
-      <Books x={190} y={400} s={1.35} top={changed.has("book-top") ? "#3f9d54" : "#e0453f"} />
       <Desk x={110} y={400} w={280} />
+      <Books x={190} y={400} s={1.35} top={changed.has("book-top") ? "#3f9d54" : "#e0453f"} />
       <Person x={250} y={422} s={0.62} shirt="#2f6fb0" />
 
       {!changed.has("plant") ? <Plant x={950} y={500} s={0.95} /> : null}
