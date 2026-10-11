@@ -115,6 +115,356 @@ const SCENES = {
       'in the bottom-right corner, a water bottle stands on the stage floor',
     ],
   },
+  10: {
+    name: 'fishing',
+    look:
+      'A fishing morning on the shore of a great lake: wooden pirogues pulled up on pale sand, long fishing ' +
+      'nets spread out to dry, a wooden rack of small silver fish drying in the sun, fishermen mending nets, ' +
+      'green reeds at the edge, calm blue water and a warm early sun',
+    changes: [
+      'in the top-left of the sky, one white cloud is gone',
+      'in the middle of the picture, one fish on the drying rack is now bright yellow',
+      'on the left of the shore, a wooden paddle now leans against a rock',
+      'on the right of the picture, the tallest fisherman now wears a bright red shirt',
+      'in the bottom-right corner, a brown dog now sits on the sand',
+    ],
+  },
+  11: {
+    name: 'garden',
+    look:
+      'A cassava and maize garden in a village: neat rows of tall green cassava plants and young maize, ' +
+      'red-brown soil between the rows, a woman hoeing at the left, a scarecrow of cloth strips in the ' +
+      'middle, banana plants and tall trees behind, bright midday light',
+    changes: [
+      'in the top-right of the picture, one tall palm tree is gone from the trees behind',
+      'in the middle of the garden, the cloth of the scarecrow is now bright blue',
+      'on the left, the hoe of the woman is now red instead of brown',
+      'in the bottom-left, a woven basket full of cassava has appeared',
+      'in the bottom-right corner, a grey goat has disappeared from the edge of the garden',
+    ],
+  },
+  12: {
+    name: 'well',
+    look:
+      'A village water well of stones with a wooden frame, a rope and a bucket: women filling yellow ' +
+      'jerrycans, children waiting with small buckets, a low wall of cement around the well, tall green ' +
+      'trees behind, a path of red earth leading away, warm afternoon light',
+    changes: [
+      'in the top-left, one green tree behind the well is gone',
+      'in the middle of the picture, the bucket on the rope is now bright red',
+      'on the right, one of the yellow jerrycans has turned bright green',
+      'in the bottom-left, a second brown hen has appeared on the ground',
+      'in the bottom-right corner, a white cloth spread on the wall is gone',
+    ],
+  },
+  13: {
+    name: 'drummakers',
+    look:
+      'Drum makers at work in a village yard: tall carved wooden drums of different sizes standing on the ' +
+      'ground, one drum half covered with a stretched skin, a man tuning a drum at the left, wood shavings ' +
+      'and hand tools on the ground, a low wooden shed behind, warm afternoon light',
+    changes: [
+      'in the top-right of the picture, one drum standing on a shelf is gone',
+      'in the middle of the picture, the drum skin being stretched is now bright yellow',
+      'on the left, the man tuning the drum now wears a green cap',
+      'in the bottom-left, a wooden mallet has appeared on the ground',
+      'in the bottom-right corner, an orange cloth hanging on the shed is gone',
+    ],
+  },
+  14: {
+    name: 'schoolyard',
+    look:
+      'A village schoolyard at break time: children in blue and white uniforms playing, a low school ' +
+      'building of painted bricks with open windows behind, a big shady tree in the middle, a football on ' +
+      'the ground, a water drum at the side, bright morning light',
+    changes: [
+      'in the top-left of the picture, one open window of the school is closed',
+      'in the middle of the picture, a yellow bird now sits in the big tree',
+      'on the right, one shirt of the uniforms is now bright red',
+      'in the bottom-left, the football has gone from the ground',
+      'in the bottom-right corner, a wooden bench has appeared beside the wall',
+    ],
+  },
+  15: {
+    name: 'harvest',
+    look:
+      'Bringing in the harvest in a village: women carrying baskets and bundles of maize on their heads ' +
+      'along a red earth path, stacked sacks and a wooden cart at the side, tall green banana plants along ' +
+      'the path, a bright blue sky with soft clouds, late afternoon light',
+    changes: [
+      'in the top-left of the sky, one grey cloud is gone',
+      'in the middle of the picture, one bundle of maize is now bright yellow',
+      'on the right, the wooden cart now has a red wheel',
+      'in the bottom-left, a woven mat spread on the ground has disappeared',
+      'in the bottom-right corner, a brown hen has appeared beside the sacks',
+    ],
+  },
+  16: {
+    name: 'kitchen',
+    look:
+      'An outdoor village kitchen in the evening: three stones holding a big black pot over a glowing fire, ' +
+      'a woman stirring with a long wooden spoon, smoke rising softly, a low mud kitchen hut behind, plates ' +
+      'and a basket of vegetables on a mat, warm firelight',
+    changes: [
+      'in the top-left of the picture, one hanging bunch of dried herbs is gone',
+      'in the middle of the picture, the pot on the fire is now silver instead of black',
+      'on the right, the wooden spoon held by the woman is now bright green',
+      'in the bottom-left, a white plate has appeared on the mat',
+      'in the bottom-right corner, a clay water pot has disappeared',
+    ],
+  },
+  17: {
+    name: 'canoes',
+    look:
+      'Two long wooden canoes on a wide calm river, a boy paddling the front canoe with a long paddle, ' +
+      'fishing nets folded in the middle of the canoes, green reeds and tall papyrus on both banks, soft ' +
+      'morning mist over the water, warm early light',
+    changes: [
+      'in the top-right of the picture, a tall papyrus stalk has been added on the bank',
+      'in the middle of the picture, the pile of nets in the canoe is now bright blue',
+      'on the left, the paddle held by the boy is now yellow',
+      'in the bottom-left, a fish has appeared in the water beside the canoe',
+      'in the bottom-right corner, the second canoe is gone from the water',
+    ],
+  },
+  18: {
+    name: 'grove',
+    look:
+      'A banana grove beside a village house: broad green banana leaves heavy with bunches of green bananas, ' +
+      'a man cutting a bunch with a machete at the left, dry banana leaves lying on the ground, a mud house ' +
+      'with a thatched roof behind, bright dappled light through the leaves',
+    changes: [
+      'in the top-left of the picture, one bunch of bananas is gone from the plant',
+      'in the middle of the picture, a bunch of bananas has turned bright yellow',
+      'on the right, the man now wears a blue cloth wrapper instead of brown',
+      'in the bottom-left, a second machete lies on the ground',
+      'in the bottom-right corner, a small red hen has appeared',
+    ],
+  },
+  19: {
+    name: 'herders',
+    look:
+      'Goat herders with a small herd on a grassy hillside: six brown, white and black goats grazing, a ' +
+      'young boy with a long stick in the middle, a low thorn fence behind, scattered acacia trees, a ' +
+      'bright blue sky with white clouds, warm afternoon light',
+    changes: [
+      'in the top-left of the sky, one big white cloud is gone',
+      'in the middle of the picture, the stick held by the boy is now bright red',
+      'on the left, one white goat has disappeared from the herd',
+      'in the bottom-left, a small kid goat has appeared beside a bush',
+      'in the bottom-right corner, a blue plastic jerrycan now stands on the grass',
+    ],
+  },
+  20: {
+    name: 'chapel',
+    look:
+      'Sunday morning outside a small village chapel: a plain white and blue chapel with a simple cross on ' +
+      'the roof, people in bright Sunday clothes greeting outside the door, children on the steps, tall ' +
+      'trees at the sides, a beaten earth path, clear morning light',
+    changes: [
+      'in the top-left of the picture, one tall tree beside the chapel is gone',
+      'in the middle of the picture, the cross on the chapel roof is now gold instead of white',
+      'on the right, a woman now carries a bright green umbrella',
+      'in the bottom-left, a small wooden stool has appeared on the path',
+      'in the bottom-right corner, a white goat standing by the path has disappeared',
+    ],
+  },
+  21: {
+    name: 'pottery',
+    look:
+      'A pottery yard in a village: rows of clay pots and bowls drying in the shade, a woman shaping a pot ' +
+      'on a low wheel at the left, wet clay on a wooden board, a shallow pit of stacked pots behind, tall ' +
+      'green trees, soft early afternoon light',
+    changes: [
+      'in the top-right of the picture, one large pot on the shelf is gone',
+      'in the middle of the picture, the bowl shaped by the woman is now bright blue',
+      'on the left, the wooden board of wet clay is now covered with a red cloth',
+      'in the bottom-left, a bucket of water has appeared beside the wheel',
+      'in the bottom-right corner, a small clay cup has been added',
+    ],
+  },
+  22: {
+    name: 'tailor',
+    look:
+      'A village tailor shop: a man at a treadle sewing machine beside an open window, rolls of bright cloth ' +
+      'stacked on shelves, a wooden table with scissors and a tape measure, a shirt hanging on a hook at the ' +
+      'right, bright daylight through the window, a bare earth street outside',
+    changes: [
+      'in the top-left of the picture, one roll of cloth is missing from the shelf',
+      'in the middle of the picture, the shirt hanging on the hook is now bright green',
+      'on the right, the sewing machine is now red instead of black',
+      'in the bottom-left, a pair of brown shoes has appeared under the table',
+      'in the bottom-right corner, a blue plastic chair has disappeared',
+    ],
+  },
+  23: {
+    name: 'carpenter',
+    look:
+      'A carpenter yard in a village: a rough wooden workbench with hand tools, a man planing a long plank ' +
+      'at the left, neat stacks of timber against a fence, sawdust on the ground, a low workshop shed with ' +
+      'an open door behind, bright afternoon light',
+    changes: [
+      'in the top-right of the picture, one plank of timber standing against the fence is gone',
+      'in the middle of the picture, the stool under the bench is now bright yellow',
+      'on the left, the cap of the man is now blue instead of black',
+      'in the bottom-left, a coiled rope has appeared on the ground',
+      'in the bottom-right corner, a red hand saw lies on the timber',
+    ],
+  },
+  24: {
+    name: 'washing',
+    look:
+      'Washing day at the river: women kneeling at the water edge scrubbing clothes on flat stones, brightly ' +
+      'coloured cloths and shirts spread over the bushes to dry, a bar of soap and a basin on the stones, ' +
+      'clear shallow water, green trees along the far bank, warm morning light',
+    changes: [
+      'in the top-left of the picture, one yellow cloth drying on the bush is gone',
+      'in the middle of the picture, the basin on the stones is now bright red',
+      'on the right, one shirt drying on the bush has turned bright green',
+      'in the bottom-left, a small bar of soap has appeared on the stone',
+      'in the bottom-right corner, a white duck now swims in the shallow water',
+    ],
+  },
+  25: {
+    name: 'weddingdance',
+    look:
+      'A wedding dance in the evening: a line of women dancing in bright patterned wraps with arms raised, ' +
+      'drummers with a tall hand drum at the right, onlookers clapping behind, a fire and hanging lanterns ' +
+      'lighting the yard, a dark blue evening sky, warm firelight on the dancers',
+    changes: [
+      'in the top-left of the picture, one hanging lantern is gone',
+      'in the middle of the picture, the wrap of the middle dancer is now bright green instead of red',
+      'on the left, a second drummer with a small drum has appeared',
+      'in the bottom-left, a white cloth on the ground is gone',
+      'in the bottom-right corner, a wooden bench with two children now stands on the empty ground',
+    ],
+  },
+  26: {
+    name: 'palms',
+    look:
+      'A group of men sitting under tall palm trees in the afternoon: a gourd and two cups on a mat between ' +
+      'them, a long bamboo ladder leaning against one palm, a small fire with a kettle, green palm fronds ' +
+      'overhead, warm shafts of sunlight through the leaves',
+    changes: [
+      'in the top-right of the picture, one bunch of palm fronds is missing from the tree',
+      'in the middle of the picture, one of the cups on the mat is now bright blue',
+      'on the left, the bamboo ladder is now red',
+      'in the bottom-left, a second gourd has appeared beside the mat',
+      'in the bottom-right corner, a brown dog lying in the shade has disappeared',
+    ],
+  },
+  27: {
+    name: 'weavers',
+    look:
+      'Weavers at work under a shady tree: long strips of palm and reed laid out on a mat, three finished ' +
+      'baskets of different sizes standing beside them, a woman weaving at the left, a half-woven basket in ' +
+      'her hands, a low fence and green plants behind, soft dappled light',
+    changes: [
+      'in the top-left of the picture, one finished basket standing on the mat is gone',
+      'in the middle of the picture, the basket woven by the woman is now bright purple',
+      'on the right, a bundle of reed strips has turned bright yellow',
+      'in the bottom-left, a small pair of scissors has appeared on the mat',
+      'in the bottom-right corner, a green plastic bucket now stands by the mat',
+    ],
+  },
+  28: {
+    name: 'taxistand',
+    look:
+      'A motorbike taxi stand at a village crossroads: three motorbikes parked in a line with their riders ' +
+      'waiting, a red earth road with palm trees on both sides, a small wooden kiosk with a bench behind, ' +
+      'blue sky with high clouds, warm afternoon light',
+    changes: [
+      'in the top-left of the sky, one thin cloud is gone',
+      'in the middle of the picture, the middle motorbike is now bright green instead of red',
+      'on the right, one rider now wears a yellow helmet',
+      'in the bottom-left, a black tyre lies on the ground',
+      'in the bottom-right corner, a wooden signpost has appeared by the road',
+    ],
+  },
+  29: {
+    name: 'honey',
+    look:
+      'A honey harvest beside a big tree: a man on a low wooden ladder smoking a hive with a bundle of dry ' +
+      'grass, three log hives hanging in the branches, two buckets of honey on the ground, a swarm of bees ' +
+      'around one hive, green leaves overhead, warm afternoon light',
+    changes: [
+      'in the top-right of the picture, one log hive hanging in the branches is gone',
+      'in the middle of the picture, the bucket of honey on the ground is now bright blue',
+      'on the left, the shirt of the man is now red instead of brown',
+      'in the bottom-left, a white cloth has appeared on the ground under the ladder',
+      'in the bottom-right corner, a small grey cat now sits watching',
+    ],
+  },
+  30: {
+    name: 'rainclouds',
+    look:
+      'Rain coming to a village in the afternoon: dark grey clouds rolling in over the hills, rain falling ' +
+      'in the distance over the trees, people hurrying along a red earth path carrying baskets, a woman ' +
+      'holding a bright cloth over her head, palm trees bending in the wind',
+    changes: [
+      'in the top-left of the sky, one large dark cloud is gone',
+      'in the middle of the picture, a flash of lightning now stands in the sky over the hills',
+      'on the right, the cloth held over the head of the woman is now bright yellow',
+      'in the bottom-left, a grey goat now runs along the path',
+      'in the bottom-right corner, a brown hen sheltering under the palm tree has disappeared',
+    ],
+  },
+  31: {
+    name: 'eveningclass',
+    look:
+      'Evening lessons in a village classroom: children in blue uniforms sitting on wooden benches at low ' +
+      'desks, an oil lamp and two candles on the table of the teacher, a blackboard with simple chalk ' +
+      'drawings of fruit and no letters, wooden shutters open to the dark, warm lamplight',
+    changes: [
+      'in the top-left of the picture, one of the two candles on the table has gone',
+      'in the middle of the picture, the oil lamp is now bright green instead of brass',
+      'on the right, one shirt of the uniforms is now bright red',
+      'in the bottom-left, a school bag has appeared on the floor beside a bench',
+      'in the bottom-right corner, one empty wooden bench now stands there',
+    ],
+  },
+  32: {
+    name: 'boatyard',
+    look:
+      'Building a pirogue on the lake shore: a long half-finished wooden canoe lying on wooden supports, a ' +
+      'man shaping the hull with an adze at the left, curled wood shavings on the sand, hand tools and a ' +
+      'small fire for bending wood behind, calm water and green reeds at the edge, warm morning light',
+    changes: [
+      'in the top-right of the picture, the pile of long planks is gone',
+      'in the middle of the picture, the bow of the half-finished canoe is now painted bright blue',
+      'on the left, the handle of the adze is now red instead of brown',
+      'in the bottom-left, a small tin of paint has appeared on the sand',
+      'in the bottom-right corner, a white egret now stands in the shallow water',
+    ],
+  },
+  33: {
+    name: 'festival',
+    look:
+      'A village festival in the late afternoon: a crowd in bright clothes gathered on an open ground, a big ' +
+      'drum on a stand in the middle, dancers with feathered headdresses at the left, long tables with food ' +
+      'and drink at the right, strings of small flags hung overhead, warm golden light',
+    changes: [
+      'in the top-left of the picture, one string of small flags is missing',
+      'in the middle of the picture, the big drum on its stand is now bright yellow',
+      'on the right, one jug on the table is now bright green instead of white',
+      'in the bottom-left, a small wooden stool has appeared in front of the dancers',
+      'in the bottom-right corner, a grey cat sitting on the table has disappeared',
+    ],
+  },
+  34: {
+    name: 'sunrise',
+    look:
+      'Sunrise over the hills above a village: the sun rising golden behind green hills, mist lying in the ' +
+      'valleys, a village of thatched roofs below, a few birds flying in the bright sky, tall trees in dark ' +
+      'outline at the sides, warm glowing light',
+    changes: [
+      'in the top-right of the sky, one bird flying is gone',
+      'in the middle of the picture, the rising sun is now bigger and deeper orange',
+      'on the left, one tall tree in outline is missing from the side',
+      'in the bottom-left, a second thatched roof has appeared in the village',
+      'in the bottom-right corner, a thin wisp of cooking smoke has appeared',
+    ],
+  },
 };
 
 /** A share of the picture, kept to four places. */
