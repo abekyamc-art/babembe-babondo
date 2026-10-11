@@ -1,9 +1,59 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import OpenAI from 'npm:openai@6.45.0';
+import { secrets } from 'base44:runtime';
 import { geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
 
-/** The least side a trophy card is accepted at: a full card, or the app's own picture service draws it. */
+/** The least side a trophy card is accepted at: a full card, or the Replicate account draws it instead. */
 const LEAST_4K = 3000;
+
+/** The Replicate account's own picture model, and how long one trophy is waited for. */
+const REPLICATE_MODEL = 'black-forest-labs/flux-1.1-pro-ultra';
+const REPLICATE_WAIT = 90000;
+
+/**
+ * One trophy drawn on the owner's own Replicate account, paid out of that account's own allowance rather
+ * than the app's credits. A drawing that is still being made when the request comes back is waited on a
+ * little at a time, and the address of the finished picture is what comes back.
+ */
+async function viaReplicate(prompt: string, aspect: string): Promise<string> {
+  const token = secrets.get('REPLICATE_API_TOKEN');
+  if (!token) throw new Error('The Replicate account is not set (REPLICATE_API_TOKEN).');
+
+  const res = await fetch(`https://api.replicate.com/v1/models/${REPLICATE_MODEL}/predictions`, {
+    method: 'POST',
+    headers: {
+      Authorization: `Bearer ${token}`,
+      'Content-Type': 'application/json',
+      Prefer: 'wait=60',
+    },
+    body: JSON.stringify({
+      input: { prompt, aspect_ratio: aspect, output_format: 'jpg', safety_tolerance: 2 },
+    }),
+    signal: AbortSignal.timeout(REPLICATE_WAIT),
+  });
+  const answer = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(`The Replicate account answered ${res.status}. ${String(answer?.detail || '').slice(0, 200)}`);
+  }
+
+  let held = answer;
+  for (let tries = 0; tries < 10 && held?.status && !['succeeded', 'failed', 'canceled'].includes(held.status); tries += 1) {
+    await new Promise((rest) => setTimeout(rest, 3000));
+    const again = await fetch(held.urls?.get, {
+      headers: { Authorization: `Bearer ${token}` },
+      signal: AbortSignal.timeout(30000),
+    });
+    held = await again.json().catch(() => held);
+  }
+
+  if (held?.status === 'failed' || held?.status === 'canceled') {
+    throw new Error(`The Replicate account did not draw the picture: ${String(held?.error || '').slice(0, 200)}`);
+  }
+
+  const out = Array.isArray(held?.output) ? held.output[0] : held?.output;
+  const url = typeof out === 'string' ? out : '';
+  if (!url) throw new Error('The Replicate account returned no picture.');
+  return url;
+}
 
 /**
  * The season trophies of the examination, drawn as 4K pictures of shiny 3D gold cups.
@@ -49,16 +99,12 @@ export default async function prizeTrophies(req) {
       .slice(0, 9);
     if (!seasons.length) return Response.json({ error: 'No season was named.' }, { status: 400 });
 
-    const { baseURL, token, headers } = base44.asServiceRole.aiGateway.connection();
-    const client = new OpenAI({ baseURL, apiKey: token, defaultHeaders: headers, maxRetries: 0 });
-
     const drawn = [];
     for (const no of seasons) {
       const wanted = `A shiny 3D gold trophy cup for season ${no} of a Kibembe language examination, with ${MOTIFS[no]}. ${LOOK}`;
       // the trophies' own account draws first, and a card smaller than a full card is refused, so the
-      // app's own picture service draws it instead — a trophy is never quietly hung on a small card
+      // owner's own Replicate account draws it instead — a trophy is never quietly hung on a small card
       let url = '';
-      let credits = 0;
       try {
         url = await geminiImage({
           base44,
@@ -72,19 +118,8 @@ export default async function prizeTrophies(req) {
       } catch (error: any) {
         console.error('A trophy was not drawn on its own account:', error?.message);
       }
-      if (!url) {
-        const { data, usage } = await client.images.generate({
-          model: 'automatic',
-          prompt: wanted,
-          n: 1,
-          response_format: 'url',
-          aspect_ratio: '3:4',
-          resolution: '4K',
-        });
-        url = data?.[0]?.url || '';
-        credits = usage?.base44_credits || 0;
-      }
-      drawn.push({ season: no, url: url || null, credits });
+      if (!url) url = await viaReplicate(wanted, '3:4');
+      drawn.push({ season: no, url: url || null, credits: 0 });
     }
 
     return Response.json({ trophies: drawn });
