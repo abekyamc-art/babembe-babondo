@@ -12,6 +12,8 @@
  * really changes, never at a place guessed at on a grid. The addresses are kept here, so a level's two
  * pictures are on screen the moment it opens and nothing is drawn while it is played.
  */
+import { PHOTO_PUZZLE_UPDATES } from '@/lib/differenceGame/photoPuzzleUpdates';
+
 const AT = "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/";
 
 export const SCENE_PICTURES = {
@@ -151,5 +153,6 @@ export const SCENE_PICTURES = {
 
 /** The two pictures of a scene, or nothing where that scene is one of the app's own drawings. */
 export function picturesOf(scene) {
-  return SCENE_PICTURES[scene] || null;
+  const original = SCENE_PICTURES[scene];
+  return original ? { ...original, ...PHOTO_PUZZLE_UPDATES[scene] } : null;
 }

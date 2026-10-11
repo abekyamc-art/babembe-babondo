@@ -17,8 +17,8 @@
  */
 
 import { requiredCount } from "./places";
-import { picturesOf } from "./scenePictures";
-import photoDifferences from "./photoDifferences";
+import { PHOTO_PUZZLE_UPDATES } from '@/lib/differenceGame/photoPuzzleUpdates';
+
 
 /** The scene is drawn on this grid, whatever size the phone shows it at. */
 export const PANEL = { width: 1000, height: 560 };
@@ -653,8 +653,8 @@ export const LEVELS = [
       { id: "schoolwalk-5", x: 0.029, y: 0.575, w: 0.18, h: 0.25, label: "A grey stone has gone from the path", group: "0:3" },
     ],
   },
-].map((level) => picturesOf(level.scene)
-  ? { ...level, differences: photoDifferences(level) }
+].map((level) => PHOTO_PUZZLE_UPDATES[level.scene]
+  ? { ...level, differences: PHOTO_PUZZLE_UPDATES[level.scene].differences }
   : level);
 
 /** What a level is called by how much it asks of the player: five places, seven, or ten. */

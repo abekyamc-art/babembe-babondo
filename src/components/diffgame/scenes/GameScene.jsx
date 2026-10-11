@@ -4,7 +4,7 @@ import { picturesOf } from "@/lib/differenceGame/scenePictures";
 import VillageScene from "./VillageScene";
 import MarketScene from "./MarketScene";
 import ClassroomScene from "./ClassroomScene";
-import PhotoChanges from "@/components/diffgame/scenes/PhotoChanges";
+
 
 /** Which drawing belongs to which scene name. */
 const SCENES = {
@@ -19,19 +19,16 @@ const SCENES = {
  * A scene drawn in the app's own lines stands twice from the same drawing, so the two copies are the same
  * picture in every line and every colour, and only what `changed` names is taken away or turned.
  *
- * Photo scenes reuse the same background on both panels. Clear object edits are rendered from the
- * same bounds used by tap detection, so a required difference cannot be absent or displaced.
- * Found rings are added by the panel, never baked into the pictures.
+ * Photo levels show the original and its edited 4K photograph, with no illustrated overlays.
+ * Found rings are added only after a player spots a difference.
  */
 export default function GameScene({ scene, changed, uid, differences = [] }) {
   const pictures = picturesOf(scene);
 
   if (pictures) {
     return (
-      <>
-        <Image src={pictures.base} alt="" className="dg-art" draggable={false} />
-        <PhotoChanges differences={differences} changed={changed || new Set()} />
-      </>
+      <Image src={changed?.size ? pictures.changed : pictures.base}
+        alt="" className="dg-art" draggable={false} quality={95} fittingType="fit" />
     );
   }
 

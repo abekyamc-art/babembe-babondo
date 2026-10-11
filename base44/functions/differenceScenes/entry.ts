@@ -1,5 +1,6 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import OpenAI from 'npm:openai@6.45.0';
+import { photoPuzzle } from '../../shared/photoPuzzle.ts';
 
 /**
  * The new picture scenes of GLOIRE AI — FIND THE DIFFERENCES, drawn as 4K pictures.
@@ -553,6 +554,10 @@ export default async function differenceScenes(req) {
     const level = Number(body?.level);
     const scene = SCENES[level];
     if (!scene) return Response.json({ error: 'No scene was named.' }, { status: 400 });
+    if (body.refresh === true) {
+      const result = await photoPuzzle(base44, scene, body);
+      return Response.json({ level, ...result }, { status: result.error ? 422 : 200 });
+    }
 
     const { baseURL, token, headers } = base44.asServiceRole.aiGateway.connection();
     const client = new OpenAI({ baseURL, apiKey: token, defaultHeaders: headers, maxRetries: 0 });
