@@ -565,6 +565,38 @@ export const LEVELS = [
       { id: "sunrise-5", x: 0.6597, y: 0.75, w: 0.125, h: 0.1667, label: "A wisp of cooking smoke has appeared" },
     ],
   },
+  {
+    id: 35,
+    title: "Under the mango tree",
+    scene: "mangotree",
+    difficulty: "Easy",
+    seconds: 90,
+    mistakes: 3,
+    about: "The ripe mangoes, the bicycle at the trunk and the children catching fruit",
+    differences: [
+      { id: "mangotree-1", x: 0.2153, y: 0, w: 0.125, h: 0.1667, label: "A branch of mangoes has gone from the tree" },
+      { id: "mangotree-2", x: 0.3264, y: 0.8333, w: 0.125, h: 0.1667, label: "A mango on the ground turned bright red" },
+      { id: "mangotree-3", x: 0.1042, y: 0.4167, w: 0.125, h: 0.1667, label: "The bicycle turned blue" },
+      { id: "mangotree-4", x: 0, y: 0.8333, w: 0.125, h: 0.1667, label: "A basket of mangoes has appeared" },
+      { id: "mangotree-5", x: 0.875, y: 0.8333, w: 0.125, h: 0.1667, label: "The white hen has gone from the post" },
+    ],
+  },
+  {
+    id: 36,
+    title: "The walk to school",
+    scene: "schoolwalk",
+    difficulty: "Medium",
+    seconds: 80,
+    mistakes: 3,
+    about: "The uniforms, the books and the bicycle along the village path",
+    differences: [
+      { id: "schoolwalk-1", x: 0, y: 0, w: 0.125, h: 0.1667, label: "A tall banana plant has gone from the path" },
+      { id: "schoolwalk-2", x: 0.4375, y: 0.4167, w: 0.125, h: 0.1667, label: "The school bag turned bright yellow" },
+      { id: "schoolwalk-3", x: 0.6597, y: 0.5278, w: 0.125, h: 0.1667, label: "The bicycle turned red" },
+      { id: "schoolwalk-4", x: 0.1042, y: 0.75, w: 0.125, h: 0.1667, label: "A white goat walks behind the children" },
+      { id: "schoolwalk-5", x: 0.875, y: 0.8333, w: 0.125, h: 0.1667, label: "A grey stone has gone from the path" },
+    ],
+  },
 ];
 
 /** How many cards the level map shows: the levels that stand, and the ones still to come. */

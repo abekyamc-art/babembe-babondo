@@ -1,7 +1,7 @@
 /**
  * GLOIRE AI — FIND THE DIFFERENCES: the picture scenes of the game.
  *
- * Thirty-one of the game's levels stand as 4K pictures rather than as the app's own drawings. A scene keeps
+ * Thirty-three of the game's levels stand as 4K pictures rather than as the app's own drawings. A scene keeps
  * two addresses: the picture as it stands, and the copy drawn from it with only that level's own five
  * changes made. The two pictures are the same picture in every other line, colour and detail, so whichever
  * one the player looks at, the same five places differ — and the level's own touch areas, kept with the
@@ -138,6 +138,14 @@ export const SCENE_PICTURES = {
   sunrise: {
     base: `${AT}a23d27d4d_generated_a9182171.jpg`,
     changed: `${AT}34b50c622_generated_2a7bb79b.jpg`,
+  },
+  mangotree: {
+    base: `${AT}7ba05c28a_generated_42df1f81.jpg`,
+    changed: `${AT}702a18da8_generated_f133e510.jpg`,
+  },
+  schoolwalk: {
+    base: `${AT}dfb2418ab_generated_c8929046.jpg`,
+    changed: `${AT}d6baf61c1_generated_b0ca8713.jpg`,
   },
 };
 

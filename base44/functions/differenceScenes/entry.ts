@@ -465,6 +465,34 @@ const SCENES = {
       'in the bottom-right corner, a thin wisp of cooking smoke has appeared',
     ],
   },
+  35: {
+    name: 'mangotree',
+    look:
+      'Under a big mango tree in a village yard: a boy up the tree with a long stick knocking down ripe ' +
+      'mangoes, three children on the ground catching the fruit in a basket, a bicycle leaning against the ' +
+      'trunk, a goat tied to a post at the side, dry grass and a low fence behind, bright afternoon light',
+    changes: [
+      'in the top-left of the picture, one branch of the mango tree heavy with fruit is gone',
+      'in the middle of the picture, one mango lying on the ground is now bright red',
+      'on the right, the bicycle leaning against the trunk is now blue instead of black',
+      'in the bottom-left, a woven basket full of mangoes has appeared',
+      'in the bottom-right corner, a white hen has disappeared from beside the post',
+    ],
+  },
+  36: {
+    name: 'schoolwalk',
+    look:
+      'Children walking to school along a village path in the morning: six children with books and small ' +
+      'bags in blue and white uniforms, a boy pushing a bicycle beside them, tall banana plants and green ' +
+      'bushes along both sides of the path, scattered stones on the red earth, warm early light',
+    changes: [
+      'in the top-left of the picture, one tall banana plant is gone from the side of the path',
+      'in the middle of the picture, the bag carried by the tallest child is now bright yellow',
+      'on the right, the bicycle pushed by the boy is now red instead of black',
+      'in the bottom-left, a white goat has been added walking behind the children',
+      'in the bottom-right corner, a grey stone on the path has disappeared',
+    ],
+  },
 };
 
 /** A share of the picture, kept to four places. */
