@@ -617,6 +617,7 @@ export default async function differenceScenes(req) {
       {
         const said = await geminiText({
           base44,
+          group: "pictures",
           prompt:
             'Two pictures of the same scene stand here: the first, and the second drawn from it with exactly ' +
             `one place changed in it. The change is this: ${bare(change)} Look at both pictures and find the ` +
@@ -670,6 +671,7 @@ export default async function differenceScenes(req) {
       {
         const within = await geminiText({
             base44,
+            group: "pictures",
             prompt:
               'Two pictures of the same scene stand here: the first, and the second drawn from it with a few ' +
               `places changed in it. One of those changes is this: ${reading.change} Its place stands inside ` +

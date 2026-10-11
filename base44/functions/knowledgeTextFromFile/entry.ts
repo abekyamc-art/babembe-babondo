@@ -38,6 +38,7 @@ export default async function (req: Request): Promise<Response> {
 
     const lifted = await geminiText({
       base44,
+      group: "answer",
       prompt: PROMPT,
       file_urls: [signedUrl],
     });

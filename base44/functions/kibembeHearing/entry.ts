@@ -156,6 +156,7 @@ async function readCorrection(base44: any, prompt: string, schema: any): Promise
   try {
     const res = await geminiText({
       base44,
+      group: "answer",
       prompt,
       response_json_schema: schema,
     });

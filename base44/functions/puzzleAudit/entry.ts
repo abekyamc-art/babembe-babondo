@@ -283,6 +283,7 @@ export default async function puzzleAudit(req: Request) {
         const cropUrl = await puzzleAuditCrop(base44, first, second, at);
         const seen = await geminiText({
           base44,
+          group: "pictures",
           prompt: 'This image contains TWO tightly cropped views side by side: original on LEFT, edited on RIGHT. Compare only what is actually visible here. Return differs=true only for a clearly identifiable object that was added, removed, or recolored. Ignore lighting shifts, texture, JPEG noise and tiny geometric drift. If uncertain or no identifiable object differs, return false. Describe the left view in first, right view in second, and the actual object change in label. Never infer an object outside these crops.',
           file_urls: [cropUrl],
           response_json_schema: {

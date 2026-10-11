@@ -136,6 +136,7 @@ function bestFit(entries: Entry[], said: string[]): Entry | null {
 async function look(base44: any, url: string) {
   const seen = await geminiText({
     base44,
+    group: "pictures",
     prompt:
       "You are shown one picture from a picture dictionary of Ebembe (Kibembe), the Bantu language of " +
       "the Babembe people. The word the picture is filed under is often wrong, and you are looking at " +

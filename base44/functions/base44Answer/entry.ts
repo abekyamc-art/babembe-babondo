@@ -410,6 +410,7 @@ export default async function (req: Request): Promise<Response> {
 
     const out: any = await geminiText({
       base44,
+      group: "answer",
       prompt,
       response_json_schema: REPLY_SCHEMA,
     });

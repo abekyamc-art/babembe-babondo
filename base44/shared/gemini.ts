@@ -15,12 +15,34 @@ import { secrets } from "base44:runtime";
  *   · it is paid for out of the owner's own allowance, and that allowance can run out. When it does
  *     — or when the service cannot be reached for a moment — the app's own AI stands behind the key,
  *     so a person is never left with nothing. When the key answers, no Base44 credits are spent.
+ *
+ * The app speaks through three of the owner's own accounts, one group of features to each, so that no
+ * single account's daily allowance has to carry the whole app: the live assistant and the reading of
+ * its knowledge on the first, every look at a picture or a photograph on the second, and the writing
+ * of songs on the third. Each call names the group it belongs to, and a group whose account has not
+ * been set yet simply reads through the first, so the app never depends on more than is standing.
  */
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
 
 /** The reading asked for when the caller names no model of this service. */
 const READ_MODEL = "gemini-3.8-flash";
+
+/**
+ * Which of the owner's accounts a group of features is paid out of. The owner keeps three accounts, so
+ * three groups stand here and no more: the live assistant with its knowledge on the first account, the
+ * reading of every picture on the second, and the writing of songs on the third.
+ */
+const KEYS: Record<string, string> = {
+  answer: "GEMINI_API_KEY",
+  pictures: "GEMINI_API_KEY2",
+  song: "GEMINI_API_KEY3",
+};
+
+/** The account a reading is paid out of: its own group's, or the first account's when that one is unset. */
+function keyFor(group: any): string {
+  return secrets.get(KEYS[String(group || "")] || KEYS.answer) || secrets.get(KEYS.answer);
+}
 
 /** How big the copy of a picture carried in the request is, by default. */
 const SHOWN = 1600;
@@ -88,6 +110,7 @@ export async function geminiText({
   model = null,
   add_context_from_internet = false,
   size = SHOWN,
+  group = "answer",
 }: any = {}) {
   const pictures: string[] = (Array.isArray(file_urls) ? file_urls : []).map(String).filter(Boolean);
 
@@ -107,7 +130,7 @@ export async function geminiText({
     try {
       res = await fetch(ENDPOINT, {
         method: "POST",
-        headers: { "x-goog-api-key": secrets.get("GEMINI_API_KEY"), "Content-Type": "application/json" },
+        headers: { "x-goog-api-key": keyFor(group), "Content-Type": "application/json" },
         body: JSON.stringify(body),
         signal: AbortSignal.timeout(120000),
       });

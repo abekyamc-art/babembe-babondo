@@ -131,6 +131,7 @@ async function sameNameCheck(base44: any, query: string, material: string): Prom
   try {
     const out = await geminiText({
       base44,
+      group: "answer",
       prompt:
         "Read one request of a person and the material that was found for it, and answer one question " +
         "only: are there TWO OR MORE DIFFERENT PEOPLE OR ARTISTS in this material whose names look or " +
@@ -603,6 +604,7 @@ async function lookUp(
   try {
     const found = await geminiText({
       base44,
+      group: "answer",
       prompt: PROMPT(query, results, asking),
       add_context_from_internet: true,
       model: "gemini_3_flash",

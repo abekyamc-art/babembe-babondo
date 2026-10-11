@@ -729,6 +729,7 @@ async function rewriteBars(
   try {
     const out: any = await geminiText({
       base44,
+      group: "song",
       prompt,
       response_json_schema: FIX_SCHEMA,
     });
@@ -823,6 +824,7 @@ async function freshTake(
   try {
     const out: any = await geminiText({
       base44,
+      group: "song",
       prompt,
       response_json_schema: LINES_SCHEMA,
     });
@@ -853,6 +855,7 @@ async function verifyPlan(base44: any, planned: any[], language: RapLang): Promi
   try {
     const out: any = await geminiText({
       base44,
+      group: "song",
       prompt,
       response_json_schema: VERIFY_SCHEMA,
     });
@@ -934,6 +937,7 @@ export default async function (req: Request): Promise<Response> {
       const doc = await docWholeBlock(base44);
       const out: any = await geminiText({
         base44,
+        group: "song",
         prompt: songPrompt(asked, words, words.length > 0, bpm, rules, doc),
         response_json_schema: SONG_SCHEMA,
       });
@@ -991,6 +995,7 @@ export default async function (req: Request): Promise<Response> {
       const doc = await docWholeBlock(base44);
       const out: any = await geminiText({
         base44,
+        group: "song",
         prompt: planPrompt(
           window.list,
           bpm,
@@ -1051,6 +1056,7 @@ export default async function (req: Request): Promise<Response> {
     const doc = await docWholeBlock(base44);
     const out: any = await geminiText({
       base44,
+      group: "song",
       prompt: writePrompt(
         words,
         {

@@ -340,6 +340,7 @@ export default async function (req: Request): Promise<Response> {
 
       const answer: any = await geminiText({
         base44,
+        group: "pictures",
         size: 1024,
         prompt:
           "These pictures are for a Kibembe (Ebembe) picture dictionary of the Babembe people of the eastern " +
