@@ -2,20 +2,18 @@ import React, { useState } from "react";
 import { ArrowLeft, Award, ChevronRight } from "lucide-react";
 import { EXAM_SEASONS, episodesInSeason } from "@/lib/examSeasons";
 import { completedIn, episodeKey, seasonCleared } from "@/lib/examProgress";
-import { trophyOf } from "@/lib/examTrophies";
+import { prizeCover, trophyOf } from "@/lib/examTrophies";
 import { Image } from "@/components/ui/image";
 import TrophyCard from "./TrophyCard";
 import "@/exam-prizes.css";
 
 /**
- * The prize shelf of the examination: every prize the examination gives is gathered under one cover,
- * Season 1, and opening that cover shows them all as a gallery — one drawn gold trophy for every season,
- * standing lit once that season has been cleared and dark while it is still being earned. Clearing a
- * season is passing all of its episodes, and it is the same act that opens the season after it.
+ * The prize shelf of the examination: every prize the examination gives is gathered under one single
+ * cover of its own — the whole collection of cups drawn together — and opening that cover shows them all
+ * as one gallery: a drawn gold trophy for every season, standing lit once that season has been cleared
+ * and dark while it is still being earned. Clearing a season is passing all of its episodes, and it is
+ * the same act that opens the season after it.
  */
-
-/** The cover that holds every prize: the first season of the examination. */
-const COVER = EXAM_SEASONS[0];
 
 /** When a season was won: the time the last of its episodes was passed. */
 function wonAt(progress, season, total) {
@@ -31,9 +29,10 @@ export default function ExamPrizes({ progress, onBack }) {
   const [gallery, setGallery] = useState(false);
   const won = EXAM_SEASONS.filter((season) => seasonCleared(progress, season.no)).length;
 
-  // The cover stands alone: every prize waits behind it, and the gallery is one tap away.
+  // The one cover stands over every prize: the whole collection waits behind it, and the gallery is one
+  // tap away. It is lit as soon as a single cup has been won, and dimmed while none of them has.
   if (!gallery) {
-    const coverWon = seasonCleared(progress, COVER.no);
+    const lit = won > 0;
     return (
       <div className="exam-shelf">
         <div className="exam-ep-head">
@@ -45,15 +44,15 @@ export default function ExamPrizes({ progress, onBack }) {
 
         <button
           type="button"
-          className={`exam-cover ${coverWon ? "is-won" : "is-locked"}`}
+          className={`exam-cover ${lit ? "is-won" : "is-locked"}`}
           onClick={() => setGallery(true)}
-          aria-label="Season 1 — open the prize gallery"
+          aria-label="All prizes — open the prize gallery"
         >
           <span className="exam-cover-frame">
-            {trophyOf(COVER.no) ? (
+            {prizeCover() ? (
               <Image
-                src={trophyOf(COVER.no)}
-                alt="The trophy of Season 1"
+                src={prizeCover()}
+                alt="Every prize of the examination"
                 className="exam-cover-img"
                 fittingType="fill"
               />
@@ -63,8 +62,8 @@ export default function ExamPrizes({ progress, onBack }) {
             </span>
           </span>
           <span className="exam-cover-body">
-            <span className="exam-cover-name">Season 1</span>
-            <span className="exam-cover-title">The prize gallery</span>
+            <span className="exam-cover-name">All prizes</span>
+            <span className="exam-cover-title">Every cup in one place</span>
             <span className="exam-cover-tag">
               {won} of {EXAM_SEASONS.length} trophies won
             </span>
@@ -75,8 +74,9 @@ export default function ExamPrizes({ progress, onBack }) {
         </button>
 
         <p className="exam-ep-note">
-          Every prize of the examination stands under this one cover. Open it and the whole gallery is
-          shown — a cup for each season, lit in gold once that season has been cleared.
+          Every prize of the examination stands under this one cover — all the cups together. Open it and
+          the whole gallery is shown at once: a cup for each season, lit in gold once that season has been
+          cleared.
         </p>
       </div>
     );
@@ -86,7 +86,7 @@ export default function ExamPrizes({ progress, onBack }) {
     <div className="exam-shelf">
       <div className="exam-ep-head">
         <button type="button" className="exam-ghost" onClick={() => setGallery(false)}>
-          <ArrowLeft className="h-4 w-4" /> Season 1
+          <ArrowLeft className="h-4 w-4" /> All prizes
         </button>
         <p className="exam-ep-count">Prize gallery</p>
       </div>

@@ -22,3 +22,15 @@ const TROPHIES = {
 export function trophyOf(season) {
   return TROPHIES[season] || null;
 }
+
+/**
+ * The one cover that holds every prize: the whole collection of cups drawn together, so the prize shelf
+ * opens on a single picture of everything it gives rather than on one season's cup.
+ */
+const COVER =
+  "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/0a2d0361c_generated_image.png";
+
+/** The picture of the whole prize collection — the cover every prize of the examination stands behind. */
+export function prizeCover() {
+  return COVER;
+}

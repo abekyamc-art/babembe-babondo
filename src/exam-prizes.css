@@ -54,7 +54,8 @@
   letter-spacing: 0.3px;
 }
 
-/* The one cover that holds every prize: Season 1, opened in one tap to show the whole gallery. */
+/* The one cover that holds every prize: the whole collection of cups, opened in one tap to show the
+   gallery. */
 .exam-cover {
   display: flex;
   align-items: center;
