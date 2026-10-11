@@ -32,11 +32,31 @@ export default function PuzzlePanel({
 }) {
   const panel = useRef(null);
 
+  // A touch is measured against the picture itself, and it belongs to the nearest difference whose place
+  // it landed in. Two places may stand side by side, so a touch between them, or at the very edge of one,
+  // finds the place it went looking for rather than the one laid over it.
   const touched = (event) => {
-    if (event.target.closest(".dg-spot")) return;
     const rect = panel.current ? panel.current.getBoundingClientRect() : null;
     if (!rect || !rect.width || !rect.height) return;
-    onWrong((event.clientX - rect.left) / rect.width, (event.clientY - rect.top) / rect.height, uid);
+    const x = (event.clientX - rect.left) / rect.width;
+    const y = (event.clientY - rect.top) / rect.height;
+    let best = null;
+    let closest = Infinity;
+    differences.forEach((difference) => {
+      if (found.includes(difference.id)) return;
+      if (x < difference.x || x > difference.x + difference.w) return;
+      if (y < difference.y || y > difference.y + difference.h) return;
+      const away = Math.hypot(
+        x - (difference.x + difference.w / 2),
+        y - (difference.y + difference.h / 2)
+      );
+      if (away < closest) {
+        closest = away;
+        best = difference;
+      }
+    });
+    if (best) onFound(best.id);
+    else onWrong(x, y, uid);
   };
 
   const hint = hintId ? differences.find((difference) => difference.id === hintId) : null;
@@ -59,11 +79,7 @@ export default function PuzzlePanel({
             type="button"
             className={"dg-spot" + (isFound ? " is-found" : "")}
             style={place(difference)}
-            onPointerDown={(event) => {
-              event.stopPropagation();
-              if (event.pointerType === "mouse" && event.button !== 0) return;
-              onFound(difference.id);
-            }}
+            onClick={() => onFound(difference.id)}
             aria-label={
               isFound
                 ? `Found: ${difference.label}`

@@ -79,7 +79,13 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
 
   const find = (id) => {
     if (phase !== "playing" || found.includes(id)) return;
-    const next = [...found, id];
+    // the places read into one and the same part of the picture are found together: the ring falls on all of
+    // them at once, so a place read a little to the side still opens the whole part it truly stands in
+    const group = level.differences.find((difference) => difference.id === id)?.group;
+    const mates = group
+      ? level.differences.filter((difference) => difference.group === group).map((difference) => difference.id)
+      : [id];
+    const next = [...found, ...mates.filter((one) => !found.includes(one))];
     setFound(next);
     sfx.found(prefs.sound);
     buzz(35, prefs.vibration);

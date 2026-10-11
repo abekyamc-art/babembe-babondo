@@ -498,18 +498,33 @@ const SCENES = {
 /** A share of the picture, kept to four places. */
 const share = (n) => Math.round(Math.max(0, Math.min(1, n)) * 10000) / 10000;
 
-/** Which of three a word names: the left or the top is nought, the right or the bottom is two. */
-const third = (word, fallback) => {
-  const held = String(word || '').toLowerCase().trim();
-  if (held.startsWith('l') || held.startsWith('t') || held.startsWith('u')) return 0;
-  if (held.startsWith('r') || held.startsWith('b') || held.startsWith('d')) return 2;
-  if (held.startsWith('m') || held.startsWith('c')) return 1;
-  return fallback;
-};
+/**
+ * The parts a picture is read in when a change is looked for: seven across its width, five down its
+ * height. A reader names one of each in words — left or right, high or low — which is far more dependable
+ * than a share of the picture worked out by itself, and the words are turned into the part they mean here.
+ */
+const ACROSS = ['far left', 'left', 'middle left', 'the middle', 'middle right', 'right', 'far right'];
+const DOWN = ['very top', 'top', 'the middle', 'bottom', 'very bottom'];
 
-/** How much of the picture one touch area covers: an eighth across, a sixth down. */
-const ACROSS = 1 / 8;
-const DOWN = 1 / 6;
+/**
+ * How much of the picture one touch area covers: a little wider than one part and a little taller than
+ * one, so that wherever inside the part it was read into the change really stands, the touch that lands
+ * on it falls inside the area laid over it.
+ */
+const SPAN_X = 0.18;
+const SPAN_Y = 0.25;
+
+/** A change with the words naming a place taken off its front, so the reading is made from the pictures. */
+const bare = (change) => String(change || '').replace(/^(in|on|at)\b[^,]*,\s*/i, '').trim();
+
+/** Whether two readings of one place say the same thing. A place that changed must not read alike. */
+const alike = (one, two) => {
+  const words = (text) => String(text || '').toLowerCase().match(/[a-z]+/g) || [];
+  const held = new Set(words(one));
+  const said = words(two);
+  if (!held.size || !said.length) return false;
+  return said.filter((word) => held.has(word)).length / Math.max(held.size, said.length) >= 0.6;
+};
 
 export default async function differenceScenes(req) {
   try {
@@ -568,58 +583,123 @@ export default async function differenceScenes(req) {
       credits = (first.usage?.base44_credits || 0) + (second.usage?.base44_credits || 0);
     }
 
-    const located = await base44.asServiceRole.integrations.Core.InvokeLLM({
-      prompt:
-        'Two pictures of the same scene stand here. The second picture differs from the first in exactly ' +
-        `five places, listed here: ${listed} Look closely at both pictures, find each of those five places in ` +
-        'the second picture, and say where each one stands. Think of the picture as divided into nine equal ' +
-        'parts: three columns — left, middle, right — and three rows — top, middle, bottom. For every change ' +
-        'give three things: the column it stands in, the row it stands in, and where inside that part it ' +
-        'stands — towards the left of the part, its middle or its right, and towards the top of the part, its ' +
-        'middle or its bottom. Also give a label of no more than six words naming what changed. Answer for ' +
-        'all five changes, in the order they are listed.',
-      file_urls: [baseUrl, changedUrl],
-      response_json_schema: {
-        type: 'object',
-        properties: {
-          differences: {
-            type: 'array',
-            items: {
-              type: 'object',
-              properties: {
-                label: { type: 'string' },
-                column: { type: 'string' },
-                row: { type: 'string' },
-                across: { type: 'string' },
-                down: { type: 'string' },
-              },
-              required: ['label', 'column', 'row', 'across', 'down'],
+    // Every change is looked for on its own, and all five at once: one question about one place is what a
+    // reader answers most truly, where five at once is where a place gets mislaid. Each answer comes back
+    // with what stood at that place in either picture and with how alike the two readings are, so a
+    // reading that did not stand on the change is seen for what it is instead of being laid down blind.
+    const readings = [];
+    for (let i = 0; i < scene.changes.length; i += 1) {
+      const change = scene.changes[i];
+      {
+        const said = await base44.asServiceRole.integrations.Core.InvokeLLM({
+          prompt:
+            'Two pictures of the same scene stand here: the first, and the second drawn from it with exactly ' +
+            `one place changed in it. The change is this: ${bare(change)} Look at both pictures and find the ` +
+            'very place where that change stands. Read only what you see in the pictures, and pay no ' +
+            'attention to any words that name a place. Answer: what stands at that place in the first ' +
+            'picture, in three or four words; what stands at that place in the second picture, in three or ' +
+            'four words; which seventh of the picture across that place stands in — far left, left, middle ' +
+            'left, the middle, middle right, right, far right; and which fifth down it stands in — very top, ' +
+            'top, the middle, bottom, very bottom.',
+          file_urls: [baseUrl, changedUrl],
+          response_json_schema: {
+            type: 'object',
+            properties: {
+              first: { type: 'string' },
+              second: { type: 'string' },
+              across: { type: 'string', enum: ACROSS },
+              down: { type: 'string', enum: DOWN },
             },
+            required: ['first', 'second', 'across', 'down'],
           },
-        },
-        required: ['differences'],
-      },
+        });
+
+        const colAt = ACROSS.indexOf(String(said?.across || '').trim().toLowerCase());
+        const rowAt = DOWN.indexOf(String(said?.down || '').trim().toLowerCase());
+        const first = String(said?.first || '');
+        const second = String(said?.second || '');
+        readings.push({
+          id: `${scene.name}-${i + 1}`,
+          change: bare(change) || change,
+          colAt: colAt >= 0 ? colAt : 3,
+          rowAt: rowAt >= 0 ? rowAt : 2,
+          first,
+          second,
+          same: alike(first, second),
+        });
+      }
+    }
+
+    // Where two changes were read into one and the same part, each is asked about again inside that part
+    // alone — left, middle or right of it, top, middle or bottom — so two places standing close together
+    // are told apart instead of lying over one another. Two that still stand in the very same spot are tied
+    // together, and the one touch that lands there finds both.
+    const parts = new Map();
+    readings.forEach((reading) => {
+      const key = `${reading.colAt}:${reading.rowAt}`;
+      parts.set(key, [...(parts.get(key) || []), reading]);
     });
 
-    const rows = Array.isArray(located?.differences) ? located.differences.slice(0, scene.changes.length) : [];
-    const differences = rows.map((row, i) => {
-      const partX = third(row.column, 1);
-      const partY = third(row.row, 1);
-      const inX = third(row.across, 1);
-      const inY = third(row.down, 1);
-      // the middle of the ninth the change stands in, moved by where inside it the reading places it
-      const middleX = (partX + 0.5) / 3 + (inX - 1) / 9;
-      const middleY = (partY + 0.5) / 3 + (inY - 1) / 9;
-      return {
-        id: `${scene.name}-${i + 1}`,
-        x: share(Math.min(middleX - ACROSS / 2, 1 - ACROSS)),
-        y: share(Math.min(middleY - DOWN / 2, 1 - DOWN)),
-        w: share(ACROSS),
-        h: share(DOWN),
-        label: String(row.label || scene.changes[i] || `Difference ${i + 1}`),
-        part: `${partX}${partY}`,
-      };
+    const crowded = [...parts.values()].filter((group) => group.length > 1).flat();
+    for (const reading of crowded) {
+      {
+        const within = await base44.asServiceRole.integrations.Core.InvokeLLM({
+            prompt:
+              'Two pictures of the same scene stand here: the first, and the second drawn from it with a few ' +
+              `places changed in it. One of those changes is this: ${reading.change} Its place stands inside ` +
+              `the part of the picture that is ${ACROSS[reading.colAt]} across and ${DOWN[reading.rowAt]} ` +
+              'down. Say where inside that one part it stands: in the left of it, its middle or its right; ' +
+              'and in the top of it, its middle or its bottom. Read only what you see in the pictures.',
+            file_urls: [baseUrl, changedUrl],
+            response_json_schema: {
+              type: 'object',
+              properties: {
+                across: { type: 'string', enum: ['left', 'the middle', 'right'] },
+                down: { type: 'string', enum: ['top', 'the middle', 'bottom'] },
+              },
+              required: ['across', 'down'],
+            },
+          });
+          const third = ['left', 'the middle', 'right'];
+          const band = ['top', 'the middle', 'bottom'];
+          const inX = third.indexOf(String(within?.across || '').trim().toLowerCase());
+          const inY = band.indexOf(String(within?.down || '').trim().toLowerCase());
+        reading.inX = inX >= 0 ? inX : 1;
+        reading.inY = inY >= 0 ? inY : 1;
+      }
+    }
+
+    // the middle of the part a change was read into, and, where it was read again, the middle of the third
+    // of that part it was read into — with the touch area laid over the place the change truly stands
+    const held = readings.map((reading) => ({
+      ...reading,
+      middleX: reading.colAt / ACROSS.length + (reading.inX === undefined ? 1.5 : reading.inX + 0.5) / ACROSS.length / 3,
+      middleY: reading.rowAt / DOWN.length + (reading.inY === undefined ? 1.5 : reading.inY + 0.5) / DOWN.length / 3,
+    }));
+
+    // Changes read into one and the same part of the picture are found together: where a reading could not
+    // tell two places apart, one touch answers for the whole part — so a place read a little to the side of
+    // where it truly stands can never leave a level that cannot be finished.
+    held.forEach((one) => {
+      const mates = held.filter(
+        (other) => other !== one && other.colAt === one.colAt && other.rowAt === one.rowAt
+      );
+      if (mates.length) one.group = `${one.colAt}:${one.rowAt}`;
     });
+
+    const differences = held.map((reading) => ({
+      id: reading.id,
+      x: share(Math.min(reading.middleX - SPAN_X / 2, 1 - SPAN_X)),
+      y: share(Math.min(reading.middleY - SPAN_Y / 2, 1 - SPAN_Y)),
+      w: share(SPAN_X),
+      h: share(SPAN_Y),
+      label: reading.change,
+      part: `${ACROSS[reading.colAt]} · ${DOWN[reading.rowAt]}`,
+      first: reading.first,
+      second: reading.second,
+      same: reading.same,
+      ...(reading.group ? { group: reading.group } : {}),
+    }));
 
     return Response.json({
       level,

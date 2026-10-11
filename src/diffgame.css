@@ -231,7 +231,9 @@
   border: 0;
   border-radius: 14px;
   background: transparent;
-  cursor: pointer;
+  /* the places are only the picture's own account of where its differences stand: a touch is measured
+     against the picture, so the marks never stand between a finger and the place it is looking for */
+  pointer-events: none;
   touch-action: manipulation;
 }
 
