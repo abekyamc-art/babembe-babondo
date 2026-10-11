@@ -2,9 +2,9 @@
  * GLOIRE AI — FIND THE DIFFERENCES
  * Created by CEO Gloire Sadiki Asende.
  *
- * Every level here is a real level. Its scene is one of the app's own drawings — nothing is copied from
- * anywhere — and its differences are the exact places where the second copy of that drawing changes: a
- * thing taken away, a colour turned, a face lost.
+ * Every level here is a real level. Its scene is the app's own — either one of its drawings, nothing copied
+ * from anywhere, or one of its own drawn 4K pictures — and its differences are the exact places where the
+ * second copy of that scene changes: a thing taken away, a colour turned, a face lost.
  *
  * A difference carries the place it stands in the picture as a share of the picture's own width and
  * height, so its touch area is the same on every phone: x and y are its top-left corner, w and h its
@@ -67,6 +67,102 @@ export const LEVELS = [
       { id: "window-birds", x: 0.705, y: 0.185, w: 0.155, h: 0.15, label: "The birds have flown away" },
       { id: "book-top", x: 0.12, y: 0.59, w: 0.145, h: 0.13, label: "The top book changed colour" },
       { id: "backpack", x: 0.012, y: 0.8, w: 0.115, h: 0.185, label: "The backpack is missing" },
+    ],
+  },
+  {
+    id: 4,
+    title: "The lake at dawn",
+    scene: "lake",
+    difficulty: "Easy",
+    seconds: 90,
+    mistakes: 3,
+    about: "The pirogues, the fishing nets and the rising sun on the water",
+    differences: [
+      { id: "lake-1", x: 0, y: 0, w: 0.125, h: 0.1667, label: "The grey cloud has gone from the sky" },
+      { id: "lake-2", x: 0.875, y: 0.4167, w: 0.125, h: 0.1667, label: "The paddle turned bright blue" },
+      { id: "lake-3", x: 0, y: 0.75, w: 0.125, h: 0.1667, label: "A basket has gone from the shore" },
+      { id: "lake-4", x: 0.4375, y: 0.4167, w: 0.125, h: 0.1667, label: "The fisherman's shirt turned red" },
+      { id: "lake-5", x: 0.875, y: 0.8333, w: 0.125, h: 0.1667, label: "A papyrus plant has grown on the shore" },
+    ],
+  },
+  {
+    id: 5,
+    title: "The football ground",
+    scene: "pitch",
+    difficulty: "Medium",
+    seconds: 80,
+    mistakes: 3,
+    about: "The bamboo goal, the dust pitch and the children watching",
+    differences: [
+      { id: "pitch-1", x: 0.4375, y: 0.5278, w: 0.125, h: 0.1667, label: "The ball turned orange" },
+      { id: "pitch-2", x: 0.1042, y: 0, w: 0.125, h: 0.1667, label: "A cloud has gone from the sky" },
+      { id: "pitch-3", x: 0, y: 0.5278, w: 0.125, h: 0.1667, label: "A wooden bench has appeared" },
+      { id: "pitch-4", x: 0.7708, y: 0.4167, w: 0.125, h: 0.1667, label: "A child's shirt turned green" },
+      { id: "pitch-5", x: 0.2153, y: 0.5278, w: 0.125, h: 0.1667, label: "The bucket has gone from beside the goal" },
+    ],
+  },
+  {
+    id: 6,
+    title: "The river crossing",
+    scene: "crossing",
+    difficulty: "Medium",
+    seconds: 75,
+    mistakes: 3,
+    about: "The log bridge, the women crossing and the goats on the bank",
+    differences: [
+      { id: "crossing-1", x: 0.4375, y: 0.3056, w: 0.125, h: 0.1667, label: "The basin on the woman's head turned yellow" },
+      { id: "crossing-2", x: 0.2153, y: 0.5278, w: 0.125, h: 0.1667, label: "A blue shirt has gone from the stones" },
+      { id: "crossing-3", x: 0.875, y: 0.4167, w: 0.125, h: 0.1667, label: "One of the goats has gone" },
+      { id: "crossing-4", x: 0.1042, y: 0.0833, w: 0.125, h: 0.1667, label: "A tall palm tree has appeared" },
+      { id: "crossing-5", x: 0.6597, y: 0.6389, w: 0.125, h: 0.1667, label: "A white bird stands at the water" },
+    ],
+  },
+  {
+    id: 7,
+    title: "The wedding feast",
+    scene: "feast",
+    difficulty: "Hard",
+    seconds: 70,
+    mistakes: 3,
+    about: "The drums, the long table and the cooking fire",
+    differences: [
+      { id: "feast-1", x: 0.1042, y: 0.4167, w: 0.125, h: 0.1667, label: "The cloth on the drum turned purple" },
+      { id: "feast-2", x: 0.4375, y: 0.3056, w: 0.125, h: 0.1667, label: "The jug has gone from the table" },
+      { id: "feast-3", x: 0.6597, y: 0.1944, w: 0.125, h: 0.1667, label: "A string of cloth has gone from the decorations" },
+      { id: "feast-4", x: 0, y: 0.75, w: 0.125, h: 0.1667, label: "A child in a blue dress has appeared" },
+      { id: "feast-5", x: 0.7708, y: 0.5278, w: 0.125, h: 0.1667, label: "The cooking pot turned silver" },
+    ],
+  },
+  {
+    id: 8,
+    title: "The evening fire",
+    scene: "fireside",
+    difficulty: "Hard",
+    seconds: 65,
+    mistakes: 3,
+    about: "The storyteller, the drum and the stars over the village",
+    differences: [
+      { id: "fireside-1", x: 0.4375, y: 0.0833, w: 0.125, h: 0.1667, label: "The moon has gone from the sky" },
+      { id: "fireside-2", x: 0.1042, y: 0.0833, w: 0.125, h: 0.1667, label: "A shooting star crosses the sky" },
+      { id: "fireside-3", x: 0.2153, y: 0.4167, w: 0.125, h: 0.1667, label: "The storyteller's drum turned red" },
+      { id: "fireside-4", x: 0.7708, y: 0.3056, w: 0.125, h: 0.1667, label: "The guitar player put on a yellow hat" },
+      { id: "fireside-5", x: 0.2153, y: 0.8333, w: 0.125, h: 0.1667, label: "The clay pot has gone from the fire" },
+    ],
+  },
+  {
+    id: 9,
+    title: "The music stage",
+    scene: "stage",
+    difficulty: "Hard",
+    seconds: 60,
+    mistakes: 3,
+    about: "The singer, the drummers and the crowd before the stage",
+    differences: [
+      { id: "stage-1", x: 0.4375, y: 0.4167, w: 0.125, h: 0.1667, label: "The microphone stand turned gold" },
+      { id: "stage-2", x: 0.1042, y: 0.4167, w: 0.125, h: 0.1667, label: "The speaker turned bright green" },
+      { id: "stage-3", x: 0.1042, y: 0.1944, w: 0.125, h: 0.1667, label: "The flag on the speaker has gone" },
+      { id: "stage-4", x: 0.6597, y: 0.4167, w: 0.125, h: 0.1667, label: "The drummer put on a red cap" },
+      { id: "stage-5", x: 0.7708, y: 0.6389, w: 0.125, h: 0.1667, label: "A water bottle stands on the stage" },
     ],
   },
 ];
