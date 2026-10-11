@@ -119,8 +119,11 @@ export async function photoPuzzle(base44, scene, body) {
   const checked = await photoPuzzleAreas(base44, base, changed, audit.differences.slice(0, target + 6));
   const measured = checked.map((d) => ({ ...d, x: d.x / 1000, y: d.y / 1000, w: d.w / 1000, h: d.h / 1000 }));
   const seen = measured.filter((d) => [d.x,d.y,d.w,d.h].every(Number.isFinite) && d.x >= 0 && d.y >= 0 && d.w > 0 && d.h > 0 && d.x + d.w <= 1.01 && d.y + d.h <= 1.01);
-  if (seen.length < target + 3) {
-    return { error: `Only ${seen.length} clear differences found; need ${target + 3} including three extras. Photo was not installed.`, changed, base, audit };
+  // What a level asks for is what its picture truly holds. A pair that carries only the places the level
+  // asks — without the spare places a richer pair carries — is installed as it stands, and its level
+  // simply carries no spares; a picture that cannot even cover the level's own number is never installed.
+  if (seen.length < target) {
+    return { error: `Only ${seen.length} clear differences found; the level asks for ${target}. Photo was not installed.`, changed, base, audit };
   }
   const differences = seen.map((d, i) => ({ ...d, w: Math.min(d.w, 1-d.x), h: Math.min(d.h, 1-d.y), id: `${scene.name}-photo-${i+1}`, extra: i >= target }));
   return { scene: scene.name, base, changed, differences, target, resolution: '4K', credits };

@@ -54,6 +54,134 @@
   letter-spacing: 0.3px;
 }
 
+/* The one cover that holds every prize: Season 1, opened in one tap to show the whole gallery. */
+.exam-cover {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  color: #f5f6ff;
+  background: #101728;
+  border: 1px solid #26304d;
+  border-radius: 18px;
+  font-family: inherit;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, transform 0.18s ease;
+}
+
+.exam-cover:hover {
+  border-color: #3f5e97;
+  background: #16203a;
+}
+
+.exam-cover:active {
+  transform: scale(0.995);
+}
+
+.exam-cover:focus-visible {
+  outline: 2px solid #6ba8ff;
+  outline-offset: 3px;
+}
+
+.exam-cover.is-won {
+  background: #241d10;
+  border-color: #5c4a2c;
+}
+
+.exam-cover-frame {
+  position: relative;
+  flex: none;
+  width: 74px;
+  height: 92px;
+  overflow: hidden;
+  background: #0b1020;
+  border: 1px solid #1c2440;
+  border-radius: 12px;
+}
+
+.exam-cover.is-won .exam-cover-frame {
+  border-color: #6b552f;
+}
+
+.exam-cover-img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* the cover carries every cup, so a cup still to be earned is only dimmed and never hidden */
+.exam-cover.is-locked .exam-cover-img {
+  filter: grayscale(0.75) brightness(0.62) contrast(0.95);
+}
+
+.exam-cover-seal {
+  position: absolute;
+  right: 5px;
+  bottom: 5px;
+  display: grid;
+  place-items: center;
+  width: 26px;
+  height: 26px;
+  color: #ffd9a8;
+  background: rgba(11, 16, 32, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 50%;
+}
+
+.exam-cover-seal svg {
+  width: 14px;
+  height: 14px;
+}
+
+.exam-cover-body {
+  display: flex;
+  flex: 1 1 auto;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.exam-cover-name {
+  font-size: 19px;
+  font-weight: 800;
+  letter-spacing: -0.3px;
+  color: #f5f6ff;
+}
+
+.exam-cover-title {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: #c3cde2;
+}
+
+.exam-cover-tag {
+  font-size: 11.5px;
+  font-weight: 750;
+  letter-spacing: 0.3px;
+  color: #8ebaff;
+}
+
+.exam-cover.is-won .exam-cover-tag {
+  color: #ffd9a8;
+}
+
+.exam-cover-go {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  color: #9ba9c6;
+}
+
+.exam-cover-go svg {
+  width: 20px;
+  height: 20px;
+}
+
 .exam-shelf-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
