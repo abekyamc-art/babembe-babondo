@@ -21,7 +21,7 @@ export async function photoPuzzle(base44, scene, body) {
   const client = new OpenAI({ baseURL, apiKey: token, defaultHeaders: headers, maxRetries: 0 });
   // a change or two is always lost on the way — a small one goes unnoticed, two near each other read as
   // one — so a couple more are asked for than the level needs, and the ones really there are what install
-  const count = target + 3;
+  const count = target + 5;
   const reuse = typeof body.changed === 'string' && body.changed.startsWith(ownMedia);
 
   // Which places to change is read off the photograph itself, so the edits can be asked for by name.
@@ -64,7 +64,9 @@ export async function photoPuzzle(base44, scene, body) {
   const edited = reuse
     ? { data: [{ url: body.changed }], usage: { base44_credits: 0 } }
     : await client.images.generate({
-        model: 'automatic',
+        model: 'seedream_5_0_lite',
+        output_format: 'jpeg',
+        quality: 'auto',
         resolution: '4K',
         aspect_ratio: '16:9',
         response_format: 'url',
@@ -76,16 +78,16 @@ export async function photoPuzzle(base44, scene, body) {
   if (!changed) throw new Error('The edited photograph was not returned.');
 
   const audit = await base44.asServiceRole.integrations.Core.InvokeLLM({
-    prompt: `Compare these two photographs, first original and second edited. Locate every clear independent object difference actually visible. Do not infer requested changes. Ignore JPEG noise and tiny texture drift. Use a 1000-by-1000 coordinate grid for each whole image (independently of its actual pixel dimensions). Return top-left x,y and width w,height h as integers from 0 to 1000 around the object in either photo (union if removed or added). Each box must match one distinguishable object, not a whole grid cell or multiple nearby objects. Give a factual short label and what is visibly present in each image. Need at least ${target} genuine, clear differences; if fewer exist return only those you can see.`,
+    prompt: `Compare these two photographs, first original and second edited. Locate every clear independent object difference actually visible. Do not infer requested changes. Ignore JPEG noise, tiny texture drift, lens flare and global lighting changes; these are not object differences. Use a 1000-by-1000 coordinate grid for each whole image (independently of its actual pixel dimensions). Return top-left x,y and width w,height h as integers from 0 to 1000 around the object in either photo (union if removed or added). Each box must match one distinguishable object, not a whole grid cell or multiple nearby objects. Give a factual short label and what is visibly present in each image. Need at least ${target + 2} genuine, clear differences so the player can find ${target} and leave two; if fewer exist return only those you can see.`,
     file_urls: [base, changed],
     response_json_schema: { type: 'object', properties: { differences: { type: 'array', items: { type: 'object', properties: { x: { type: 'number' }, y: { type: 'number' }, w: { type: 'number' }, h: { type: 'number' }, label: { type: 'string' }, first: { type: 'string' }, second: { type: 'string' } }, required: ['x','y','w','h','label','first','second'] } } }, required: ['differences'] },
   });
 
   const measured = audit.differences.map((d) => ({ ...d, x: d.x / 1000, y: d.y / 1000, w: d.w / 1000, h: d.h / 1000 }));
   const seen = measured.filter((d) => [d.x,d.y,d.w,d.h].every(Number.isFinite) && d.x >= 0 && d.y >= 0 && d.w > 0 && d.h > 0 && d.x + d.w <= 1.01 && d.y + d.h <= 1.01);
-  if (seen.length < target) {
-    return { error: `Only ${seen.length} clear differences found; photo was not installed.`, changed, base, audit };
+  if (seen.length < target + 2) {
+    return { error: `Only ${seen.length} clear differences found; need ${target + 2} including two extras. Photo was not installed.`, changed, base, audit };
   }
-  const differences = seen.slice(0, count).map((d, i) => ({ ...d, w: Math.min(d.w, 1-d.x), h: Math.min(d.h, 1-d.y), id: `${scene.name}-photo-${i+1}`, extra: i >= target }));
+  const differences = seen.slice(0, target + 2).map((d, i) => ({ ...d, w: Math.min(d.w, 1-d.x), h: Math.min(d.h, 1-d.y), id: `${scene.name}-photo-${i+1}`, extra: i >= target }));
   return { scene: scene.name, base, changed, differences, target, resolution: '4K', credits: edited.usage?.base44_credits || 0 };
 }
