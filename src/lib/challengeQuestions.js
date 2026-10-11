@@ -31,13 +31,16 @@ const COUNTING = CONFIRMED_NUMBERS.filter((row) => row.n <= 20);
 /** The Kibembe form of one number, exactly as the document holds it. */
 const wordOfNumber = (n) => COUNTING.find((row) => row.n === n)?.kb || String(n);
 
+/** How one choice is written: the Kibembe form, with the number it stands for beside it. */
+const choiceOf = (row) => `${row.kb} (${row.n})`;
+
 /** The two other confirmed numbers beside the right one, so every choice put up is a Kibembe form. */
 function otherNumbers(answer, seed) {
   const out = [];
   for (let step = 1; out.length < 2 && step <= COUNTING.length; step += 1) {
     const row = COUNTING[(seed + step * 5) % COUNTING.length];
     if (row.n === answer || out.includes(row.kb)) continue;
-    out.push(row.kb);
+    out.push(row);
   }
   return out;
 }
@@ -48,16 +51,16 @@ function otherNumbers(answer, seed) {
  * problem about coins, fruits or journeys is ever put in front of a student.
  */
 function sumQuestion(index, left, symbol, right, answer, picture) {
-  const answerWord = wordOfNumber(answer);
+  const rightRow = COUNTING.find((row) => row.n === answer);
   return challengeQuestion(
     `sum:${index}`,
     'Calculation',
     'Calculate ',
     `${left} ${symbol} ${right}`,
     ' = ?',
-    answerWord,
-    otherNumbers(answer, index),
-    `${left} ${symbol} ${right} = ${answer} — ${answerWord}.`,
+    rightRow ? choiceOf(rightRow) : String(answer),
+    otherNumbers(answer, index).map(choiceOf),
+    `${left} ${symbol} ${right} = ${answer} — ${wordOfNumber(answer)}.`,
     picture
   );
 }
