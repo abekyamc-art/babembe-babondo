@@ -1,4 +1,6 @@
 import { secrets } from "base44:runtime";
+import jpeg from "npm:jpeg-js@0.4.4";
+import pngjs from "npm:pngjs@7.0.0";
 
 /**
  * The app's own reading, through Google's Gemini service on the owner's own key.
@@ -16,11 +18,13 @@ import { secrets } from "base44:runtime";
  *     — or when the service cannot be reached for a moment — the app's own AI stands behind the key,
  *     so a person is never left with nothing. When the key answers, no Base44 credits are spent.
  *
- * The app speaks through three of the owner's own accounts, one group of features to each, so that no
- * single account's daily allowance has to carry the whole app: the live assistant and the reading of
- * its knowledge on the first, every look at a picture or a photograph on the second, and the writing
- * of songs on the third. Each call names the group it belongs to, and a group whose account has not
- * been set yet simply reads through the first, so the app never depends on more than is standing.
+ * The app speaks through the owner's own accounts, one group of features to each, so that no single
+ * account's daily allowance has to carry the whole app: reading on the first three — the live
+ * assistant with its knowledge, every look at a picture or a photograph, and the writing of songs —
+ * and the drawing of every picture on accounts of its own, because a picture drawn is the heaviest,
+ * most limited thing this app asks for. Each call names the group it belongs to; a group whose account
+ * has not been set is named plainly in the error it raises, so a missing account is never silently
+ * paid out of another account's allowance.
  */
 
 const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions";
@@ -29,19 +33,42 @@ const ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/interactions"
 const READ_MODEL = "gemini-3.8-flash";
 
 /**
- * Which of the owner's accounts a group of features is paid out of. The owner keeps three accounts, so
- * three groups stand here and no more: the live assistant with its knowledge on the first account, the
- * reading of every picture on the second, and the writing of songs on the third.
+ * Which of the owner's accounts a group of features is paid out of — the whole routing map of the app,
+ * in one place. Reading stands on the first three accounts: the live assistant and the reading of its
+ * knowledge, every look at a picture or a photograph, and the writing of songs. Drawing stands on the
+ * next five, one family of pictures to an account: the lettered pictures of the dictionary, the edited
+ * copy of a puzzle, the two photographs of a prize pair, and the season trophies. The last account
+ * (GEMINI_API_KEY9) is kept ready, to be named to the next family that asks for pictures.
  */
 const KEYS: Record<string, string> = {
   answer: "GEMINI_API_KEY",
   pictures: "GEMINI_API_KEY2",
   song: "GEMINI_API_KEY3",
+  drawing: "GEMINI_API_KEY4",
+  puzzledraw: "GEMINI_API_KEY5",
+  sceneone: "GEMINI_API_KEY6",
+  scenetwo: "GEMINI_API_KEY7",
+  trophies: "GEMINI_API_KEY8",
 };
 
-/** The account a reading is paid out of: its own group's, or the first account's when that one is unset. */
+/**
+ * The account a call is paid out of. A group is never paid out of another group's account, and an
+ * account that has not been set is said plainly rather than passed over: a missing account must never
+ * be mistaken for a reading that failed, and no other account's allowance is spent in its place. A
+ * call that names no group at all stands on the first account, exactly as it always has.
+ */
 function keyFor(group: any): string {
-  return secrets.get(KEYS[String(group || "")] || KEYS.answer) || secrets.get(KEYS.answer);
+  const named = String(group || "").trim();
+  if (!named) {
+    const first = secrets.get(KEYS.answer);
+    if (!first) throw new Error(`The account every reading stands on is not set (${KEYS.answer}).`);
+    return first;
+  }
+  const secretName = KEYS[named];
+  if (!secretName) throw new Error(`No account stands for the "${named}" group of features.`);
+  const value = secrets.get(secretName);
+  if (!value) throw new Error(`The account for the "${named}" group of features is not set (${secretName}).`);
+  return value;
 }
 
 /** How big the copy of a picture carried in the request is, by default. */
@@ -70,8 +97,8 @@ function smaller(url: string, size: number): string {
   }
 }
 
-/** One picture, carried in the request the way this service takes one. */
-async function carried(url: string, size: number) {
+/** One picture, fetched and made small: the bytes themselves, and what kind of picture they are. */
+async function imageBytes(url: string, size: number) {
   const res = await fetch(smaller(url, size), { signal: AbortSignal.timeout(30000) });
   if (!res.ok) throw new Error(`A picture could not be read (${res.status}).`);
   const bytes = new Uint8Array(await res.arrayBuffer());
@@ -79,11 +106,13 @@ async function carried(url: string, size: number) {
   for (let at = 0; at < bytes.length; at += 8192) {
     binary += String.fromCharCode(...bytes.subarray(at, at + 8192));
   }
-  return {
-    type: "image",
-    data: btoa(binary),
-    mime_type: (res.headers.get("content-type") || "image/jpeg").split(";")[0],
-  };
+  return { data: btoa(binary), mimeType: (res.headers.get("content-type") || "image/jpeg").split(";")[0] };
+}
+
+/** One picture, carried in a reading the way this service takes one. */
+async function carried(url: string, size: number) {
+  const { data, mimeType } = await imageBytes(url, size);
+  return { type: "image", data, mime_type: mimeType };
 }
 
 /** Everything the service wrote, read out of the steps it answered in. */
@@ -164,4 +193,94 @@ export async function geminiText({
     if (typeof model === "string" && model && !model.startsWith("gemini-")) asked.model = model;
     return await behind(base44, asked);
   }
+}
+
+/** Where a picture is asked for, and the two models the app asks it of. */
+const DRAW_ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models";
+const DRAW_MODEL = "gemini-2.5-flash-image";
+const DRAW_BIG = "gemini-3-pro-image-preview";
+
+/** How wide and tall a picture that came back is: its longest side, or nothing when it cannot be read. */
+function drawnSide(bytes: Uint8Array, mime: string) {
+  try {
+    if (/png/i.test(mime)) {
+      const png = pngjs.PNG.sync.read(Buffer.from(bytes));
+      return Math.max(png.width, png.height);
+    }
+    const photo = jpeg.decode(bytes, { useTArray: true });
+    return Math.max(photo.width, photo.height);
+  } catch {
+    return 0;
+  }
+}
+
+/**
+ * A picture, drawn — or one already there, changed — through the owner's own account.
+ *
+ * The call names the group of features the picture belongs to, exactly as a reading does, and the
+ * account that group keeps pays for the drawing. A picture that is to be changed rather than newly
+ * drawn carries the photograph it stands on in the request itself, so the very same scene comes back
+ * with only what was asked for moved.
+ *
+ * Some pictures must be large — the photographs a prize puzzle is played on — so a call may name the
+ * least side it will accept. A picture smaller than that is refused rather than passed on, and the
+ * caller is left to draw it its own way, so a level is never quietly played on a small picture.
+ *
+ * Either way the bytes that come back are put into the app's own public storage, and it is that
+ * picture's address that is returned.
+ */
+export async function geminiImage({
+  base44,
+  group = "drawing",
+  prompt,
+  reference_urls = [],
+  model = DRAW_MODEL,
+  aspect = null,
+  least = 0,
+  size = SHOWN,
+}: any = {}) {
+  if (!prompt) throw new Error("No picture was asked for.");
+
+  const parts: any[] = [{ text: prompt }];
+  for (const url of (Array.isArray(reference_urls) ? reference_urls : []).map(String).filter(Boolean)) {
+    const { data, mimeType } = await imageBytes(url, size);
+    parts.push({ inlineData: { mimeType, data } });
+  }
+
+  const shape: any = { responseModalities: ["IMAGE"] };
+  if (aspect) shape.imageConfig = { aspectRatio: aspect };
+
+  const res = await fetch(`${DRAW_ENDPOINT}/${model}:generateContent`, {
+    method: "POST",
+    headers: { "x-goog-api-key": keyFor(group), "Content-Type": "application/json" },
+    body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: shape }),
+    signal: AbortSignal.timeout(180000),
+  });
+  if (!res.ok) {
+    const said = await res.text().catch(() => "");
+    throw new Error(`The picture service answered ${res.status}. ${said.slice(0, 200)}`);
+  }
+
+  const answer = await res.json();
+  const drawn = (answer?.candidates?.[0]?.content?.parts || []).find((part: any) => part?.inlineData?.data);
+  if (!drawn) throw new Error("The picture service returned no picture.");
+
+  const mime = String(drawn.inlineData.mimeType || "image/png");
+  const bytes = Uint8Array.from(atob(drawn.inlineData.data), (char) => char.charCodeAt(0));
+  if (least && drawnSide(bytes, mime) < least) {
+    throw new Error(`The picture drawn was smaller than the ${least} pixels a side this picture needs.`);
+  }
+
+  const file = new File([bytes], `glory-picture.${/jpe?g/i.test(mime) ? "jpg" : "png"}`, { type: mime });
+  const { file_url } = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
+  return String(file_url || "");
+}
+
+/**
+ * The account a drawing is to be paid out of, said plainly, and the model to ask it of. A caller that
+ * wants a picture drawn reaches for `geminiImage`; this is only here so a caller can tell, before it
+ * asks, whether the account for its pictures is standing at all.
+ */
+export function drawAccountName(group: string) {
+  return KEYS[group] || null;
 }
