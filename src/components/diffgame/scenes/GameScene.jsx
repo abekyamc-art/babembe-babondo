@@ -4,6 +4,9 @@ import { picturesOf } from "@/lib/differenceGame/scenePictures";
 import VillageScene from "./VillageScene";
 import MarketScene from "./MarketScene";
 import ClassroomScene from "./ClassroomScene";
+import DrumCircleScene from "./DrumCircleScene";
+import RiverWashScene from "./RiverWashScene";
+import GoatHillScene from "./GoatHillScene";
 
 
 /** Which drawing belongs to which scene name. */
@@ -11,6 +14,9 @@ const SCENES = {
   village: VillageScene,
   market: MarketScene,
   classroom: ClassroomScene,
+  drumcircle: DrumCircleScene,
+  riverwash: RiverWashScene,
+  goathill: GoatHillScene,
 };
 
 /**

@@ -13,7 +13,7 @@ export default function FailSheet({ level, result, mistakesUsed, onRetry, canCon
   const total = requiredCount(level);
   const extras = extraCount(level);
   return (
-    <div className="dg-sheet-wrap" role="dialog" aria-modal="true" aria-label="Level not passed">
+    <div className="dg-sheet-wrap" role="dialog" aria-modal="true" aria-label="Episode not passed">
       <div className="dg-sheet is-lose">
         <span className="dg-sheet-mark is-lose" aria-hidden="true">
           <HeartCrack />
@@ -58,7 +58,7 @@ export default function FailSheet({ level, result, mistakesUsed, onRetry, canCon
             </button>
           ) : null}
           <button type="button" className="dg-btn is-ghost" onClick={onLevels}>
-            <Grid2x2 aria-hidden="true" /> Choose Another Level
+            <Grid2x2 aria-hidden="true" /> Choose Another Episode
           </button>
           <button type="button" className="dg-btn is-ghost" onClick={onMenu}>
             <LogOut aria-hidden="true" /> Back to Game Menu

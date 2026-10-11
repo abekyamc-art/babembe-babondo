@@ -188,7 +188,7 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
         <div className="dg-head-text">
           <h1 className="dg-title">Find the Differences</h1>
           <p className="dg-sub">
-            Level {level.id} · {tierOf(level)} · {level.title}
+            Episode {level.id} · {tierOf(level)} · {level.title}
           </p>
         </div>
         <button

@@ -11,7 +11,7 @@
  * size. No two touch areas overlap, so a touch can only ever mean one difference.
  *
  * A difference marked extra: true is one of the spare places a picture may hold beyond the number the
- * level asks for. It is a real change in the picture, a touch finds it and it earns its points like any
+ * episode asks for. It is a real change in the picture, a touch finds it and it earns its points like any
  * other, but the level is passed without it: what must be found is the level's own number, the extras are
  * never counted into it, and what a level is called by how much it asks (tierOf) is read from that number.
  */
@@ -653,6 +653,62 @@ export const LEVELS = [
       { id: "schoolwalk-5", x: 0.029, y: 0.575, w: 0.18, h: 0.25, label: "A grey stone has gone from the path", group: "0:3" },
     ],
   },
+  {
+    id: 37,
+    title: "The drum circle",
+    scene: "drumcircle",
+    difficulty: "Easy",
+    seconds: 90,
+    mistakes: 3,
+    about: "The big drum, the dancers and the fire beside them",
+    differences: [
+      { id: "drum-cloth", x: 0.425, y: 0.53, w: 0.15, h: 0.12, label: "The cloth on the drum turned purple" },
+      { id: "stool", x: 0.79, y: 0.81, w: 0.14, h: 0.13, label: "The wooden stool has gone" },
+      { id: "cloud", x: 0.7, y: 0.05, w: 0.19, h: 0.21, label: "A cloud has gone from the sky" },
+      { id: "hat", x: 0.25, y: 0.63, w: 0.12, h: 0.13, label: "The drummer put on a bright hat" },
+      { id: "shirt", x: 0.595, y: 0.72, w: 0.14, h: 0.2, label: "The dancer's wrap turned bright yellow" },
+      { id: "sun-face", x: 0.06, y: 0.04, w: 0.15, h: 0.25, label: "The sun lost its smile", extra: true },
+      { id: "pot-steam", x: 0.13, y: 0.63, w: 0.09, h: 0.22, label: "The steam has gone from the pot", extra: true },
+    ],
+  },
+  {
+    id: 38,
+    title: "Washing at the river",
+    scene: "riverwash",
+    difficulty: "Medium",
+    seconds: 80,
+    mistakes: 3,
+    about: "The cloths on the line, the flat stones and the broad river",
+    differences: [
+      { id: "cloth", x: 0.695, y: 0.39, w: 0.1, h: 0.15, label: "One cloth on the line turned blue" },
+      { id: "shirt", x: 0.35, y: 0.71, w: 0.13, h: 0.2, label: "The washerwoman's shirt turned green" },
+      { id: "basin", x: 0.575, y: 0.78, w: 0.15, h: 0.15, label: "The basin on the stones turned red" },
+      { id: "basket", x: 0.15, y: 0.78, w: 0.13, h: 0.15, label: "The basket of clothes has gone" },
+      { id: "hen", x: 0.885, y: 0.83, w: 0.11, h: 0.15, label: "A white hen stands at the water" },
+      { id: "cloud", x: 0.56, y: 0.03, w: 0.19, h: 0.2, label: "A cloud has gone from the sky" },
+      { id: "fruit", x: 0.08, y: 0.39, w: 0.13, h: 0.14, label: "The fruit has gone from the tree" },
+      { id: "birds", x: 0.42, y: 0.21, w: 0.13, h: 0.13, label: "Two birds fly over the river", extra: true },
+      { id: "bucket", x: 0.755, y: 0.82, w: 0.1, h: 0.13, label: "A metal bucket stands on the bank", extra: true },
+    ],
+  },
+  {
+    id: 39,
+    title: "The goat herders",
+    scene: "goathill",
+    difficulty: "Easy",
+    seconds: 90,
+    mistakes: 3,
+    about: "The herd, the herder and the green hillside behind them",
+    differences: [
+      { id: "goat-gone", x: 0.595, y: 0.8, w: 0.13, h: 0.18, label: "One of the goats has gone" },
+      { id: "shirt", x: 0.795, y: 0.75, w: 0.13, h: 0.19, label: "The herder's shirt turned bright red" },
+      { id: "stick", x: 0.11, y: 0.55, w: 0.1, h: 0.26, label: "The staff turned red" },
+      { id: "fruit", x: 0.81, y: 0.39, w: 0.14, h: 0.17, label: "The fruit has gone from the tree" },
+      { id: "cloud", x: 0.665, y: 0.03, w: 0.19, h: 0.2, label: "A cloud has gone from the sky" },
+      { id: "flower", x: 0.03, y: 0.81, w: 0.08, h: 0.18, label: "The flower turned yellow", extra: true },
+      { id: "birds", x: 0.5, y: 0.22, w: 0.13, h: 0.14, label: "Two birds fly over the hill", extra: true },
+    ],
+  },
 ].map((level) => PHOTO_PUZZLE_UPDATES[level.scene]
   ? { ...level, differences: PHOTO_PUZZLE_UPDATES[level.scene].differences }
   : level);
@@ -664,8 +720,15 @@ export function tierOf(level) {
   return places >= 10 ? "Hard" : places >= 7 ? "Normal" : "Easy";
 }
 
-/** How many cards the level map shows: the levels that stand, and the ones still to come. */
-export const LEVEL_SLOTS = 36;
+/** How many cards the episode map shows: the episodes that stand, and the ones still to come. */
+export const LEVEL_SLOTS = 39;
+
+/**
+ * Where each season begins. The first season is the episodes the game opened with, and the season after
+ * it is the episodes drawn for it afterwards: an episode belongs to the season it stands in, and the map
+ * names the season above the first episode of it.
+ */
+export const SEASON_STARTS = { 1: 1, 37: 2 };
 
 export function levelById(id) {
   return LEVELS.find((level) => level.id === id) || null;

@@ -18,7 +18,7 @@ export default function LevelCard({ level, record, locked, onOpen }) {
       className={"dg-card" + (locked ? " is-locked" : "") + (record.completed ? " is-passed" : "")}
       onClick={onOpen}
       disabled={locked}
-      aria-label={`Level ${level.id}: ${level.title}, ${tierOf(level)}${
+      aria-label={`Episode ${level.id}: ${level.title}, ${tierOf(level)}${
         locked ? ", locked" : record.completed ? `, passed with ${record.stars} stars` : ", open"
       }`}
     >
@@ -31,7 +31,7 @@ export default function LevelCard({ level, record, locked, onOpen }) {
         ) : null}
       </span>
       <span className="dg-card-top">
-        <span className="dg-card-no">Level {level.id}</span>
+        <span className="dg-card-no">EPISODE {level.id}</span>
         <span className={`dg-tag is-${tierOf(level).toLowerCase()}`}>{tierOf(level)}</span>
       </span>
       <span className="dg-card-name">{level.title}</span>

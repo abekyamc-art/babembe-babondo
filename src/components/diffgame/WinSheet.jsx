@@ -20,14 +20,14 @@ export default function WinSheet({ level, result, hasNext, onNext, onAgain, onMe
   }, []);
 
   return (
-    <div className="dg-sheet-wrap" role="dialog" aria-modal="true" aria-label="Level complete">
+    <div className="dg-sheet-wrap" role="dialog" aria-modal="true" aria-label="Episode complete">
       <div className="dg-sheet is-win">
         <span className="dg-sheet-mark" aria-hidden="true">
           <Trophy />
         </span>
-        <h2 className="dg-sheet-title">Excellent! Level Complete!</h2>
+        <h2 className="dg-sheet-title">Excellent! Episode Complete!</h2>
         <p className="dg-sheet-sub">
-          Level {level.id} · {level.title}
+          Episode {level.id} · {level.title}
         </p>
 
         <div className="dg-stars-big" aria-label={`${result.stars} of 3 stars earned`}>
@@ -61,7 +61,7 @@ export default function WinSheet({ level, result, hasNext, onNext, onAgain, onMe
         <div className="dg-sheet-actions">
           {hasNext ? (
             <button type="button" className="dg-btn is-main" onClick={onNext}>
-              Next Level
+              Next Episode
             </button>
           ) : null}
           <button type="button" className={hasNext ? "dg-btn" : "dg-btn is-main"} onClick={onAgain}>
@@ -73,8 +73,8 @@ export default function WinSheet({ level, result, hasNext, onNext, onAgain, onMe
         </div>
         <p className="dg-sheet-note">
           {hasNext
-            ? "The next level is open now."
-            : "Every level that stands is passed. More levels are on the way."}
+            ? "The next episode is open now."
+            : "Every episode that stands is passed. More episodes are on the way."}
         </p>
       </div>
     </div>

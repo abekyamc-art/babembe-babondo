@@ -2,20 +2,21 @@ import React from "react";
 import { ChevronRight } from "lucide-react";
 import GameScene from "./scenes/GameScene";
 
-/** The untouched drawing, so the cover's scenes are the levels' own pictures as they were made. */
+/** The untouched drawing, so the cover's scenes are the episodes' own pictures as they were made. */
 const NONE = new Set();
 
 /**
- * The one cover that holds every level: the game's own scenes drawn small beside each other, and what has
- * been passed written under them. Opening it is what shows the level map itself, with every card on it.
+ * The one cover that holds every episode: it stands for Episode 1, with the game's own scenes drawn small
+ * beside each other under its name and every season with its count written below. Opening it is what
+ * shows the map of episodes, each of them standing under the season it belongs to.
  */
-export default function LevelsCover({ previews, slots, passed, stars, onOpen }) {
+export default function LevelsCover({ previews, slots, seasons, passed, stars, onOpen }) {
   return (
     <button
       type="button"
       className="dg-cover"
       onClick={onOpen}
-      aria-label={`All levels — open the level map, ${passed} of ${slots} passed, ${stars} stars earned`}
+      aria-label={`The cover for Episode 1 — open the episode map, ${passed} of ${slots} passed, ${stars} stars earned`}
     >
       <span className="dg-cover-art">
         {previews.map((level) => (
@@ -26,9 +27,10 @@ export default function LevelsCover({ previews, slots, passed, stars, onOpen }) 
       </span>
 
       <span className="dg-cover-body">
-        <span className="dg-cover-name">All levels</span>
+        <span className="dg-cover-kicker">The cover</span>
+        <span className="dg-cover-name">EPISODE 1</span>
         <span className="dg-cover-sub">
-          Every picture level in one place — {slots} levels, {passed} passed
+          {seasons.map((season) => `Season ${season.no} · ${season.count} episodes`).join("   ·   ")}
         </span>
       </span>
 

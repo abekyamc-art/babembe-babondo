@@ -439,6 +439,15 @@
   gap: 3px;
 }
 
+/* what the cover is: it stands for Episode 1 */
+.dg-cover-kicker {
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #8ea0c9;
+}
+
 .dg-cover-name {
   font-size: 17px;
   font-weight: 800;
@@ -500,6 +509,17 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
   gap: 10px;
+}
+
+/* the season the episodes under it belong to */
+.dg-season {
+  grid-column: 1 / -1;
+  margin: 4px 0 -2px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  color: #9fb0d8;
 }
 
 .dg-card {

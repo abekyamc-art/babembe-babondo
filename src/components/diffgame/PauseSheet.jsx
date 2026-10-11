@@ -13,7 +13,7 @@ export default function PauseSheet({ onResume, onRestart, onLevels }) {
             <Play aria-hidden="true" /> Resume
           </button>
           <button type="button" className="dg-btn" onClick={onRestart}>
-            <RotateCcw aria-hidden="true" /> Restart Level
+            <RotateCcw aria-hidden="true" /> Restart Episode
           </button>
           <button type="button" className="dg-btn is-ghost" onClick={onLevels}>
             <Grid2x2 aria-hidden="true" /> Game Menu

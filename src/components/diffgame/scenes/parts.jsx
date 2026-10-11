@@ -229,3 +229,78 @@ export const Birds = ({ x, y, s = 1 }) => (
     <path d="M-30 0 q15 -18 30 0 q15 -18 30 0" />
   </g>
 );
+
+export const Drum = ({ x, y, s = 1, cloth = "#3f9d54" }) => (
+  <g transform={`translate(${x} ${y}) scale(${s})`}>
+    <path d="M-58 70 h116 l-16 -140 h-84 z" fill="#d9a253" stroke={INK} strokeWidth="6" strokeLinejoin="round" />
+    <path d="M-70 -70 h140 l-12 -34 h-116 z" fill={cloth} stroke={INK} strokeWidth="6" strokeLinejoin="round" />
+    <ellipse cx="0" cy="-104" rx="58" ry="20" fill="#e8bd77" stroke={INK} strokeWidth="6" />
+    <path d="M-52 6 h104 M-46 34 h92" stroke="#a9723f" strokeWidth="6" />
+    <path d="M-78 -58 q78 -30 156 0" fill="none" stroke="#7d5a34" strokeWidth="9" strokeLinecap="round" />
+  </g>
+);
+
+export const Stool = ({ x, y, s = 1, top = "#c58b52" }) => (
+  <g transform={`translate(${x} ${y}) scale(${s})`}>
+    <path d="M-36 -30 l-10 38 M36 -30 l10 38 M0 -26 l0 40" stroke="#8b5a2b" strokeWidth="10" strokeLinecap="round" />
+    <ellipse cx="0" cy="-40" rx="54" ry="18" fill={top} stroke={INK} strokeWidth="6" />
+  </g>
+);
+
+export const Goat = ({ x, y, s = 1, coat = "#f6efe2" }) => (
+  <g transform={`translate(${x} ${y}) scale(${s})`}>
+    <path d="M-34 16 l-6 30 M-12 20 l0 26 M18 18 l4 28 M36 14 l4 34" stroke="#8b5a2b" strokeWidth="7" strokeLinecap="round" />
+    <ellipse cx="0" cy="0" rx="46" ry="26" fill={coat} stroke={INK} strokeWidth="5" />
+    <circle cx="56" cy="-26" r="20" fill={coat} stroke={INK} strokeWidth="5" />
+    <path d="M68 -48 q8 -22 24 -26" fill="none" stroke="#d9c39a" strokeWidth="8" strokeLinecap="round" />
+    <path d="M46 -46 q-6 -20 -20 -22" fill="none" stroke="#d9c39a" strokeWidth="8" strokeLinecap="round" />
+    <path d="M40 -18 q-16 10 -30 -2" fill="none" stroke={INK} strokeWidth="4" strokeLinecap="round" />
+    <path d="M-44 -4 q-18 -12 -24 6" fill="none" stroke={INK} strokeWidth="7" strokeLinecap="round" />
+    <circle cx="62" cy="-28" r="4.5" fill={INK} />
+    <path d="M72 -16 q9 4 0 9" fill="none" stroke={INK} strokeWidth="4" strokeLinecap="round" />
+  </g>
+);
+
+export const Fence = ({ x, y, w = 260, s = 1 }) => (
+  <g transform={`translate(${x} ${y}) scale(${s})`}>
+    {[0, w / 2, w].map((dx) => (
+      <rect key={dx} x={dx - 8} y="-70" width="16" height="82" rx="6" fill="#a9723f" stroke={INK} strokeWidth="5" />
+    ))}
+    <rect x="-16" y="-54" width={w + 32} height="13" rx="6" fill="#c58b52" stroke={INK} strokeWidth="5" />
+    <rect x="-16" y="-24" width={w + 32} height="13" rx="6" fill="#c58b52" stroke={INK} strokeWidth="5" />
+  </g>
+);
+
+export const Basin = ({ x, y, s = 1, fill = "#cfd8e3" }) => (
+  <g transform={`translate(${x} ${y}) scale(${s})`}>
+    <path d="M-64 -12 h128 l-24 46 h-80 z" fill={fill} stroke={INK} strokeWidth="6" strokeLinejoin="round" />
+    <ellipse cx="0" cy="-12" rx="64" ry="17" fill="#eef4fb" stroke={INK} strokeWidth="6" />
+    <path d="M-38 -20 q38 16 76 0" fill="none" stroke="#9fb2c7" strokeWidth="5" />
+  </g>
+);
+
+export const Cloth = ({ x, y, s = 1, color = "#fdf6ec" }) => (
+  <g transform={`translate(${x} ${y}) scale(${s})`}>
+    <path d="M-32 -38 h64 l-8 72 h-48 z" fill={color} stroke={INK} strokeWidth="5" strokeLinejoin="round" />
+    <path d="M-32 -38 q32 -14 64 0" fill="none" stroke={INK} strokeWidth="5" />
+    <path d="M-20 6 h40" stroke="rgba(47,36,24,0.22)" strokeWidth="5" />
+  </g>
+);
+
+export const RiverBand = ({ y = 370, height = 120 }) => (
+  <g>
+    <rect x="0" y={y} width="1000" height={height} fill="#6cc0e5" />
+    <rect x="0" y={y} width="1000" height="14" fill="#8ed3ef" />
+    <g fill="none" stroke="#ffffff" strokeWidth="6" strokeLinecap="round" opacity="0.75">
+      <path d={`M60 ${y + 46} q40 -16 80 0 q40 16 80 0`} />
+      <path d={`M300 ${y + 78} q40 -16 80 0 q40 16 80 0`} />
+      <path d={`M640 ${y + 40} q40 -16 80 0 q40 16 80 0`} />
+      <path d={`M840 ${y + 84} q40 -16 80 0 q40 16 80 0`} />
+    </g>
+    <g fill="#9fb2c7" stroke={INK} strokeWidth="5">
+      <ellipse cx="150" cy={y + 96} rx="46" ry="20" />
+      <ellipse cx="470" cy={y + 104} rx="38" ry="16" />
+      <ellipse cx="790" cy={y + 100} rx="52" ry="22" />
+    </g>
+  </g>
+);
