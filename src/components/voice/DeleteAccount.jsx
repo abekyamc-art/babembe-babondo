@@ -55,9 +55,9 @@ export default function DeleteAccount() {
           <AlertDialogHeader>
             <AlertDialogTitle>Delete your account?</AlertDialogTitle>
             <AlertDialogDescription>
-              Your profile, your sign-in and everything saved about you are permanently purged, and you
-              will be signed out. The reels, comments and chats you posted stay as they are. This cannot
-              be undone.
+              Your profile and coin balance, your voice recordings, and all your account history — your
+              conversations, exam progress, songs, reels and comments — are permanently deleted, and you
+              are signed out. This cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error ? <p className="text-[14px] text-destructive">{error}</p> : null}
