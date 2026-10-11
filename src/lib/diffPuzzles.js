@@ -1,13 +1,14 @@
 import { LEVELS } from "./differenceGame/levels";
+import { picturesOf } from "./differenceGame/scenePictures";
 
 /**
  * GLOIRE AI — the picture puzzle of one episode: one drawn scene shown twice, the lower copy carrying
  * the differences, for the student to tap each place he finds.
  *
- * The two pictures are the app's own drawings — the very same scenes, and the very same places, the Find
- * the Differences game is played on — so they stand on the card the moment the question opens, they never
- * come up blank, and every difference is exactly where the drawing changes rather than a place guessed at
- * on a grid laid over a picture.
+ * The two pictures are the app's own drawn pairs — the very same pictures, and the very same places, the
+ * Find the Differences game is played on — so they stand on the card the moment the question opens, they
+ * never come up blank, and every difference is exactly where the picture changes rather than a place
+ * guessed at on a grid laid over a picture.
  *
  * The puzzles are used in turn: the episode after this one is given the puzzle after this one, so two
  * episodes beside each other are never the same puzzle. A puzzle is worked out from the season and the
@@ -17,8 +18,15 @@ import { LEVELS } from "./differenceGame/levels";
 /** How many differences every puzzle holds. */
 export const DIFFERENCE_COUNT = LEVELS[0].differences.length;
 
-/** The levels the exam draws from: the ones whose scene holds exactly the five places a paper asks for. */
-const PUZZLES = LEVELS.filter((level) => level.differences.length === DIFFERENCE_COUNT);
+/**
+ * The levels the exam draws from: the ones whose picture holds exactly the five places a paper asks for,
+ * and that stand as a drawn pair — so the exam's puzzle is always a real pair of photographs whose places
+ * were read from the pictures themselves, never one of the app's own drawings, whose places were set by
+ * hand instead.
+ */
+const PUZZLES = LEVELS.filter(
+  (level) => level.differences.length === DIFFERENCE_COUNT && picturesOf(level.scene)
+);
 
 export function differencePuzzle(seasonNo, episode) {
   const index = seasonNo * 1000 + episode;
