@@ -79,13 +79,19 @@ function build(id, recipe, position) {
       ? { how: "hide" }
       : { how: "turn", colour: piece.tints[(id + n) % piece.tints.length] };
     item.change = change;
+    // the place a piece takes is kept inside the picture itself, so its touch area and the ring that marks
+    // it found always stand on the scene the player is looking at
     const box = boxOf(item.kind, item.x, item.y, item.s);
+    const w = Math.min(1000, box.w);
+    const h = Math.min(560, box.h);
+    const x = Math.min(Math.max(0, box.x), 1000 - w);
+    const y = Math.min(Math.max(0, box.y), 560 - h);
     return {
       id: item.key,
-      x: +Math.max(0, box.x / 1000).toFixed(4),
-      y: +Math.max(0, box.y / 560).toFixed(4),
-      w: +(Math.min(1000, box.w) / 1000).toFixed(4),
-      h: +(Math.min(560, box.h) / 560).toFixed(4),
+      x: +(x / 1000).toFixed(4),
+      y: +(y / 560).toFixed(4),
+      w: +(w / 1000).toFixed(4),
+      h: +(h / 560).toFixed(4),
       label: labelOf(item.kind, change),
       ...(n < tier.required ? {} : { extra: true }),
     };
