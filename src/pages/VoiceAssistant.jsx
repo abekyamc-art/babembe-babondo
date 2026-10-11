@@ -36,6 +36,7 @@ import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
 import StorySheet from "@/components/story/StorySheet";
 import StoryRail from "@/components/story/StoryRail";
 import ExamLauncher from "@/components/exam/ExamLauncher";
+import GameLauncher from "@/components/diffgame/GameLauncher";
 import SeriesShell from "@/components/exam/SeriesShell";
 
 // the outside voice the call hands over to on its own carries its own mark; the older talk AIs
@@ -462,6 +463,8 @@ export default function VoiceAssistant() {
              screen, beside the message box, before anything is asked of the call itself */}
         <div className="flex items-center gap-2">
           <ExamLauncher onOpen={() => setLevelsOpen(true)} />
+          {/* the app's own game stands beside the examination's seal, in the same reach of the thumb */}
+          <GameLauncher />
           <div className="min-w-0 flex-1">
             <ChatInput onSend={handleSend} onCall={handleCall} inCall={micActive} />
           </div>

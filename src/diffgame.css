@@ -1,0 +1,870 @@
+/* GLOIRE AI — FIND THE DIFFERENCES · Created by CEO Gloire Sadiki Asende.
+   The game's own surface: deep blue, bright fruit colours, big thumb-sized controls, and the pictures
+   drawn in the app itself. It keeps its own palette, apart from the app's screens, and it respects the
+   phone's safe areas at the notch and the home indicator. */
+.dg-shell {
+  --dg-deep: #283d7a;
+  --dg-deep-2: #17224a;
+  --dg-night: #0c1430;
+  --dg-chip: #8ca8d9;
+  --dg-good: #16a34a;
+  --dg-bad: #e11d48;
+  --dg-hint: #f5b301;
+  --dg-line: #2b3b6e;
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-height: 100dvh;
+  padding: calc(env(safe-area-inset-top, 0px) + 10px) 12px
+    calc(env(safe-area-inset-bottom, 0px) + 16px);
+  color: #f4f7ff;
+  background: linear-gradient(180deg, #1b2751 0%, #121c40 46%, var(--dg-night) 100%);
+  font-family: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ---------- the header ---------- */
+.dg-head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 10px;
+  border-radius: 18px;
+  background: var(--dg-deep);
+  box-shadow: 0 10px 24px rgba(6, 12, 32, 0.35);
+}
+
+.dg-head-text {
+  min-width: 0;
+  flex: 1;
+}
+
+.dg-title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: -0.2px;
+}
+
+.dg-sub {
+  margin: 2px 0 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: #c7d5f5;
+  overflow-wrap: anywhere;
+}
+
+.dg-icon {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  padding: 0;
+  color: #fff;
+  background: #35498a;
+  border: 1px solid #4c62a8;
+  border-radius: 14px;
+  cursor: pointer;
+}
+
+.dg-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.dg-icon.is-off {
+  color: #b6c4e6;
+  background: #26355f;
+}
+
+.dg-icon:active {
+  transform: scale(0.96);
+}
+
+.dg-icon:focus-visible,
+.dg-btn:focus-visible,
+.dg-act:focus-visible,
+.dg-switch:focus-visible,
+.dg-card:focus-visible {
+  outline: 3px solid #7fb3ff;
+  outline-offset: 2px;
+}
+
+/* ---------- score, clock, mistakes ---------- */
+.dg-strip,
+.dg-tally {
+  display: flex;
+  gap: 8px;
+}
+
+.dg-stat {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex: 1;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--dg-line);
+  border-radius: 14px;
+  background: #16224a;
+  font-size: 15px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.dg-stat svg {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: #ffd23f;
+}
+
+.dg-stat em {
+  font-style: normal;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9fb0d8;
+}
+
+.dg-stat.is-low {
+  border-color: var(--dg-bad);
+  background: #3a1230;
+}
+
+.dg-stat.is-low svg {
+  color: #ff8fa3;
+}
+
+/* ---------- the tracker of differences ---------- */
+.dg-tracker {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--dg-line);
+  border-radius: 16px;
+  background: var(--dg-deep);
+}
+
+.dg-chips {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 7px;
+}
+
+.dg-chip {
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  color: #fff;
+  background: var(--dg-chip);
+  box-shadow: inset 0 -3px 0 rgba(9, 16, 44, 0.24);
+  font-size: 15px;
+  font-weight: 800;
+  transition: background 0.2s ease, transform 0.2s ease;
+}
+
+.dg-chip svg {
+  width: 17px;
+  height: 17px;
+}
+
+.dg-chip.is-found {
+  background: var(--dg-good);
+  animation: dg-pop 0.32s ease-out;
+}
+
+.dg-left {
+  margin: 0;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #d6e0f8;
+}
+
+/* ---------- the two pictures ---------- */
+.dg-board {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--dg-line);
+  border-radius: 16px;
+  overflow: hidden;
+  background: #0d1633;
+}
+
+.dg-panel {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 1000 / 560;
+  overflow: hidden;
+  cursor: crosshair;
+  touch-action: manipulation;
+}
+
+.dg-art {
+  position: absolute;
+  inset: 0;
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.dg-divide {
+  display: block;
+  height: 4px;
+  background: linear-gradient(90deg, var(--dg-hint), #fff, var(--dg-hint));
+  opacity: 0.85;
+}
+
+/* a difference's own touch area: never seen, only touched */
+.dg-spot {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  border-radius: 14px;
+  background: transparent;
+  cursor: pointer;
+  touch-action: manipulation;
+}
+
+.dg-spot.is-found {
+  cursor: default;
+}
+
+/* a difference that is found rings out on both pictures */
+.dg-ring {
+  position: absolute;
+  border: 4px solid var(--dg-good);
+  border-radius: 999px;
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.8), 0 0 18px rgba(34, 197, 94, 0.65);
+  pointer-events: none;
+  animation: dg-pop 0.34s ease-out both;
+}
+
+.dg-ring.is-hint {
+  border-color: var(--dg-hint);
+  box-shadow: 0 0 0 3px rgba(255, 255, 255, 0.7), 0 0 20px rgba(245, 179, 1, 0.85);
+  animation: dg-glow 0.85s ease-in-out infinite;
+}
+
+/* the places missed stand softly in yellow once the level is over */
+.dg-ring.is-reveal {
+  border-color: var(--dg-hint);
+  border-style: dashed;
+  box-shadow: none;
+  opacity: 0.9;
+  animation: none;
+}
+
+.dg-wrong {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  width: 46px;
+  height: 46px;
+  margin: -23px 0 0 -23px;
+  color: #fff;
+  background: var(--dg-bad);
+  border: 3px solid #fff;
+  border-radius: 999px;
+  pointer-events: none;
+  animation: dg-fade 0.76s ease-out both;
+}
+
+.dg-wrong svg {
+  width: 24px;
+  height: 24px;
+}
+
+.dg-loading {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: #d6e0f8;
+  background: rgba(9, 16, 44, 0.82);
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* ---------- hint, pause, restart ---------- */
+.dg-bar {
+  display: flex;
+  gap: 8px;
+}
+
+.dg-act {
+  display: flex;
+  flex: 1;
+  min-height: 56px;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  padding: 8px 6px;
+  color: #f4f7ff;
+  background: #26355f;
+  border: 1px solid #3c4f86;
+  border-radius: 16px;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dg-act svg {
+  width: 22px;
+  height: 22px;
+}
+
+.dg-act.is-hint {
+  color: #2a1f00;
+  background: var(--dg-hint);
+  border-color: #ffd25e;
+}
+
+.dg-act.is-spent {
+  color: #9fb0d8;
+  background: #1b2748;
+  border-color: #2b3b6e;
+}
+
+.dg-act:disabled {
+  opacity: 0.55;
+  cursor: default;
+}
+
+.dg-act:active:not(:disabled) {
+  transform: scale(0.97);
+}
+
+/* ---------- the menu of levels ---------- */
+.dg-switches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.dg-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 46px;
+  padding: 0 14px;
+  color: #cdd9f6;
+  background: #16224a;
+  border: 1px solid var(--dg-line);
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.dg-switch svg {
+  width: 18px;
+  height: 18px;
+}
+
+.dg-switch.is-on {
+  color: #06210f;
+  background: #7ce3a5;
+  border-color: #a9f0c6;
+}
+
+.dg-note {
+  margin: 0;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: #9fb0d8;
+}
+
+.dg-levels {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(152px, 1fr));
+  gap: 10px;
+}
+
+.dg-card {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 10px;
+  color: #f4f7ff;
+  background: #16224a;
+  border: 1px solid var(--dg-line);
+  border-radius: 18px;
+  text-align: left;
+  cursor: pointer;
+}
+
+.dg-card:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.dg-card.is-locked {
+  cursor: default;
+}
+
+.dg-card.is-selected {
+  border-color: #ffd23f;
+}
+
+.dg-card.is-soon {
+  align-items: center;
+  justify-content: center;
+  min-height: 150px;
+  color: #8ea0c9;
+  background: #121c40;
+  border-style: dashed;
+}
+
+.dg-thumb {
+  position: relative;
+  display: block;
+  aspect-ratio: 1000 / 560;
+  overflow: hidden;
+  border-radius: 12px;
+  background: #0d1633;
+}
+
+.dg-card.is-locked .dg-art {
+  filter: grayscale(0.85) brightness(0.55);
+}
+
+.dg-lock {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  background: rgba(9, 16, 44, 0.42);
+}
+
+.dg-lock svg {
+  width: 26px;
+  height: 26px;
+}
+
+.dg-card-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+}
+
+.dg-card-no {
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.dg-tag {
+  padding: 3px 8px;
+  border-radius: 999px;
+  font-size: 9.5px;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #06210f;
+  background: #7ce3a5;
+}
+
+.dg-tag.is-medium {
+  color: #2a1f00;
+  background: #ffd25e;
+}
+
+.dg-tag.is-hard {
+  color: #3a0010;
+  background: #ff9db1;
+}
+
+.dg-card-name {
+  font-size: 12px;
+  font-weight: 600;
+  color: #c7d5f5;
+  overflow-wrap: anywhere;
+}
+
+.dg-card-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: auto;
+}
+
+.dg-stars,
+.dg-stars-big {
+  display: inline-flex;
+  gap: 3px;
+}
+
+.dg-star {
+  width: 15px;
+  height: 15px;
+  color: #4b5a86;
+  fill: #4b5a86;
+}
+
+.dg-star.is-on {
+  color: #ffd23f;
+  fill: #ffd23f;
+}
+
+.dg-stars-big .dg-star {
+  width: 34px;
+  height: 34px;
+}
+
+.dg-best {
+  font-size: 11px;
+  font-weight: 700;
+  color: #9fb0d8;
+}
+
+/* ---------- the sheets: won, lost, paused ---------- */
+.dg-sheet-wrap {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px 12px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  background: linear-gradient(
+    180deg,
+    rgba(6, 12, 32, 0.22) 0%,
+    rgba(6, 12, 32, 0.6) 42%,
+    rgba(6, 12, 32, 0.9) 100%
+  );
+}
+
+.dg-sheet {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  max-width: 460px;
+  max-height: 86dvh;
+  overflow-y: auto;
+  padding: 20px 18px 22px;
+  border: 1px solid var(--dg-line);
+  border-radius: 24px;
+  background: linear-gradient(180deg, #1d2a58 0%, #131d42 100%);
+  box-shadow: 0 24px 60px rgba(4, 8, 24, 0.6);
+  animation: dg-rise 0.34s ease-out both;
+}
+
+.dg-sheet.is-win {
+  border-color: #2f7a52;
+}
+
+.dg-sheet-mark {
+  display: grid;
+  place-items: center;
+  width: 62px;
+  height: 62px;
+  border-radius: 999px;
+  color: #06210f;
+  background: #7ce3a5;
+}
+
+.dg-sheet-mark.is-lose {
+  color: #3a0010;
+  background: #ffd25e;
+}
+
+.dg-sheet-mark svg {
+  width: 32px;
+  height: 32px;
+}
+
+.dg-sheet-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 800;
+  text-align: center;
+}
+
+.dg-sheet-sub {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: #c7d5f5;
+  text-align: center;
+}
+
+.dg-facts {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin: 0;
+}
+
+.dg-facts > div {
+  flex: 1;
+  min-width: 0;
+  padding: 10px 8px;
+  border: 1px solid var(--dg-line);
+  border-radius: 14px;
+  background: #101a3c;
+  text-align: center;
+}
+
+.dg-facts dt {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #9fb0d8;
+}
+
+.dg-facts dt svg {
+  width: 13px;
+  height: 13px;
+}
+
+.dg-facts dd {
+  margin: 4px 0 0;
+  font-size: 18px;
+  font-weight: 800;
+}
+
+.dg-praise {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  width: 100%;
+  margin: 0;
+  padding: 12px;
+  border: 1px dashed var(--dg-hint);
+  border-radius: 16px;
+  background: rgba(245, 179, 1, 0.1);
+  text-align: center;
+}
+
+.dg-praise-kb {
+  font-size: 15px;
+  font-weight: 800;
+  color: #ffe08a;
+}
+
+.dg-praise-en {
+  font-size: 12px;
+  font-weight: 600;
+  color: #e9d9a8;
+}
+
+.dg-sheet-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  width: 100%;
+}
+
+.dg-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  min-height: 52px;
+  padding: 0 16px;
+  color: #f4f7ff;
+  background: #26355f;
+  border: 1px solid #3c4f86;
+  border-radius: 16px;
+  font-size: 14.5px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.dg-btn svg {
+  width: 19px;
+  height: 19px;
+}
+
+.dg-btn.is-main {
+  color: #06210f;
+  background: #7ce3a5;
+  border-color: #a9f0c6;
+}
+
+.dg-btn.is-ghost {
+  color: #cdd9f6;
+  background: transparent;
+}
+
+.dg-btn:active {
+  transform: scale(0.98);
+}
+
+.dg-sheet-note {
+  margin: 0;
+  font-size: 11.5px;
+  color: #9fb0d8;
+  text-align: center;
+}
+
+/* ---------- the seal that opens the game from the app ---------- */
+.game-corner {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.game-seal {
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  color: #fff;
+  background: #2563eb;
+  clip-path: polygon(
+    50% 0,
+    62% 8%,
+    77% 5%,
+    85% 18%,
+    98% 26%,
+    94% 42%,
+    100% 55%,
+    90% 68%,
+    89% 84%,
+    73% 88%,
+    62% 100%,
+    48% 93%,
+    33% 100%,
+    23% 88%,
+    7% 84%,
+    9% 68%,
+    0 55%,
+    6% 41%,
+    2% 26%,
+    16% 18%,
+    23% 5%,
+    39% 8%
+  );
+  filter: drop-shadow(0 5px 12px rgba(22, 34, 58, 0.26));
+  animation: game-hues 8s steps(1, end) infinite;
+  transition: filter 0.2s ease, transform 0.2s ease;
+}
+
+.game-seal svg {
+  width: 21px;
+  height: 21px;
+}
+
+.game-corner:hover .game-seal {
+  filter: drop-shadow(0 5px 12px rgba(22, 34, 58, 0.3)) brightness(1.06);
+}
+
+.game-corner:active .game-seal {
+  transform: scale(0.94);
+}
+
+.game-corner:focus-visible {
+  outline: 3px solid #7fb3ff;
+  outline-offset: 3px;
+  border-radius: 16px;
+}
+
+@keyframes game-hues {
+  0%,
+  24.99% {
+    background: #2563eb;
+  }
+  25%,
+  49.99% {
+    background: #7c3aed;
+  }
+  50%,
+  74.99% {
+    background: #16a34a;
+  }
+  75%,
+  99.99% {
+    background: #f59e0b;
+  }
+}
+
+@keyframes dg-pop {
+  0% {
+    transform: scale(0.5);
+    opacity: 0.4;
+  }
+  60% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes dg-glow {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(0.94);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.06);
+  }
+}
+
+@keyframes dg-fade {
+  0% {
+    transform: scale(0.7);
+    opacity: 0;
+  }
+  22% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  70% {
+    opacity: 1;
+  }
+  100% {
+    transform: scale(1.05);
+    opacity: 0;
+  }
+}
+
+@keyframes dg-rise {
+  from {
+    transform: translateY(26px);
+    opacity: 0.6;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dg-sheet,
+  .dg-chip.is-found,
+  .dg-ring,
+  .dg-wrong,
+  .game-seal,
+  .dg-ring.is-hint {
+    animation: none;
+  }
+}
