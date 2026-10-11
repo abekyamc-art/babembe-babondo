@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
 import { photoPuzzleAreas } from '../../shared/photoPuzzleAreas.ts';
+import { replicateImage } from '../../shared/replicate.ts';
 
 /**
  * GLOIRE AI — FIND THE DIFFERENCES: one episode drawn as its own cartoon picture.
@@ -310,19 +311,36 @@ function changedPrompt(changes) {
  * One picture, drawn on the episode's own account — or, when that account cannot answer, on the next
  * account this app draws on, and the next after that, until one draws it. An account that has run out of
  * allowance is skipped rather than waited on, because several episodes are drawn in a run.
+ *
+ * When none of the app's own accounts can draw it, the owner's own Replicate account draws it instead,
+ * and that drawing is paid out of that account's own allowance rather than the app's credits. When
+ * neither can draw it, both answers are named, so the reason an episode is waiting is never hidden.
  */
-async function drawn(base44, group, prompt, reference_urls) {
-  const url = await geminiImage({
-    base44,
-    group,
-    model: DRAW_BIG,
-    prompt,
-    reference_urls,
-    aspect: '16:9',
-    imageSize: '2K',
-    least: 1000,
-  });
-  return url;
+async function drawn(base44, group, prompt, reference_urls = []) {
+  let onOwn = '';
+  try {
+    return await geminiImage({
+      base44,
+      group,
+      model: DRAW_BIG,
+      prompt,
+      reference_urls,
+      aspect: '16:9',
+      imageSize: '2K',
+      least: 1000,
+    });
+  } catch (error: any) {
+    onOwn = error?.message || 'The app\u2019s own accounts did not answer.';
+    console.error('An episode picture was not drawn on the app\u2019s own accounts:', onOwn);
+  }
+
+  try {
+    return await replicateImage({ base44, prompt, reference_url: reference_urls[0] || null });
+  } catch (error: any) {
+    throw new Error(
+      `The app's own accounts could not draw it (${String(onOwn).slice(0, 150)}), and the Replicate account could not either (${String(error?.message || '').slice(0, 150)}).`
+    );
+  }
 }
 
 export default async function episodeArt(req) {

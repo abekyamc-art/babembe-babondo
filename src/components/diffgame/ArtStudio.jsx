@@ -60,8 +60,12 @@ export default function ArtStudio() {
         held.add(level.id);
         made += 1;
         setDone(new Set(held));
-      } catch {
-        bad.push(level.id);
+      } catch (error) {
+        bad.push({
+          id: level.id,
+          title: level.title,
+          reason: error?.message || "The picture could not be drawn.",
+        });
         setWaiting([...bad]);
       }
     }
@@ -111,9 +115,14 @@ export default function ArtStudio() {
         </p>
       ) : null}
       {waiting.length ? (
-        <p className="dg-studio-wait">
-          Waiting for another run: {waiting.join(", ")}
-        </p>
+        <div className="dg-studio-wait">
+          <p className="dg-studio-wait-head">Waiting for another run</p>
+          {waiting.map((held) => (
+            <p key={held.id} className="dg-studio-wait-row">
+              {`Episode ${held.id} — ${held.title}: ${held.reason}`}
+            </p>
+          ))}
+        </div>
       ) : null}
     </section>
   );
