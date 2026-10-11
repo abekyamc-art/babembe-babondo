@@ -50,6 +50,13 @@ const KEYS: Record<string, string> = {
   scenetwo: "GEMINI_API_KEY7",
   trophies: "GEMINI_API_KEY8",
   covers: "GEMINI_API_KEY9",
+  // the cartoon episodes of the differences game ask for the heaviest drawing this app ever makes — two
+  // pictures for every one of them — so they stand on the two accounts whose own work is already drawn
+  // and finished, and each picture names a second account to fall back to when its own allowance is spent.
+  episodebase: "GEMINI_API_KEY6",
+  episodealt: "GEMINI_API_KEY9",
+  episodecopy: "GEMINI_API_KEY7",
+  episodecopyalt: "GEMINI_API_KEY8",
 };
 
 /**

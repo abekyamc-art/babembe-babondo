@@ -2,8 +2,10 @@ import React, { useState } from "react";
 import { ChevronLeft, Star, Trophy, Volume2, VolumeX, Vibrate, Hourglass } from "lucide-react";
 import LevelCard from "./LevelCard";
 import SeasonsCover from "./SeasonsCover";
+import ArtStudio from "./ArtStudio";
 import { LEVEL_SLOTS, SEASONS, episodesIn } from "@/lib/differenceGame/levels";
 import { levelRecord, levelsPassed, starsEarned, unlocked } from "@/lib/differenceGame/store";
+import { useSeasonArt } from "@/lib/differenceGame/episodeArt";
 
 /**
  * The game's own menu: the ten seasons the game is planned in, the stars and the score earned, and the
@@ -29,6 +31,8 @@ export default function LevelSelect({ state, onPrefs, onOpen, onExit }) {
     };
   });
   const shown = seasons.find((held) => held.no === season) || null;
+  // every episode whose own cartoon picture stands is shown by it on its card
+  const art = useSeasonArt(shown ? shown.episodes : []);
 
   return (
     <div className="dg-shell">
@@ -105,6 +109,7 @@ export default function LevelSelect({ state, onPrefs, onOpen, onExit }) {
               <LevelCard
                 key={level.id}
                 level={level}
+                art={art[level.id] || null}
                 record={levelRecord(state, level.id)}
                 locked={!unlocked(state, level.id)}
                 onOpen={() => onOpen(level.id)}
@@ -115,6 +120,8 @@ export default function LevelSelect({ state, onPrefs, onOpen, onExit }) {
       ) : (
         <SeasonsCover seasons={seasons} onOpen={setSeason} />
       )}
+
+      <ArtStudio />
     </div>
   );
 }

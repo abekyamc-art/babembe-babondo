@@ -23,6 +23,7 @@ export default function PuzzlePanel({
   uid,
   differences,
   changed,
+  art,
   found,
   hintId,
   reveal,
@@ -64,7 +65,14 @@ export default function PuzzlePanel({
       aria-label={label}
       onPointerDown={touched}
     >
-      <GameScene scene={scene} changed={changed} uid={uid} differences={differences} onLoad={imageLoaded} />
+      <GameScene
+        scene={scene}
+        changed={changed}
+        uid={uid}
+        differences={differences}
+        art={art}
+        onLoad={imageLoaded}
+      />
 
       {differences.map((difference, i) => {
         const isFound = found.includes(difference.id);

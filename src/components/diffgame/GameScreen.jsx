@@ -22,10 +22,21 @@ import { sfx, buzz } from "@/lib/differenceGame/sfx";
  * extras standing beside it. Both pictures of a level are drawn by the app itself, so they are on screen
  * the moment the level opens and never come up blank.
  */
-export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLevels, onMenu }) {
+export default function GameScreen({ level, art, prefs, onPrefs, onWin, onNext, onLevels, onMenu }) {
+  // An episode whose own cartoon picture stands is played on it: the places its drawing truly differs in
+  // are the episode's own places. An episode still waiting for its picture keeps the drawn scene it has.
+  const places = useMemo(
+    () => (art?.differences?.length ? art.differences : level.differences),
+    [art, level]
+  );
+  const game = useMemo(
+    () => (places === level.differences ? level : { ...level, differences: places }),
+    [places, level]
+  );
+
   // Keep the original target; any visible difference counts, including the two spare choices.
-  const required = requiredCount(level);
-  const extras = extraCount(level);
+  const required = requiredCount(game);
+  const extras = extraCount(game);
   const timed = !prefs.relaxed;
 
   const [found, setFound] = useState([]);
@@ -43,7 +54,7 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
   const markTimers = useRef([]);
 
   const master = useMemo(() => new Set(), []);
-  const altered = useMemo(() => new Set(level.differences.map((difference) => difference.id)), [level]);
+  const altered = useMemo(() => new Set(places.map((difference) => difference.id)), [places]);
 
   const scoreOf = (foundCount, wrong, seconds, hints) =>
     Math.max(
@@ -144,8 +155,8 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
     if (phase !== "playing" || hintsLeft <= 0) return;
     // the hint points at a place the level asks for, so it carries the level on; an extra waits behind them
     const missing = [
-      ...requiredPlaces(level).filter((place) => !found.includes(place.id)),
-      ...extraPlaces(level).filter((place) => !found.includes(place.id)),
+      ...requiredPlaces(game).filter((place) => !found.includes(place.id)),
+      ...extraPlaces(game).filter((place) => !found.includes(place.id)),
     ];
     if (!missing.length) return;
     setHintsLeft((held) => held - 1);
@@ -188,7 +199,7 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
         <div className="dg-head-text">
           <h1 className="dg-title">Find the Differences</h1>
           <p className="dg-sub">
-            Episode {level.id} · {tierOf(level)} · {level.title}
+            Episode {level.id} · {tierOf(game)} · {level.title}
           </p>
         </div>
         <button
@@ -234,7 +245,8 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
         <PuzzlePanel
           scene={level.scene}
           uid="a"
-          differences={level.differences}
+          differences={places}
+          art={art}
           changed={master}
           found={found}
           hintId={hintId}
@@ -247,7 +259,8 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
         <PuzzlePanel
           scene={level.scene}
           uid="b"
-          differences={level.differences}
+          differences={places}
+          art={art}
           changed={altered}
           found={found}
           hintId={hintId}

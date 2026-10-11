@@ -1,0 +1,57 @@
+/**
+ * GLOIRE AI — FIND THE DIFFERENCES: the corner where the episodes' own pictures are drawn.
+ *
+ * It stands in the game's own dark palette, set apart from the rest of the menu by a dashed edge, so an
+ * admin meets it as the app's own workbench and a player never sees it at all.
+ */
+
+.dg-studio {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 16px;
+  padding: 14px;
+  border: 1px dashed var(--dg-line, #2b3b6e);
+  border-radius: 16px;
+  background: rgba(12, 20, 48, 0.55);
+}
+
+.dg-studio-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  color: #9fb0d8;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+}
+
+.dg-studio-head svg {
+  width: 16px;
+  height: 16px;
+  color: #ffd23f;
+}
+
+.dg-studio-wait {
+  margin: 0;
+  color: #ff8fa3;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+/* an episode's picture is fetched before the episode opens, so the places never move under a finger */
+.dg-opening {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  display: grid;
+  place-items: center;
+  margin: 0;
+  color: #d6e0f8;
+  background: rgba(9, 16, 44, 0.82);
+  font-size: 13px;
+  font-weight: 700;
+}

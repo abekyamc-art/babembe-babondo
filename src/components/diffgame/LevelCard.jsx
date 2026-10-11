@@ -11,19 +11,23 @@ const NONE = new Set();
  * One level on the map: its number, the scene drawn small, how hard it is, and what the player has earned
  * on it. A level stands open when the one before it has been passed, and is locked until then.
  */
-export default function LevelCard({ level, record, locked, onOpen }) {
+export default function LevelCard({ level, art, record, locked, onOpen }) {
+  // an episode whose own picture already stands is shown by it, and the places that pass it are the ones
+  // read back off that picture; one still waiting is shown, and played, on the game's drawn scene
+  const shown = art?.differences?.length ? { ...level, differences: art.differences } : level;
+
   return (
     <button
       type="button"
       className={"dg-card" + (locked ? " is-locked" : "") + (record.completed ? " is-passed" : "")}
       onClick={onOpen}
       disabled={locked}
-      aria-label={`Episode ${level.id}: ${level.title}, ${tierOf(level)}${
+      aria-label={`Episode ${level.id}: ${level.title}, ${tierOf(shown)}${
         locked ? ", locked" : record.completed ? `, passed with ${record.stars} stars` : ", open"
       }`}
     >
       <span className="dg-thumb" aria-hidden="true">
-        <GameScene scene={level.scene} changed={NONE} uid={`thumb${level.id}`} />
+        <GameScene scene={level.scene} changed={NONE} uid={`thumb${level.id}`} art={art} />
         {locked ? (
           <span className="dg-lock">
             <Lock />
@@ -32,7 +36,7 @@ export default function LevelCard({ level, record, locked, onOpen }) {
       </span>
       <span className="dg-card-top">
         <span className="dg-card-no">EPISODE {level.id}</span>
-        <span className={`dg-tag is-${tierOf(level).toLowerCase()}`}>{tierOf(level)}</span>
+        <span className={`dg-tag is-${tierOf(shown).toLowerCase()}`}>{tierOf(shown)}</span>
       </span>
       <span className="dg-card-name">{level.title}</span>
       <span className="dg-card-foot">
@@ -42,7 +46,7 @@ export default function LevelCard({ level, record, locked, onOpen }) {
           ))}
         </span>
         <span className="dg-best">
-          {record.best ? `${record.best} pts` : `${requiredCount(level)} to find`}
+          {record.best ? `${record.best} pts` : `${requiredCount(shown)} to find`}
         </span>
       </span>
     </button>

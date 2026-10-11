@@ -1,0 +1,108 @@
+{
+  "name": "EpisodeArt",
+  "type": "object",
+  "properties": {
+    "level_id": {
+      "type": "number",
+      "description": "The episode this picture belongs to, by the number it stands at in the game. One episode keeps one picture of its own, so nothing is drawn twice."
+    },
+    "season": {
+      "type": "number",
+      "description": "Which of the ten seasons the episode is played in, read from the episode's own number."
+    },
+    "title": {
+      "type": "string",
+      "description": "What the episode is called, so a picture is told apart in the admin's own list."
+    },
+    "base_url": {
+      "type": "string",
+      "description": "Public address of the episode's own cartoon picture: the scene as it stands, drawn for this episode alone."
+    },
+    "changed_url": {
+      "type": "string",
+      "description": "Public address of the second copy of that same picture, drawn from it with only this episode's own changes made."
+    },
+    "differences": {
+      "type": "array",
+      "description": "The places the two pictures really differ, read back off the drawn pair \u2014 never guessed at. Every place is told as a share of the picture's own width and height, so its touch area stands in the same spot on every phone.",
+      "items": {
+        "type": "object",
+        "required": [
+          "id",
+          "x",
+          "y",
+          "w",
+          "h",
+          "label"
+        ],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "The place's own id inside the episode, kept the same on both pictures."
+          },
+          "x": {
+            "type": "number",
+            "description": "How far across the picture the place begins, from the left edge, as a share of the width."
+          },
+          "y": {
+            "type": "number",
+            "description": "How far down the picture the place begins, from the top edge, as a share of the height."
+          },
+          "w": {
+            "type": "number",
+            "description": "How wide the place's touch area is, as a share of the picture's width."
+          },
+          "h": {
+            "type": "number",
+            "description": "How tall the place's touch area is, as a share of the picture's height."
+          },
+          "label": {
+            "type": "string",
+            "description": "What changed there, in the words the player is shown: the thing that went, the colour it turned, or the thing that appeared."
+          },
+          "extra": {
+            "type": "boolean",
+            "default": false,
+            "description": "A place beyond the number the episode asks for. It is a real change, a touch finds it and it earns its points, but the episode is passed without it."
+          }
+        }
+      }
+    },
+    "place": {
+      "type": "string",
+      "description": "Where the episode was drawn \u2014 the place its own scene stands in, so no two episodes stand in the same spot."
+    },
+    "made_at": {
+      "type": "string",
+      "description": "ISO time the episode's pictures were drawn."
+    },
+    "note": {
+      "type": "string",
+      "description": "Anything the drawing left to be said about the episode."
+    }
+  },
+  "required": [
+    "level_id",
+    "title",
+    "base_url",
+    "changed_url"
+  ],
+  "rls": {
+    "read": {},
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}
