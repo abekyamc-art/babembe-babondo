@@ -70,40 +70,12 @@
   gap: 10px;
 }
 
-.diff-panel {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 4 / 3;
-  overflow: hidden;
+/* The two copies are the app's own drawings — the very scenes the game is played on — so inside the
+   examination they wear the white card's own frame, and nothing else about them is changed. */
+.diff-panels .dg-panel {
+  border: 1px solid #d3dff0;
   border-radius: 14px;
   background: #e8eef7;
-  border: 1px solid #d3dff0;
-  touch-action: manipulation;
-}
-
-.diff-img {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.diff-ring {
-  position: absolute;
-  border: 2.5px solid #0f9d63;
-  border-radius: 999px;
-  background: rgba(15, 157, 99, 0.14);
-  pointer-events: none;
-}
-
-.diff-spot {
-  position: absolute;
-  padding: 0;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
 }
 
 .diff-note {

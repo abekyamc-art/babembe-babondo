@@ -26,6 +26,7 @@ export default function PuzzlePanel({
   hintId,
   reveal,
   marks,
+  label,
   onFound,
   onWrong,
 }) {
@@ -41,7 +42,13 @@ export default function PuzzlePanel({
   const hint = hintId ? differences.find((difference) => difference.id === hintId) : null;
 
   return (
-    <div className={"dg-panel" + (reveal ? " is-reveal" : "")} ref={panel} onPointerDown={touched}>
+    <div
+      className={"dg-panel" + (reveal ? " is-reveal" : "")}
+      ref={panel}
+      role="group"
+      aria-label={label}
+      onPointerDown={touched}
+    >
       <GameScene scene={scene} changed={changed} uid={uid} />
 
       {differences.map((difference, i) => {
