@@ -17,9 +17,12 @@ import { LEVELS } from "./differenceGame/levels";
 /** How many differences every puzzle holds. */
 export const DIFFERENCE_COUNT = LEVELS[0].differences.length;
 
+/** The levels the exam draws from: the ones whose scene holds exactly the five places a paper asks for. */
+const PUZZLES = LEVELS.filter((level) => level.differences.length === DIFFERENCE_COUNT);
+
 export function differencePuzzle(seasonNo, episode) {
   const index = seasonNo * 1000 + episode;
-  const drawn = LEVELS[index % LEVELS.length];
+  const drawn = PUZZLES[index % PUZZLES.length];
   return {
     id: `diff:${drawn.id}:${index}`,
     level: `Season ${seasonNo} · Episode ${episode}`,

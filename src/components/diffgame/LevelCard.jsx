@@ -1,6 +1,7 @@
 import React from "react";
 import { Lock, Star } from "lucide-react";
 import GameScene from "./scenes/GameScene";
+import { tierOf } from "@/lib/differenceGame/levels";
 
 /** The untouched drawing, so a card's picture is the scene as it was made. */
 const NONE = new Set();
@@ -16,7 +17,7 @@ export default function LevelCard({ level, record, locked, onOpen }) {
       className={"dg-card" + (locked ? " is-locked" : "") + (record.completed ? " is-passed" : "")}
       onClick={onOpen}
       disabled={locked}
-      aria-label={`Level ${level.id}: ${level.title}, ${level.difficulty}${
+      aria-label={`Level ${level.id}: ${level.title}, ${tierOf(level)}${
         locked ? ", locked" : record.completed ? `, passed with ${record.stars} stars` : ", open"
       }`}
     >
@@ -30,7 +31,7 @@ export default function LevelCard({ level, record, locked, onOpen }) {
       </span>
       <span className="dg-card-top">
         <span className="dg-card-no">Level {level.id}</span>
-        <span className={`dg-tag is-${level.difficulty.toLowerCase()}`}>{level.difficulty}</span>
+        <span className={`dg-tag is-${tierOf(level).toLowerCase()}`}>{tierOf(level)}</span>
       </span>
       <span className="dg-card-name">{level.title}</span>
       <span className="dg-card-foot">

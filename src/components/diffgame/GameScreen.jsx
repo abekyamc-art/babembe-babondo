@@ -6,7 +6,7 @@ import GameControls from "./GameControls";
 import WinSheet from "./WinSheet";
 import FailSheet from "./FailSheet";
 import PauseSheet from "./PauseSheet";
-import { HINTS_PER_LEVEL, POINTS, nextLevel } from "@/lib/differenceGame/levels";
+import { HINTS_PER_LEVEL, POINTS, nextLevel, tierOf } from "@/lib/differenceGame/levels";
 import { sfx, buzz } from "@/lib/differenceGame/sfx";
 
 /**
@@ -165,7 +165,7 @@ export default function GameScreen({ level, prefs, onPrefs, onWin, onNext, onLev
         <div className="dg-head-text">
           <h1 className="dg-title">Find the Differences</h1>
           <p className="dg-sub">
-            Level {level.id} · {level.difficulty} · {level.title}
+            Level {level.id} · {tierOf(level)} · {level.title}
           </p>
         </div>
         <button

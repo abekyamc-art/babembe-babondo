@@ -83,6 +83,11 @@ const SCENES = {
       'in the top-right, one string of coloured cloth is missing from the decorations',
       'in the bottom-left corner, a smiling child in a blue dress has appeared',
       'at the right, the big cooking pot is now silver instead of black',
+      'in the top-left of the picture, one white balloon is gone from the decorations',
+      'in the middle of the table, a plate of oranges has appeared',
+      'on the left, a woman dancing now wears a bright yellow wrap',
+      'in the bottom-right of the courtyard, a small brown dog stands beside the fire',
+      'in the bottom-left of the courtyard, a small wooden stool carries three clay cups',
     ],
   },
   8: {
@@ -98,6 +103,11 @@ const SCENES = {
       'the storyteller’s drum on the left is now red',
       'the guitar player on the right now wears a yellow hat',
       'in the bottom-left corner, the clay pot beside the fire has gone',
+      'in the top-left of the sky, one bright star is missing',
+      'in the middle of the picture, a small child now holds a wooden bowl',
+      'on the right of the fire, a grey cat sits beside the guitar player',
+      'in the middle of the picture, a wooden stool stands between the children',
+      'in the bottom-right corner, a clay water gourd lies on the ground',
     ],
   },
   9: {
@@ -113,6 +123,11 @@ const SCENES = {
       'the small flag on top of the left speaker has disappeared',
       'the drummer on the right now wears a red cap',
       'in the bottom-right corner, a water bottle stands on the stage floor',
+      'in the top-right of the picture, one stage light is now bright pink',
+      'on the right of the stage, the speaker has changed colour to bright blue',
+      'on the left of the stage, the guitarist now wears a white hat',
+      'in the bottom-left corner, a black guitar case lies on the ground',
+      'on the left of the stage, a small metal tin stands beside the guitarist',
     ],
   },
   10: {
@@ -543,6 +558,8 @@ export default async function differenceScenes(req) {
     const client = new OpenAI({ baseURL, apiKey: token, defaultHeaders: headers, maxRetries: 0 });
 
     const listed = scene.changes.map((change, i) => `(${i + 1}) ${change}`).join(' ');
+    const compact = body?.compact === true;
+    const only = Array.isArray(body?.only) ? body.only.map(Number) : null;
     let baseUrl = typeof body?.base === 'string' ? body.base : '';
     let changedUrl = typeof body?.changed === 'string' ? body.changed : '';
     let credits = 0;
@@ -590,6 +607,7 @@ export default async function differenceScenes(req) {
     const readings = [];
     for (let i = 0; i < scene.changes.length; i += 1) {
       const change = scene.changes[i];
+      if (only && !only.includes(i + 1)) continue;
       {
         const said = await base44.asServiceRole.integrations.Core.InvokeLLM({
           prompt:

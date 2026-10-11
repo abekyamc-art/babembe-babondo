@@ -2,10 +2,10 @@
  * GLOIRE AI — FIND THE DIFFERENCES: the picture scenes of the game.
  *
  * Thirty-three of the game's levels stand as 4K pictures rather than as the app's own drawings. A scene keeps
- * two addresses: the picture as it stands, and the copy drawn from it with only that level's own five
- * changes made. The two pictures are the same picture in every other line, colour and detail, so whichever
- * one the player looks at, the same five places differ — and the level's own touch areas, kept with the
- * level, are those very places, so nothing is ever marked on the picture itself.
+ * two addresses: the picture as it stands, and the copy drawn from it with only that level's own changes
+ * made. The two pictures are the same picture in every other line, colour and detail, so whichever one the
+ * player looks at, the same places differ — and the level's own touch areas, kept with the level, are those
+ * very places, so nothing is ever marked on the picture itself.
  *
  * The pictures were drawn by the game's own scene drawer (base44/functions/differenceScenes), and their
  * places were read from each drawn pair by a vision reading of it: every touch area stands where the picture
@@ -20,32 +20,32 @@ export const SCENE_PICTURES = {
     changed: `${AT}782946997_generated_582027ba.jpg`,
   },
   pitch: {
-    base: `${AT}4b87e388e_generated_fbd626c4.jpg`,
-    changed: `${AT}653ca42e4_generated_d7b6be7a.jpg`,
+    base: `${AT}a32b15357_generated_a234c723.jpg`,
+    changed: `${AT}7b6541202_generated_4a270cd3.jpg`,
   },
   crossing: {
-    base: `${AT}e2822357f_generated_aa74694a.jpg`,
-    changed: `${AT}658e03378_generated_48c8b008.jpg`,
+    base: `${AT}2e26436b1_generated_58d7f6f6.jpg`,
+    changed: `${AT}4035eec5c_generated_b32f946d.jpg`,
   },
   feast: {
-    base: `${AT}9599d9184_generated_00b2814d.jpg`,
-    changed: `${AT}fbb662f56_generated_b159b94d.jpg`,
+    base: `${AT}137cf1d6f_generated_a6243f7f.jpg`,
+    changed: `${AT}27623df28_generated_ddf5776e.jpg`,
   },
   fireside: {
-    base: `${AT}c2e472d2b_generated_97aab989.jpg`,
-    changed: `${AT}0591d3648_generated_0ecb12d5.jpg`,
+    base: `${AT}6c600296d_generated_1b3bf421.jpg`,
+    changed: `${AT}1ebcd5071_generated_2b5dc715.jpg`,
   },
   stage: {
-    base: `${AT}589698710_generated_e620223f.jpg`,
-    changed: `${AT}0f797f16a_generated_edd48156.jpg`,
+    base: `${AT}ecd1ce12d_generated_d5a657b0.jpg`,
+    changed: `${AT}c4d7854d6_generated_dbf041b9.jpg`,
   },
   fishing: {
     base: `${AT}d3d46e59b_generated_a66470f1.jpg`,
     changed: `${AT}dab829fc4_generated_59ca7a38.jpg`,
   },
   garden: {
-    base: `${AT}1cabeeb5b_generated_b15390bd.jpg`,
-    changed: `${AT}befb1be63_generated_54e8b507.jpg`,
+    base: `${AT}0ba4ab8fc_generated_b4832250.jpg`,
+    changed: `${AT}261b53eef_generated_f7e9ed26.jpg`,
   },
   well: {
     base: `${AT}e95c98364_generated_be8b14dd.jpg`,
@@ -53,7 +53,7 @@ export const SCENE_PICTURES = {
   },
   drummakers: {
     base: `${AT}e9eefe827_generated_60c1487b.jpg`,
-    changed: `${AT}b3f9643ae_generated_5bd04019.jpg`,
+    changed: `${AT}3ed8cd5d9_generated_5b6bb95b.jpg`,
   },
   schoolyard: {
     base: `${AT}773f76424_generated_1b2f2e51.jpg`,
@@ -61,7 +61,7 @@ export const SCENE_PICTURES = {
   },
   harvest: {
     base: `${AT}e694af49d_generated_3ee6f2e9.jpg`,
-    changed: `${AT}7e64708b6_generated_0334367e.jpg`,
+    changed: `${AT}7bb2d33db_generated_05b0519f.jpg`,
   },
   kitchen: {
     base: `${AT}1d29fdcaa_generated_2f3a0136.jpg`,
@@ -69,7 +69,7 @@ export const SCENE_PICTURES = {
   },
   canoes: {
     base: `${AT}1b695c9df_generated_f2a80fd7.jpg`,
-    changed: `${AT}0d72d62f9_generated_85d820e8.jpg`,
+    changed: `${AT}452999d56_generated_82f30d95.jpg`,
   },
   grove: {
     base: `${AT}6542b4ab6_generated_dba7ca7a.jpg`,
@@ -77,7 +77,7 @@ export const SCENE_PICTURES = {
   },
   herders: {
     base: `${AT}d08bab6fd_generated_6734f4bc.jpg`,
-    changed: `${AT}18a469c60_generated_aa323c32.jpg`,
+    changed: `${AT}130990f17_generated_0fc1aa9a.jpg`,
   },
   chapel: {
     base: `${AT}96689fd5f_generated_a26c211f.jpg`,
@@ -85,7 +85,7 @@ export const SCENE_PICTURES = {
   },
   pottery: {
     base: `${AT}891f595d2_generated_442d103c.jpg`,
-    changed: `${AT}5c7b4a267_generated_3bb4924d.jpg`,
+    changed: `${AT}3c330a466_generated_34aa2b4b.jpg`,
   },
   tailor: {
     base: `${AT}6f78faaa2_generated_73733208.jpg`,
@@ -93,7 +93,7 @@ export const SCENE_PICTURES = {
   },
   carpenter: {
     base: `${AT}1dce6ed0d_generated_04d4d80f.jpg`,
-    changed: `${AT}d9e40f6df_generated_4420f2bc.jpg`,
+    changed: `${AT}7d7bdd8a5_generated_3820dc4a.jpg`,
   },
   washing: {
     base: `${AT}fd85b4af0_generated_db7341bd.jpg`,
@@ -101,7 +101,7 @@ export const SCENE_PICTURES = {
   },
   weddingdance: {
     base: `${AT}e5249ee06_generated_d532d50e.jpg`,
-    changed: `${AT}e4c74756c_generated_bf358cb7.jpg`,
+    changed: `${AT}2bf679a1e_generated_456689c3.jpg`,
   },
   palms: {
     base: `${AT}884767a0d_generated_cca05191.jpg`,
@@ -109,7 +109,7 @@ export const SCENE_PICTURES = {
   },
   weavers: {
     base: `${AT}209861a86_generated_ae4e4ff0.jpg`,
-    changed: `${AT}813b62704_generated_f12dc4d5.jpg`,
+    changed: `${AT}d5dc40958_generated_9316ddcc.jpg`,
   },
   taxistand: {
     base: `${AT}6c9dfc079_generated_5015186d.jpg`,
@@ -117,7 +117,7 @@ export const SCENE_PICTURES = {
   },
   honey: {
     base: `${AT}e0029d9b0_generated_21d20221.jpg`,
-    changed: `${AT}8bf790f85_generated_7eed656f.jpg`,
+    changed: `${AT}98ed177f2_generated_a9600e7e.jpg`,
   },
   rainclouds: {
     base: `${AT}8990d3e68_generated_7dc417cf.jpg`,
@@ -125,15 +125,15 @@ export const SCENE_PICTURES = {
   },
   eveningclass: {
     base: `${AT}cdfae662b_generated_d559b362.jpg`,
-    changed: `${AT}4b0cd427a_generated_73d27818.jpg`,
+    changed: `${AT}e8b852cce_generated_89f5a17c.jpg`,
   },
   boatyard: {
     base: `${AT}bfc6d9038_generated_324fba05.jpg`,
     changed: `${AT}07a818e96_generated_abc30fdc.jpg`,
   },
   festival: {
-    base: `${AT}46bbced1e_generated_4cd40167.jpg`,
-    changed: `${AT}8ff4094e5_generated_2bce7359.jpg`,
+    base: `${AT}059541799_generated_64dc3874.jpg`,
+    changed: `${AT}e92ed133d_generated_c65f8a3e.jpg`,
   },
   sunrise: {
     base: `${AT}a23d27d4d_generated_a9182171.jpg`,
@@ -144,8 +144,8 @@ export const SCENE_PICTURES = {
     changed: `${AT}702a18da8_generated_f133e510.jpg`,
   },
   schoolwalk: {
-    base: `${AT}dfb2418ab_generated_c8929046.jpg`,
-    changed: `${AT}d6baf61c1_generated_b0ca8713.jpg`,
+    base: `${AT}43e6c952b_generated_9fceed15.jpg`,
+    changed: `${AT}eb3485fed_generated_df02aa07.jpg`,
   },
 };
 
