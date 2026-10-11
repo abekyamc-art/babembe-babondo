@@ -281,12 +281,3 @@ export async function geminiImage({
   const { file_url } = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
   return String(file_url || "");
 }
-
-/**
- * The account a drawing is to be paid out of, said plainly, and the model to ask it of. A caller that
- * wants a picture drawn reaches for `geminiImage`; this is only here so a caller can tell, before it
- * asks, whether the account for its pictures is standing at all.
- */
-export function drawAccountName(group: string) {
-  return KEYS[group] || null;
-}
