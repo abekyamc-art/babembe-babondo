@@ -1,5 +1,4 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import OpenAI from 'npm:openai@6.45.0';
 import { geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
 import { photoPuzzleAreas } from '../../shared/photoPuzzleAreas.ts';
 
@@ -308,49 +307,22 @@ function changedPrompt(changes) {
 }
 
 /**
- * One picture, drawn on the account the episode keeps, or on that account's second when the first is
- * spent. When every drawing account is spent — their own allowance runs out, and it is spent for a while
- * — the app's own picture service draws the picture instead, so a run still carries an episode on. That
- * last drawing is the only one this app pays for itself, which is why it is only ever reached by an
- * admin asking for an episode by hand.
+ * One picture, drawn on the episode's own account — or, when that account cannot answer, on the next
+ * account this app draws on, and the next after that, until one draws it. An account that has run out of
+ * allowance is skipped rather than waited on, because several episodes are drawn in a run.
  */
-async function drawn(base44, groups, prompt, reference_urls) {
-  let said = 'The picture could not be drawn.';
-  for (const group of groups) {
-    try {
-      const url = await geminiImage({
-        base44,
-        group,
-        model: DRAW_BIG,
-        prompt,
-        reference_urls,
-        aspect: '16:9',
-        imageSize: '2K',
-        least: 1000,
-      });
-      return { url, own: false };
-    } catch (error) {
-      said = error?.message || said;
-      console.error(`An episode picture was not drawn on the ${group} account:`, said);
-    }
-  }
-
-  const { baseURL, token, headers } = base44.asServiceRole.aiGateway.connection();
-  const client = new OpenAI({ baseURL, apiKey: token, defaultHeaders: headers, maxRetries: 0 });
-  const answer = await client.images.generate({
-    model: 'seedream_5_0_lite',
+async function drawn(base44, group, prompt, reference_urls) {
+  const url = await geminiImage({
+    base44,
+    group,
+    model: DRAW_BIG,
     prompt,
-    ...(reference_urls.length ? { reference_image_urls: reference_urls } : {}),
-    n: 1,
-    response_format: 'url',
-    aspect_ratio: '16:9',
-    resolution: '2K',
-    output_format: 'jpeg',
-    quality: 'auto',
+    reference_urls,
+    aspect: '16:9',
+    imageSize: '2K',
+    least: 1000,
   });
-  const url = answer.data?.[0]?.url || '';
-  if (!url) throw new Error(said);
-  return { url, own: true };
+  return url;
 }
 
 export default async function episodeArt(req) {
@@ -380,17 +352,13 @@ export default async function episodeArt(req) {
     const changes = changesOf(brief.level, brief.pieces, tier.required);
     const asked = new Set(changes.slice(0, tier.required).map((change) => change.label));
 
-    const first = await drawn(base44, ['episodebase', 'episodealt'], scenePrompt(brief, place), []);
-    const second = await drawn(
+    const base = await drawn(base44, 'episodebase', scenePrompt(brief, place), []);
+    const changed = await drawn(
       base44,
-      ['episodecopy', 'episodecopyalt'],
+      'episodecopy',
       changedPrompt(changes),
-      [first.url]
+      [base]
     );
-    const base = first.url;
-    const changed = second.url;
-    // a pair the app drew itself is told plainly, so a run is never carried on at the app's own cost
-    const by = first.own || second.own ? 'own' : 'accounts';
 
     // what really changed is read back off the two drawn pictures, never taken from what was asked for
     const found = await photoPuzzleAreas(base44, base, changed, changes);
@@ -454,7 +422,6 @@ export default async function episodeArt(req) {
       title: brief.named,
       place,
       drawn: true,
-      by,
       required: tier.required,
       places: places.length,
       art,

@@ -56,20 +56,10 @@ export default function ArtStudio() {
       tried += 1;
       setSaid(`Drawing episode ${level.id} — ${level.title}…`);
       try {
-        const answer = await drawEpisode(briefOf(level));
+        await drawEpisode(briefOf(level));
         held.add(level.id);
         made += 1;
         setDone(new Set(held));
-        // a pair the app drew itself is paid for out of the app's own credits, so a run never carries on
-        // past it: the drawing accounts are spent, and they are left to come back of themselves
-        if (answer?.by === "own") {
-          setSaid(
-            `Episode ${level.id} was drawn by the app's own picture service — the drawing accounts are spent. ` +
-              "Run again once your Gemini image allowance is back."
-          );
-          setBusy(false);
-          return;
-        }
       } catch {
         bad.push(level.id);
         setWaiting([...bad]);

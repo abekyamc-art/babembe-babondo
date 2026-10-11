@@ -51,13 +51,41 @@ const KEYS: Record<string, string> = {
   trophies: "GEMINI_API_KEY8",
   covers: "GEMINI_API_KEY9",
   // the cartoon episodes of the differences game ask for the heaviest drawing this app ever makes — two
-  // pictures for every one of them — so they stand on the two accounts whose own work is already drawn
-  // and finished, and each picture names a second account to fall back to when its own allowance is spent.
+  // pictures for every one of them — so they open on the two accounts whose own work is already drawn and
+  // finished, and are carried on the next account when one of those cannot answer.
   episodebase: "GEMINI_API_KEY6",
   episodealt: "GEMINI_API_KEY9",
   episodecopy: "GEMINI_API_KEY7",
   episodecopyalt: "GEMINI_API_KEY8",
 };
+
+/**
+ * Every account a picture may be drawn on, in the order one is tried after another: the account the
+ * picture belongs to first, then every other account the app holds. Several pictures are asked for on a
+ * day, and one account that has run out of allowance — or that the service refuses for a moment — must
+ * never stop them: that account is skipped, and the very same drawing is put to the next one. A reading
+ * is untouched by this, and is still paid out of its own group's account alone.
+ */
+const DRAW_KEYS = [
+  "GEMINI_API_KEY4",
+  "GEMINI_API_KEY5",
+  "GEMINI_API_KEY6",
+  "GEMINI_API_KEY7",
+  "GEMINI_API_KEY8",
+  "GEMINI_API_KEY9",
+  "GEMINI_API_KEY",
+  "GEMINI_API_KEY2",
+  "GEMINI_API_KEY3",
+];
+
+/** Which of the owner's accounts a group is kept on, named by the secret itself. */
+function secretNameFor(group: any): string {
+  const named = String(group || "").trim();
+  if (!named) return KEYS.answer;
+  const secretName = KEYS[named];
+  if (!secretName) throw new Error(`No account stands for the "${named}" group of features.`);
+  return secretName;
+}
 
 /**
  * The account a call is paid out of. A group is never paid out of another group's account, and an
@@ -66,16 +94,15 @@ const KEYS: Record<string, string> = {
  * call that names no group at all stands on the first account, exactly as it always has.
  */
 function keyFor(group: any): string {
-  const named = String(group || "").trim();
-  if (!named) {
-    const first = secrets.get(KEYS.answer);
-    if (!first) throw new Error(`The account every reading stands on is not set (${KEYS.answer}).`);
-    return first;
-  }
-  const secretName = KEYS[named];
-  if (!secretName) throw new Error(`No account stands for the "${named}" group of features.`);
+  const secretName = secretNameFor(group);
   const value = secrets.get(secretName);
-  if (!value) throw new Error(`The account for the "${named}" group of features is not set (${secretName}).`);
+  if (!value) {
+    throw new Error(
+      String(group || "").trim()
+        ? `The account for the "${String(group).trim()}" group of features is not set (${secretName}).`
+        : `The account every reading stands on is not set (${secretName}).`
+    );
+  }
   return value;
 }
 
@@ -264,28 +291,60 @@ export async function geminiImage({
     };
   }
 
-  const res = await fetch(`${DRAW_ENDPOINT}/${model}:generateContent`, {
-    method: "POST",
-    headers: { "x-goog-api-key": keyFor(group), "Content-Type": "application/json" },
-    body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: shape }),
-    signal: AbortSignal.timeout(180000),
-  });
-  if (!res.ok) {
-    const said = await res.text().catch(() => "");
-    throw new Error(`The picture service answered ${res.status}. ${said.slice(0, 200)}`);
+  // the picture's own account first, then every other account in turn: an account that cannot answer is
+  // skipped and the very same drawing is put to the next one
+  const own = secretNameFor(group);
+  const turns = [own, ...DRAW_KEYS.filter((name) => name !== own)];
+
+  let said = "The picture could not be drawn.";
+  for (const name of turns) {
+    const key = secrets.get(name);
+    if (!key) continue;
+
+    try {
+      let res: Response;
+      try {
+        res = await fetch(`${DRAW_ENDPOINT}/${model}:generateContent`, {
+          method: "POST",
+          headers: { "x-goog-api-key": key, "Content-Type": "application/json" },
+          body: JSON.stringify({ contents: [{ role: "user", parts }], generationConfig: shape }),
+          signal: AbortSignal.timeout(180000),
+        });
+      } catch {
+        const gone: any = new Error("The picture service could not be reached.");
+        gone.accountFailed = true;
+        throw gone;
+      }
+
+      if (!res.ok) {
+        const told = await res.text().catch(() => "");
+        const refused: any = new Error(`The picture service answered ${res.status}. ${told.slice(0, 200)}`);
+        // this is the account's own answer — an allowance that has run out, or a service that will not
+        // take this account's key just now — so the picture is put to the next account rather than given up
+        refused.accountFailed = res.status === 429 || res.status === 403 || res.status >= 500;
+        throw refused;
+      }
+
+      const answer = await res.json();
+      const drawn = (answer?.candidates?.[0]?.content?.parts || []).find((part: any) => part?.inlineData?.data);
+      if (!drawn) throw new Error("The picture service returned no picture.");
+
+      const mime = String(drawn.inlineData.mimeType || "image/png");
+      const bytes = Uint8Array.from(atob(drawn.inlineData.data), (char) => char.charCodeAt(0));
+      if (least && drawnSide(bytes, mime) < least) {
+        throw new Error(`The picture drawn was smaller than the ${least} pixels a side this picture needs.`);
+      }
+
+      const file = new File([bytes], `glory-picture.${/jpe?g/i.test(mime) ? "jpg" : "png"}`, { type: mime });
+      const { file_url } = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
+      return String(file_url || "");
+    } catch (error: any) {
+      said = error?.message || said;
+      console.error(`A picture was not drawn on the ${name} account:`, said);
+      // a picture that came back in a shape the app cannot use is not the account's fault: it is given up
+      if (!error?.accountFailed) throw error;
+    }
   }
 
-  const answer = await res.json();
-  const drawn = (answer?.candidates?.[0]?.content?.parts || []).find((part: any) => part?.inlineData?.data);
-  if (!drawn) throw new Error("The picture service returned no picture.");
-
-  const mime = String(drawn.inlineData.mimeType || "image/png");
-  const bytes = Uint8Array.from(atob(drawn.inlineData.data), (char) => char.charCodeAt(0));
-  if (least && drawnSide(bytes, mime) < least) {
-    throw new Error(`The picture drawn was smaller than the ${least} pixels a side this picture needs.`);
-  }
-
-  const file = new File([bytes], `glory-picture.${/jpe?g/i.test(mime) ? "jpg" : "png"}`, { type: mime });
-  const { file_url } = await base44.asServiceRole.integrations.Core.UploadPublicFile({ file });
-  return String(file_url || "");
+  throw new Error(`Every account was tried and none could draw this picture. Last answer: ${said}`);
 }
