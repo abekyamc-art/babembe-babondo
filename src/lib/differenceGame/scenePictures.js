@@ -43,7 +43,7 @@ export const SCENE_PICTURES = {
   },
   fishing: {
     base: `${AT}d3d46e59b_generated_a66470f1.jpg`,
-    changed: `${AT}dab829fc4_generated_59ca7a38.jpg`,
+    changed: `${AT}27d89e6fc_generated_34271602.jpg`,
   },
   garden: {
     base: `${AT}0ba4ab8fc_generated_b4832250.jpg`,
@@ -51,7 +51,7 @@ export const SCENE_PICTURES = {
   },
   well: {
     base: `${AT}e95c98364_generated_be8b14dd.jpg`,
-    changed: `${AT}8d33f02bd_generated_75051566.jpg`,
+    changed: `${AT}34edb3a8c_generated_dd8eb7e2.jpg`,
   },
   drummakers: {
     base: `${AT}e9eefe827_generated_60c1487b.jpg`,
@@ -59,7 +59,7 @@ export const SCENE_PICTURES = {
   },
   schoolyard: {
     base: `${AT}773f76424_generated_1b2f2e51.jpg`,
-    changed: `${AT}8595c1f10_generated_6023baf4.jpg`,
+    changed: `${AT}ffa6760a7_generated_3ad44c7c.jpg`,
   },
   harvest: {
     base: `${AT}e694af49d_generated_3ee6f2e9.jpg`,
@@ -67,7 +67,7 @@ export const SCENE_PICTURES = {
   },
   kitchen: {
     base: `${AT}1d29fdcaa_generated_2f3a0136.jpg`,
-    changed: `${AT}a2ce38747_generated_e89e0e57.jpg`,
+    changed: `${AT}d4a2e931f_generated_b231cce7.jpg`,
   },
   canoes: {
     base: `${AT}1b695c9df_generated_f2a80fd7.jpg`,
@@ -75,7 +75,7 @@ export const SCENE_PICTURES = {
   },
   grove: {
     base: `${AT}6542b4ab6_generated_dba7ca7a.jpg`,
-    changed: `${AT}6aceaf444_generated_25c251ab.jpg`,
+    changed: `${AT}31edbcdb3_generated_314f75cd.jpg`,
   },
   herders: {
     base: `${AT}d08bab6fd_generated_6734f4bc.jpg`,
@@ -83,7 +83,7 @@ export const SCENE_PICTURES = {
   },
   chapel: {
     base: `${AT}96689fd5f_generated_a26c211f.jpg`,
-    changed: `${AT}f3da12893_generated_1ea61364.jpg`,
+    changed: `${AT}23cc922c6_generated_ba903844.jpg`,
   },
   pottery: {
     base: `${AT}891f595d2_generated_442d103c.jpg`,
@@ -91,7 +91,7 @@ export const SCENE_PICTURES = {
   },
   tailor: {
     base: `${AT}6f78faaa2_generated_73733208.jpg`,
-    changed: `${AT}2284bd21b_generated_f5f1a584.jpg`,
+    changed: `${AT}0a39d6c8a_generated_032e6087.jpg`,
   },
   carpenter: {
     base: `${AT}1dce6ed0d_generated_04d4d80f.jpg`,
@@ -107,7 +107,7 @@ export const SCENE_PICTURES = {
   },
   palms: {
     base: `${AT}884767a0d_generated_cca05191.jpg`,
-    changed: `${AT}45be89be8_generated_bbe9d38a.jpg`,
+    changed: `${AT}d5abb09f1_generated_1e3e5a58.jpg`,
   },
   weavers: {
     base: `${AT}209861a86_generated_ae4e4ff0.jpg`,
@@ -123,7 +123,7 @@ export const SCENE_PICTURES = {
   },
   rainclouds: {
     base: `${AT}8990d3e68_generated_7dc417cf.jpg`,
-    changed: `${AT}e159b429d_generated_f6a4b14d.jpg`,
+    changed: `${AT}f8f756f16_generated_fe2a6b3d.jpg`,
   },
   eveningclass: {
     base: `${AT}cdfae662b_generated_d559b362.jpg`,
@@ -131,11 +131,11 @@ export const SCENE_PICTURES = {
   },
   boatyard: {
     base: `${AT}bfc6d9038_generated_324fba05.jpg`,
-    changed: `${AT}07a818e96_generated_abc30fdc.jpg`,
+    changed: `${AT}b3f4106f1_generated_bb22b0fb.jpg`,
   },
   festival: {
     base: `${AT}059541799_generated_64dc3874.jpg`,
-    changed: `${AT}e92ed133d_generated_c65f8a3e.jpg`,
+    changed: `${AT}46d5603d7_generated_c7e5c8e1.jpg`,
   },
   sunrise: {
     base: `${AT}a23d27d4d_generated_a9182171.jpg`,
@@ -143,11 +143,11 @@ export const SCENE_PICTURES = {
   },
   mangotree: {
     base: `${AT}7ba05c28a_generated_42df1f81.jpg`,
-    changed: `${AT}702a18da8_generated_f133e510.jpg`,
+    changed: `${AT}e4eafb6f7_generated_429e0df3.jpg`,
   },
   schoolwalk: {
     base: `${AT}43e6c952b_generated_9fceed15.jpg`,
-    changed: `${AT}eb3485fed_generated_df02aa07.jpg`,
+    changed: `${AT}9a6e3ef55_generated_0a84b4ec.jpg`,
   },
 };
 

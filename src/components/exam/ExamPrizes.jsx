@@ -3,6 +3,7 @@ import { ArrowLeft, Award, ChevronRight } from "lucide-react";
 import { EXAM_SEASONS, episodesInSeason } from "@/lib/examSeasons";
 import { completedIn, episodeKey, seasonCleared } from "@/lib/examProgress";
 import { trophyOf } from "@/lib/examTrophies";
+import { Image } from "@/components/ui/image";
 import TrophyCard from "./TrophyCard";
 import "@/exam-prizes.css";
 
@@ -50,11 +51,11 @@ export default function ExamPrizes({ progress, onBack }) {
         >
           <span className="exam-cover-frame">
             {trophyOf(COVER.no) ? (
-              <img
+              <Image
                 src={trophyOf(COVER.no)}
                 alt="The trophy of Season 1"
                 className="exam-cover-img"
-                loading="lazy"
+                fittingType="fill"
               />
             ) : null}
             <span className="exam-cover-seal">
