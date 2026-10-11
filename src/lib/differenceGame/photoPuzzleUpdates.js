@@ -3,7 +3,10 @@
 // A level appears here once its pair of photographs has been read back and every place it changes stands
 // where the picture really changes — no drawn overlay, no place guessed at on a grid. The pair's own
 // addresses and the places read off them are kept here, so the level is ready the moment it opens.
+import firesidePhoto from '@/lib/differenceGame/firesidePhoto';
+
 export const PHOTO_PUZZLE_UPDATES = {
+  fireside: firesidePhoto,
   lake: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/a1d00c820_generated_e1962e69.png',
     differences: [
