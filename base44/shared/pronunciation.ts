@@ -1,5 +1,6 @@
 import { MAX_TERM, clean } from "./knowledgeWords.ts";
 import { heardForms } from "./soundsAlike.ts";
+import { ebembeReading } from "./ebembeReading.ts";
 
 /**
  * How each confirmed Kibembe word is really said, and the order that decides it.
@@ -162,4 +163,113 @@ export async function recordedEvidence(base44: any): Promise<Map<string, string[
     console.error("The approved recordings could not be read:", error?.message);
     return held.map;
   }
+}
+
+/** The words of a block of material as they are matched against the bank. */
+function wording(value: any): string[] {
+  return (String(value ?? "").toLowerCase().match(/[\p{L}\p{N}]+/gu) || []).filter(Boolean);
+}
+
+/** The head of the block handed with a turn: the forms of this very turn and how each one is said. */
+export const SPOKEN_HEAD = [
+  "MATAMSHI YA MANENO UNAYOYA SEMA — HOW THE WORDS YOU ARE ABOUT TO SAY ARE REALLY SAID",
+  "- Every confirmed form this turn carries stands below with its reading. Say each form as its reading gives it — every vowel opened, every sound group kept whole, every syllable landing where the reading marks it, the final vowel finished — while the word itself is written and shown exactly as the Bank writes it.",
+  '- A reading is for your ear alone: it shapes how the word is said, and it is never written on the screen, never said as words of its own, and never added to the spelling.',
+  '- "njia" are the ways the same word is known to come out. They are how that one word is recognised: never say one in place of the word.',
+  "- A Kibembe form that does not stand here is not read here at all: say it by the reading rules you already hold, and never make a word, a reading, a tense or a plural up.",
+].join("\n");
+
+type Spoken = {
+  term: string;
+  reading: string;
+  ways: string[];
+  at: number;
+};
+
+/**
+ * The readings of the confirmed forms a turn's own material really carries.
+ *
+ * What is handed to a voice for one turn — the reading of the turn, the reply the app holds for it, and
+ * the parts of the admin's document that turn reached — is made of the Kibembe forms the answer itself
+ * will be said with. This writes those very forms out with how each one is really said, so a voice that
+ * knows no Kibembe says the word itself and not the letters of its spelling:
+ *
+ * 1. the reading the admin saved beside the word ("matamshi") decides, where the bank holds one;
+ * 2. where the bank holds none, the reading is written by the app's own rule book — the very rules the
+ *    admin's own document states for reading Kibembe: every vowel opened, c read as ch, the sound
+ *    groups (ch, sh, ny, ng, mb, nd, bw, ngy) kept whole, an apostrophe a short break, a hyphen a clear
+ *    beat — which is the same reading the examination's own voice is handed;
+ * 3. the ways the person's own approved recordings wrote a word down ride beside it as evidence.
+ *
+ * Only a form the bank really holds is read here, and only when the material really carries it: nothing
+ * is invented for a form that was never confirmed, and no reading is made up. A form nothing of the turn
+ * reaches is left out altogether, so the block stays the size of the turn rather than the size of the
+ * bank. The readings are for the voice's ear alone, and they never reach the screen.
+ */
+export function spokenReadingsBlock(
+  rows: any[],
+  material: any,
+  budget = BUDGET,
+  evidence = new Map<string, string[]>()
+): string {
+  const text = String(material || "");
+  if (!text.trim()) return "";
+
+  const low = text.toLowerCase();
+  const carried = new Set(wording(text));
+  const seen = new Set<string>();
+  const items: Spoken[] = [];
+
+  for (const row of Array.isArray(rows) ? rows : []) {
+    const term = clean(row?.term, MAX_TERM);
+    const key = term.toLowerCase();
+    if (!term || seen.has(key)) continue;
+
+    // only a form this material really carries, word by word: a long line of the telling is never taken
+    // for a word, and a form the turn does not reach is not read here at all
+    const parts = wording(term);
+    if (!parts.length || parts.length > 8 || !parts.every((word) => carried.has(word))) continue;
+    seen.add(key);
+
+    const ways = [...heardForms(row), ...(evidence.get(key) || [])]
+      .map((form) => clean(form, 40))
+      .filter(Boolean);
+    const unique: string[] = [];
+    ways.forEach((form) => {
+      if (unique.some((had) => had.toLowerCase() === form.toLowerCase())) return;
+      unique.push(form);
+    });
+
+    // the reading itself: the one saved beside the word, and, where none was saved, the one the app's
+    // own rule book writes for this very spelling
+    const plain = term.replace(/[^\p{L}\p{M}\s'’-]/gu, "").trim();
+    const reading = clean(row?.guide, 90) || (plain ? ebembeReading(plain) : "");
+    if (!reading && !unique.length) continue;
+
+    const at = low.indexOf(key);
+    items.push({ term, reading, ways: unique.slice(0, 6), at: at < 0 ? Number.MAX_SAFE_INTEGER : at });
+  }
+
+  if (!items.length) return "";
+
+  // the words of the turn first, in the order the material says them, with a phrase standing beside the
+  // words inside it rather than under them
+  const order = [...items].sort(
+    (a, b) => a.at - b.at || wording(b.term).length - wording(a.term).length
+  );
+
+  const head = `\n${SPOKEN_HEAD}\n`;
+  let used = head.length;
+  const lines: string[] = [];
+  for (const one of order) {
+    const line = (
+      `- ${one.term}` +
+      (one.reading ? ` — matamshi: ${one.reading}` : "") +
+      (one.ways.length ? ` · njia: ${one.ways.join(", ")}` : "")
+    ).slice(0, LINE);
+    if (used + line.length + 1 > budget) break;
+    lines.push(line);
+    used += line.length + 1;
+  }
+  return lines.length ? `${head}${lines.join("\n")}\n` : "";
 }

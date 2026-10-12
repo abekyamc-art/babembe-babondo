@@ -4,7 +4,11 @@ import { MAX_MEANING, MAX_TERM, MAX_USAGE, clean } from "../../shared/knowledgeW
 import { bankRows, knowledgeStamp, wordListBlock } from "../../shared/wordBank.ts";
 import { docPhraseRows, docWholeBlock, publishedDoc } from "../../shared/knowledgeDoc.ts";
 import { retrieveKnowledge } from "../../shared/knowledgeRetrieval.ts";
-import { pronunciationBlock, recordedEvidence } from "../../shared/pronunciation.ts";
+import {
+  pronunciationBlock,
+  recordedEvidence,
+  spokenReadingsBlock,
+} from "../../shared/pronunciation.ts";
 import { engineAsksOf, engineReply } from "../../shared/phraseEngine.ts";
 import { isRepeatAsk, repeatNote } from "../../shared/repeatAsk.ts";
 import {
@@ -390,7 +394,7 @@ export default async function (req: Request): Promise<Response> {
     // document this turn reaches, nearest first — the same search every voice of a call is handed — and
     // a turn that reaches nothing is told so plainly rather than answered from a guess.
     const wordsRead = bankRows(base44);
-    const [words, patterns, engine, search, phrases] = await Promise.all([
+    const [words, patterns, engine, search, phrases, evidence] = await Promise.all([
       wordsRead,
       patternRows(base44),
       engineAsksOf(base44).catch(() => []),
@@ -403,6 +407,9 @@ export default async function (req: Request): Promise<Response> {
       publishedDoc(base44)
         .then((text) => docPhraseRows(text).slice(0, MAX_PHRASES))
         .catch(() => []),
+      // the ways the person's own approved recordings of a word were written down, read once and held
+      // while nothing new is approved
+      recordedEvidence(base44),
     ]);
 
     const reading = readTurn(said, words, patterns, engine, phrases);
@@ -415,6 +422,19 @@ export default async function (req: Request): Promise<Response> {
     // the parts of the document the search reached, and nothing at all where it reached none: a plain
     // line saying nothing was found is not knowledge and is never handed over as if it were
     const known = search.found ? search.block : "";
+
+    // How the words this answer will be made of are really said, handed over with the turn itself: every
+    // confirmed form the turn's own material carries, with the reading the admin saved beside it and,
+    // where nothing was saved, the reading the app's own rule book writes for that very spelling. So the
+    // Kibembe that is said is the Kibembe this app really holds, said the way the rules say it — never a
+    // guess at the letters, and never a form or a reading that was not confirmed. The readings are for
+    // the voice's ear alone: they never reach the screen and are never said as words of their own.
+    const voiced = spokenReadingsBlock(
+      words,
+      `${said}\n${note}\n${known}`,
+      PRONUNCIATION_BUDGET,
+      evidence
+    );
 
     // Whether the app is sure of what it heard. A turn is unsure when what came back is not a turn
     // of speech at all — the fragments and stray marks the ears write for a breath of room noise —
@@ -476,9 +496,11 @@ export default async function (req: Request): Promise<Response> {
       // The law of truth rides with every turn as well as with the rules the call opened on, so
       // whoever answers this turn — the voice on the call itself, or the app's companion reading this
       // turn through its own tools — is held to the same words about what is confirmed and what is not.
+      // The readings of the forms of this very turn ride with it, in front of the material the answer is
+      // made from, so the voice says the Kibembe it is about to say the way this app really says it.
       note: verified
-        ? `${note}${languageLine}${known}\n${TRUTH_RULES}`
-        : `${languageLine}\n${TRUTH_RULES}`,
+        ? `${note}${languageLine}${voiced}${known}\n${TRUTH_RULES}`
+        : `${languageLine}${voiced}\n${TRUTH_RULES}`,
       // The one reply the app holds for this turn, where it holds one: the voice says exactly that and
       // nothing else. Where the app holds nothing, the field is left empty and the voice answers the
       // turn itself, in its own words.
