@@ -198,7 +198,7 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
           return say("set", { name: one.name, count: behind.length });
         }
         offerRef.current = { list: offered.slice(0, 3), one: null };
-        return say("which", { names: offered.map((item) => item.name).filter(Boolean).slice(0, 3) });
+        return say("which", { pieces: offered, names: offered.map((item) => item.name).filter(Boolean).slice(0, 3) });
       }
       // A yes while a piece of the artist's own stands in the app's own player, waiting for the person's
       // own press: their yes is what starts it, and the player itself reports when the sound has begun.
@@ -241,15 +241,22 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
           // them apart, so it chooses none of them and puts the question of which one is meant.
           if (result.clash === true && names.length >= 2) {
             offerRef.current = { list: offered.slice(0, 3), one: null };
-            return say("ambiguous", { names: names.slice(0, 3) });
+            return say("ambiguous", { names: names.slice(0, 3), pieces: offered.slice(0, 3) });
           }
           // None of the artist's own pieces answers the title: where the app holds pieces of theirs, the
           // one it holds first stands as the piece it asks the person about — a plain yes to it plays it,
           // and naming any of the others plays that one. Where the app holds none, it only says what it
           // has and the person is left to name a piece.
+          // Where the app holds nothing of the artist at all — no piece of theirs and no channel — its
+          // own player has nothing to say about the turn: nothing is put in the player, and the turn is
+          // left to the voice, or to the assistant, to answer exactly as ordinary talk is.
+          if (!names.length && !String(result.channel || "").trim()) {
+            offerRef.current = null;
+            return null;
+          }
           const first = offered[0] || null;
           offerRef.current = names.length ? { list: offered.slice(0, 3), one: first } : null;
-          return say("none", { channel: result.channel, names, name: first?.name || "" });
+          return say("none", { channel: result.channel, names, name: first?.name || "", pieces: offered });
         }
 
         if (result.intent === "next") {

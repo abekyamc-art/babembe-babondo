@@ -70,6 +70,17 @@ function shortNames(names) {
 }
 
 /**
+ * The artist's own pieces the app holds out to the person to choose from, each with the name it goes
+ * by and the address it stands at. They are what is pressed on the screen — a tap plays that piece
+ * here in the app's own player — and they are only ever pieces the app really holds of that artist.
+ */
+function piecesOf(data) {
+  return (Array.isArray(data?.pieces) ? data.pieces : [])
+    .filter((one) => one?.url)
+    .map((one) => ({ name: String(one?.name || ''), url: String(one?.url) }));
+}
+
+/**
  * The app's own words about its own player: what stands on the screen, and the same said to the voice
  * where a voice can be told. The voice is only ever told what the app has really done, and it is told
  * plainly that a piece standing in the player has not started.
@@ -106,6 +117,7 @@ export function mediaLines(step, data = {}) {
       };
     case "ambiguous":
       return {
+        offer: piecesOf(data),
         line: `Which one — ${names}?`,
         spoken:
           `More than one of the artist's own pieces answers that title: ${names}. The app chose none of them. ` +
@@ -119,6 +131,7 @@ export function mediaLines(step, data = {}) {
       // holds, or by giving its place in this line.
       const first = String(data?.name || "").trim();
       return {
+        offer: piecesOf(data),
         line: names
           ? first
             ? `Not in the artist's own list — is it ${shortNames([first])}? Say yes, or which one you want.`
@@ -141,6 +154,7 @@ export function mediaLines(step, data = {}) {
       // nothing was chosen, and the question is asked again in the shape it can be answered in — by the
       // piece's own name, or by its place in the question.
       return {
+        offer: piecesOf(data),
         line: `Which one — ${names}? Say its name, or its number.`,
         spoken:
           `The app has put ${names} to the person and cannot tell which one they mean: none of them was chosen and ` +

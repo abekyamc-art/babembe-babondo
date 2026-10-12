@@ -593,15 +593,27 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
       setError("");
       setNotice("");
       setStatus("thinking");
-      // A written turn with no call running asks the app's own player for a piece exactly as a spoken
-      // one does: the app's own selection is what chooses it, and the piece is stood in the app's own
-      // player to be heard here — never only named — before the answer that speaks of it.
+      // A written turn with no call running is put to the app's own player first, exactly as a spoken
+      // one is: the app's own selection chooses the piece and stands it in the app's own player to be
+      // heard here — never only named — and where the title is not one the app holds, the artist's own
+      // pieces are held out to be chosen from. Where the app's own player answered the turn at all, that
+      // answer is the answer: a plain play request is never written out again as ordinary talk, which is
+      // what left a person who asked for a song told that the app cannot play music at all.
+      let played = null;
       if (mediaRef.current) {
         try {
-          await mediaRef.current(said);
+          played = await mediaRef.current(said);
         } catch (err) {
           // a piece that could not be stood never holds the answer back
         }
+      }
+      if (played?.line) {
+        // the artist's own pieces the app holds out stand under its own line, each one to be pressed
+        // and played here in the app rather than opened elsewhere
+        push("assistant", played.line, [], null, [], Array.isArray(played.offer) ? played.offer : []);
+        writtenAnsweredRef.current?.();
+        setStatus(activeRef.current ? "listening" : "idle");
+        return;
       }
       try {
         const res = await base44.functions.invoke("chatWithKibembeAssistant", {
