@@ -1,3 +1,4 @@
+import { buildAnimalPaper } from "./animalPapers";
 import { buildMedicalMix } from "./examBank";
 import { buildExtraMix } from "./examExtras";
 import { buildNumberPaper } from "./examNumbers";
@@ -77,9 +78,9 @@ const SEASONS = [
   {
     no: 8,
     title: 'The names of the world',
-    blurb: 'Waiting for its own list of words — the names of God, of work and of the world, written into papers the moment the list arrives',
-    pool: 'waiting',
-    waiting: true,
+    blurb:
+      'The animals Gloire taught on 12 October 2026 — each one asked both ways, the taught plurals beside them, and a number, a greeting, a phrase or a proverb in every paper',
+    pool: 'animals',
   },
   {
     no: 9,
@@ -326,6 +327,9 @@ function paperOf(seasonNo, episode) {
   if (season.pool === 'logic') return buildCalculationPaper(episode, true);
   // the season of the numbers: the calculations and the names of the counting itself
   if (season.pool === 'numbers') return buildNumberPaper(episode);
+  // the season of the names of the world: the animals of today's own set, with the other confirmed
+  // topics of the language standing beside them
+  if (season.pool === 'animals') return buildAnimalPaper(episode);
   // a season still waiting for its own list of words writes no paper at all
   if (season.pool === 'waiting') return [];
   const { life, extras, medical } = partsOf(season, episode);
