@@ -19,6 +19,8 @@ const COVERS = {
   4: `${AT}8cf0938ab_generated_268ae5ab.png`,
   5: `${AT}443855ea1_generated_95648344.png`,
   6: `${AT}66982fea4_generated_9988bd75.png`,
+  7: `${AT}549549a7b_generated_aabcb98a.png`,
+  8: `${AT}9d93a3bf1_generated_da3dbffe.png`,
   9: `${AT}7de657042_generated_99107c2c.png`,
 };
 

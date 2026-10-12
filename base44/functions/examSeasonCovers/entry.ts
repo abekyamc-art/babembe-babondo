@@ -24,6 +24,8 @@ const PLACES: Record<number, string> = {
   4: 'a Congolese market trader\'s stall in warm afternoon light: neat pyramids of tomatoes, cassava roots and plantains on a wooden table, an old hand-cranked balance scale with brass weights, coins and folded notes in an open tin, the trader\'s hands counting them, red earth underfoot',
   5: 'a Congolese music performance in a village clearing at golden hour: a guitarist and a singer at a microphone on a small wooden stage, drums beside them, dancers in bright printed cloth caught mid-step, an audience clapping, dust hanging in the low warm sun',
   6: 'a Congolese family working things out together in a compound in the afternoon: a man mending a bicycle turned upside down on a mat, a woman measuring cassava flour into a basin with a calabash, children carrying water buckets, tools laid out in a row, long warm daylight',
+  7: 'a Congolese village classroom at midday, the lesson of counting: children at long wooden benches working with a wooden counting frame strung with beads and neat rows of small stones and bottle caps laid out on the board, a girl holding her hands up with the fingers spread, a hand chalking large simple sums — a plus, a minus and a times sign with their own numbers — on a dark slate board propped against the wall, warm daylight through the open window and red dust outside',
+  8: 'a wide Congolese landscape at golden hour seen from the top of a hill: a small whitewashed church with a wooden cross standing on the ridge, people hoeing a cassava field below, a broad river winding away between green hills, smoke rising from the roofs of a village further off, the whole world of the people spread out under a wide sky',
   9: 'a traditional Congolese healer\'s compound at dawn: bundles of dried herbs and bark hanging from the eaves, clay pots and a carved wooden bowl on a woven mat, a polished wooden carving of a human torso standing among them, soft misty morning light',
 };
 
@@ -32,6 +34,15 @@ const LOOK =
   'Real documentary photograph of rural Congo, shot on 35mm film in natural light, photorealistic with ' +
   'true-to-life colour and sharp real-world detail, wide landscape composition, no text, no letters, no ' +
   'numbers, no logos, no watermark, no border, not an illustration, not a painting, not CGI';
+
+/**
+ * The look a season is drawn in, where it differs from the covers' own look. The season of the numbers
+ * stands on a lesson of counting, so its own cover carries the very sums a student of that season works
+ * out — the only cover of the set that does — while every other season is drawn with no number in it.
+ */
+const LOOKS: Record<number, string> = {
+  7: 'Real documentary photograph of rural Congo, shot on 35mm film in natural light, photorealistic with true-to-life colour and sharp real-world detail, wide landscape composition, the chalked sums and the numbers beside them clear and readable across the board, no letters, no logos, no watermark, no border, not an illustration, not a painting, not CGI',
+};
 
 export default async function examSeasonCovers(req) {
   try {
@@ -54,7 +65,7 @@ export default async function examSeasonCovers(req) {
 
     const drawn = [];
     for (const no of seasons) {
-      const wanted = `${PLACES[no]}. ${LOOK}`;
+      const wanted = `${PLACES[no]}. ${LOOKS[no] || LOOK}`;
       // the covers' own account draws first, and a picture smaller than a full 4K frame is refused, so the
       // app's own picture service draws it instead — a season is never quietly covered by a small picture
       let url = '';
