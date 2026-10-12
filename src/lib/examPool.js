@@ -17,7 +17,7 @@ import { CONFIRMED_NUMBERS, numberToDigit, numberNext, numberToKibembe } from '.
  * The list is kept on the phone once it has been read, so the examination opens the same way without a
  * network.
  */
-const CACHE_KEY = 'gloire-kibembe-exam-pool-v1';
+const CACHE_KEY = 'gloire-kibembe-exam-pool-v2';
 const CACHE_HOURS = 24;
 
 /** The section that holds the terms of the body and health, asked among the words of every day. */

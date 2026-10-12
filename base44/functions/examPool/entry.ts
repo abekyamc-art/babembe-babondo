@@ -10,7 +10,26 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
  * admin, and only the pairs themselves are handed back to a signed-in student.
  */
 const HEADING = /^[A-Z][A-Z0-9 &'’\-()/.]{4,70}$/;
-const REFUSE = /[=→{}<>]|\bRULE\b|\bAssistant\b|\bUser\b|\bOutput\b|\bMODE\b|\bUse this\b|\bDo not\b|\bExample\b/i;
+
+/**
+ * A line carrying these marks is a line of working, never a word pair: an equals sign, an arrow, a
+ * brace, a bracket or a pipe belongs to an instruction and to nothing a person says.
+ */
+const STRUCTURE = /[=→⇒{}<>|]/;
+
+/**
+ * The labels a line of instruction is written under. They stand in capitals in the document, and the
+ * test is left case-sensitive on purpose: a meaning that happens to carry the same letters in ordinary
+ * writing — "user", "model", "mode" — is left standing as a meaning.
+ */
+const LABELS = /\b(?:RULE|RULES|MODE|MODEL|SYSTEM|ASSISTANT|OUTPUT|INPUT|JSON|SCHEMA|PROMPT|USER)\b/;
+
+/**
+ * A meaning that opens as an order is an instruction, not a meaning. Only the head of the meaning is
+ * looked at, which is what keeps an ordinary sentence whole: "I do not know" and "I do not understand"
+ * stand as meanings, while "Do not translate this" and "Reply with one word" are left out.
+ */
+const OPENS_AS_ORDER = /^(?:do not\b|don't\b|use this\b|use the\b|use these\b|write this\b|write the\b|reply\b|respond\b|output\b|say this\b|say the\b|example\s*:|note that\b)/i;
 
 /** Every pair the document writes: a list line, the Kibembe form, a dash, the meaning. */
 function pairsFrom(text) {
@@ -27,7 +46,9 @@ function pairsFrom(text) {
     const kb = hit[1].replace(/^["“]|["”]$/g, '').trim();
     const en = hit[2].replace(/^["“]|["”]$/g, '').trim();
     if (!kb || !en || kb.length > 60 || en.length > 90) continue;
-    if (REFUSE.test(`${kb} ${en}`) || /^[A-Z\s]{6,}$/.test(kb)) continue;
+    if (STRUCTURE.test(`${kb} ${en}`)) continue;
+    if (LABELS.test(`${kb} ${en}`) || OPENS_AS_ORDER.test(en)) continue;
+    if (/^[A-Z\s]{6,}$/.test(kb)) continue;
     const key = kb.toLowerCase().replace(/[.?!\s]+$/, '');
     if (seen.has(key)) continue;
     seen.add(key);
