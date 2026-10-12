@@ -54,6 +54,22 @@ function joinNames(names) {
 }
 
 /**
+ * A short naming of the pieces for the line on the screen, where the app holds some: three at most,
+ * each cut to a few words. The line stands in the talk's own band, so it is kept to what is read at
+ * a glance — the whole of a title rides in the voice's own words, never on this line.
+ */
+function shortNames(names) {
+  const list = (Array.isArray(names) ? names : [])
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((one) => {
+      const said = String(one).trim();
+      return said.length > 18 ? `${said.slice(0, 18).trim()}…` : said;
+    });
+  return list.join(", ");
+}
+
+/**
  * The app's own words about its own player: what stands on the screen, and the same said to the voice
  * where a voice can be told. The voice is only ever told what the app has really done, and it is told
  * plainly that a piece standing in the player has not started.
@@ -97,9 +113,14 @@ export function mediaLines(step, data = {}) {
       };
     case "none":
       return {
-        line: channel
-          ? `That one is not in the artist's own list — their channel is ${channel}.`
-          : "That one is not among the artist's own pieces, so nothing was put in the player.",
+        // The app's own line says what it holds as well as what it did not choose, so a title of its
+        // own that answered nothing is still a turn the person can carry on from — by naming one of
+        // the pieces the app holds, or by giving its place in this line.
+        line: names
+          ? `Not in the artist's own list — the app holds ${shortNames(data?.names)}. Say which one.`
+          : channel
+            ? `That one is not in the artist's own list — their channel is ${channel}.`
+            : "That one is not among the artist's own pieces, so nothing was put in the player.",
         spoken:
           `That title is not among the artist's own pieces as the app holds them${names ? ` — the app holds ${names}` : ""}, so nothing was chosen. ` +
           `Say so plainly${channel ? `, and give the artist's own channel: ${channel}` : ""}, then offer those pieces by name and ask which one they ` +

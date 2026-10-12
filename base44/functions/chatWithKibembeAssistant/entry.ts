@@ -87,6 +87,10 @@ const NO_STORE = 'The assistant is not connected yet — an admin needs to add t
 // Each failure names the stage it belongs to, so what went wrong is said plainly instead of being
 // answered around: where nothing could be read, nothing is answered from it.
 const NO_REPLY = 'The answer could not be written just now — please try again.';
+// The assistant's own account has no room left to answer: said plainly, because it is the one failure
+// nothing the person does on the screen can change and only an admin can put right.
+const NO_ROOM =
+  'The assistant cannot answer just now — an admin needs to add credits to the OpenAI account.';
 
 /** The reply text out of a Responses API answer, however the model handed it back. */
 function replyText(data) {
@@ -354,9 +358,15 @@ export default async function (req) {
 
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
-      // the real reason stays in the app's own logs; the person is told only that it did not work
+      // The real reason stays in the app's own logs. An account with no room left to answer is said
+      // plainly — nothing the person does on the screen can change it, and only an admin can — and
+      // every other refusal is named as a turn that could not be written just now.
       console.error('The Kibembe assistant could not answer:', response.status, JSON.stringify(data).slice(0, 400));
-      return Response.json({ error: NO_REPLY, stage: 'answer' });
+      const why = String(data?.error?.code || data?.error?.type || '');
+      return Response.json({
+        error: response.status === 429 || why === 'insufficient_quota' ? NO_ROOM : NO_REPLY,
+        stage: 'answer',
+      });
     }
 
     const reply = replyText(data);

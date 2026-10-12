@@ -436,11 +436,15 @@ export default function VoiceAssistant() {
 
           <p
             aria-live="polite"
-            className={`min-h-4 shrink-0 text-center text-[12px] leading-4 ${
-            error ? "text-destructive" : "text-muted-foreground"}`
-            }>
+            className="min-h-4 shrink-0 text-center text-[12px] leading-4 text-muted-foreground">
             
-              {error || notice || `${voiceLabel} answers each turn.`}
+              <span className={`block${error ? " text-destructive" : ""}`}>
+                {error || notice || media.note || `${voiceLabel} answers each turn.`}
+              </span>
+              {/* the app's own line about its own player stands beside the voice's own line, so a
+                  request that found nothing, or a title it could not choose between, is read even
+                  where a line of the voice's own is standing above it */}
+              {media.note && (error || notice) ? <span className="block">{media.note}</span> : null}
             </p>
           }
         </div>
