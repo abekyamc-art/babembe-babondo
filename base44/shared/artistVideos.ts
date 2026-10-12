@@ -41,6 +41,11 @@ export type ArtistVideo = { name: string; url: string; views: number };
 export type ArtistList = {
   videos: ArtistVideo[];
   channel: string;
+  /**
+   * The artist's own name, as the story the app holds gives it. It is what a request names the artist
+   * by, and it is what tells the artist's own words apart from the words of a title.
+   */
+  artist: string;
   /** whether the list came from a reading of the channel made just now, rather than from the story */
   read: boolean;
   /** why the channel could not be read, when one was read and could not be reached */
@@ -99,12 +104,16 @@ export function carriesWork(story: any): boolean {
 }
 
 /**
- * The artist's list for one turn: the story the turn is about, and the five most watched of their
- * pieces. Nothing is read at all for a turn that is not about an artist, or one no story answers —
- * apart from a request for the artist's own songs that names no artist at all, which the app's own
- * artist answers where the app holds one.
+ * The artist's list for one turn: the story the turn is about, and their own pieces, the most watched
+ * first — as many of them as the caller asks for, five by default. A turn that is choosing one piece
+ * out of them asks for the whole list, so a title the artist published long ago is never left out
+ * because the piece it names stands far down their most watched.
+ *
+ * Nothing is read at all for a turn that is not about an artist, or one no story answers — apart from
+ * a request for the artist's own songs that names no artist at all, which the app's own artist answers
+ * where the app holds one.
  */
-export async function artistVideosFor(base44: any, query: any): Promise<ArtistList | null> {
+export async function artistVideosFor(base44: any, query: any, limit = SHOWN): Promise<ArtistList | null> {
   if (!asksArtist(query)) return null;
 
   let story: any = null;
@@ -131,18 +140,19 @@ export async function artistVideosFor(base44: any, query: any): Promise<ArtistLi
   if (!story) return null;
 
   const channel = String(story?.channel_url || '').trim();
-  const saved = savedVideos(story);
+  const artist = String(story?.title || '').trim();
+  const saved = savedVideos(story, limit);
   // The counts the channel itself gave are already kept with the story: those decide the order, and
   // nothing is read for them. The channel is read only where the story holds no count at all — and
   // only where the story holds no videos either, since a saved list without counts is still the
   // artist's own pieces.
-  if (!channel || hasCounts(saved)) return { videos: saved, channel, read: false };
+  if (!channel || hasCounts(saved)) return { videos: saved, channel, artist, read: false };
 
-  const read = await readChannel({ channel, known: story?.artist_links, limit: SHOWN, names: false });
+  const read = await readChannel({ channel, known: story?.artist_links, limit, names: false });
   if (!read?.ok || !read.videos.length) {
-    return { videos: saved, channel, read: false, reason: read?.reason || '' };
+    return { videos: saved, channel, artist, read: false, reason: read?.reason || '' };
   }
-  return { videos: read.videos.slice(0, SHOWN), channel, read: true };
+  return { videos: read.videos.slice(0, limit), channel, artist, read: true };
 }
 
 /**

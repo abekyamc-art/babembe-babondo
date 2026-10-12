@@ -11,9 +11,11 @@ import { artistVideosFor, asksArtist } from '../../shared/artistVideos.ts';
  * the artist's own pieces when the title asked for is not among them, or nothing at all when no
  * artist of the app's own answers the request.
  *
- * Two titles that answer the request equally well are never chosen between here: both are handed
- * back, so the question is put to the person once and the answer they give settles it. Nothing is
- * ever invented — no channel ownership, no title, no address, no view count.
+ * A request is read for the artist and the title together: the words that name the artist — who the
+ * list already belongs to — are taken out of it, and what is left is what tells one of the artist's
+ * pieces from another. Pieces that answer a title equally well are never chosen between here: all of
+ * them are handed back, so the question is put to the person once and the answer they give settles it.
+ * Nothing is ever invented — no channel ownership, no title, no address, no view count.
  *
  * The turn is also read for what the app's own player should do with what is standing in it: a piece
  * to be played, or the player to be paused, started again, moved on, or taken out. Only what the app
@@ -23,6 +25,10 @@ import { artistVideosFor, asksArtist } from '../../shared/artistVideos.ts';
 
 // how long a request may be read, and the words that carry no title at all
 const MAX_REQUEST = 200;
+// How many of the artist's own pieces a title is looked for among. A title is never left unplayed
+// because the piece it names stands far down the artist's most watched: the list is read whole enough
+// that every one of their pieces a person may name is in it.
+const MATCH_ROWS = 40;
 const STOP_WORDS = new Set([
   'play', 'playing', 'put', 'listen', 'nyimbo', 'wimbo', 'muziki', 'song', 'songs', 'music',
   'video', 'videos', 'kanda', 'album', 'singles', 'single', 'weka', 'piga', 'sikiliza', 'pandisha',
@@ -110,7 +116,7 @@ export default async function (req: Request): Promise<Response> {
     // A play request is a request about music, so it is looked up as one — the artist's own story in
     // the app is what the list of their pieces and their channel is read from.
     const query = asksArtist(request) ? request : `${request} nyimbo`;
-    const found = await artistVideosFor(base44, query);
+    const found = await artistVideosFor(base44, query, MATCH_ROWS);
     const videos = Array.isArray(found?.videos) ? found.videos : [];
     const channel = String(found?.channel || '').trim();
 
@@ -130,8 +136,15 @@ export default async function (req: Request): Promise<Response> {
 
     // the words that may be the title being asked for
     const asked = titleWords(request).filter((word) => !STOP_WORDS.has(word));
+    // The artist's own name is taken out of what the request asks for before a title is measured: those
+    // words name the artist, whose list this already is, and never a piece of it. What is left is what
+    // really tells one of the artist's pieces from another — so a request that names an artist and a
+    // title is read by the title, a request that names the artist alone asks for their own work as a
+    // whole, and a request that names a title alone is read against every one of their pieces alike.
+    const named = titleWords(found?.artist || '');
+    const title = asked.filter((word) => !named.includes(word));
     const scored = videos
-      .map((one: any) => ({ name: String(one?.name || ''), url: String(one?.url || ''), score: fit(asked, one?.name) }))
+      .map((one: any) => ({ name: String(one?.name || ''), url: String(one?.url || ''), score: fit(title, one?.name) }))
       .filter((one: any) => one.url)
       .sort((a: any, b: any) => b.score - a.score);
 
@@ -151,24 +164,28 @@ export default async function (req: Request): Promise<Response> {
     const best = scored[0];
     const tie = scored.filter((one: any) => one.score > 0 && one.score >= best.score);
 
-    // two or more titles answer the request equally well: neither is chosen, and both are offered
-    if (best.score > 0 && tie.length > 1 && best.score < 1) {
+    // Two or more of the artist's pieces answer the request equally well — the same title carried by
+    // two of them, or one title that names both: none of them is chosen, and all of them are handed
+    // back, so the question is put to the person and the piece they answer with is the one that plays.
+    if (tie.length > 1) {
       return Response.json({
         ok: true,
         intent,
         chosen: null,
         candidates: tie.slice(0, 3).map((one: any) => ({ name: one.name, url: one.url })),
         others: [],
+        clash: true,
         channel,
         reason:
           'More than one of the artist\u2019s own pieces answers that title equally well, so the app chose none of them.',
       });
     }
 
-    // A request that names no piece at all — "play the artist's songs" — asks for the artist's own work
-    // rather than for one title: their most watched piece is the one asked for, and the rest of their
-    // pieces wait behind it in the player, exactly as when a title is named.
-    if (best.score <= 0 && !asked.length) {
+    // A request that names no piece of its own — "play the artist's songs", or the artist's name alone
+    // — asks for the artist's own work rather than for one title: their most watched piece is the one
+    // asked for, and the rest of their pieces wait behind it in the player, exactly as when a title is
+    // named.
+    if (best.score <= 0 && !title.length) {
       const top: any = videos.find((one: any) => String(one?.url || '') === best.url) || {
         name: best.name,
         url: best.url,
@@ -195,6 +212,7 @@ export default async function (req: Request): Promise<Response> {
         chosen: null,
         candidates: scored.slice(0, 5).map((one: any) => ({ name: one.name, url: one.url })),
         others: [],
+        clash: false,
         channel,
         reason:
           'That title is not among the artist\u2019s own pieces as the app holds them, so nothing was chosen.',

@@ -1,25 +1,30 @@
 import { useCallback, useRef, useState } from "react";
 import { looksLikeMediaTurn, mediaLines, readMediaTurn } from "@/lib/homeMedia";
+import { choiceFromOffer } from "@/lib/songChoice";
 
 /**
  * The app's own player, on a home call.
  *
  * A play request is read by the app's own selection and the piece it chose stands here, in the app's
- * own player, for the person to press play on. Pausing it, starting it again, moving on to the
+ * own player, and is started by the app itself. Pausing it, starting it again, moving on to the
  * artist's next piece and taking it out are all done here too, on what already stands in the player.
  *
  * Two things are never guessed at. A piece is never said to be playing before the player itself
  * reports that it has started — the voice is told only what the app has really done, and it is told
- * plainly that a piece standing in the player has not started. And the call goes quiet only where the
- * person asked to listen on, and only once the sound has really begun: taking the voice away never
- * touches the player.
+ * plainly that a piece standing in the player has not started. And a call is never ended before the
+ * sound has really begun: the moment the player reports that the artist's own set has started, the
+ * voice is taken off the line and the set plays on in the app's own player. A piece played in the
+ * written chat ends no call, because none is on the line.
  *
  * What the app holds of an artist is a set: the piece the person asked for and the artist's own pieces
  * behind it, brought in and started by the app itself, with the player moving on to each one as it
- * plays out. The moment the set has really begun, the AI caller's own call is over: it is hung up and
- * the talk is handed to the voice that speaks Base44 mode, which takes the person on from there while
- * the set plays on in the app's own player. When the last of the pieces has played out — or the person
- * says stop — the music turn is over and the player is put away.
+ * plays out. When the last of the pieces has played out — or the person says stop — the music turn is
+ * over and the player is put away.
+ *
+ * Where more than one of the artist's pieces answers a request equally well, none of them is chosen:
+ * the app puts the question to the person, and their next turn answers it — by naming one of the
+ * pieces it offered, or by giving its place in the question. Only then does a piece stand in the player
+ * and the call end with it.
  */
 export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const [item, setItem] = useState(null);
@@ -45,6 +50,9 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const quietRef = useRef(false);
   const startedRef = useRef(false);
   const readingRef = useRef(false);
+  // The pieces the app's own question offered, while that question stands: the person's next turn
+  // answers it, and the piece they answer with is the one the app puts in its player and starts.
+  const offerRef = useRef([]);
   // the piece standing was asked for as the artist's own set
   const autoRef = useRef(false);
   // the artist's own set has been handed to Base44 AI: it is handed over once, however many pieces of
@@ -83,6 +91,8 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     startedRef.current = false;
     quietRef.current = false;
     autoRef.current = played === true;
+    // a piece stands in the player, so a question the app had put to the person is answered
+    offerRef.current = [];
     // a set the app has just put in its own player has not been handed to anyone yet
     handedRef.current = false;
     setItem(next);
@@ -155,7 +165,20 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
    */
   const read = useCallback(
     async (said) => {
-      if (!looksLikeMediaTurn(said) || readingRef.current) return null;
+      if (readingRef.current) return null;
+      // The person's answer to a question the app has already put to them stands before anything else:
+      // that question named the pieces it offered, and a turn that names one of them — or gives its
+      // place in the question — is that answer. The question is over either way, and a turn that
+      // answers none of it is read by the app's own selection exactly as it always was.
+      const offered = offerRef.current;
+      offerRef.current = [];
+      const answer = choiceFromOffer(said, offered);
+      if (answer?.url) {
+        const behind = offered.filter((one) => one.url && one.url !== answer.url);
+        stand({ name: answer.name || "", url: answer.url }, behind, true);
+        return say("set", { name: answer.name, count: behind.length });
+      }
+      if (!looksLikeMediaTurn(said)) return null;
       readingRef.current = true;
       try {
         const result = await readMediaTurn(said);
@@ -175,10 +198,19 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
             }
             return say("set", { name: result.chosen.name, count: behind.length });
           }
-          const names = (Array.isArray(result.candidates) ? result.candidates : [])
-            .map((one) => one?.name)
-            .filter(Boolean);
-          if (names.length >= 2) return say("ambiguous", { names });
+          // The pieces the app offers — the ones answering the request equally well, or the artist's
+          // own pieces where the title named answers none of them — stand as the question the app puts
+          // to the person, and as what their next turn may answer with.
+          const offered = (Array.isArray(result.candidates) ? result.candidates : []).filter(
+            (one) => one?.url
+          );
+          const names = offered.map((one) => one.name).filter(Boolean);
+          offerRef.current = names.length ? offered.slice(0, 3) : [];
+          // More than one of the artist's pieces answers the title: the question is which one is meant.
+          // Where none of them answered it, the app says so plainly and offers what the artist has.
+          if (result.clash === true && names.length >= 2) {
+            return say("ambiguous", { names: names.slice(0, 3) });
+          }
           return say("none", { channel: result.channel, names });
         }
 
@@ -250,31 +282,22 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     if (startedRef.current) return;
     startedRef.current = true;
     setStarted(true);
-    if (quietRef.current) {
-      say("quietDone", { name: itemRef.current?.name || "" }, false);
-      endRef.current?.();
-      return;
-    }
     const name = itemRef.current?.name || "";
-    // The artist's own set has really begun, and that is where the AI caller's own call ends: the talk
-    // is handed to the voice that speaks Base44 mode, which takes the person on from there. The set
-    // plays on in the app's own player while Base44 AI answers them and finds whatever else they ask
-    // for. The app's own line about its player is not said to the voice leaving the call: it is said to
-    // the voice that takes it, once that voice is on the line.
-    if (autoRef.current && !handedRef.current) {
-      handedRef.current = true;
-      setReady(true);
-      const said = say("started", { name }, false).spoken;
-      Promise.resolve(handoffRef.current?.())
-        .then(() => {
-          if (said) tellRef.current?.(said);
-        })
-        .catch(() => {
-          // a change that could not be finished never takes the piece or the talk with it
-        });
-      return;
-    }
-    say("started", { name });
+    // A piece standing in the player without having been asked for as the artist's own set has taken no
+    // call with it: the app says only that it is playing.
+    if (!autoRef.current) return say("started", { name });
+    // The set the app itself brought in has really begun, and the music turn owns the talk from here: a
+    // set that plays out reopens nothing behind it.
+    handedRef.current = true;
+    // Whether a call was really on the line for the app to end: a piece played in the written chat has
+    // no call to end, and the app claims no such thing.
+    const ending = endRef.current?.() !== false;
+    if (!ending) return say("started", { name });
+    // The call is over the moment the sound has really begun — the person asked to listen on, or simply
+    // asked for the piece — and the set plays on in the app's own player, moving on to each of the
+    // artist's pieces behind it by itself. Nothing is said to a voice here: there is none left to tell,
+    // and the app's own words stand on the screen.
+    return say(quietRef.current ? "quietDone" : "hangup", { name }, false);
   }, [say]);
 
   /** The next of the artist's own pieces, pressed on the screen. */

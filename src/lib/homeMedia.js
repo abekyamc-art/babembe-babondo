@@ -78,7 +78,8 @@ export function mediaLines(step, data = {}) {
           (rest
             ? ` ${rest} more of the artist's own pieces wait behind it, and the player moves on to each of them by itself when one ends.`
             : ` It is the only piece of the artist's the app holds.`) +
-          ` Say only what the app has done — never that a piece is playing before the app's own player reports it.`,
+          ` Say only what the app has done, in one short line, and never that a piece is playing before` +
+          ` the app's own player reports it — the call itself ends the moment the sound really begins.`,
       };
     case "quiet":
       return {
@@ -101,7 +102,8 @@ export function mediaLines(step, data = {}) {
           : "That one is not among the artist's own pieces, so nothing was put in the player.",
         spoken:
           `That title is not among the artist's own pieces as the app holds them${names ? ` — the app holds ${names}` : ""}, so nothing was chosen. ` +
-          `Say so plainly${channel ? `, and give the artist's own channel: ${channel}` : ""}. Never invent a title or a link.`,
+          `Say so plainly${channel ? `, and give the artist's own channel: ${channel}` : ""}, then offer those pieces by name and ask which one they ` +
+          `want, so the person can answer with one of them. Never invent a title or a link.`,
       };
     case "last":
       return {
@@ -139,6 +141,12 @@ export function mediaLines(step, data = {}) {
         line: "That was the last of the artist's own — nothing is playing now.",
         spoken:
           "The artist's own set has ended and the app has put its player away: nothing is playing now.",
+      };
+    case "hangup":
+      return {
+        line: `The call is over — ${name} plays on here.`,
+        // no voice is left on the line to be told anything: the app's own words stand on the screen
+        spoken: "",
       };
     case "started":
       return {

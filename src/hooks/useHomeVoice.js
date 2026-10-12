@@ -249,11 +249,13 @@ export default function useHomeVoice() {
   });
 
   /**
-   * The artist's own set has really begun: the AI holding the call has its own call ended here, and the
-   * talk moves on to the voice that speaks Base44 mode, with the conversation so far carried with it.
-   * The change is asked for through the change's own ref, because the change itself is written below
-   * the player that asks for it — and the change is given back to the player, so the voice taking the
-   * call can be told what the app's own player has really done once it is on the line.
+   * The talk moves on to the voice that speaks Base44 mode, with the conversation so far carried with
+   * it. The app's own player asks for this only for a set the app put in its own player that never
+   * really began: a set that has really begun takes the voice off the line itself — the call is over
+   * the moment the sound starts, and the set plays on under it. The change is asked for through the
+   * change's own ref, because the change itself is written below the player that asks for it — and the
+   * change is given back to the player, so the voice taking the call can be told what the app's own
+   * player has really done once it is on the line.
    */
   const musicHandoff = useCallback(() => {
     // The voice that speaks Base44 mode already holds the call: the talk is already where the music
@@ -280,13 +282,22 @@ export default function useHomeVoice() {
     return Promise.resolve(handoffRef.current?.({ preferId: BASE44_SEAT_ID, music: true }));
   }, []);
 
-  // A piece the app chose stands in the app's own player, and the call goes quiet only where the
-  // person asked to listen on — and only once the player itself reports the sound has begun. Taking
-  // the voice away never touches the player; the artist's own set beginning hands the talk on instead.
+  // A piece the app chose stands in the app's own player and is started by the app itself. The voice is
+  // taken off the line the moment the player reports that the sound has really begun, and taking the
+  // voice away never touches the player: the set plays on and moves on to the artist's next piece by
+  // itself. The app's own player never takes an end to a call that is not really on the line either —
+  // a piece played in the written chat has no call to end, so it ends none.
   const media = useHomeMedia({
     onTell,
-    onEndVoice: () => stopRef.current?.(),
-    onHandoff: musicHandoff,
+    onEndVoice: () => {
+      if (!callingRef.current) return false;
+      stopRef.current?.();
+      return true;
+    },
+    onHandoff: () => {
+      if (!callingRef.current) return false;
+      return musicHandoff();
+    },
   });
   mediaRef.current = media;
 
