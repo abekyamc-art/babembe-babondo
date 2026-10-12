@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { Check, Copy, Lock } from "lucide-react";
 import { Image } from "@/components/ui/image";
 
@@ -7,7 +7,9 @@ import { Image } from "@/components/ui/image";
  * silhouette while it is still being earned, so its place is seen before it is won.
  *
  * A won cup carries the season's own reward code, written on the cup itself, and the code is copied in
- * one tap. A season still to be cleared writes no code of its own: only the shape of it stands there.
+ * one tap — the one time it is ever written there. From that copy on the cup keeps its place and its
+ * code is gone for good, standing as a copied mark instead. A season still to be cleared writes no code
+ * of its own: only the shape of it stands there.
  */
 
 /** Copies one line, with the phone's own box as a fallback where the clipboard is refused. */
@@ -35,15 +37,14 @@ async function copyLine(text) {
   }
 }
 
-export default function TrophyCard({ no, title, won, done, total, wonAt, url, code }) {
-  const [copied, setCopied] = useState(false);
-
+export default function TrophyCard({ no, title, won, done, total, wonAt, url, code, copied, onCopy }) {
+  // The code is copied first and the account is told after it, so a copy that never reached the phone's
+  // clipboard leaves the code where it stands and can be tried again.
   const copy = async () => {
     if (!code) return;
     const done = await copyLine(code);
     if (!done) return;
-    setCopied(true);
-    window.setTimeout(() => setCopied(false), 2000);
+    await onCopy?.(no);
   };
 
   return (
@@ -70,13 +71,20 @@ export default function TrophyCard({ no, title, won, done, total, wonAt, url, co
       </div>
 
       <div className="exam-trophy-code">
-        <span className="exam-trophy-code-text">{won && code ? code : "GS-••••-••••"}</span>
-        {won && code ? (
-          <button type="button" className="exam-trophy-copy" onClick={copy}>
-            {copied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-            {copied ? "Copied" : "Copy"}
-          </button>
-        ) : null}
+        {copied ? (
+          <span className="exam-trophy-done">
+            <Check className="h-3.5 w-3.5" /> Code copied
+          </span>
+        ) : code ? (
+          <>
+            <span className="exam-trophy-code-text">{code}</span>
+            <button type="button" className="exam-trophy-copy" onClick={copy}>
+              <Copy className="h-3.5 w-3.5" /> Copy
+            </button>
+          </>
+        ) : (
+          <span className="exam-trophy-code-text is-hidden">GS-••••-••••</span>
+        )}
       </div>
     </div>
   );

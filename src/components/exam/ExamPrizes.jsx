@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Award, ChevronRight } from "lucide-react";
 import { episodesInSeason, seasonByNo } from "@/lib/examSeasons";
 import { completedIn, episodeKey, seasonCleared } from "@/lib/examProgress";
 import { prizeCover, trophyOf, waitingCup } from "@/lib/examTrophies";
 import { REWARD_SEASONS, rewardOf } from "@/lib/examRewards";
+import { claimTrophyCode, loadCopiedSeasons } from "@/lib/trophyCodes";
 import { Image } from "@/components/ui/image";
 import TrophyCard from "./TrophyCard";
 import "@/exam-prizes.css";
@@ -35,7 +36,31 @@ function wonAt(progress, season, total) {
 
 export default function ExamPrizes({ progress, onBack }) {
   const [gallery, setGallery] = useState(false);
+  // The seasons whose code has already been taken, read from the account when the gallery is opened.
+  // Nothing is written on a cup until the account has answered, so a code that was taken before is
+  // never written on the shelf again — not on another opening, and not on another device.
+  const [taken, setTaken] = useState(null);
   const won = SEASON_NUMBERS.filter((no) => seasonCleared(progress, no)).length;
+
+  useEffect(() => {
+    if (!gallery) return;
+    let live = true;
+    loadCopiedSeasons().then((list) => {
+      if (live) setTaken(list);
+    });
+    return () => {
+      live = false;
+    };
+  }, [gallery]);
+
+  /** One tap on Copy: the account keeps the mark, and the cup stands marked from this moment on. */
+  const copyCode = useCallback(async (no) => {
+    await claimTrophyCode(no);
+    setTaken((prev) => {
+      const held = prev || [];
+      return held.includes(no) ? held : [...held, no];
+    });
+  }, []);
 
   // The one cover stands over every prize: the whole collection waits behind it, and the gallery is one
   // tap away. It is lit as soon as a single cup has been won, and dimmed while none of them has.
@@ -111,6 +136,9 @@ export default function ExamPrizes({ progress, onBack }) {
         Clearing a season also wins its reward code: the code stands on the cup itself and is copied in one
         tap. The same season gives the same code to everyone, and a season still to be cleared writes no
         code at all.
+        <br />
+        The code is copied once. From that copy on, the cup keeps its place and its code is gone for good —
+        it stands marked as copied, on this phone and on every other one the account is opened on.
       </p>
 
       <div className="exam-shelf-grid">
@@ -128,7 +156,9 @@ export default function ExamPrizes({ progress, onBack }) {
               total={total}
               wonAt={season ? wonAt(progress, no, total) : ""}
               url={trophyOf(no) || waitingCup()}
-              code={cleared ? rewardOf(no) : ""}
+              copied={cleared && !!taken?.includes(no)}
+              code={cleared && taken && !taken.includes(no) ? rewardOf(no) : ""}
+              onCopy={copyCode}
             />
           );
         })}

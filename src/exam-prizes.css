@@ -357,3 +357,18 @@
   outline: 2px solid #8ebaff;
   outline-offset: 2px;
 }
+
+/* What stands in the code's place once it has been taken: the cup keeps its mark, and the full code is
+   never written on the shelf again. */
+.exam-trophy-done {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 7px 11px;
+  color: #ffd9a8;
+  background: rgba(255, 217, 168, 0.12);
+  border: 1px solid #6b552f;
+  border-radius: 999px;
+  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  letter-spacing: 0.3px;
+}
