@@ -306,3 +306,54 @@
 .exam-trophy.is-won .exam-trophy-tag {
   color: #ffd9a8;
 }
+
+/* The reward code stands on the cup itself: written out in full and copied in one tap on a cup that
+   has been won, and standing as a bare shape while the season is still to be cleared. */
+.exam-trophy-code {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px;
+  margin-top: 2px;
+  padding-top: 7px;
+  border-top: 1px dashed #26304d;
+}
+
+.exam-trophy-code-text {
+  font: 700 11.5px/1.25 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: 0.4px;
+  color: #6f7d9f;
+  overflow-wrap: anywhere;
+}
+
+.exam-trophy.is-won .exam-trophy-code-text {
+  color: #ffe7bd;
+}
+
+.exam-trophy-copy {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 7px 11px;
+  color: #0b1020;
+  background: #ffd9a8;
+  border: 0;
+  border-radius: 999px;
+  font: 700 11px/1 system-ui, -apple-system, "Segoe UI", sans-serif;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.exam-trophy-copy:hover {
+  background: #ffe7bd;
+}
+
+.exam-trophy-copy:active {
+  background: #fff3de;
+}
+
+.exam-trophy-copy:focus-visible {
+  outline: 2px solid #8ebaff;
+  outline-offset: 2px;
+}

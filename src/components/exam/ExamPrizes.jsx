@@ -1,8 +1,9 @@
 import React, { useState } from "react";
 import { ArrowLeft, Award, ChevronRight } from "lucide-react";
-import { EXAM_SEASONS, episodesInSeason } from "@/lib/examSeasons";
+import { episodesInSeason, seasonByNo } from "@/lib/examSeasons";
 import { completedIn, episodeKey, seasonCleared } from "@/lib/examProgress";
-import { prizeCover, trophyOf } from "@/lib/examTrophies";
+import { prizeCover, trophyOf, waitingCup } from "@/lib/examTrophies";
+import { REWARD_SEASONS, rewardOf } from "@/lib/examRewards";
 import { Image } from "@/components/ui/image";
 import TrophyCard from "./TrophyCard";
 import "@/exam-prizes.css";
@@ -13,7 +14,14 @@ import "@/exam-prizes.css";
  * as one gallery: a drawn gold trophy for every season, standing lit once that season has been cleared
  * and dark while it is still being earned. Clearing a season is passing all of its episodes, and it is
  * the same act that opens the season after it.
+ *
+ * Every season carries a reward code of its own, and the code is the same one for every student who
+ * clears that season. It is written on the cup the moment the season is cleared, and copied in one tap;
+ * a season still to be cleared shows no code of its own.
  */
+
+/** Every season the shelf holds a cup and a code for, in their own order. */
+const SEASON_NUMBERS = Array.from({ length: REWARD_SEASONS }, (_, step) => step + 1);
 
 /** When a season was won: the time the last of its episodes was passed. */
 function wonAt(progress, season, total) {
@@ -27,7 +35,7 @@ function wonAt(progress, season, total) {
 
 export default function ExamPrizes({ progress, onBack }) {
   const [gallery, setGallery] = useState(false);
-  const won = EXAM_SEASONS.filter((season) => seasonCleared(progress, season.no)).length;
+  const won = SEASON_NUMBERS.filter((no) => seasonCleared(progress, no)).length;
 
   // The one cover stands over every prize: the whole collection waits behind it, and the gallery is one
   // tap away. It is lit as soon as a single cup has been won, and dimmed while none of them has.
@@ -65,7 +73,7 @@ export default function ExamPrizes({ progress, onBack }) {
             <span className="exam-cover-name">All prizes</span>
             <span className="exam-cover-title">Every cup in one place</span>
             <span className="exam-cover-tag">
-              {won} of {EXAM_SEASONS.length} trophies won
+              {won} of {REWARD_SEASONS} trophies won
             </span>
           </span>
           <span className="exam-cover-go" aria-hidden="true">
@@ -76,7 +84,7 @@ export default function ExamPrizes({ progress, onBack }) {
         <p className="exam-ep-note">
           Every prize of the examination stands under this one cover — all the cups together. Open it and
           the whole gallery is shown at once: a cup for each season, lit in gold once that season has been
-          cleared.
+          cleared, with the season's own reward code written on the cup that was won.
         </p>
       </div>
     );
@@ -92,28 +100,35 @@ export default function ExamPrizes({ progress, onBack }) {
       </div>
 
       <span className="exam-shelf-count">
-        <Award className="h-3.5 w-3.5" /> {won} of {EXAM_SEASONS.length} trophies won
+        <Award className="h-3.5 w-3.5" /> {won} of {REWARD_SEASONS} trophies won
       </span>
 
       <p className="exam-ep-note">
         Every season carries a gold trophy of its own. Passing all of a season's episodes is what wins it —
         the cup is then lit in gold and keeps its place in the gallery — and it is that same pass which
         opens the season after it. A cup still to be earned stands dark.
+        <br />
+        Clearing a season also wins its reward code: the code stands on the cup itself and is copied in one
+        tap. The same season gives the same code to everyone, and a season still to be cleared writes no
+        code at all.
       </p>
 
       <div className="exam-shelf-grid">
-        {EXAM_SEASONS.map((season) => {
-          const total = episodesInSeason(season.no);
+        {SEASON_NUMBERS.map((no) => {
+          const season = seasonByNo(no);
+          const cleared = seasonCleared(progress, no);
+          const total = season ? episodesInSeason(no) : 0;
           return (
             <TrophyCard
-              key={season.no}
-              no={season.no}
-              title={season.title}
-              won={seasonCleared(progress, season.no)}
-              done={completedIn(progress, season.no)}
+              key={no}
+              no={no}
+              title={season ? season.title : "Waiting for its season"}
+              won={cleared}
+              done={season ? completedIn(progress, no) : 0}
               total={total}
-              wonAt={wonAt(progress, season.no, total)}
-              url={trophyOf(season.no)}
+              wonAt={season ? wonAt(progress, no, total) : ""}
+              url={trophyOf(no) || waitingCup()}
+              code={cleared ? rewardOf(no) : ""}
             />
           );
         })}

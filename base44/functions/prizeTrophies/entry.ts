@@ -26,6 +26,17 @@ const MOTIFS = {
   9: 'a golden laurel branch beside a stylised standing figure, engraved on the cup',
 };
 
+/**
+ * The idea a season's cup is drawn on where none of its own is written: a plain banded cup, so a cup can
+ * be drawn for every season the examination is numbered for.
+ */
+function motifOf(no) {
+  return MOTIFS[no] || 'three slim engraved laurel bands around the cup, plain and elegant';
+}
+
+/** How many seasons the examination is numbered for: a cup may be drawn for each of them. */
+const MOST_SEASONS = 96;
+
 /** The one look every trophy is drawn in, so the whole shelf stands as one set. */
 const LOOK =
   'photorealistic ultra-detailed 3D render, gleaming polished gold with rich specular highlights, ' +
@@ -43,15 +54,14 @@ export default async function prizeTrophies(req) {
 
     const body = await req.json().catch(() => ({}));
     const asked = Array.isArray(body?.seasons) ? body.seasons : Object.keys(MOTIFS);
-    const seasons = asked
-      .map(Number)
-      .filter((no) => MOTIFS[no])
-      .slice(0, 9);
+    const seasons = [...new Set(asked.map(Number))]
+      .filter((no) => Number.isInteger(no) && no >= 1 && no <= MOST_SEASONS)
+      .slice(0, 12);
     if (!seasons.length) return Response.json({ error: 'No season was named.' }, { status: 400 });
 
     const drawn = [];
     for (const no of seasons) {
-      const wanted = `A shiny 3D gold trophy cup for season ${no} of a Kibembe language examination, with ${MOTIFS[no]}. ${LOOK}`;
+      const wanted = `A shiny 3D gold trophy cup for season ${no} of a Kibembe language examination, with ${motifOf(no)}. ${LOOK}`;
       // the trophies' own account draws first, and a card smaller than a full card is refused, so the
       // owner's own Replicate account draws it instead — a trophy is never quietly hung on a small card
       let url = '';
