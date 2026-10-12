@@ -593,6 +593,16 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
       setError("");
       setNotice("");
       setStatus("thinking");
+      // A written turn with no call running asks the app's own player for a piece exactly as a spoken
+      // one does: the app's own selection is what chooses it, and the piece is stood in the app's own
+      // player to be heard here — never only named — before the answer that speaks of it.
+      if (mediaRef.current) {
+        try {
+          await mediaRef.current(said);
+        } catch (err) {
+          // a piece that could not be stood never holds the answer back
+        }
+      }
       try {
         const res = await base44.functions.invoke("chatWithKibembeAssistant", {
           message: said,

@@ -220,6 +220,25 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     [finishSet, say, stand, step]
   );
 
+  /**
+   * A piece of the artist's own, picked by hand from the list standing under an answer rather than
+   * asked for in words: it is stood in the app's own player and started by the app, with the artist's
+   * other listed pieces waiting behind it, exactly as a piece asked for by name is. The app's own line
+   * says only what it has done — the player itself reports when the sound has really begun.
+   */
+  const play = useCallback(
+    (chosen, listed = []) => {
+      if (!chosen?.url) return false;
+      const behind = (Array.isArray(listed) ? listed : []).filter(
+        (one) => one?.url && one.url !== chosen.url
+      );
+      stand({ name: chosen.name || "", url: chosen.url }, behind, true);
+      say("set", { name: chosen.name, count: behind.length });
+      return true;
+    },
+    [say, stand]
+  );
+
   /** The person has brought the player in: it can be paused and started again from here on. */
   const onStart = useCallback(() => setInPlace(true), []);
 
@@ -302,6 +321,8 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     autoStart: auto,
     playerRef,
     read,
+    // a piece of the artist's own picked from the list under an answer, played in the app itself
+    play,
     onStart,
     onPlaying,
     onTrackEnd,

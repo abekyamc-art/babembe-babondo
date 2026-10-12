@@ -9,7 +9,7 @@ import AnswerVideos from "@/components/voice/AnswerVideos";
 // only the newest lines stay on screen: ten at most, both sides counted together
 const SHOWN = 10;
 
-export default function ConversationStrip({ turns, pending, onCorrectTurn, onPick }) {
+export default function ConversationStrip({ turns, pending, onCorrectTurn, onPick, onPlayVideo }) {
   const ref = useRef(null);
   // the writing line is a line too, so it takes one of the ten places
   const shown = turns.slice(-(pending ? SHOWN - 1 : SHOWN));
@@ -53,7 +53,7 @@ export default function ConversationStrip({ turns, pending, onCorrectTurn, onPic
                   <AnswerPictures pictures={turn.pictures} />
                   {/* the artist's own videos, when the answer named them: the same five links the
                       answer gives in its own words, standing here to be followed with a tap */}
-                  <AnswerVideos videos={turn.videos} />
+                  <AnswerVideos videos={turn.videos} onPlay={onPlayVideo} />
                   {/* several people or artists came back under names that look alike: the names stand
                       here, and a tap names the one the person means */}
                   <AskNames names={turn.choices} onPick={onPick} />

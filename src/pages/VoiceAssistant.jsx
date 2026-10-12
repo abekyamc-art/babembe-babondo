@@ -251,6 +251,10 @@ export default function VoiceAssistant() {
     await ask(text, spend);
   };
 
+  // A piece of the artist's own, tapped in the list under an answer: it is played in the app's own
+  // player rather than opening YouTube, with the artist's other listed pieces waiting behind it.
+  const handlePlayVideo = (row, rows) => media.play(row, rows);
+
   // a story picked out of the middle strip opens in the sheet the assistant's own stories use
   const openStory = (next) => {
     closeStory();
@@ -412,7 +416,8 @@ export default function VoiceAssistant() {
               turns={turns}
               pending={thinking}
               onCorrectTurn={correctTurn}
-              onPick={handleSend} />
+              onPick={handleSend}
+              onPlayVideo={handlePlayVideo} />
             
           </div>
           {/* what the app would keep from a turn the person has put right: their own answer saves it */}
