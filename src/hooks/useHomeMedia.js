@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import { looksLikeMediaTurn, mediaLines, readMediaTurn } from "@/lib/homeMedia";
-import { choiceFromOffer } from "@/lib/songChoice";
+import { choiceFromOffer, confirmsPiece } from "@/lib/songChoice";
 
 /**
  * The app's own player, on a home call.
@@ -50,9 +50,11 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const quietRef = useRef(false);
   const startedRef = useRef(false);
   const readingRef = useRef(false);
-  // The pieces the app's own question offered, while that question stands: the person's next turn
-  // answers it, and the piece they answer with is the one the app puts in its player and starts.
-  const offerRef = useRef([]);
+  // The pieces the app's own question offered, while that question stands, and the one piece it named
+  // to the person as the piece it was asking about: the person's next turn answers the question — by
+  // naming a piece, by giving its place in the question, or by simply saying yes to the one the app
+  // asked about — and the piece they answer with is the one the app puts in its own player and starts.
+  const offerRef = useRef(null);
   // the piece standing was asked for as the artist's own set
   const autoRef = useRef(false);
   // the artist's own set has been handed to Base44 AI: it is handed over once, however many pieces of
@@ -92,7 +94,7 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     quietRef.current = false;
     autoRef.current = played === true;
     // a piece stands in the player, so a question the app had put to the person is answered
-    offerRef.current = [];
+    offerRef.current = null;
     // a set the app has just put in its own player has not been handed to anyone yet
     handedRef.current = false;
     setItem(next);
@@ -111,6 +113,8 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     quietRef.current = false;
     autoRef.current = false;
     handedRef.current = false;
+    // the player is put away, so no question the app had put to the person still stands
+    offerRef.current = null;
     setItem(null);
     setQueue([]);
     setInPlace(false);
@@ -168,15 +172,43 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
       if (readingRef.current) return null;
       // The person's answer to a question the app has already put to them stands before anything else:
       // that question named the pieces it offered, and a turn that names one of them — or gives its
-      // place in the question — is that answer. The question is over either way, and a turn that
-      // answers none of it is read by the app's own selection exactly as it always was.
-      const offered = offerRef.current;
-      offerRef.current = [];
+      // place in the question — is that answer. So is a plain yes to the one piece the app named as the
+      // piece it was asking about, and that yes plays it. The question is over either way, save where
+      // the app could put no single piece to the person: there it is asked again below, in the shape it
+      // can be answered in. A turn that answers none of it is read by the app's own selection exactly as
+      // it always was.
+      const asked = offerRef.current;
+      offerRef.current = null;
+      const offered = Array.isArray(asked?.list) ? asked.list.filter((one) => one?.url) : [];
       const answer = choiceFromOffer(said, offered);
       if (answer?.url) {
         const behind = offered.filter((one) => one.url && one.url !== answer.url);
         stand({ name: answer.name || "", url: answer.url }, behind, true);
         return say("set", { name: answer.name, count: behind.length });
+      }
+      // The person's plain yes, and the question the app put to them holds one piece: that piece is the
+      // one they mean and the app plays it. Where the app could put no single piece to them, it cannot
+      // tell which of them the yes is for: none is chosen, and the question is asked again in the shape
+      // it can be answered in — by name, or by the piece's place in the question.
+      if (offered.length && confirmsPiece(said)) {
+        const one = asked?.one?.url ? asked.one : offered.length === 1 ? offered[0] : null;
+        if (one?.url) {
+          const behind = offered.filter((item) => item.url && item.url !== one.url);
+          stand({ name: one.name || "", url: one.url }, behind, true);
+          return say("set", { name: one.name, count: behind.length });
+        }
+        offerRef.current = { list: offered.slice(0, 3), one: null };
+        return say("which", { names: offered.map((item) => item.name).filter(Boolean).slice(0, 3) });
+      }
+      // A yes while a piece of the artist's own stands in the app's own player, waiting for the person's
+      // own press: their yes is what starts it, and the player itself reports when the sound has begun.
+      if (
+        confirmsPiece(said) &&
+        autoRef.current &&
+        !startedRef.current &&
+        playerRef.current?.play?.()
+      ) {
+        return say("go", { name: itemRef.current?.name });
       }
       if (!looksLikeMediaTurn(said)) return null;
       readingRef.current = true;
@@ -205,13 +237,19 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
             (one) => one?.url
           );
           const names = offered.map((one) => one.name).filter(Boolean);
-          offerRef.current = names.length ? offered.slice(0, 3) : [];
-          // More than one of the artist's pieces answers the title: the question is which one is meant.
-          // Where none of them answered it, the app says so plainly and offers what the artist has.
+          // More than one of the artist's pieces answers the title equally well: the app cannot tell
+          // them apart, so it chooses none of them and puts the question of which one is meant.
           if (result.clash === true && names.length >= 2) {
+            offerRef.current = { list: offered.slice(0, 3), one: null };
             return say("ambiguous", { names: names.slice(0, 3) });
           }
-          return say("none", { channel: result.channel, names });
+          // None of the artist's own pieces answers the title: where the app holds pieces of theirs, the
+          // one it holds first stands as the piece it asks the person about — a plain yes to it plays it,
+          // and naming any of the others plays that one. Where the app holds none, it only says what it
+          // has and the person is left to name a piece.
+          const first = offered[0] || null;
+          offerRef.current = names.length ? { list: offered.slice(0, 3), one: first } : null;
+          return say("none", { channel: result.channel, names, name: first?.name || "" });
         }
 
         if (result.intent === "next") {

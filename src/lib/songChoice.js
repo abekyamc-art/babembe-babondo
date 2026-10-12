@@ -108,3 +108,25 @@ export function choiceFromOffer(said, offered) {
   if (said_words.filter((word) => own.some((set) => set.includes(word))).length >= 2) return list[0];
   return null;
 }
+
+// The words a person says yes to the piece the app has just put to them with — "yes", "that's it",
+// "ndio", "sawa". They carry no title of their own: they answer the question the app asked.
+const YES_WORD =
+  /\b(yes|yeah|yep|yup|ndio|ndiyo|sawa|sahihi|correct|exactly|right|okay|ok|sure|that's (it|the one)|thats (it|the one)|that is (it|the one)|that one|this one|the one)\b/i;
+
+// The words that make a turn something other than a yes: a person asking for another piece, or saying
+// that the piece the app named is not the one. A turn carrying one of them is never read as a yes.
+const OTHER_WORD =
+  /\b(no|not|never|another|next|other|else|different|instead|stop|pause|nyingine|ingine|basi|acha)\b/i;
+
+/**
+ * Whether a turn is the person's plain yes to the piece the app has just put to them: the one piece it
+ * named as the piece it was asking about, or the question it asked with several pieces in it. It is
+ * read only while such a question stands, and it is what settles the question — the app plays the piece
+ * it named, or, where it could put no single piece to them, asks again in the shape it can be answered.
+ */
+export function confirmsPiece(turn) {
+  const said = String(turn || "").trim();
+  if (!said || OTHER_WORD.test(said)) return false;
+  return YES_WORD.test(said);
+}

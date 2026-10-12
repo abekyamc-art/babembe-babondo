@@ -53,7 +53,7 @@ const RESUME_ASK = /\b(resume|continue|endelea|endeleza|carry on|play (again|it)
 const NEXT_ASK = /\b(next|ingine|nyingine|another|fuata|nifuatie|following)\b/i;
 const STOP_ASK = /\b(stop|acha|funga|zima|kata|basi|enough|put it away)\b/i;
 const PLAY_ASK =
-  /\b(play|piga|weka|imba|nyimbo|wimbo|muziki|song|music|videos?|kanda|album|sikiliza|listen)\b/i;
+  /\b(play|piga|weka|imba|nyimbo|wimbo|muziki|mziki|song|music|videos?|kanda|album|sikiliza|listen)\b/i;
 
 function clean(value: any, max: number): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);

@@ -17,7 +17,7 @@ import { base44 } from "@/api/base44Client";
 // The cheap reading of a turn, so ordinary talk is never sent anywhere: the words that may ask for
 // media, or for the player to be moved. A turn with none of them is read no further.
 const MEDIA_ASK =
-  /\b(play|playing|piga|weka|imba|nyimbo|wimbo|muziki|song|songs|music|video|videos|kanda|album|pause|pausa|simama|nyamaza|resume|endelea|endeleza|continue|next|ingine|nyingine|another|stop|acha|funga|zima|basi|sikiliza|listen|niache|nisikilize)\b/i;
+  /\b(play|playing|piga|weka|imba|nyimbo|wimbo|muziki|mziki|song|songs|music|video|videos|kanda|album|pause|pausa|simama|nyamaza|resume|endelea|endeleza|continue|next|ingine|nyingine|another|stop|acha|funga|zima|basi|sikiliza|listen|niache|nisikilize)\b/i;
 
 /** Whether a turn may be asking the app's own player for something. */
 export function looksLikeMediaTurn(text) {
@@ -111,20 +111,50 @@ export function mediaLines(step, data = {}) {
           `More than one of the artist's own pieces answers that title: ${names}. The app chose none of them. ` +
           `Ask the person which one they mean, in one short question, and choose nothing yourself.`,
       };
-    case "none":
+    case "none": {
+      // The one piece the app named to the person, where it named one: it stands first among what the
+      // app holds of the artist, and a plain yes plays it. The app's own line says what it holds as well
+      // as what it did not choose, so a title of its own that answered nothing is still a turn the person
+      // can carry on from — by saying yes to the piece the app named, by naming another of the pieces it
+      // holds, or by giving its place in this line.
+      const first = String(data?.name || "").trim();
       return {
-        // The app's own line says what it holds as well as what it did not choose, so a title of its
-        // own that answered nothing is still a turn the person can carry on from — by naming one of
-        // the pieces the app holds, or by giving its place in this line.
         line: names
-          ? `Not in the artist's own list — the app holds ${shortNames(data?.names)}. Say which one.`
+          ? first
+            ? `Not in the artist's own list — is it ${shortNames([first])}? Say yes, or which one you want.`
+            : `Not in the artist's own list — the app holds ${shortNames(data?.names)}. Say which one.`
           : channel
             ? `That one is not in the artist's own list — their channel is ${channel}.`
             : "That one is not among the artist's own pieces, so nothing was put in the player.",
         spoken:
           `That title is not among the artist's own pieces as the app holds them${names ? ` — the app holds ${names}` : ""}, so nothing was chosen. ` +
-          `Say so plainly${channel ? `, and give the artist's own channel: ${channel}` : ""}, then offer those pieces by name and ask which one they ` +
-          `want, so the person can answer with one of them. Never invent a title or a link.`,
+          (first
+            ? `Ask the person whether "${first}" is the one they mean, in one short question, naming it exactly as it stands — ` +
+              `and say that the rest of what the app holds is there as well: their yes plays "${first}", and naming any of the others plays that one. `
+            : `Say so plainly and ask which of those pieces they want, so the person can answer with one of them. `) +
+          (channel ? `The artist's own channel is ${channel}. ` : "") +
+          `Never invent a title or a link.`,
+      };
+    }
+    case "which":
+      // The app put more than one of the artist's pieces to the person and cannot tell which is meant:
+      // nothing was chosen, and the question is asked again in the shape it can be answered in — by the
+      // piece's own name, or by its place in the question.
+      return {
+        line: `Which one — ${names}? Say its name, or its number.`,
+        spoken:
+          `The app has put ${names} to the person and cannot tell which one they mean: none of them was chosen and ` +
+          `nothing is playing. Ask which one they mean, in one short question, and say plainly that they may answer with ` +
+          `the piece's own name or with its number in the question — the app plays the one they answer with. Choose ` +
+          `nothing yourself.`,
+      };
+    case "go":
+      return {
+        line: `Nimeanza — ${name} is starting now.`,
+        spoken:
+          `The app has started its own player on "${name}", the piece standing in it. Say only what the app has done, in ` +
+          `one short line, and never that a piece is playing before the app's own player reports it — the call itself ` +
+          `ends the moment the sound really begins.`,
       };
     case "last":
       return {
