@@ -1,104 +1,126 @@
 import React, { useEffect, useRef, useState } from "react";
-import { Loader2, RotateCcw, SkipForward } from "lucide-react";
-import { readAloud, stopReading } from "@/lib/examVoice";
+import { Loader2, RotateCcw, Square, Volume2 } from "lucide-react";
+import { LETTERS } from "@/lib/examBank";
+import { readAloud, stopReading, unlockReading } from "@/lib/examVoice";
+
+/** The line the examination reads out: the question first, then its three choices, one after another. */
+function spokenLine(text, options) {
+  const question = String(text || "").trim();
+  const choices = (options || [])
+    .map((choice) => String(choice || "").trim())
+    .filter(Boolean)
+    .slice(0, 3)
+    .map((choice, at) => `${LETTERS[at]}, ${choice.slice(0, 70)}`);
+  if (!choices.length) return question.slice(0, 400);
+  const lead = /[.?!]$/.test(question) ? question : `${question}.`;
+  return `${lead} Your choices are — ${choices.join(". ")}.`.slice(0, 400);
+}
 
 /**
- * The question read aloud: the moment a question stands on screen it is read to the student in the
- * examination's own voice, from its first word to its last, and the voice is then hung up — nothing is
- * read of the answer, and nothing keeps speaking once the reading has ended. `onDone` is called when the
- * reading has ended, however it ended, so the choices open only after the question has been read.
+ * The question read aloud: the button under the question reads the question and its choices to the
+ * student, stops the reading while it plays, and asks for it again once it has ended. Nothing of the
+ * answer is read out, and nothing keeps speaking once the reading is over.
  *
- * Moving on to the next question hangs up whatever is being read, and leaving the card hangs it up too.
- * A student who would rather not wait can skip the reading, and a line that cannot be heard is said
- * plainly here and changes nothing else about the paper.
+ * The reading is asked for by a tap and never starts on its own, because a tap is the one moment a phone
+ * lets a page make sound — a reading begun on its own is refused by the phone and heard by nobody. The
+ * question is not held shut behind the reading either: a student who would rather read it themselves is
+ * asked nothing of it, and a line that cannot be heard is said plainly under the button.
  */
-export default function ExamRead({ text, kibembe = "", onDone }) {
-  // "wait" — the voice is being made; "speak" — the line is being read; "done" — it has been hung up
-  const [state, setState] = useState("wait");
+export default function ExamRead({ text, options = [], kibembe = "" }) {
+  // "idle" — nothing is being read; "wait" — the voice is being made; "speak" — the line is being read;
+  // "done" — the reading has ended; "failed" — the line could not be heard
+  const [state, setState] = useState("idle");
   const [trouble, setTrouble] = useState("");
-  // how often this question's reading has failed, so a phone that will not play sound can never keep a
-  // student out of the paper
-  const fails = useRef(0);
   const alive = useRef(true);
-  const line = useRef("");
+  // which reading is in hand: a reading that was stopped, or a question left behind, never speaks
+  const mine = useRef(0);
+  const asked = useRef("");
   const form = useRef("");
-  const done = useRef(onDone);
 
-  line.current = String(text || "").trim();
+  asked.current = spokenLine(text, options);
   form.current = String(kibembe || "").trim();
-  useEffect(() => {
-    done.current = onDone;
-  });
 
-  /** Read the line from beginning to end, hang up, and let the choices open. */
+  /** Read the question and its choices from beginning to end and let the reading be heard. */
   const speak = async () => {
+    // the phone is opened to sound inside the tap itself — the one moment it accepts it — so the reading
+    // made a moment later is let through rather than refused
+    unlockReading();
+    mine.current += 1;
+    const hand = mine.current;
     setTrouble("");
-    if (!line.current) {
-      setState("done");
-      done.current?.();
-      return;
-    }
     setState("wait");
     try {
-      await readAloud(line.current, form.current, () => {
-        if (alive.current) setState("speak");
+      await readAloud(asked.current, form.current, () => {
+        if (alive.current && hand === mine.current) setState("speak");
       });
+      if (!alive.current || hand !== mine.current) return;
+      setState("done");
     } catch (err) {
-      if (!alive.current) return;
-      fails.current += 1;
+      if (!alive.current || hand !== mine.current) return;
       setTrouble(err?.message || "This question could not be read aloud.");
-      // a reading that failed is not a reading that was heard: the choices stay shut and the line is
-      // offered again — and only a second failure opens them, so nobody is ever kept out of the paper
-      if (fails.current < 2) {
-        setState("failed");
-        return;
-      }
+      setState("failed");
     }
-    if (!alive.current) return;
-    setState("done");
-    done.current?.();
   };
 
-  // every new question is read as it appears, and the one before it is hung up as it goes
+  /** Hang up the reading in hand: nothing more of it is heard. */
+  const stop = () => {
+    mine.current += 1;
+    stopReading();
+    setState("done");
+  };
+
   useEffect(() => {
     alive.current = true;
-    fails.current = 0;
-    speak();
     return () => {
       alive.current = false;
+      mine.current += 1;
       stopReading();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [text, kibembe]);
+  }, []);
 
-  // the voice is being made, or the line is being read: the control offers to skip it. A reading that
-  // failed is over for this attempt, so the control offers to try it again instead.
+  // every new question stands unread, and whatever was being read of the question before it is hung up
+  useEffect(() => {
+    mine.current += 1;
+    stopReading();
+    setState("idle");
+    setTrouble("");
+  }, [text]);
+
   const reading = state === "wait" || state === "speak";
+  const label = reading
+    ? "Stop reading"
+    : state === "failed"
+      ? "Try the reading again"
+      : state === "done"
+        ? "Read again"
+        : "Read the question";
 
   return (
     <div className="exam-read-wrap">
       <button
         type="button"
         className={`exam-read ${reading ? "is-on" : ""}`}
-        onClick={reading ? stopReading : speak}
-        aria-label={reading ? "Skip the reading of the question" : "Read the question aloud again"}
+        onClick={reading ? stop : speak}
+        aria-label={reading ? "Stop the reading of the question" : "Read the question and its choices aloud"}
       >
         {reading ? (
           state === "wait" ? (
             <Loader2 className="exam-read-spin" />
           ) : (
-            <SkipForward />
+            <Square />
           )
+        ) : state === "idle" ? (
+          <Volume2 />
         ) : (
           <RotateCcw />
         )}
-        {reading ? "Skip reading" : state === "failed" ? "Try the reading again" : "Read again"}
+        {label}
       </button>
       {reading ? (
         <p className="exam-read-note" aria-live="polite">
           {state === "wait"
-            ? "The question is being prepared to be read…"
-            : "The question is being read to you — the choices open when the reading ends."}
+            ? "The reading is being made…"
+            : "The question and its choices are being read to you."}
         </p>
       ) : null}
       {trouble ? <p className="exam-read-say">{trouble}</p> : null}

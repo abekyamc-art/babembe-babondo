@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React from "react";
 import { ArrowRight, Flag } from "lucide-react";
 import { LETTERS } from "@/lib/examBank";
 import { stopReading } from "@/lib/examVoice";
@@ -20,10 +20,11 @@ function lookOf(at, question, mark) {
  * One question of the examination: the white card, the illustration it is studied on, and the three
  * choices.
  *
- * The question is read out to the student before anything is asked of them: the choices stay closed
- * until the reading has ended and the voice has been hung up, and then they open and wait for the
- * answer. Nothing of the answer is shown until a choice has been made, and then the choice is locked,
- * marked, explained and counted.
+ * The question can be heard before it is answered: the reading is asked for by a tap on the button under
+ * the question, and it reads the question and its choices together. The choices stand open the whole
+ * time — the reading is a help the student may ask for, never a gate held in front of the paper. Nothing
+ * of the answer is shown until a choice has been made, and then the choice is locked, marked, explained
+ * and counted.
  */
 export default function ExamQuestionCard({
   question,
@@ -36,16 +37,6 @@ export default function ExamQuestionCard({
   onNext,
   isLast,
 }) {
-  // whether this question's own reading has ended and the voice has been hung up
-  const [heard, setHeard] = useState(false);
-
-  // every question turns its own reading on, and the one before it is hung up as it goes
-  useEffect(() => {
-    setHeard(false);
-  }, [question.id]);
-
-  const open = heard || !!mark;
-
   // The last question of every episode is a picture puzzle: the same picture twice, with the differences
   // to be found between them. It is answered by tapping rather than by choosing, so it has a card of its
   // own — taken after the hooks, so the same card can carry it and carry a question of choices alike.
@@ -85,17 +76,13 @@ export default function ExamQuestionCard({
       </h2>
       {question.hint ? <p className="exam-hint">{question.hint}</p> : null}
 
-      <ExamRead
-        text={question.prompt}
-        kibembe={question.kb || ""}
-        onDone={() => setHeard(true)}
-      />
+      <ExamRead text={question.prompt} options={question.options} kibembe={question.kb || ""} />
 
       {question.image || question.view ? (
         <ExamFigure view={question.view} spot={question.spot} image={question.image} />
       ) : null}
 
-      <div className={`exam-options ${open || mark ? "" : "is-shut"}`}>
+      <div className="exam-options">
         {question.options.map((text, choice) => (
           <ExamOption
             key={`${question.id}:${choice}`}
@@ -103,7 +90,7 @@ export default function ExamQuestionCard({
             choice={choice}
             text={text}
             look={lookOf(choice, question, mark)}
-            disabled={!!mark || !open}
+            disabled={!!mark}
             onClick={() => choose(choice)}
           />
         ))}
@@ -129,11 +116,7 @@ export default function ExamQuestionCard({
           </p>
         </div>
       ) : (
-        <p className="exam-choose">
-          {open
-            ? "Choose your answer: A, B, or C."
-            : "Listen to the question — the choices open when the reading ends."}
-        </p>
+        <p className="exam-choose">Choose your answer: A, B, or C.</p>
       )}
 
       {mark ? (

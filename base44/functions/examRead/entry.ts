@@ -42,7 +42,8 @@ const EBEMBE_KEY = "ELEVENLABS_API_KEY";
 const APP_VOICE = "honey";
 const APP_VOICE_LANG = "ms";
 
-const MAX_TEXT = 320;
+// A question and its three choices are read as one line, so the bound covers the whole of it whole.
+const MAX_TEXT = 420;
 const UNAVAILABLE = "The question could not be read aloud. Please try again.";
 const NOTHING = "There is nothing to read.";
 
