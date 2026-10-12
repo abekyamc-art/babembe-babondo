@@ -834,6 +834,15 @@
     color: #ffb6bd;
   }
 
+  /* the two outcomes the song-playback check writes beside each AI */
+  .check-good {
+    color: #8ff0c8;
+  }
+
+  .check-bad {
+    color: #ffb6bd;
+  }
+
   .knowledge-empty {
     color: #9ba9c6;
     font-size: 12.5px;

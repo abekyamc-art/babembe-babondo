@@ -32,7 +32,9 @@ import ModeBadge from "@/components/voice/ModeBadge";
 import LangPill from "@/components/voice/LangPill";
 import { CARTESIA_AI, CARTESIA_AI1, CARTESIA_AI2, KIBEMBE_CLASS } from "@/lib/providerNames";
 import AccountSheet from "@/components/voice/AccountSheet";
+import PlaybackCheck from "@/components/voice/PlaybackCheck";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
+import { HOME_SEATS } from "@/lib/homeRotation";
 import StorySheet from "@/components/story/StorySheet";
 import StoryRail from "@/components/story/StoryRail";
 import ExamLauncher from "@/components/exam/ExamLauncher";
@@ -80,6 +82,8 @@ export default function VoiceAssistant() {
   const [gate, setGate] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  // the walk of the whole ring, checking the app's own song playback on each AI in turn
+  const [checkOpen, setCheckOpen] = useState(false);
   // the whole examination series stands over the call screen, which it never touches
   const [levelsOpen, setLevelsOpen] = useState(false);
   const [ready, setReady] = useState(false);
@@ -271,6 +275,11 @@ export default function VoiceAssistant() {
   const handleKnowledge = () => {
     setAccountOpen(false);
     setKnowledgeOpen(true);
+  };
+
+  const handlePlaybackCheck = () => {
+    setAccountOpen(false);
+    setCheckOpen(true);
   };
 
   const handleReels = () => {
@@ -506,6 +515,7 @@ export default function VoiceAssistant() {
         onStudio={handleStudio}
         onKibembe={handleKibembe}
         onKnowledge={handleKnowledge}
+        onPlaybackCheck={handlePlaybackCheck}
         onGetCoins={handleMarkets}
         onSwitchAccount={handleSwitchAccount}
         onSignOut={handleSignOut}
@@ -520,6 +530,15 @@ export default function VoiceAssistant() {
           setKnowledgeOpen(false);
           setStoriesKey((count) => count + 1);
         }} />
+
+      <PlaybackCheck
+        open={checkOpen}
+        onClose={() => setCheckOpen(false)}
+        seats={HOME_SEATS}
+        voiceLabel={voiceLabel}
+        micActive={micActive}
+        turns={turns}
+        media={media} />
       
     </div>);
 
