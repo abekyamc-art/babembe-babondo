@@ -88,12 +88,20 @@ export function seasonCleared(progress, season) {
  * A season is open when it is the first one, or when the season standing right before it in the
  * examination's own order has been cleared. The season before a season is the one that stands nearest
  * above it and really exists, so a season numbered past the ones that are there — the anatomy season —
- * waits behind the season it really follows, and not behind a number that was never used.
+ * waits behind the season it really follows, and not behind a number that was never used. A season still
+ * waiting for its own list of words is stepped over the same way: it is never played, so nothing waits on
+ * it and nothing is ever locked behind it.
  */
 export function seasonOpen(progress, season) {
-  const before = EXAM_SEASONS.filter((held) => held.no < season).pop();
+  if (seasonByNo(season)?.waiting) return false;
+  const before = seasonBefore(season);
   if (!before) return true;
   return seasonCleared(progress, before.no);
+}
+
+/** The season standing nearest above a season that is really played, its own list of words standing. */
+export function seasonBefore(season) {
+  return EXAM_SEASONS.filter((held) => held.no < season && !held.waiting).pop() || null;
 }
 
 /** A passed episode is closed for good, and closing it is what unlocks the episode after it. */

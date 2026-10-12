@@ -3,7 +3,7 @@ import { Award, Lock, Trophy } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { EXAM_SEASONS, episodesInSeason } from "@/lib/examSeasons";
 import { examCoverOf } from "@/lib/examSeasonCovers";
-import { nextEpisode, completedIn, seasonCleared, seasonOpen } from "@/lib/examProgress";
+import { nextEpisode, completedIn, seasonBefore, seasonCleared, seasonOpen } from "@/lib/examProgress";
 
 /**
  * The seasons of the examination: which one is open, how far the student has come inside it, and which
@@ -14,7 +14,10 @@ import { nextEpisode, completedIn, seasonCleared, seasonOpen } from "@/lib/examP
  * public leaderboard is met in one tap at the head of them.
  */
 export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, onBoard, onPrizes }) {
-  const cleared = EXAM_SEASONS.filter((season) => seasonCleared(progress, season.no)).length;
+  // a season still waiting for its own list of words cannot be cleared, so it is not counted among the
+  // seasons a student is working through
+  const playable = EXAM_SEASONS.filter((season) => !season.waiting);
+  const cleared = playable.filter((season) => seasonCleared(progress, season.no)).length;
 
   return (
     <div className="exam-seasons">
@@ -31,7 +34,7 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
         short stays open to be taken again, as often as you need. A passed episode stays closed and is
         never given to you again, and passing all hundred of a season is what opens the season after it.
         There is no daily limit.{" "}
-        {cleared} of {EXAM_SEASONS.length} seasons cleared.
+        {cleared} of {playable.length} seasons cleared.
       </p>
 
       {resume ? (
@@ -48,7 +51,7 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
         const next = nextEpisode(progress, season.no);
         // the season that really stands before this one, since a season may go by a number past the ones
         // that are there
-        const before = EXAM_SEASONS.filter((held) => held.no < season.no).pop();
+        const before = seasonBefore(season.no);
         // the season's own 4K cover, where one has been drawn for it
         const cover = examCoverOf(season.no);
 
@@ -61,7 +64,9 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
             }`}
             onClick={open ? () => onOpenSeason(season.no) : undefined}
             disabled={!open}
-            aria-label={`Season ${season.no}: ${season.title}${open ? "" : " — locked"}`}
+            aria-label={`Season ${season.no}: ${season.title}${
+              open ? "" : season.waiting ? " — waiting for its own words" : " — locked"
+            }`}
           >
             {cover ? (
               <span className="exam-season-art">
@@ -85,14 +90,17 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
                   Season {season.no} · {season.title}
                 </span>
                 <span className="exam-season-blurb">
-                  {season.blurb} · {total} episodes
+                  {season.blurb}
+                  {season.waiting ? "" : ` · ${total} episodes`}
                 </span>
                 <span className="exam-season-tag">
-                  {clearedSeason
-                    ? `Completed · ${done} of ${total} episodes`
-                    : open
-                      ? `${done} of ${total} episodes completed · next is episode ${next}`
-                      : `Clear season ${before ? before.no : 1} to join`}
+                  {season.waiting
+                    ? "Waiting for its own list of words"
+                    : clearedSeason
+                      ? `Completed · ${done} of ${total} episodes`
+                      : open
+                        ? `${done} of ${total} episodes completed · next is episode ${next}`
+                        : `Clear season ${before ? before.no : 1} to join`}
                 </span>
               </span>
               <span className="exam-season-mark">{clearedSeason ? "✓" : open ? "Open" : ""}</span>

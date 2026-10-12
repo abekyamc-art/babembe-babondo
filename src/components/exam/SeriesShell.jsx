@@ -23,9 +23,12 @@ import { saveScore } from "@/lib/examLeaderboard";
 import { loadExamPool } from "@/lib/examPool";
 import "@/exam.css";
 
+// a season still waiting for its own list of words is not one a student can play, so it is not counted
+const PLAYABLE = EXAM_SEASONS.filter((season) => !season.waiting);
+
 const HEAD = {
   title: "GLOIRE AI",
-  subtitle: `Learning & Challenges · ${EXAM_SEASONS.length} seasons · 10 questions per episode`,
+  subtitle: `Learning & Challenges · ${PLAYABLE.length} seasons · 10 questions per episode`,
   system: "Kibembe Learning & Challenge System",
   credit: "Created by Gloire Sadiki Asende.",
   closeLabel: "Close the examination",
@@ -121,8 +124,10 @@ export default function SeriesShell({ open, onClose }) {
   // the season standing after this one in the examination's own order, whatever number it goes by, so a
   // season numbered past the ones that are there is still reached when the season before it is complete
   const afterAt = EXAM_SEASONS.findIndex((held) => held.no === attempt?.season) + 1;
-  const seasonAfter =
-    attempt && went && !nextOpen && afterAt > 0 ? EXAM_SEASONS[afterAt] || null : null;
+  // a season still waiting for its own list of words is stepped over, so the season after this one is the
+  // next one that is really played
+  const after = EXAM_SEASONS.slice(afterAt).find((held) => !held.waiting) || null;
+  const seasonAfter = attempt && went && !nextOpen && afterAt > 0 ? after : null;
   const again = !!attempt && !went;
   // the note is written from a finished paper's report, so it stands empty while the paper is still open
   const note = !report ? '' : went
