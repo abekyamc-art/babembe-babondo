@@ -1,5 +1,5 @@
 import React from "react";
-import { SkipForward, X } from "lucide-react";
+import { Play, SkipForward, X } from "lucide-react";
 import YouTubePlayer from "@/components/story/YouTubePlayer";
 
 /**
@@ -25,9 +25,11 @@ export default function MediaDock({
   item,
   queue = [],
   others = 0,
+  offer = [],
   note = "",
   playing,
   autoStart = false,
+  onPick,
   onStart,
   onPlaying,
   onTrackEnd,
@@ -35,7 +37,46 @@ export default function MediaDock({
   onClose,
   playerRef,
 }) {
-  if (!item) return null;
+  // Where the app holds pieces of the artist but could settle on none of them — two titles alike, or a
+  // title that answers none of them — the pieces themselves stand here to be pressed. So a request the
+  // app could not decide still ends in something the person can play here, in the app's own player,
+  // rather than in a line alone.
+  if (!item) {
+    if (!offer.length) return null;
+    return (
+      <section aria-label="The artist's own pieces" className="border-t border-border px-4 py-3">
+        <div className="mb-2 flex items-start gap-3">
+          <p className="min-w-0 flex-1 font-body text-[11px] leading-snug text-muted-foreground">
+            {note || "Which of the artist's own pieces did you mean? Press one to play it here."}
+          </p>
+          <button
+            type="button"
+            onClick={onClose}
+            aria-label="Put the list away"
+            className="flex h-9 w-9 flex-none items-center justify-center rounded-full border border-border text-foreground"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+        <ul className="space-y-1">
+          {offer.map((one) => (
+            <li key={one.url}>
+              <button
+                type="button"
+                onClick={() => onPick?.(one)}
+                className="flex w-full items-center gap-2 rounded-lg border border-border px-3 py-2 text-left"
+              >
+                <Play className="h-4 w-4 flex-none text-accent" />
+                <span className="min-w-0 flex-1 truncate font-body text-sm text-foreground">
+                  {one.name || one.url}
+                </span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      </section>
+    );
+  }
 
   const line =
     note ||

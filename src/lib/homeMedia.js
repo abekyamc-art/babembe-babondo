@@ -170,6 +170,18 @@ export function mediaLines(step, data = {}) {
           `one short line, and never that a piece is playing before the app's own player reports it — the call itself ` +
           `ends the moment the sound really begins.`,
       };
+    case "looking":
+      // The app has begun reading the turn for its own player: the screen says so the moment the ask is
+      // made, so a request for a piece is never met with a screen that has not changed at all. Nothing
+      // has been done yet, so no voice is told anything.
+      return {
+        line: "Natafuta — looking for that piece in the artist's own list…",
+        spoken: "",
+      };
+    case "idle":
+      // Nothing was put in the player and nothing was put to the person: the line above comes off the
+      // screen and the turn is left to the voice, or to the assistant, exactly as it stands.
+      return { line: "", spoken: "" };
     case "last":
       return {
         line: "That was the last of the artist's pieces in the player.",

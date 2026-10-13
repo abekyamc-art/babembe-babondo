@@ -187,6 +187,15 @@ export default function useTalkVoice({ onTurn, onPictures, onDropTurn, onMedia }
         if (mode) saveLangMode(mode);
         if (note) socketRef.current?.sendMemory(note);
       });
+      // The app's own player is asked about the turn here as well. This is the path a turn takes where
+      // the app's own ears could not write it down and the call's own service did: a piece asked for
+      // there is put in the app's own player exactly as any other ask is — the piece really stands in
+      // the player, the app's own line really stands on the screen, and the pieces the app holds out
+      // really stand to be pressed — instead of a request for a song passing with nothing on the screen
+      // at all. What the app has really done is told to the voice as it comes, never guessed at.
+      Promise.resolve(mediaRef.current?.(said)).then((done) => {
+        if (done?.spoken) socketRef.current?.sendMemory(done.spoken);
+      });
     },
     [push]
   );

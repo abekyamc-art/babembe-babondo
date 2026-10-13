@@ -34,6 +34,9 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const [auto, setAuto] = useState(false);
   // the app's own line about its own player
   const [note, setNote] = useState("");
+  // the artist's own pieces the app holds out to the person, where it could not choose between them or
+  // where the title asked for answers none of them: they stand on the screen as pieces to press
+  const [offer, setOffer] = useState([]);
   // the player has been brought in: only then can it be paused or started again
   const [inPlace, setInPlace] = useState(false);
   // the piece is really playing, as the player itself reported it
@@ -77,6 +80,9 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   const say = useCallback((step, data = {}, toVoice = true) => {
     const lines = mediaLines(step, data);
     setNote(lines.line);
+    // the pieces the app holds out, where its own line hands any of them over: they are what the person
+    // presses, so a request the app could not settle still ends in something playable here
+    if (lines.offer) setOffer(lines.offer);
     if (toVoice && lines.spoken) tellRef.current?.(lines.spoken);
     return lines;
   }, []);
@@ -93,8 +99,10 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     startedRef.current = false;
     quietRef.current = false;
     autoRef.current = played === true;
-    // a piece stands in the player, so a question the app had put to the person is answered
+    // a piece stands in the player, so a question the app had put to the person is answered, and the
+    // pieces it held out are taken off the screen with it
     offerRef.current = null;
+    setOffer([]);
     // a set the app has just put in its own player has not been handed to anyone yet
     handedRef.current = false;
     setItem(next);
@@ -117,6 +125,7 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     offerRef.current = null;
     setItem(null);
     setQueue([]);
+    setOffer([]);
     setInPlace(false);
     setStarted(false);
     setQuiet(false);
@@ -211,10 +220,19 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
         return say("go", { name: itemRef.current?.name });
       }
       if (!looksLikeMediaTurn(said)) return null;
+      // The ask is met on the screen at once: the app says it is looking for the piece while its own
+      // selection reads the turn, so a request for a song is never met with a screen that has not
+      // changed at all.
+      say("looking");
       readingRef.current = true;
       try {
         const result = await readMediaTurn(said);
-        if (!result) return null;
+        if (!result) {
+          // the turn asked for a piece and the app's own selection answered with nothing it could use:
+          // the line comes off the screen and the voice, or the assistant, answers the turn itself
+          say("idle");
+          return null;
+        }
 
         if (result.intent === "play" || result.intent === "listen") {
           if (result.chosen?.url) {
@@ -252,6 +270,7 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
           // left to the voice, or to the assistant, to answer exactly as ordinary talk is.
           if (!names.length && !String(result.channel || "").trim()) {
             offerRef.current = null;
+            say("idle");
             return null;
           }
           const first = offered[0] || null;
@@ -262,7 +281,10 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
         if (result.intent === "next") {
           // Nothing of the app's own is standing in the player, so the turn is not about the music at
           // all: the voice holding the call answers it exactly as it always did.
-          if (!itemRef.current) return null;
+          if (!itemRef.current) {
+            say("idle");
+            return null;
+          }
           if (step()) return null;
           // nothing is left behind the piece standing: the artist's own set is over
           return finishSet();
@@ -281,14 +303,20 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
         if (result.intent === "stop") {
           // Nothing of the app's own is standing in the player, so a stop is not about the music: the
           // voice holding the call answers it, and the talk keeps the voice it has.
-          if (!itemRef.current) return null;
+          if (!itemRef.current) {
+            say("idle");
+            return null;
+          }
           // The person has said stop: the music turn ends here, and the talk moves on from AI 1 to the
           // voice that speaks Base44 mode rather than the piece being left standing over the call.
           return finishSet("stop");
         }
 
+        say("idle");
         return null;
       } catch (err) {
+        // a reading that cannot be made leaves the screen as it was before the ask
+        say("idle");
         return null;
       } finally {
         readingRef.current = false;
@@ -376,6 +404,9 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     // the artist's own pieces still waiting behind the one standing, in the order they play
     queue,
     others: queue.length,
+    // the artist's own pieces the app holds out where it could settle on none of them: they stand on
+    // the screen as pieces to press, and each one is played here when it is pressed
+    offer,
     note,
     inPlace,
     started,

@@ -22,6 +22,9 @@ const COVERS = {
   7: `${AT}549549a7b_generated_aabcb98a.png`,
   8: `${AT}9d93a3bf1_generated_da3dbffe.png`,
   9: `${AT}7de657042_generated_99107c2c.png`,
+  // the village workshop: the carver at his own bench, the chisel in his hand and the finished panels
+  // standing on the shelves behind him — the work and the craft the season's own lesson is about
+  10: `${AT}26a4a6e7b_generated_2345e0c9.png`,
   // the food lesson of 12 October 2026: the market photographed under its thatch at golden hour, the
   // vegetables, the greens and the fruit of the season standing in their baskets
   11: `${AT}c70b15ba0_generated_4c9e1fd1.png`,

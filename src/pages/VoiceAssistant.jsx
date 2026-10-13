@@ -452,13 +452,15 @@ export default function VoiceAssistant() {
 
       {/* the app's own player, standing over the talk: what the person asked for plays here, in the
            artist's own piece, and the app's own line says only what it has really done */}
-      {media.item ? (
+      {media.item || media.offer.length ? (
         <div className="absolute inset-x-4 bottom-[5.5rem] z-30 mx-auto max-w-md overflow-hidden rounded-2xl border border-border bg-card/95 shadow-lg backdrop-blur">
           <MediaDock
             item={media.item}
             queue={media.queue}
             others={media.others}
+            offer={media.offer}
             note={media.note}
+            onPick={(one) => media.play(one, media.offer)}
             playing={media.started}
             autoStart={media.autoStart}
             playerRef={media.playerRef}
