@@ -6,10 +6,10 @@ import BoardTotals from "@/components/exam/BoardTotals";
 import { BOARD_SIZE, myRecord, rankOf, topScores } from "@/lib/examLeaderboard";
 
 /**
- * The app's public leaderboard: the hundred highest standings, highest first, each one read as the two
- * totals it stands on — every episode of the game the student has passed and every episode of the
- * examination — with the student's own standing shown beside them: among the hundred when it stands
- * there, and above them with its own place when it does not.
+ * The app's public leaderboard: the hundred highest standings, highest first, each one read as the one
+ * total it stands on — every episode of the game the student has passed and every episode of the
+ * examination, added together — with the student's own standing shown beside them: among the hundred
+ * when it stands there, and above them with its own place when it does not.
  */
 export default function ExamLeaderboard({ onBack }) {
   const [rows, setRows] = useState(null);
@@ -66,8 +66,8 @@ export default function ExamLeaderboard({ onBack }) {
       <p className="exam-ep-note">
         The public leaderboard stands open to everyone: each student's place is the episodes they have
         really passed — the game's own episodes and the examination's, added together — and the hundred
-        highest of them are shown here, highest first. The two totals stand beside every student: the
-        game's episodes and the examination's.
+        highest of them are shown here, highest first. The one total stands beside every student, so
+        five episodes of the game and five of the examination read as ten.
       </p>
 
       {mine && !mineInList ? (

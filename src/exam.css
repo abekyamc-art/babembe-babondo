@@ -1121,8 +1121,8 @@
   color: #9ba9c6;
 }
 
-/* The two totals a student's place stands on, read one above the other at the row's own end: the
-   game's own episodes, and the examination's. */
+/* The one total a student's place stands on, read at the row's own end: every episode of the game
+   they have passed and every episode of the examination, added together. */
 .exam-board-totals {
   flex: none;
   display: flex;
@@ -1146,10 +1146,6 @@
   font-size: 15px;
   font-weight: 800;
   color: #8ff0c8;
-}
-
-.exam-board-total.is-exam b {
-  color: #8ebaff;
 }
 
 .exam-report-actions {
