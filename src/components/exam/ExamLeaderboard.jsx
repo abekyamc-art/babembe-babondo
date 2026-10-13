@@ -79,7 +79,7 @@ export default function ExamLeaderboard({ onBack }) {
               Your place · season {mine.season || 1}
             </span>
           </span>
-          <BoardTotals game={mine.game_episodes || 0} exam={mine.passed || 0} />
+          <BoardTotals total={mine.episodes} />
         </div>
       ) : null}
 
@@ -112,7 +112,7 @@ export default function ExamLeaderboard({ onBack }) {
                 <span className="exam-board-name">{row.username || row.user_email}</span>
                 <span className="exam-board-meta">Season {row.season || 1}</span>
               </span>
-              <BoardTotals game={row.game_episodes || 0} exam={row.passed || 0} />
+              <BoardTotals total={row.episodes} />
             </div>
           ))}
         </div>

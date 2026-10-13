@@ -13,10 +13,40 @@ import { levelsPassed, loadGame } from "@/lib/differenceGame/store";
  * student as they go on. Nothing here is ever a reason the examination cannot be taken: a standing that
  * cannot be written down — on a signed-out phone, or on one that will not reach the store — is simply
  * not written, and the paper, or the game, goes on.
+ *
+ * A standing written before the one total was kept on the record itself carries only the two parts.
+ * Such a record is read here through that same one total — the examination's own episodes and the
+ * game's, added together — so every student is laid in the order of what they have really passed,
+ * however old their standing is. The examination's score points are never read as episodes.
  */
 
 /** How many records the leaderboard shows: the hundred highest standings in the app. */
 export const BOARD_SIZE = 100;
+
+/** Whether a record carries the one total it stands on. */
+function carriesTotal(record) {
+  return (
+    record?.episodes !== undefined &&
+    record?.episodes !== null &&
+    Number.isFinite(Number(record.episodes))
+  );
+}
+
+/**
+ * The one total a record stands on: the total kept on it where the record carries one, and — where the
+ * record was written before that total was kept — every episode of the examination and every episode of
+ * the game it does carry, added together. Nothing else on the record is ever counted as an episode.
+ */
+export function totalEpisodes(record) {
+  if (carriesTotal(record)) return Number(record.episodes);
+  return (Number(record?.passed) || 0) + (Number(record?.game_episodes) || 0);
+}
+
+/** The same record with its own one total standing on it, so the list, the place and the total shown
+ *  are all read from that one number. */
+function withTotal(record) {
+  return { ...record, episodes: totalEpisodes(record) };
+}
 
 /** What one student's record holds, as the app writes it. */
 function recordOf(me, profile, progress) {
@@ -69,26 +99,52 @@ export async function saveScore(progress) {
   }
 }
 
-/** The hundred highest standings in the app, highest first: every episode the student has passed. */
+/**
+ * The hundred highest standings in the app, highest first: every episode the student has passed, the
+ * game's own and the examination's together.
+ *
+ * Two runs stand behind the list, because the one total is not kept on every record: the standings that
+ * carry their own total are read in their own order, and the older ones — which carry only the two
+ * parts — are read by the examination's own episodes, so a standing with the most of them is never left
+ * off the run. Both are read through the one total and laid in one order, highest first.
+ */
 export async function topScores() {
-  const page = await base44.entities.ExamRecord.filter(
-    { score: { $gte: 0 } },
-    { sort: "-episodes", limit: BOARD_SIZE }
-  );
-  return page?.items || [];
+  const [carried, older] = await Promise.all([
+    base44.entities.ExamRecord.filter(
+      { episodes: { $exists: true } },
+      { sort: "-episodes", limit: BOARD_SIZE }
+    ),
+    base44.entities.ExamRecord.filter(
+      { episodes: { $exists: false } },
+      { sort: "-passed", limit: BOARD_SIZE }
+    ),
+  ]);
+  return [...(carried?.items || []), ...(older?.items || [])]
+    .map(withTotal)
+    .sort((one, other) => other.episodes - one.episodes)
+    .slice(0, BOARD_SIZE);
 }
 
 /** One student's own record, for the standing shown beside the list. */
 export async function myRecord(email) {
   if (!email) return null;
   const page = await base44.entities.ExamRecord.filter({ user_email: email }, { limit: 1 });
-  return page?.items?.[0] || null;
+  const found = page?.items?.[0] || null;
+  return found ? withTotal(found) : null;
 }
 
-/** How many records stand above a total: one more than them is that total's own place. */
+/** How many standings stand above a total: one more than them is that total's own place. */
 export async function rankOf(episodes) {
-  const ahead = await base44.entities.ExamRecord.count({
-    episodes: { $gt: Number(episodes) || 0 },
-  });
-  return ahead + 1;
+  const mine = Number(episodes) || 0;
+  // the standings carrying their own total, and the older ones, whose own total is the examination's
+  // episodes and the game's added together — an older standing carries no game episodes of its own,
+  // so its examination episodes are read as that total
+  const [carried, older] = await Promise.all([
+    base44.entities.ExamRecord.count({ episodes: { $gt: mine } }),
+    base44.entities.ExamRecord.count({
+      episodes: { $exists: false },
+      passed: { $gt: mine },
+    }),
+  ]);
+  return carried + older + 1;
 }
