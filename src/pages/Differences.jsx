@@ -5,6 +5,8 @@ import LevelSelect from "@/components/diffgame/LevelSelect";
 import { levelById, nextLevel } from "@/lib/differenceGame/levels";
 import { briefOf, loadEpisodeArt } from "@/lib/differenceGame/episodeArt";
 import { loadGame, saveGame, withWin } from "@/lib/differenceGame/store";
+import { saveScore } from "@/lib/examLeaderboard";
+import { loadProgress } from "@/lib/examProgress";
 import "@/diffgame.css";
 
 /**
@@ -51,7 +53,13 @@ export default function Differences() {
         art={art}
         prefs={state}
         onPrefs={(patch) => write((held) => ({ ...held, ...patch }))}
-        onWin={(id, result) => write((held) => withWin(held, id, result))}
+        onWin={(id, result) => {
+          // the episode just passed is written down in the app's own standing as well, so the game's own
+          // total stands on the leaderboard beside the examination's. A standing that cannot be written
+          // leaves the game exactly as it plays.
+          write((held) => withWin(held, id, result));
+          saveScore(loadProgress());
+        }}
         onNext={() => setPlaying(after ? after.id : 0)}
         onLevels={() => setPlaying(0)}
         onMenu={() => setPlaying(0)}

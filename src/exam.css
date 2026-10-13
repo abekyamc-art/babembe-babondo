@@ -1121,11 +1121,35 @@
   color: #9ba9c6;
 }
 
-.exam-board-points {
+/* The two totals a student's place stands on, read one above the other at the row's own end: the
+   game's own episodes, and the examination's. */
+.exam-board-totals {
   flex: none;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  align-items: flex-end;
+  text-align: right;
+}
+
+.exam-board-total {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-size: 11px;
+  font-weight: 700;
+  color: #9ba9c6;
+  white-space: nowrap;
+}
+
+.exam-board-total b {
   font-size: 15px;
   font-weight: 800;
   color: #8ff0c8;
+}
+
+.exam-board-total.is-exam b {
+  color: #8ebaff;
 }
 
 .exam-report-actions {

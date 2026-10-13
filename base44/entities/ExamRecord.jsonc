@@ -17,12 +17,22 @@
     "score": {
       "type": "number",
       "default": 0,
-      "description": "The student's total score: the best mark of every episode they have passed, added together. The leaderboard stands in this number's order."
+      "description": "The student's total score: the best mark of every episode they have passed, added together. It is kept beside the two totals the leaderboard stands in."
     },
     "passed": {
       "type": "number",
       "default": 0,
-      "description": "How many episodes the student has passed, over every season."
+      "description": "How many episodes of the examination the student has passed, over every season. It is the examination's own total, shown on the leaderboard beside the game's."
+    },
+    "game_episodes": {
+      "type": "number",
+      "default": 0,
+      "description": "How many episodes of Find the Differences the student has passed. It is read from the game's own record on their phone each time their standing is written down."
+    },
+    "episodes": {
+      "type": "number",
+      "default": 0,
+      "description": "The two totals added together: every episode of the game the student has really passed and every episode of the examination. It is the number the leaderboard stands in the order of."
     },
     "season": {
       "type": "number",

@@ -2,12 +2,14 @@ import React, { useEffect, useState } from "react";
 import { ArrowLeft } from "lucide-react";
 import { Image } from "@/components/ui/image";
 import { base44 } from "@/api/base44Client";
+import BoardTotals from "@/components/exam/BoardTotals";
 import { BOARD_SIZE, myRecord, rankOf, topScores } from "@/lib/examLeaderboard";
 
 /**
- * The app's public leaderboard: the hundred highest scores of the examination, highest first, with the
- * student's own standing shown beside them — among the hundred when it stands there, and above them
- * with its own place when it does not.
+ * The app's public leaderboard: the hundred highest standings, highest first, each one read as the two
+ * totals it stands on — every episode of the game the student has passed and every episode of the
+ * examination — with the student's own standing shown beside them: among the hundred when it stands
+ * there, and above them with its own place when it does not.
  */
 export default function ExamLeaderboard({ onBack }) {
   const [rows, setRows] = useState(null);
@@ -32,7 +34,7 @@ export default function ExamLeaderboard({ onBack }) {
           me = null;
         }
         own = me?.email ? await myRecord(me.email) : null;
-        place = own ? await rankOf(own.score) : 0;
+        place = own ? await rankOf(own.episodes) : 0;
       } catch (err) {
         console.error("The leaderboard could not be read:", err?.message);
         if (alive) setFailed(true);
@@ -58,13 +60,14 @@ export default function ExamLeaderboard({ onBack }) {
         <button type="button" className="exam-ghost" onClick={onBack}>
           <ArrowLeft className="h-4 w-4" /> All seasons
         </button>
-        <p className="exam-ep-count">Top {BOARD_SIZE} scores</p>
+        <p className="exam-ep-count">Top {BOARD_SIZE} students</p>
       </div>
 
       <p className="exam-ep-note">
-        The public leaderboard stands open to everyone: each student's score is the best mark of every
-        episode they have passed, added together, and the hundred highest of them are shown here, highest
-        first.
+        The public leaderboard stands open to everyone: each student's place is the episodes they have
+        really passed — the game's own episodes and the examination's, added together — and the hundred
+        highest of them are shown here, highest first. The two totals stand beside every student: the
+        game's episodes and the examination's.
       </p>
 
       {mine && !mineInList ? (
@@ -73,10 +76,10 @@ export default function ExamLeaderboard({ onBack }) {
           <span className="exam-board-body">
             <span className="exam-board-name">{mine.username || "You"}</span>
             <span className="exam-board-meta">
-              Your score · {mine.passed || 0} episodes passed · season {mine.season || 1}
+              Your place · season {mine.season || 1}
             </span>
           </span>
-          <span className="exam-board-points">{mine.score || 0}</span>
+          <BoardTotals game={mine.game_episodes || 0} exam={mine.passed || 0} />
         </div>
       ) : null}
 
@@ -88,7 +91,7 @@ export default function ExamLeaderboard({ onBack }) {
         <p className="exam-empty">Reading the leaderboard…</p>
       ) : rows.length === 0 ? (
         <p className="exam-empty">
-          No score stands on the leaderboard yet. Pass an episode and yours will be the first.
+          No standing stands on the leaderboard yet. Pass an episode and yours will be the first.
         </p>
       ) : (
         <div className="exam-board-list">
@@ -107,11 +110,9 @@ export default function ExamLeaderboard({ onBack }) {
               </span>
               <span className="exam-board-body">
                 <span className="exam-board-name">{row.username || row.user_email}</span>
-                <span className="exam-board-meta">
-                  {row.passed || 0} episodes passed · season {row.season || 1}
-                </span>
+                <span className="exam-board-meta">Season {row.season || 1}</span>
               </span>
-              <span className="exam-board-points">{row.score || 0}</span>
+              <BoardTotals game={row.game_episodes || 0} exam={row.passed || 0} />
             </div>
           ))}
         </div>

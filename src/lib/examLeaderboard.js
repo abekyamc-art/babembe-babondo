@@ -1,30 +1,39 @@
 import { base44 } from "@/api/base44Client";
 import { episodesInSeason } from '@/lib/examSeasons';
 import { episodesPassed, nextEpisode, seasonReached, totalScore } from "@/lib/examProgress";
+import { levelsPassed, loadGame } from "@/lib/differenceGame/store";
 
 /**
- * The app's public leaderboard: one record stands for each student, holding the total score they have
- * earned in the examination, and the hundred highest of those records are read back in their own order.
+ * The app's public leaderboard: one record stands for each student, holding every episode they have
+ * really passed — the game's own episodes and the examination's, together — and the hundred highest of
+ * those records are read back in their own order, highest first.
  *
- * A score is written down each time an episode is finished, from what stands passed on the phone, so the
- * leaderboard follows the student's own examination as it goes on. Nothing here is ever a reason the
- * examination cannot be taken: a score that cannot be written down — on a signed-out phone, or on one
- * that will not reach the store — is simply not written, and the paper goes on.
+ * The standing is written down each time an episode of the examination is finished and each time an
+ * episode of the game is passed, from what really stands passed on the phone, so both totals follow the
+ * student as they go on. Nothing here is ever a reason the examination cannot be taken: a standing that
+ * cannot be written down — on a signed-out phone, or on one that will not reach the store — is simply
+ * not written, and the paper, or the game, goes on.
  */
 
-/** How many records the leaderboard shows: the hundred highest scores in the app. */
+/** How many records the leaderboard shows: the hundred highest standings in the app. */
 export const BOARD_SIZE = 100;
 
 /** What one student's record holds, as the app writes it. */
 function recordOf(me, profile, progress) {
   const email = me?.email || "";
   const season = seasonReached(progress);
+  // the two totals the leaderboard stands in: every episode of the game the student has really passed,
+  // read off their own phone, and every episode of the examination they have passed
+  const game = levelsPassed(loadGame());
+  const exam = episodesPassed(progress);
   return {
     user_email: email,
     username: profile?.username || me?.full_name || email.split("@")[0] || "Student",
     avatar_url: profile?.avatar_url || "",
     score: totalScore(progress),
-    passed: episodesPassed(progress),
+    passed: exam,
+    game_episodes: game,
+    episodes: game + exam,
     season,
     episode: nextEpisode(progress, season) ?? episodesInSeason(season) + 1,
     at: new Date().toISOString(),
@@ -41,8 +50,9 @@ async function student() {
 }
 
 /**
- * Writes the student's standing down: one record, found by their email, holding the total score of
- * everything they have passed, the episodes behind them and the season they stand in.
+ * Writes the student's standing down: one record, found by their email, holding every episode of the
+ * game and of the examination they have really passed, the episodes behind them and the season they
+ * stand in.
  */
 export async function saveScore(progress) {
   try {
@@ -59,11 +69,11 @@ export async function saveScore(progress) {
   }
 }
 
-/** The hundred highest scores in the app, highest first. */
+/** The hundred highest standings in the app, highest first: every episode the student has passed. */
 export async function topScores() {
   const page = await base44.entities.ExamRecord.filter(
     { score: { $gte: 0 } },
-    { sort: "-score", limit: BOARD_SIZE }
+    { sort: "-episodes", limit: BOARD_SIZE }
   );
   return page?.items || [];
 }
@@ -75,8 +85,10 @@ export async function myRecord(email) {
   return page?.items?.[0] || null;
 }
 
-/** How many records stand above a score: one more than them is that score's own place. */
-export async function rankOf(score) {
-  const ahead = await base44.entities.ExamRecord.count({ score: { $gt: Number(score) || 0 } });
+/** How many records stand above a total: one more than them is that total's own place. */
+export async function rankOf(episodes) {
+  const ahead = await base44.entities.ExamRecord.count({
+    episodes: { $gt: Number(episodes) || 0 },
+  });
   return ahead + 1;
 }
