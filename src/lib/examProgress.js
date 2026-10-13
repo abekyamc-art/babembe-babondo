@@ -94,6 +94,10 @@ export function seasonCleared(progress, season) {
  */
 export function seasonOpen(progress, season) {
   if (seasonByNo(season)?.waiting) return false;
+  // A season that carries a teaching set of its own stands open to every student: the lesson it asks is
+  // met by whoever comes for it, without the seasons before it being cleared first, and it waits on
+  // nothing — nor does anything wait on it.
+  if (seasonByNo(season)?.open) return true;
   const before = seasonBefore(season);
   if (!before) return true;
   return seasonCleared(progress, before.no);
@@ -164,6 +168,10 @@ export function totalScore(progress) {
 export function seasonReached(progress) {
   let at = 1;
   EXAM_SEASONS.forEach((season) => {
+    // A season that stands open of its own is not part of the path a student walks in order, so it is
+    // left out here: the season a student stands in — the one written down for them, and the one their
+    // own progress is read back from — follows the seasons that do wait on the one before them.
+    if (season.open) return;
     if (seasonOpen(progress, season.no)) at = season.no;
   });
   return at;

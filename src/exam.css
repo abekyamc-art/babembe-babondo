@@ -1216,3 +1216,5 @@
 .exam-read.is-on:hover {
   background: #1b4272;
 }
+
+/* the teaching set a season's papers are cut from has its own stylesheet: src/exam-set.css */

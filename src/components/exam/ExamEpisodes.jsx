@@ -2,6 +2,7 @@ import React from "react";
 import { ArrowLeft, Lock } from "lucide-react";
 import { episodesInSeason, episodeSize } from "@/lib/examSeasons";
 import { bestOf, episodeCompleted, episodeOpen, nextEpisode, completedIn } from "@/lib/examProgress";
+import ExamSetStudy from "./ExamSetStudy";
 
 /**
  * One season's hundred episodes, laid out as its own paper: what has been passed with the best mark it
@@ -29,6 +30,9 @@ export default function ExamEpisodes({ season, progress, onOpen, onBack }) {
         Score more than 80% to pass an episode and open the next one — an episode that falls short stays
         open and can be taken again as often as you like. A passed episode is closed for good.
       </p>
+
+      {/* the teaching set this season's papers are cut from, read before it is asked */}
+      {season.study ? <ExamSetStudy setId={season.study} /> : null}
 
       {next ? <button type="button" className="exam-next is-go" onClick={() => onOpen(next)}>
         Take episode {next}

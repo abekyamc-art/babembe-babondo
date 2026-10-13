@@ -6,6 +6,7 @@ import { lifeQuestionOf, lifeWordOrder, shuffled } from "./examSeries";
 import { buildCalculationPaper, challengeAt } from '@/lib/challengeQuestions';
 import { buildPeoplePaper } from '@/lib/peopleChallenges';
 import { SCENE_POOL, currentQueues, poolShare } from './examPool';
+import { buildSetPaper, setEpisodes } from './examSetPapers';
 import { differencePuzzle } from './diffPuzzles';
 
 /**
@@ -81,6 +82,7 @@ const SEASONS = [
     blurb:
       'The animals Gloire taught on 12 October 2026 — each one asked both ways, the taught plurals beside them, and a number, a greeting, a phrase or a proverb in every paper',
     pool: 'animals',
+    study: 'animals',
   },
   {
     no: 9,
@@ -88,6 +90,36 @@ const SEASONS = [
     blurb: 'The confirmed terms of the adult body, one after another, on a season of their own',
     pool: 'anatomy',
     episodes: 24,
+  },
+  // The two seasons of the teaching sets of 12 October 2026 — the words Gloire taught by voice, which
+  // the seasons already standing had no room for. Each season carries as many episodes as its own set's
+  // questions fill; the lesson the season before it cannot hold stands here, and every pair of both
+  // sets is asked. Their own pages are written from the same record, so the lesson can be read before
+  // it is asked. Both stand open to every student: a lesson of its own is met by whoever comes for it,
+  // without the seasons before it being cleared first.
+  {
+    no: 10,
+    title: 'Watu, mahali na kazi',
+    blurb:
+      'Who we are, where we live, the work we need and do, and the time that has passed — the voice-captured set of 12 October 2026, every pair asked both ways',
+    pool: 'set',
+    set: 'watu',
+    study: 'watu',
+    open: true,
+    // the episodes the set's own questions fill: nine to a paper, and the food lesson it cannot hold
+    // stands in the season after this one
+    episodes: setEpisodes('watu'),
+  },
+  {
+    no: 11,
+    title: 'Chakula, mboga na matunda',
+    blurb:
+      'The food lesson of the same day — the greens, the kitchen foods and spices, the fruit and the drinks — every pair asked both ways',
+    pool: 'set',
+    set: 'chakula',
+    study: 'chakula',
+    open: true,
+    episodes: setEpisodes('chakula'),
   },
 ];
 
@@ -330,6 +362,10 @@ function paperOf(seasonNo, episode) {
   // the season of the names of the world: the animals of today's own set, with the other confirmed
   // topics of the language standing beside them
   if (season.pool === 'animals') return buildAnimalPaper(episode);
+  // the two seasons of the teaching sets of 12 October 2026: a paper is cut from its own set's words —
+  // nine of them, in the run the season has left off at — and what its own set cannot fill is filled
+  // from the examination's own confirmed extras
+  if (season.pool === 'set') return buildSetPaper(season.set, episode);
   // a season still waiting for its own list of words writes no paper at all
   if (season.pool === 'waiting') return [];
   const { life, extras, medical } = partsOf(season, episode);

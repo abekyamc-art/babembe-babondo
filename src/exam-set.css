@@ -1,0 +1,155 @@
+/*
+ * GLOIRE AI — THE EXAMINATION: the teaching set a season's papers are cut from.
+ *
+ * The lesson exactly as it was taught — the Kibembe form, the Kiswahili it was taught under and the
+ * English where the lesson gave one — folded away at the head of the season's own page, read before it
+ * is asked.
+ */
+
+.exam-set {
+  display: flex;
+  flex-direction: column;
+}
+
+.exam-set-open {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 13px;
+  color: #dbe6ff;
+  background: #101728;
+  border: 1px solid #26304d;
+  border-radius: 13px;
+  font-size: 12.5px;
+  font-weight: 750;
+  line-height: 1.35;
+  cursor: pointer;
+  list-style: none;
+}
+
+.exam-set-open::-webkit-details-marker,
+.exam-set-open::marker {
+  display: none;
+  content: "";
+}
+
+.exam-set[open] .exam-set-open {
+  border-radius: 13px 13px 0 0;
+  border-bottom-color: #1c2440;
+}
+
+.exam-set-open-meta {
+  flex: none;
+  color: #8ebaff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.exam-set-body {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 14px 13px;
+  background: #0e1524;
+  border: 1px solid #26304d;
+  border-top: 0;
+  border-radius: 0 0 13px 13px;
+}
+
+.exam-set-source {
+  margin: 0;
+  color: #8ebaff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
+
+.exam-set-note {
+  margin: 0;
+  color: #c3cde2;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.exam-set-rules {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin: 0;
+  padding-left: 18px;
+  color: #9ba9c6;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.exam-set-part {
+  display: flex;
+  flex-direction: column;
+}
+
+.exam-set-part-title {
+  margin: 0 0 4px;
+  color: #8ebaff;
+  font-size: 10.5px;
+  font-weight: 800;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+}
+
+.exam-set-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 9px;
+  margin: 0;
+  padding: 7px 0;
+  border-bottom: 1px solid #1c2440;
+}
+
+.exam-set-kb {
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: -0.1px;
+}
+
+.exam-set-sw {
+  color: #c3cde2;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.exam-set-en {
+  color: #9ba9c6;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.exam-set-aside {
+  margin: 0;
+  padding: 10px 11px;
+  color: #c3cde2;
+  background: #141c32;
+  border: 1px solid #1c2440;
+  border-radius: 11px;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.exam-set-aside-title {
+  display: block;
+  margin-bottom: 3px;
+  color: #8ebaff;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}
