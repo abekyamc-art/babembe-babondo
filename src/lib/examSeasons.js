@@ -94,18 +94,17 @@ const SEASONS = [
   // The two seasons of the teaching sets of 12 October 2026 — the words Gloire taught by voice, which
   // the seasons already standing had no room for. Each season carries as many episodes as its own set's
   // questions fill; the lesson the season before it cannot hold stands here, and every pair of both
-  // sets is asked. Their own pages are written from the same record, so the lesson can be read before
-  // it is asked. Both stand open to every student: a lesson of its own is met by whoever comes for it,
-  // without the seasons before it being cleared first.
+  // sets is asked, in Kibembe and English. Their own pages are written from the same record, so the
+  // lesson can be read before it is asked. They wait on the season before them like every other season,
+  // and the one after them waits on them.
   {
     no: 10,
     title: 'Watu, mahali na kazi',
     blurb:
-      'Who we are, where we live, the work we need and do, and the time that has passed — the voice-captured set of 12 October 2026, every pair asked both ways',
+      'Who we are, where we live, the work we need and do, and the time that has passed — the voice-captured set of 12 October 2026, every pair asked both ways in Kibembe and English',
     pool: 'set',
     set: 'watu',
     study: 'watu',
-    open: true,
     // the episodes the set's own questions fill: nine to a paper, and the food lesson it cannot hold
     // stands in the season after this one
     episodes: setEpisodes('watu'),
@@ -114,11 +113,10 @@ const SEASONS = [
     no: 11,
     title: 'Chakula, mboga na matunda',
     blurb:
-      'The food lesson of the same day — the greens, the kitchen foods and spices, the fruit and the drinks — every pair asked both ways',
+      'The food lesson of the same day — the greens, the kitchen foods and spices, the fruit and the drinks — every pair asked both ways in Kibembe and English',
     pool: 'set',
     set: 'chakula',
     study: 'chakula',
-    open: true,
     episodes: setEpisodes('chakula'),
   },
 ];

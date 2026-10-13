@@ -382,6 +382,9 @@ function extraQuestion(kind, row, way, lang) {
  *
  * `avoid` carries the forms the paper is already asking — the everyday words it has just drawn — so a
  * phrase the same paper asks as a word of every day is stepped over rather than asked a second time.
+ *
+ * `lang` names the one language a run is put in, where a season is put in one language alone; left out,
+ * the two languages take turns as they always have.
  */
 
 /**
@@ -438,7 +441,7 @@ const MASTER = (() => {
   return out;
 })();
 
-export function buildExtraMix(count, start = 0, avoid = []) {
+export function buildExtraMix(count, start = 0, avoid = [], lang = "") {
   if (!count || count <= 0) return [];
   const asked = new Set(avoid.map(form));
   const from = Math.max(0, start);
@@ -451,7 +454,7 @@ export function buildExtraMix(count, start = 0, avoid = []) {
     // is stepped over, and the question after it in the order takes its place
     if (asked.has(form(plan.row.kb)) || asked.has(form(plan.row.en))) continue;
 
-    const question = extraQuestion(plan.kind, plan.row, plan.way, at % 2 === 0 ? "en" : "sw");
+    const question = extraQuestion(plan.kind, plan.row, plan.way, lang || (at % 2 === 0 ? "en" : "sw"));
     if (!question || picked.some((held) => held.id === question.id)) continue;
 
     asked.add(form(plan.row.kb));

@@ -18,6 +18,11 @@ import { ANIMAL_PLURALS, ANIMAL_ROWS, ANIMAL_SET } from "./examAnimals";
  * The animals of that same lesson stand as a season of their own — the season of the names of the world
  * — and the lesson is kept here as the reading that season is studied on, so all four sets taught on
  * 12 October 2026 can be read in the examination itself.
+ *
+ * The food board of that lesson was taught in Kiswahili alone, so the English beside each of its foods is
+ * the examination's own English name for it — added for the seasons of the sets, which are asked in
+ * Kibembe and English. The Kiswahili the lesson was taught under stands beside it untouched, exactly as
+ * it was taught.
  */
 
 /** A form stripped of the sound mark the lesson wrote at its end, never of anything else. */
@@ -190,47 +195,47 @@ export const TEACHING_SETS = [
         title: "Mboga za majani",
         label: "The greens",
         rows: [
-          { sw: "Sukuma wiki", kb: "mchicha" },
-          { sw: "Mchicha", kb: "lenga lenga" },
-          { sw: "Spinachi / spinach", kb: "spinach" },
-          { sw: "Kisamvu", kb: "alala" },
-          { sw: "Matembele", kb: "bitlele" },
-          { sw: "Mlenda", kb: "mlenda" },
-          { sw: "Majani ya kunde", kb: "bisashibia unde" },
-          { sw: "Kabichi", kb: "shu" },
+          { sw: "Sukuma wiki", kb: "mchicha", en: "Collard greens" },
+          { sw: "Mchicha", kb: "lenga lenga", en: "Amaranth greens" },
+          { sw: "Spinachi / spinach", kb: "spinach", en: "Spinach" },
+          { sw: "Kisamvu", kb: "alala", en: "Cassava leaves" },
+          { sw: "Matembele", kb: "bitlele", en: "Sweet potato leaves" },
+          { sw: "Mlenda", kb: "mlenda", en: "Jute mallow" },
+          { sw: "Majani ya kunde", kb: "bisashibia unde", en: "Cowpea leaves" },
+          { sw: "Kabichi", kb: "shu", en: "Cabbage" },
         ],
       },
       {
         title: "Vyakula na viungo",
         label: "Food and spices",
         rows: [
-          { sw: "Mayai", kb: "make" },
-          { sw: "Maziwa", kb: "maziwa" },
-          { sw: "Mkate", kb: "mkate" },
-          { sw: "Viazi", kb: "bikiombo" },
-          { sw: "Viazi vitamu", kb: "bikiombo bialeshe" },
-          { sw: "Ndizi za kupika", kb: "ndeu chitea" },
-          { sw: "Ndizi za kupika", kb: "bisakila" },
-          { sw: "Pilipili", kb: "pelepele" },
-          { sw: "Vitunguu / vitunguu saumu", kb: "swaumu" },
-          { sw: "Vitunguu / vitunguu saumu", kb: "vitongolo swaumu" },
-          { sw: "Tangawizi", kb: "tangawizi" },
-          { sw: "Karoti", kb: "karoti" },
+          { sw: "Mayai", kb: "make", en: "Eggs" },
+          { sw: "Maziwa", kb: "maziwa", en: "Milk" },
+          { sw: "Mkate", kb: "mkate", en: "Bread" },
+          { sw: "Viazi", kb: "bikiombo", en: "Potatoes" },
+          { sw: "Viazi vitamu", kb: "bikiombo bialeshe", en: "Sweet potatoes" },
+          { sw: "Ndizi za kupika", kb: "ndeu chitea", en: "Cooking bananas" },
+          { sw: "Ndizi za kupika", kb: "bisakila", en: "Cooking bananas" },
+          { sw: "Pilipili", kb: "pelepele", en: "Chilli" },
+          { sw: "Vitunguu / vitunguu saumu", kb: "swaumu", en: "Onions / garlic" },
+          { sw: "Vitunguu / vitunguu saumu", kb: "vitongolo swaumu", en: "Onions / garlic" },
+          { sw: "Tangawizi", kb: "tangawizi", en: "Ginger" },
+          { sw: "Karoti", kb: "karoti", en: "Carrot" },
         ],
       },
       {
         title: "Matunda na vinywaji",
         label: "Fruit and drink",
         rows: [
-          { sw: "Embe", kb: "embe" },
-          { sw: "Chungwa", kb: "chungwa" },
-          { sw: "Nanasi", kb: "nanasi" },
-          { sw: "Tikiti maji", kb: "tikiti maji" },
-          { sw: "Limao", kb: "limao" },
-          { sw: "Chai", kb: "chai" },
-          { sw: "Kahawa", kb: "kahawa" },
-          { sw: "Juice", kb: "juice" },
-          { sw: "Soda", kb: "soda" },
+          { sw: "Embe", kb: "embe", en: "Mango" },
+          { sw: "Chungwa", kb: "chungwa", en: "Orange" },
+          { sw: "Nanasi", kb: "nanasi", en: "Pineapple" },
+          { sw: "Tikiti maji", kb: "tikiti maji", en: "Watermelon" },
+          { sw: "Limao", kb: "limao", en: "Lemon" },
+          { sw: "Chai", kb: "chai", en: "Tea" },
+          { sw: "Kahawa", kb: "kahawa", en: "Coffee" },
+          { sw: "Juice", kb: "juice", en: "Juice" },
+          { sw: "Soda", kb: "soda", en: "Soda" },
         ],
       },
     ],
