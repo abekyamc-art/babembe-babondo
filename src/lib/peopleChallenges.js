@@ -1,6 +1,28 @@
 import { challengeQuestion } from '@/lib/challengeQuestions';
 import { PEOPLE_PICTURES } from '@/lib/examImages';
 import { shuffled } from '@/lib/examSeries';
+import { BANK_PER_PAPER, bankPaper } from '@/lib/peopleBank';
+
+/**
+ * The season of people and culture, in two runs.
+ *
+ * The first three episodes stand on the people whose own photographs the app holds, so the face is
+ * learnt with the name. Every episode after them is cut from the bank in peopleBank.js — the people of
+ * Tanzania, the Congo and the world with their work and their country, the leaders of the nations, the
+ * capital cities and the facts of every day — nine questions an episode, walked so that no question of
+ * the season is ever asked twice.
+ */
+
+/** How many episodes of the season stand on the people's own photographs. */
+export const PHOTO_EPISODES = 3;
+
+/** How many episodes of the season the bank in peopleBank.js fills. */
+export const NEW_EPISODES = 95;
+
+/** Every episode of the season: the photographed run, and the run cut from the bank. */
+export function peopleEpisodes() {
+  return PHOTO_EPISODES + NEW_EPISODES;
+}
 
 /**
  * The people the examination asks about, each with the work they are known for. Every one of them is
@@ -45,22 +67,31 @@ function said(role) {
   return /^[aeiou]/i.test(role) ? `an ${role.toLowerCase()}` : `a ${role.toLowerCase()}`;
 }
 
-/** One episode's paper of ten people, each on their own photograph. */
+/**
+ * One episode's paper: the ten photographed people of the first run, and the nine questions of the bank
+ * for every episode after it. The picture puzzle stands at the end of both — written over the tenth
+ * place of a photographed paper, and stood at the end of a paper the bank leaves a question short.
+ */
 export function buildPeoplePaper(episode) {
-  const from = (episode - 1) * 10;
-  return shuffled(
-    PEOPLE.slice(from, from + 10).map(([name, role, wrong], at) =>
-      challengeQuestion(
-        `people:${episode}:${at}`,
-        'People & culture',
-        'What is ',
-        name,
-        ' best known for?',
-        role,
-        wrong,
-        `${name} is known as ${said(role)}.`,
-        PEOPLE_PICTURES[name]?.url ? PEOPLE_PICTURES[name] : null
-      )
+  const no = Math.max(1, Math.floor(Number(episode) || 1));
+  if (no > PHOTO_EPISODES) return bankPaper(no - PHOTO_EPISODES - 1);
+
+  const from = (no - 1) * (BANK_PER_PAPER + 1);
+  const photographed = PEOPLE.slice(from, from + BANK_PER_PAPER + 1);
+  const paper = photographed.map(([name, role, wrong], at) =>
+    challengeQuestion(
+      `people:${no}:${at}`,
+      'People & culture',
+      'What is ',
+      name,
+      ' best known for?',
+      role,
+      wrong,
+      `${name} is known as ${said(role)}.`,
+      PEOPLE_PICTURES[name]?.url ? PEOPLE_PICTURES[name] : null
     )
   );
+  // the tenth place of a photographed paper is the picture puzzle's, so the ten people are laid in the
+  // order they stand and the place the puzzle takes is left to the examination itself
+  return [...shuffled(paper.slice(0, BANK_PER_PAPER)), paper[BANK_PER_PAPER]];
 }

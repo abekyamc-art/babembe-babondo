@@ -4,7 +4,7 @@ import { buildExtraMix } from "./examExtras";
 import { buildNumberPaper } from "./examNumbers";
 import { lifeQuestionOf, lifeWordOrder, shuffled } from "./examSeries";
 import { buildCalculationPaper, challengeAt } from '@/lib/challengeQuestions';
-import { buildPeoplePaper } from '@/lib/peopleChallenges';
+import { buildPeoplePaper, peopleEpisodes } from '@/lib/peopleChallenges';
 import { SCENE_POOL, currentQueues, poolShare } from './examPool';
 import { buildSetPaper, setEpisodes } from './examSetPapers';
 import { differencePuzzle } from './diffPuzzles';
@@ -68,7 +68,14 @@ const SEASONS = [
     pool: "both",
   },
   { no: 4, title: 'Calculation champions', blurb: 'Addition, subtraction, multiplication and division — new calculations in every episode', pool: 'math' },
-  { no: 5, title: 'People and culture', blurb: 'Artists, comedians, athletes and pioneers — including Diamond Platnumz and Gloire Sadiki', pool: 'people', episodes: 3 },
+  {
+    no: 5,
+    title: 'People and culture',
+    blurb:
+      'The people of Tanzania, the Congo and the world — artists, comedians, athletes and presidents, with the leaders, the capital cities and the everyday facts that stand beside them',
+    pool: 'people',
+    episodes: peopleEpisodes(),
+  },
   { no: 6, title: 'Everyday problem solving', blurb: 'Adding, taking away, multiplying and sharing — a plain calculation in every question', pool: 'logic' },
   {
     no: 7,
@@ -231,7 +238,13 @@ function differenceQuestion(seasonNo, episode) {
 export function buildEpisodePaper(seasonNo, episode) {
   const paper = paperOf(seasonNo, episode);
   if (!paper.length) return paper;
-  paper[paper.length - 1] = differenceQuestion(seasonNo, episode);
+  const puzzle = differenceQuestion(seasonNo, episode);
+  // A paper that already asks its whole ten has its last place given to the picture puzzle, where the
+  // examination's own question of pictures always stands. A paper cut a question short — the newest
+  // papers of the season of people — has the puzzle stood at its end instead, so every episode of the
+  // examination asks ten questions either way.
+  if (paper.length >= QUESTIONS_PER_EPISODE) paper[paper.length - 1] = puzzle;
+  else paper.push(puzzle);
   return paper;
 }
 
