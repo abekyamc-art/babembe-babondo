@@ -15,9 +15,13 @@ import { base44 } from "@/api/base44Client";
  */
 
 // The cheap reading of a turn, so ordinary talk is never sent anywhere: the words that may ask for
-// media, or for the player to be moved. A turn with none of them is read no further.
+// media, or for the player to be moved — and the words that name music, an artist, a channel or an
+// album themselves, because a turn can ask for a piece without any word for playing it: "msanii
+// magdelena athuman", "nyimbo za msanii", "artist magdalena". A turn with none of them is read no
+// further, and a turn that names an artist but asks nothing to be played is still answered in words:
+// the app's own selection reads each one and hands back nothing to play where nothing was asked for.
 const MEDIA_ASK =
-  /\b(play|playing|piga|weka|imba|nyimbo|wimbo|muziki|mziki|song|songs|music|video|videos|kanda|album|pause|pausa|simama|nyamaza|resume|endelea|endeleza|continue|next|ingine|nyingine|another|stop|acha|funga|zima|basi|sikiliza|listen|niache|nisikilize)\b/i;
+  /\b(play|playing|piga|weka|imba|sing|nyimbo|wimbo|muziki|mziki|song|songs|music|video|videos|kanda|album|albamu|msanii|wasanii|msani|mwimbaji|mwanamuziki|mchezaji|mwandishi|sanaa|artist|artists|singer|singers|musician|musicians|band|kwaya|channel|youtube|pause|pausa|simama|nyamaza|resume|endelea|endeleza|continue|next|ingine|nyingine|another|stop|acha|funga|zima|basi|sikiliza|listen|niache|nisikilize)\b/i;
 
 /** Whether a turn may be asking the app's own player for something. */
 export function looksLikeMediaTurn(text) {
