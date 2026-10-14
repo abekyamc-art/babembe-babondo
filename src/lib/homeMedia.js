@@ -23,10 +23,30 @@ import { base44 } from "@/api/base44Client";
 const MEDIA_ASK =
   /\b(play|playing|piga|weka|imba|sing|nyimbo|wimbo|muziki|mziki|song|songs|music|video|videos|kanda|album|albamu|msanii|wasanii|msani|mwimbaji|mwanamuziki|mchezaji|mwandishi|sanaa|artist|artists|singer|singers|musician|musicians|band|kwaya|channel|youtube|pause|pausa|simama|nyamaza|resume|endelea|endeleza|continue|next|ingine|nyingine|another|stop|acha|funga|zima|basi|sikiliza|listen|niache|nisikilize)\b/i;
 
+/** A turn that asks something rather than asking for a piece: it is never read as one. */
+const QUESTION_ASK =
+  /\b(je|nani|nini|gani|wapi|vipi|kwanini|who|whose|what|which|where|why|how|when)\b/i;
+
+// A short turn names a piece more often than it says anything else — "usi mzarahu mtu", "magdelena
+// athuman", "msanii magdelena athuman" — so a short turn is read too, and the app's own selection is
+// what settles it: it hands back a piece where one of the artist's own really answers the words, and
+// nothing at all where none of them does, so ordinary talk is answered exactly as it was.
+const SHORT_TURN_WORDS = 5;
+
+/**
+ * Whether a turn carries a word that asks for music at all. A turn that does is met on the screen at
+ * once while the app's own selection reads it; a short turn that only names a piece is read quietly.
+ */
+export function asksForPiece(text) {
+  return MEDIA_ASK.test(String(text || ""));
+}
+
 /** Whether a turn may be asking the app's own player for something. */
 export function looksLikeMediaTurn(text) {
   const said = String(text || "").trim();
-  return said.length > 2 && MEDIA_ASK.test(said);
+  if (said.length <= 2) return false;
+  if (MEDIA_ASK.test(said)) return true;
+  return !QUESTION_ASK.test(said) && said.split(/\s+/).length <= SHORT_TURN_WORDS;
 }
 
 /**

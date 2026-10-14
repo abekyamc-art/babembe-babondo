@@ -55,6 +55,10 @@ const NEXT_ASK = /\b(next|ingine|nyingine|another|fuata|nifuatie|following)\b/i;
 const STOP_ASK = /\b(stop|acha|funga|zima|kata|basi|enough|put it away)\b/i;
 const PLAY_ASK =
   /\b(play|piga|weka|imba|nyimbo|wimbo|muziki|mziki|song|music|videos?|kanda|album|sikiliza|listen)\b/i;
+// A turn that asks something rather than asking for a piece: it is never read as a play ask, however
+// many of the artist's own words it carries — "msanii magdelena ni nani" stays a question.
+const QUESTION_ASK =
+  /\b(je|nani|nini|gani|wapi|vipi|kwanini|who|whose|what|which|where|why|how|when)\b/i;
 
 function clean(value: any, max: number): string {
   return String(value ?? '').replace(/\s+/g, ' ').trim().slice(0, max);
@@ -110,9 +114,16 @@ export default async function (req: Request): Promise<Response> {
     const intent = intentOf(request);
     // Pausing, starting again, moving on and taking the piece out are done on what already stands in
     // the player, so nothing is looked up for them and no title is read out of such a turn.
-    if (intent !== 'play' && intent !== 'listen') {
+    // A turn that carries no word for playing at all is still a request for a piece where it names
+    // one — "usi mzarahu mtu", "magdelena athuman", "msanii magdelena athuman" — so it is read as a
+    // play ask. Where none of the artist's own pieces really answers it, it is handed back exactly as
+    // the ask it was, and the assistant answers it in words. A question is never read that way.
+    const verbless = intent === 'none' && !QUESTION_ASK.test(request);
+    if (intent !== 'play' && intent !== 'listen' && !verbless) {
       return Response.json(plain(intent));
     }
+    // what a turn that really answers one of the artist's own pieces is reported as
+    const playerIntent = verbless ? 'play' : intent;
 
     // A play request is a request about music, so it is looked up as one — the artist's own story in
     // the app is what the list of their pieces and their channel is read from.
@@ -122,6 +133,9 @@ export default async function (req: Request): Promise<Response> {
     const channel = String(found?.channel || '').trim();
 
     if (!videos.length && !channel) {
+      // a turn that named a piece without asking for one is left exactly as it was where the app
+      // holds nothing of the artist at all: the assistant answers it in words
+      if (verbless) return Response.json(plain('none'));
       return Response.json({
         ok: true,
         intent,
@@ -150,6 +164,7 @@ export default async function (req: Request): Promise<Response> {
       .sort((a: any, b: any) => b.score - a.score);
 
     if (!scored.length) {
+      if (verbless) return Response.json(plain('none'));
       return Response.json({
         ok: true,
         intent,
@@ -171,7 +186,7 @@ export default async function (req: Request): Promise<Response> {
     if (tie.length > 1) {
       return Response.json({
         ok: true,
-        intent,
+        intent: playerIntent,
         chosen: null,
         candidates: tie.slice(0, 3).map((one: any) => ({ name: one.name, url: one.url })),
         others: [],
@@ -193,7 +208,7 @@ export default async function (req: Request): Promise<Response> {
       };
       return Response.json({
         ok: true,
-        intent,
+        intent: playerIntent,
         chosen: { name: best.name, url: best.url, views: Number(top?.views) || 0 },
         candidates: [],
         others: scored
@@ -207,6 +222,9 @@ export default async function (req: Request): Promise<Response> {
 
     // nothing in the artist's own list answers the title: their pieces are offered, nothing is chosen
     if (best.score <= 0) {
+      // a turn that only named a piece — and asked for none of the artist's own — is left as it was,
+      // so ordinary talk is never turned into a list of the artist's pieces
+      if (verbless) return Response.json(plain('none'));
       return Response.json({
         ok: true,
         intent,
@@ -228,7 +246,7 @@ export default async function (req: Request): Promise<Response> {
 
     return Response.json({
       ok: true,
-      intent,
+      intent: playerIntent,
       chosen: { name: best.name, url: best.url, views: Number(chosen?.views) || 0 },
       candidates: [],
       others,

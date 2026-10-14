@@ -1,5 +1,5 @@
 import { useCallback, useRef, useState } from "react";
-import { looksLikeMediaTurn, mediaLines, readMediaTurn } from "@/lib/homeMedia";
+import { asksForPiece, looksLikeMediaTurn, mediaLines, readMediaTurn } from "@/lib/homeMedia";
 import { choiceFromOffer, confirmsPiece } from "@/lib/songChoice";
 
 /**
@@ -220,17 +220,20 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
         return say("go", { name: itemRef.current?.name });
       }
       if (!looksLikeMediaTurn(said)) return null;
-      // The ask is met on the screen at once: the app says it is looking for the piece while its own
-      // selection reads the turn, so a request for a song is never met with a screen that has not
-      // changed at all.
-      say("looking");
+      // A turn that asks for a piece in words — "piga nyimbo", "play the artist's song" — is met on
+      // the screen at once, so it is never met with a screen that has not changed at all. A short turn
+      // that only names a piece — "usi mzarahu mtu", "msanii magdelena athuman" — is read quietly:
+      // nothing is said while it is read, and the piece it answers with is what stands on the screen.
+      const byWord = asksForPiece(said);
+      if (byWord) say("looking");
       readingRef.current = true;
       try {
         const result = await readMediaTurn(said);
         if (!result) {
           // the turn asked for a piece and the app's own selection answered with nothing it could use:
-          // the line comes off the screen and the voice, or the assistant, answers the turn itself
-          say("idle");
+          // the line comes off the screen and the voice, or the assistant, answers the turn itself. A
+          // turn that only named a piece said nothing while it was read, so nothing is taken off it
+          if (byWord) say("idle");
           return null;
         }
 
