@@ -26,9 +26,10 @@ import { artistVideosFor, asksArtist } from '../../shared/artistVideos.ts';
 // how long a request may be read, and the words that carry no title at all
 const MAX_REQUEST = 200;
 // How many of the artist's own pieces a title is looked for among. A title is never left unplayed
-// because the piece it names stands far down the artist's most watched: the list is read whole enough
-// that every one of their pieces a person may name is in it.
-const MATCH_ROWS = 40;
+// because the piece it names stands far down the artist's most watched: the whole list is read, since
+// a piece the admin wrote in themselves — a song the artist gave the app, standing at its own address
+// rather than on a channel — carries no count and so stands at the very end of it.
+const MATCH_ROWS = 500;
 const STOP_WORDS = new Set([
   'play', 'playing', 'put', 'listen', 'nyimbo', 'wimbo', 'muziki', 'song', 'songs', 'music',
   'video', 'videos', 'kanda', 'album', 'singles', 'single', 'weka', 'piga', 'sikiliza', 'pandisha',

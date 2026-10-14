@@ -1,6 +1,6 @@
 import React from "react";
 import { Play, SkipForward, X } from "lucide-react";
-import YouTubePlayer from "@/components/story/YouTubePlayer";
+import ClipPlayer from "@/components/story/ClipPlayer";
 
 /**
  * The app's own player, standing under the talk with the piece the app chose.
@@ -130,7 +130,7 @@ export default function MediaDock({
         </div>
       ) : null}
 
-      <YouTubePlayer
+      <ClipPlayer
         ref={playerRef}
         url={item.url}
         title={item.name}
