@@ -43,6 +43,10 @@ const HAND_MS = 12000;
 // ordinary turn at arm's length rises well clear of it, while the room itself stays under it. What
 // keeps a sound that only just crossed the bar out of the talk is the length a turn has to run.
 const VOICE_LEVEL = 0.03;
+// The sound of a turn is kept from a moment before its first loud part: a word said softly at the start,
+// or a first syllable the bar is only crossed after, rides with the rest of the turn instead of being cut
+// off it — so a short first word is never lost to the bar that opens the turn.
+const PRE_ROLL_FRAMES = 6;
 // a session that carries on is held from speaking until the person takes their
 // turn; this is the longest that hold can last if nothing releases it
 const HOLD_MAX_MS = 15000;
@@ -221,6 +225,8 @@ export default class VoiceSocket {
     this.captureOn = false;
     this.captureFrom = 0;
     this.captureFrames = [];
+    // the sound kept before the turn opens, so nothing of its beginning is lost to the bar
+    this.preRoll = [];
     this.hearing = false;
     this.reviewPending = false;
     // the turn the app itself handed the service, so the report of that same turn coming back is
@@ -373,7 +379,11 @@ export default class VoiceSocket {
         const init = { type: "conversation_initiation_client_data" };
         const overrides = {};
         const spoken = {};
-        if (this.laterTurn && canMuteIntro) spoken.first_message = "";
+        // The talk is the person's to open, so an automatic greeting is switched off where his agent
+        // allows the switch — on every call, not only on one that carries on. Held out of the room, a
+        // greeting that is still arriving when the person speaks is what came back over their first
+        // turn and shut the microphone on it.
+        if (canMuteIntro) spoken.first_message = "";
         // His own language setting is left exactly as the admin gave it. The person's turn is written
         // down by the app's own ears and handed to him as words, so nothing about the call has to be
         // switched for him to hear them — and switching it made him read the person's Kibembe as some
@@ -468,6 +478,7 @@ export default class VoiceSocket {
     this.reviewPending = pending;
     this.captureOn = false;
     this.captureFrames = [];
+    this.preRoll = [];
     this.lastUserText = "";
     this.lastVoiceAt = performance.now();
     if (pending) this.setAwaiting(false);
@@ -567,9 +578,10 @@ export default class VoiceSocket {
         msg.agent_response_event?.agent_response ||
         msg.agent_response_correction_event?.corrected_agent_response;
       if (text) {
-        // nothing he writes before the person has taken their turn is shown: an unasked greeting
-        // is not a reply to anything, and the first turn of the talk is the person's own
-        if (!this.engaged) return;
+        // nothing he writes before the person has taken their turn is shown, and nothing of a held
+        // voice is shown: an unasked greeting is not a reply to anything, and the first turn of the
+        // talk is the person's own
+        if (!this.engaged || this.holdQuiet) return;
         // The answer has turned into a language this app does not speak — Lingala, French, or any
         // other — and is stopped at that very word rather than read out. Only the three languages of
         // this app are ever heard on a call, and the app's own line takes its place. A written session
@@ -673,17 +685,23 @@ export default class VoiceSocket {
    * heard, so the quiet of an idle room is never sent anywhere to be read.
    */
   hold(samples) {
+    // the sound arrives in a buffer the audio system reuses, so every kept piece is its own copy
+    const frame = samples.slice();
     if (!this.captureOn) {
+      // what was said before the turn opened is kept with it: a quiet first word is never cut off
+      this.preRoll.push(frame);
+      if (this.preRoll.length > PRE_ROLL_FRAMES) this.preRoll.shift();
       if (this.level() <= VOICE_LEVEL) return;
       this.captureOn = true;
       this.captureFrom = performance.now();
-      this.captureFrames = [];
+      this.captureFrames = this.preRoll;
+      this.preRoll = [];
       // the turn being said now is the one an answer is coming for, so nothing carried over
       // from the turn before it can be taken for it
       this.lastUserText = "";
       this.sentText = "";
     }
-    this.captureFrames.push(samples);
+    this.captureFrames.push(frame);
   }
 
   /**
@@ -703,8 +721,13 @@ export default class VoiceSocket {
     this.captureFrames = [];
     const total = frames.reduce((count, frame) => count + frame.length, 0);
     // a tap, a cough or a door is not a turn: what crossed the bar has to run on as a turn of
-    // speech does before anything is written down from it
-    if (total < IN_RATE * 0.5) return;
+    // speech does before anything is written down from it. It is said plainly rather than dropped in
+    // silence, so the person is never left wondering whether their turn was heard at all.
+    if (total < IN_RATE * 0.5) {
+      this.setAwaiting(false);
+      this.h.onReask?.("Didn't catch that — say it again.");
+      return;
+    }
 
     const samples = new Int16Array(total);
     let at = 0;
@@ -813,12 +836,14 @@ export default class VoiceSocket {
 
       if (!answering && this.level() > VOICE_LEVEL) {
         this.heardVoice = true;
-        this.userSpoke = true;
         this.lastVoiceAt = now;
         this.turnAt = now;
         this.beatDue = true;
-        // hearing the person is a turn taken, so nothing may hold him silent any more
-        this.releaseQuiet();
+        // The sound of the person's voice is not the turn itself, and it is not what lets his held
+        // voice into the room: a greeting nobody asked for is let in only when the person's own turn
+        // is really handed over, which is what the turn's own end does. Released here, the greeting
+        // played out over the person's very first words and shut the microphone on them — which is
+        // what left a first turn unheard and the same turn answered the second time.
       }
 
       // the app's own ears: the person's turn is over once a breath of quiet has passed, or
@@ -1115,6 +1140,7 @@ export default class VoiceSocket {
     this.setAwaiting(false);
     this.captureOn = false;
     this.captureFrames = [];
+    this.preRoll = [];
     clearTimeout(this.holdTimer);
     this.holdTimer = null;
     if (this.offTouch) {

@@ -21,6 +21,9 @@ const FilePlayer = forwardRef(function FilePlayer(
 ) {
   const [playing, setPlaying] = useState(false);
   const [failed, setFailed] = useState(false);
+  // the phone held the sound back when the app started the piece by itself: the cover comes back with
+  // its own play sign rather than a silent player standing as though it were playing
+  const [held, setHeld] = useState(false);
   const elementRef = useRef(null);
   const playingRef = useRef(onPlaying);
   const endedRef = useRef(onTrackEnd);
@@ -79,8 +82,14 @@ const FilePlayer = forwardRef(function FilePlayer(
             playsInline
             autoPlay={autoStart}
             onCanPlay={(event) => {
-              // a piece of the artist's own set begins here, started by the app and not by a press
-              if (autoStart) event.currentTarget.play()?.catch(() => {});
+              // A piece of the artist's own set begins here, started by the app and not by a press. A
+              // phone that holds the sound back is never left standing as though it were playing: the
+              // cover comes back with its play sign, and the line under it says what happened.
+              if (!autoStart) return;
+              event.currentTarget.play()?.catch(() => {
+                setPlaying(false);
+                setHeld(true);
+              });
             }}
             onPlaying={() => playingRef.current?.()}
             onEnded={() => endedRef.current?.()}
@@ -97,6 +106,7 @@ const FilePlayer = forwardRef(function FilePlayer(
           type="button"
           onClick={() => {
             setFailed(false);
+            setHeld(false);
             setPlaying(true);
             // the player is in place now, and that is the only thing the app claims here
             onPlaybackStart?.();
@@ -119,6 +129,13 @@ const FilePlayer = forwardRef(function FilePlayer(
         <span className="flex items-center gap-1.5 font-body text-[11px] leading-snug text-muted-foreground">
           <AlertCircle className="h-3.5 w-3.5 flex-none" />
           This piece could not be played here, so nothing was started.
+        </span>
+      ) : null}
+
+      {held ? (
+        <span className="flex items-center gap-1.5 font-body text-[11px] leading-snug text-muted-foreground">
+          <AlertCircle className="h-3.5 w-3.5 flex-none" />
+          Your phone held the sound back — press play to hear it here.
         </span>
       ) : null}
 

@@ -46,6 +46,9 @@ const EARS_MAX_MS = 20000;
 const EARS_MIN_MS = 500;
 // about 128ms of sound per chunk at 16 kHz: enough to hold a turn, short enough to hear it end
 const EAR_CHUNK = 2048;
+// how many chunks of sound are kept from before a turn opens, so nothing of the turn's beginning is
+// lost to the floor that opens it
+const EARS_PRE = 3;
 // how long a reading is given before the seat's own writing of the turn is used in its place
 const EAR_MS = 8000;
 // the seat's own writing is waited on this long, once the ears could not read the turn
@@ -136,6 +139,8 @@ export default class OpenAiTalkCall {
     this.earsOn = false;
     this.earsOff = false;
     this.earsFrames = [];
+    // the sound kept before a turn opens, so nothing of its beginning is lost to the floor
+    this.earsPre = [];
     this.earsAt = 0;
     this.earsHeardAt = 0;
     this.earsVoiced = 0;
@@ -374,12 +379,17 @@ export default class OpenAiTalkCall {
     const loud = Math.min(1, Math.sqrt(sum / chunk.length) * 3.5) > EARS_LEVEL;
 
     if (!this.earsOn) {
+      // What was said before the turn opened is kept with it: a quiet first word, or a first syllable
+      // the floor is only crossed after, rides with the rest of the turn instead of being cut off it.
+      this.earsPre.push(chunk.slice());
+      if (this.earsPre.length > EARS_PRE) this.earsPre.shift();
       if (!loud) return;
       this.earsOn = true;
       this.earsAt = now;
       this.earsHeardAt = now;
       this.earsVoiced = 0;
-      this.earsFrames = [];
+      this.earsFrames = this.earsPre;
+      this.earsPre = [];
       // a new turn is its own: what the seat wrote of the turn before it is not this one's
       this.read = null;
     }
@@ -538,6 +548,7 @@ export default class OpenAiTalkCall {
     this.ctx = null;
     this.earsOn = false;
     this.earsFrames = [];
+    this.earsPre = [];
     this.earsVoiced = 0;
   }
 

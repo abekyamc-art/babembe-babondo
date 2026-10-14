@@ -46,6 +46,9 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
   // The artist's own set has really begun and the talk is in Base44 AI's hands: it is the one handling
   // the set now. It stands until a call of the person's own takes the talk back.
   const [ready, setReady] = useState(false);
+  // the call was let go the moment the app stood a piece of the artist's own set: the phone's sound is
+  // the piece's from there, so there is no call left on the line when the sound begins
+  const letGoRef = useRef(false);
 
   const playerRef = useRef(null);
   const itemRef = useRef(null);
@@ -111,6 +114,15 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     setStarted(false);
     setQuiet(false);
     setAuto(autoRef.current);
+    // The app is starting this piece itself, so the phone's sound is handed over before a note of it
+    // plays. A call still on the line holds the microphone and the phone's own sound path, and a piece
+    // started under it is heard through that call rather than through the phone's player — on a phone
+    // that is heard as nothing at all. The call is let go here, before the piece begins; a piece that
+    // then cannot start says so on the dock, and the phone button opens the call again.
+    if (autoRef.current) {
+      letGoRef.current = endRef.current?.() !== false;
+      handedRef.current = letGoRef.current;
+    }
   }, []);
 
   /** The player and the piece with it are put away. */
@@ -121,6 +133,7 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     quietRef.current = false;
     autoRef.current = false;
     handedRef.current = false;
+    letGoRef.current = false;
     // the player is put away, so no question the app had put to the person still stands
     offerRef.current = null;
     setItem(null);
@@ -362,6 +375,9 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
     // A piece standing in the player without having been asked for as the artist's own set has taken no
     // call with it: the app says only that it is playing.
     if (!autoRef.current) return say("started", { name });
+    // The call was let go the moment the piece was stood, so the phone's sound is the piece's: there is
+    // no voice left on the line to be told anything, and the app's own words stand on the screen.
+    if (letGoRef.current) return say(quietRef.current ? "quietDone" : "hangup", { name }, false);
     // The set the app itself brought in has really begun, and the music turn owns the talk from here: a
     // set that plays out reopens nothing behind it.
     handedRef.current = true;
