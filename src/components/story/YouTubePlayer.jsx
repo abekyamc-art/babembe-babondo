@@ -44,6 +44,10 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
   const endedFor = useRef("");
   // the piece the app itself has already brought in, so a stop by hand is never overruled
   const broughtRef = useRef("");
+  // whether the piece standing has really begun at all, and how often it has been asked to: a piece
+  // that has begun is never asked again, so a press of the person's own pause is never overruled
+  const beganRef = useRef(false);
+  const askedRef = useRef(0);
   const autoRef = useRef(autoStart);
   autoRef.current = autoStart;
   const videoIdRef = useRef("");
@@ -55,6 +59,18 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
     if (!frame?.contentWindow) return false;
     frame.contentWindow.postMessage(JSON.stringify({ event: "command", func, args }), "*");
     return true;
+  };
+
+  /**
+   * The piece is asked to begin — sound asked for plainly, at full volume, and the piece set going: the
+   * app's own set is meant to be heard, with no press on it. A frame only really hears a command once it
+   * has reported that it is standing, so the ask is repeated as it comes up rather than made once and
+   * lost.
+   */
+  const startPiece = () => {
+    command("unMute");
+    command("setVolume", [100]);
+    command("playVideo");
   };
 
   useImperativeHandle(
@@ -94,6 +110,8 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
             ? data.info.playerState
             : null;
       if (state === 1) {
+        beganRef.current = true;
+        askedRef.current = 0;
         playingRef.current?.();
         // The sound is asked for once more the moment the piece is really playing: a player that came
         // up muted is the one nobody hears, and the app's own set is meant to be heard.
@@ -102,6 +120,19 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
           command("setVolume", [100]);
         }
         return;
+      }
+      // The piece of the artist's own set has not begun yet, though the app asked it to: the frame was
+      // not yet hearing commands when it was asked, so it is asked again on each report until the sound
+      // has really begun — and the asking stops after a few tries, leaving the piece for the person's
+      // own press where the browser will not let it start by itself.
+      if (
+        autoRef.current &&
+        !beganRef.current &&
+        askedRef.current < 6 &&
+        (state === -1 || state === 3 || state === 5)
+      ) {
+        askedRef.current += 1;
+        startPiece();
       }
       // The piece has played out. The app is told once for each piece, so the artist's own set moves on
       // to the piece behind it rather than the same end being reported again.
@@ -120,8 +151,11 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
    * brought in is remembered, so a person who stops it by hand is never overruled by the app.
    */
   useEffect(() => {
-    if (!autoStart || !video?.id || broughtRef.current === video.id) return;
+    if (!video?.id || broughtRef.current === video.id || !autoStart) return;
     broughtRef.current = video.id;
+    // a piece that has just arrived has neither begun nor been asked for yet
+    beganRef.current = false;
+    askedRef.current = 0;
     setPlaying(true);
     onPlaybackStart?.();
   }, [autoStart, video?.id, onPlaybackStart]);
@@ -159,9 +193,15 @@ const YouTubePlayer = forwardRef(function YouTubePlayer(
               // A piece of the artist's own set begins here, started by the app and not by a press: the
               // sound is asked for plainly — unmuted, at full volume — and the piece is set going.
               if (autoStart) {
-                command("unMute");
-                command("setVolume", [100]);
-                command("playVideo");
+                startPiece();
+                // It is asked once more as the frame settles, and once again a moment later: a player
+                // that was still coming up when it was first asked is asked once it is standing.
+                window.setTimeout(() => {
+                  if (!beganRef.current) startPiece();
+                }, 900);
+                window.setTimeout(() => {
+                  if (!beganRef.current) startPiece();
+                }, 2200);
               }
             }}
             className="aspect-video w-full"
