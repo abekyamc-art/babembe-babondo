@@ -144,6 +144,26 @@ export function bestStory(rows, query) {
   return named ? { ...best, matched_media: named } : best;
 }
 
+/**
+ * Whether a turn really names one of the admin's stories: it speaks the story's own title, one of the
+ * words it is filed under, or the name of something published with it.
+ *
+ * A word the telling itself happens to carry is not a name being asked for: a turn that only passes
+ * through a story's own words is not answered as that story, so the app is never led away from the
+ * artist its own list belongs to by a word that merely stood in a telling.
+ */
+export function namesStory(story: any, query: any): boolean {
+  if (!story) return false;
+  const wanted = Array.from(new Set(tokens(query)));
+  if (!wanted.length) return false;
+  const title = String(story?.title ?? "").toLowerCase();
+  const tags = (Array.isArray(story?.tags) ? story.tags : []).join(" ").toLowerCase();
+  const works = workNames(story).toLowerCase();
+  return wanted.some(
+    (token) => title.includes(token) || tags.includes(token) || works.includes(token)
+  );
+}
+
 // The longest telling handed to the assistant in one turn; the whole story stays saved in the app.
 const NOTE_TEXT = 4000;
 

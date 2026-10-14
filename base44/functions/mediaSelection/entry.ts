@@ -84,7 +84,9 @@ function titleWords(value: any): string[] {
     .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
     .replace(/\(.*?\)|\[.*?\]|official|lyrics?|audio|video|hd|4k|feat\.?|ft\.?/g, ' ')
-    .split(/[^a-z0-9']+/)
+    // an apostrophe joins no words of a title: "the artist's songs" reads as the words a request wraps
+    // itself in, never as a title of its own
+    .split(/[^a-z0-9]+/)
     .filter((word) => word.length > 2);
 }
 

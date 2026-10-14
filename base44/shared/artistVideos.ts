@@ -1,5 +1,5 @@
 import { readChannel } from "./channelRead.ts";
-import { bestStory, unheldName } from "./storyMatch.ts";
+import { bestStory, namesStory, unheldName } from "./storyMatch.ts";
 
 /**
  * The artist's own videos, the most watched first, for a turn that is about them.
@@ -190,11 +190,12 @@ export async function artistVideosFor(base44: any, query: any, limit = SHOWN): P
     if (stranger) return { videos: [], channel: '', artist: '', read: false, stranger };
 
     const matched = bestStory(rows, String(query || ''));
-    // A turn that names one of the admin's own stories is answered by that story alone. Where that
-    // story carries no work of the artist's, the app holds nothing of them to play, and no other
-    // artist's list is stood in its place. The app's own artist answers only a turn that names none of
-    // the app's stories at all — "play the artist's songs", "piga nyimbo za msanii".
-    story = matched || ownArtist(rows);
+    // A turn that names one of the admin's own stories is answered by that story alone: a story is
+    // named by its own title, by the words it is filed under, or by the name of something published
+    // with it — a word its telling merely carries is not a name being asked for. Where the story named
+    // carries no work of the artist's, the app holds nothing of them to play, and no other artist's
+    // list is stood in its place. The app's own artist answers a turn that names none of the stories.
+    story = matched && namesStory(matched, String(query || '')) ? matched : ownArtist(rows);
   } catch (error: any) {
     // a story that could not be read is no list at all: nothing is claimed about an artist here
     console.error('The artist could not be found for the video list:', error?.message);
