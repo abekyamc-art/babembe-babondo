@@ -366,7 +366,12 @@ function paperOf(seasonNo, episode) {
   // the examination only when the document could not be read and holds no anatomy at all
   if (season.pool === 'anatomy' && queues?.anatomy?.length) return anatomyPaper(episode, queues);
   if (season.pool === 'math') return buildCalculationPaper(episode);
-  if (season.pool === 'people') return buildPeoplePaper(episode);
+  // The season of people: the first episodes keep the people's own portraits, and every question of the
+  // bank that carries no picture of its own is studied on a scene of its own — the rule every other paper
+  // of the examination is held to, so no question of the season stands without a picture to study it on.
+  if (season.pool === 'people') {
+    return withScenes(buildPeoplePaper(episode), (episode - 1) * QUESTIONS_PER_EPISODE);
+  }
   if (season.pool === 'logic') return buildCalculationPaper(episode, true);
   // the season of the numbers: the calculations and the names of the counting itself
   if (season.pool === 'numbers') return buildNumberPaper(episode);

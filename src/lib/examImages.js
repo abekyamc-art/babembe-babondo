@@ -157,46 +157,48 @@ export const WORD_FIX_PICTURES = {
 const CREDIT = "Photograph from Wikimedia Commons";
 
 /**
- * The people the examination asks about, each with their own real photograph at its own address. A
- * person whose photograph has not been given stands with an empty address, and no picture is shown for
- * them until it arrives.
+ * The people the examination asks about, each with their own real photograph at its own address. Every
+ * photograph is asked for at the Commons' own address for a file — the form that service really answers
+ * with a picture. The raw thumbnail address these were first written with is refused, and a portrait
+ * kept at one never reaches a phone. A person whose photograph has not been given stands with an empty
+ * address, and no picture is shown for them until it arrives.
  */
 export const PEOPLE_PICTURES = {
-  "Diamond Platnumz": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/dc/Diamond_Platnumz.jpg/800px-Diamond_Platnumz.jpg", scene: "Diamond Platnumz", alt: "Photograph of Diamond Platnumz", credit: CREDIT },
+  "Diamond Platnumz": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Diamond_Platnumz.jpg?width=800", scene: "Diamond Platnumz", alt: "Photograph of Diamond Platnumz", credit: CREDIT },
   "Gloire Sadiki": {
     url: "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/32334803d_DSC02592.jpeg",
     scene: "Gloire Sadiki",
     alt: "Photograph of Gloire Sadiki, the performer",
     credit: "Photograph courtesy of the artist",
   },
-  "Koffi Olomide": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3e/Koffi_Olomd%C3%A9_%C3%A0_la_c%C3%A9l%C3%A9bration_du_Vodoun_Days_2024_%C3%A0_Ouidah_au_B%C3%A9nin01_37.png/800px-Koffi_Olomd%C3%A9_%C3%A0_la_c%C3%A9l%C3%A9bration_du_Vodoun_Days_2024_%C3%A0_Ouidah_au_B%C3%A9nin01_37.png", scene: "Koffi Olomide", alt: "Photograph of Koffi Olomide", credit: CREDIT },
-  "Fally Ipupa": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/81/Fally_Ipupa_a_Paris%2C_en_France.jpg/800px-Fally_Ipupa_a_Paris%2C_en_France.jpg", scene: "Fally Ipupa", alt: "Photograph of Fally Ipupa", credit: CREDIT },
-  "Papa Wemba": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/63/Papa_Wemba.jpg/800px-Papa_Wemba.jpg", scene: "Papa Wemba", alt: "Photograph of Papa Wemba", credit: CREDIT },
-  Wizkid: { url: "https://upload.wikimedia.org/wikipedia/commons/0/0a/Wizkid_at_Iyanya%27s_album_launch_concert%2C_2013_%28cropped%29.jpg", scene: "Wizkid", alt: "Photograph of Wizkid performing", credit: CREDIT },
-  "Burna Boy": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/ce/Untold_2024_-Burna_Boy_%2853926047977%29_%28cropped%29.jpg/800px-Untold_2024_-Burna_Boy_%2853926047977%29_%28cropped%29.jpg", scene: "Burna Boy", alt: "Photograph of Burna Boy", credit: CREDIT },
-  Davido: { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Davido_2024_%28cropped%29.jpg/800px-Davido_2024_%28cropped%29.jpg", scene: "Davido", alt: "Photograph of Davido", credit: CREDIT },
-  "Miriam Makeba": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/3/3d/Miriam_makeba_01.jpg/800px-Miriam_makeba_01.jpg", scene: "Miriam Makeba", alt: "Photograph of Miriam Makeba", credit: CREDIT },
-  "Angelique Kidjo": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/1/18/Ang%C3%A9lique_Kidjo_Gershwin_2023.jpg/800px-Ang%C3%A9lique_Kidjo_Gershwin_2023.jpg", scene: "Angélique Kidjo", alt: "Photograph of Angélique Kidjo", credit: CREDIT },
-  "Bob Marley": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/d6/Bob_Marley_circa_1976_%28cropped%29.jpg/800px-Bob_Marley_circa_1976_%28cropped%29.jpg", scene: "Bob Marley", alt: "Photograph of Bob Marley", credit: CREDIT },
-  "Michael Jackson": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/b/b9/Michael_Jackson_1983_%283x4_cropped%29_%28contrast%29.jpg/800px-Michael_Jackson_1983_%283x4_cropped%29_%28contrast%29.jpg", scene: "Michael Jackson", alt: "Photograph of Michael Jackson", credit: CREDIT },
-  "Whitney Houston": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/5/52/Whitney_Houston_%28cropped3%29.JPEG/800px-Whitney_Houston_%28cropped3%29.JPEG", scene: "Whitney Houston", alt: "Photograph of Whitney Houston", credit: CREDIT },
-  "Celine Dion": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/f/f5/C%C3%A9line_Dion_2012.jpg/800px-C%C3%A9line_Dion_2012.jpg", scene: "Celine Dion", alt: "Photograph of Celine Dion", credit: CREDIT },
-  "Lupita Nyong’o": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c4/LupitaNyongo-byPhilipRomano3.jpg/800px-LupitaNyongo-byPhilipRomano3.jpg", scene: "Lupita Nyong’o", alt: "Photograph of Lupita Nyong’o", credit: CREDIT },
-  "Denzel Washington": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/cc/Denzel_Washington_at_the_2025_Cannes_Film_Festival.jpg/800px-Denzel_Washington_at_the_2025_Cannes_Film_Festival.jpg", scene: "Denzel Washington", alt: "Photograph of Denzel Washington", credit: CREDIT },
-  "Charlie Chaplin": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/8/82/Charlie_Chaplin_portrait_Getty_1739411952.jpg/800px-Charlie_Chaplin_portrait_Getty_1739411952.jpg", scene: "Charlie Chaplin", alt: "Photograph of Charlie Chaplin", credit: CREDIT },
-  "Trevor Noah": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Trevor_Noah_%2853554114243%29_%28portrait_crop%29.jpg/800px-Trevor_Noah_%2853554114243%29_%28portrait_crop%29.jpg", scene: "Trevor Noah", alt: "Photograph of Trevor Noah", credit: CREDIT },
-  "Lionel Messi": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg/800px-Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg", scene: "Lionel Messi", alt: "Photograph of Lionel Messi", credit: CREDIT },
-  "Cristiano Ronaldo": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/26/Cristiano_Ronaldo_Croatia_v_Portugal_2_July_2026-075_%28cropped%29.jpg/800px-Cristiano_Ronaldo_Croatia_v_Portugal_2_July_2026-075_%28cropped%29.jpg", scene: "Cristiano Ronaldo", alt: "Photograph of Cristiano Ronaldo", credit: CREDIT },
-  "Didier Drogba": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/7/77/Didier_Drogba_%282019%29_%28cropped2%29.jpg/800px-Didier_Drogba_%282019%29_%28cropped2%29.jpg", scene: "Didier Drogba", alt: "Photograph of Didier Drogba", credit: CREDIT },
-  "Samuel Eto’o": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/6/6a/Sammuel_Eto%27o_Fils_02.jpg/800px-Sammuel_Eto%27o_Fils_02.jpg", scene: "Samuel Eto’o", alt: "Photograph of Samuel Eto’o", credit: CREDIT },
-  "Serena Williams": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/9/98/Serena-Smiling-2020.png/800px-Serena-Smiling-2020.png", scene: "Serena Williams", alt: "Photograph of Serena Williams", credit: CREDIT },
-  "Usain Bolt": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c3/Usain_Bolt_smiling_Berlin_2009.JPG/800px-Usain_Bolt_smiling_Berlin_2009.JPG", scene: "Usain Bolt", alt: "Photograph of Usain Bolt", credit: CREDIT },
-  "Michael Jordan": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/4/46/Michael_jordan_admad_rashad_%2851276390562%29_%28cropped%29.jpg/800px-Michael_jordan_admad_rashad_%2851276390562%29_%28cropped%29.jpg", scene: "Michael Jordan", alt: "Photograph of Michael Jordan", credit: CREDIT },
-  "Albert Einstein": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/2/28/Albert_Einstein_Head_cleaned.jpg/800px-Albert_Einstein_Head_cleaned.jpg", scene: "Albert Einstein", alt: "Photograph of Albert Einstein", credit: CREDIT },
-  "Marie Curie": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/c/c8/Marie_Curie_c._1920s.jpg/800px-Marie_Curie_c._1920s.jpg", scene: "Marie Curie", alt: "Photograph of Marie Curie", credit: CREDIT },
-  "Neil Armstrong": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/0d/Neil_Armstrong_pose.jpg/800px-Neil_Armstrong_pose.jpg", scene: "Neil Armstrong", alt: "Photograph of Neil Armstrong", credit: CREDIT },
-  "Nelson Mandela": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/0/02/Nelson_Mandela_1994.jpg/800px-Nelson_Mandela_1994.jpg", scene: "Nelson Mandela", alt: "Photograph of Nelson Mandela", credit: CREDIT },
-  "Wangari Maathai": { url: "https://thumb.wikimedia.org/wikipedia/commons/thumb/d/da/Wangari_Maathai_in_2001.jpg/800px-Wangari_Maathai_in_2001.jpg", scene: "Wangari Maathai", alt: "Photograph of Wangari Maathai", credit: CREDIT },
+  "Koffi Olomide": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Koffi_Olomd%C3%A9_%C3%A0_la_c%C3%A9l%C3%A9bration_du_Vodoun_Days_2024_%C3%A0_Ouidah_au_B%C3%A9nin01_37.png?width=800", scene: "Koffi Olomide", alt: "Photograph of Koffi Olomide", credit: CREDIT },
+  "Fally Ipupa": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Fally_Ipupa_a_Paris%2C_en_France.jpg?width=800", scene: "Fally Ipupa", alt: "Photograph of Fally Ipupa", credit: CREDIT },
+  "Papa Wemba": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Papa_Wemba.jpg?width=800", scene: "Papa Wemba", alt: "Photograph of Papa Wemba", credit: CREDIT },
+  Wizkid: { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Wizkid_at_Iyanya%27s_album_launch_concert%2C_2013_%28cropped%29.jpg?width=800", scene: "Wizkid", alt: "Photograph of Wizkid performing", credit: CREDIT },
+  "Burna Boy": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Untold_2024_-Burna_Boy_%2853926047977%29_%28cropped%29.jpg?width=800", scene: "Burna Boy", alt: "Photograph of Burna Boy", credit: CREDIT },
+  Davido: { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Davido_2024_%28cropped%29.jpg?width=800", scene: "Davido", alt: "Photograph of Davido", credit: CREDIT },
+  "Miriam Makeba": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Miriam_makeba_01.jpg?width=800", scene: "Miriam Makeba", alt: "Photograph of Miriam Makeba", credit: CREDIT },
+  "Angelique Kidjo": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Ang%C3%A9lique_Kidjo_Gershwin_2023.jpg?width=800", scene: "Angélique Kidjo", alt: "Photograph of Angélique Kidjo", credit: CREDIT },
+  "Bob Marley": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Bob_Marley_circa_1976_%28cropped%29.jpg?width=800", scene: "Bob Marley", alt: "Photograph of Bob Marley", credit: CREDIT },
+  "Michael Jackson": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Michael_Jackson_1983_%283x4_cropped%29_%28contrast%29.jpg?width=800", scene: "Michael Jackson", alt: "Photograph of Michael Jackson", credit: CREDIT },
+  "Whitney Houston": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Whitney_Houston_%28cropped3%29.JPEG?width=800", scene: "Whitney Houston", alt: "Photograph of Whitney Houston", credit: CREDIT },
+  "Celine Dion": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/C%C3%A9line_Dion_2012.jpg?width=800", scene: "Celine Dion", alt: "Photograph of Celine Dion", credit: CREDIT },
+  "Lupita Nyong’o": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/LupitaNyongo-byPhilipRomano3.jpg?width=800", scene: "Lupita Nyong’o", alt: "Photograph of Lupita Nyong’o", credit: CREDIT },
+  "Denzel Washington": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Denzel_Washington_at_the_2025_Cannes_Film_Festival.jpg?width=800", scene: "Denzel Washington", alt: "Photograph of Denzel Washington", credit: CREDIT },
+  "Charlie Chaplin": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Charlie_Chaplin_portrait_Getty_1739411952.jpg?width=800", scene: "Charlie Chaplin", alt: "Photograph of Charlie Chaplin", credit: CREDIT },
+  "Trevor Noah": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Trevor_Noah_%2853554114243%29_%28portrait_crop%29.jpg?width=800", scene: "Trevor Noah", alt: "Photograph of Trevor Noah", credit: CREDIT },
+  "Lionel Messi": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Leo_Messi_Argentina_v_Egypt_7_July_2026-1.jpg?width=800", scene: "Lionel Messi", alt: "Photograph of Lionel Messi", credit: CREDIT },
+  "Cristiano Ronaldo": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Cristiano_Ronaldo_Croatia_v_Portugal_2_July_2026-075_%28cropped%29.jpg?width=800", scene: "Cristiano Ronaldo", alt: "Photograph of Cristiano Ronaldo", credit: CREDIT },
+  "Didier Drogba": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Didier_Drogba_%282019%29_%28cropped2%29.jpg?width=800", scene: "Didier Drogba", alt: "Photograph of Didier Drogba", credit: CREDIT },
+  "Samuel Eto’o": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Sammuel_Eto%27o_Fils_02.jpg?width=800", scene: "Samuel Eto’o", alt: "Photograph of Samuel Eto’o", credit: CREDIT },
+  "Serena Williams": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Serena-Smiling-2020.png?width=800", scene: "Serena Williams", alt: "Photograph of Serena Williams", credit: CREDIT },
+  "Usain Bolt": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Usain_Bolt_smiling_Berlin_2009.JPG?width=800", scene: "Usain Bolt", alt: "Photograph of Usain Bolt", credit: CREDIT },
+  "Michael Jordan": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Michael_jordan_admad_rashad_%2851276390562%29_%28cropped%29.jpg?width=800", scene: "Michael Jordan", alt: "Photograph of Michael Jordan", credit: CREDIT },
+  "Albert Einstein": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Albert_Einstein_Head_cleaned.jpg?width=800", scene: "Albert Einstein", alt: "Photograph of Albert Einstein", credit: CREDIT },
+  "Marie Curie": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Marie_Curie_c._1920s.jpg?width=800", scene: "Marie Curie", alt: "Photograph of Marie Curie", credit: CREDIT },
+  "Neil Armstrong": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Neil_Armstrong_pose.jpg?width=800", scene: "Neil Armstrong", alt: "Photograph of Neil Armstrong", credit: CREDIT },
+  "Nelson Mandela": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Nelson_Mandela_1994.jpg?width=800", scene: "Nelson Mandela", alt: "Photograph of Nelson Mandela", credit: CREDIT },
+  "Wangari Maathai": { url: "https://commons.wikimedia.org/wiki/Special:FilePath/Wangari_Maathai_in_2001.jpg?width=800", scene: "Wangari Maathai", alt: "Photograph of Wangari Maathai", credit: CREDIT },
 };
 
 /** One scene of the calculation pool: two questions of one paper never share one. */
