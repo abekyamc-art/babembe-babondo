@@ -218,6 +218,11 @@ const TALK_WORDS = new Set([
   "ndiyo", "hapana", "leo", "kesho", "jana", "sasa", "bado", "kweli", "hello", "hey", "thanks",
   "thank", "sorry", "again", "repeat", "slowly", "now", "today", "tomorrow", "good", "bad", "fine",
   "okay", "yes", "maybe", "well", "very", "much", "more", "little", "small", "big",
+  // the words a request leans on rather than names: whose the piece is, how many, and how it stands
+  "zake", "lake", "yake", "wake", "zangu", "zako", "zetu", "yetu", "zao", "yao", "yangu", "yako",
+  "wako", "kwake", "kwangu", "mwenyewe", "wote", "zote", "yote", "huyo", "hao", "wale", "ile",
+  "hiyo", "hizo", "some", "any", "all", "also", "too", "most", "best", "nice", "want", "like",
+  "love", "favorite", "favourite", "new", "latest", "official", "audio", "full", "one",
 ]);
 
 /** The words of a turn and of a name, read the same way on both sides: no case, no accents, no filler. */
@@ -227,7 +232,7 @@ function nameWords(value: any): string[] {
       .normalize("NFD")
       .replace(/[\u0300-\u036f]/g, "")
       .toLowerCase()
-      .match(/[a-z0-9']+/g) || [];
+      .match(/[a-z0-9]+/g) || [];
   return found.filter((word) => word.length > 2);
 }
 

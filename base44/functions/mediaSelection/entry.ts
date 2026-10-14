@@ -1,5 +1,5 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
-import { artistVideosFor, asksArtist } from '../../shared/artistVideos.ts';
+import { artistVideosFor, artistWordsOf, asksArtist, byArtist, piecesNamedBy } from '../../shared/artistVideos.ts';
 
 /**
  * Choosing the one piece of media a play request asks for.
@@ -94,6 +94,20 @@ function fit(asked: string[], name: string): number {
   const words = titleWords(name);
   if (!words.length) return 0;
   return asked.filter((word) => words.includes(word)).length / asked.length;
+}
+
+/**
+ * The pieces that may ride behind the one chosen: only those by the artist the chosen piece belongs
+ * to, in the artist's own order. One story can hold the work of more than one artist, so a request
+ * answered with one artist's piece is never followed into another artist's work — the set ends where
+ * that artist's own list ends, and nothing of anybody else's is put behind it.
+ */
+function behind(chosen: any, scored: any[], artist: string) {
+  const words = artistWordsOf(chosen?.name, artist);
+  return (Array.isArray(scored) ? scored : [])
+    .filter((one: any) => one.url !== chosen?.url && byArtist(one.name, words))
+    .slice(0, 5)
+    .map((one: any) => ({ name: one.name, url: one.url }));
 }
 
 /** An answer with nothing chosen: the intent stands, and no list is handed back. */
@@ -231,10 +245,7 @@ export default async function (req: Request): Promise<Response> {
         intent: playerIntent,
         chosen: { name: best.name, url: best.url, views: Number(top?.views) || 0 },
         candidates: [],
-        others: scored
-          .filter((one: any) => one.url !== best.url)
-          .slice(0, 5)
-          .map((one: any) => ({ name: one.name, url: one.url })),
+        others: behind(best, scored, found?.artist || ''),
         channel,
         reason: '',
       });
@@ -249,7 +260,11 @@ export default async function (req: Request): Promise<Response> {
         ok: true,
         intent,
         chosen: null,
-        candidates: scored.slice(0, 5).map((one: any) => ({ name: one.name, url: one.url })),
+        // Only the pieces carrying what the request named are offered: where a person named a piece of
+        // another artist saved on this story, no piece of anybody else's is put in front of them.
+        candidates: piecesNamedBy(videos, title)
+          .slice(0, 5)
+          .map((one: any) => ({ name: one.name, url: one.url })),
         others: [],
         clash: false,
         channel,
@@ -259,10 +274,7 @@ export default async function (req: Request): Promise<Response> {
     }
 
     const chosen = videos.find((one: any) => String(one?.url || '') === best.url) || { name: best.name, url: best.url };
-    const others = scored
-      .filter((one: any) => one.url !== best.url)
-      .slice(0, 5)
-      .map((one: any) => ({ name: one.name, url: one.url }));
+    const others = behind(best, scored, found?.artist || '');
 
     return Response.json({
       ok: true,

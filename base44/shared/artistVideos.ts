@@ -86,6 +86,57 @@ export function hasCounts(videos: ArtistVideo[]): boolean {
   return (Array.isArray(videos) ? videos : []).some((one) => Number(one?.views) > 0);
 }
 
+/** The words of a piece's own name, read as names are read: no case, no accents, no short words. */
+function nameWords(value: any): string[] {
+  const found =
+    String(value ?? '')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .match(/[a-z0-9]+/g) || [];
+  return found.filter((word) => word.length > 2);
+}
+
+/**
+ * The words that name the artist a piece belongs to: the words the piece shares with the artist its
+ * story is about, or, where it carries none of them, the words its own name gives after "by" — the
+ * artist it was published by.
+ *
+ * One story can hold the work of more than one artist: the admin saves a piece of somebody else's
+ * beside the artist's own, as a song another singer gave the app stands among the channel's videos.
+ * What tells whose a piece is is the name itself, so nothing of another artist's is ever put behind
+ * it — and a piece whose name says nothing of its artist stands alone.
+ */
+export function artistWordsOf(pieceName: any, storyArtist: any): string[] {
+  const words = nameWords(pieceName);
+  if (!words.length) return [];
+  const own = nameWords(storyArtist);
+  const shared = words.filter((word) => own.includes(word));
+  if (shared.length) return shared;
+  const tail = String(pieceName ?? '').split(/\bby\b/i).slice(1).join(' ');
+  return nameWords(tail);
+}
+
+/** Whether a piece belongs to the artist these words name. */
+export function byArtist(pieceName: any, artistWords: any): boolean {
+  const wanted = Array.isArray(artistWords) ? artistWords : [];
+  if (!wanted.length) return false;
+  return nameWords(pieceName).some((word) => wanted.includes(word));
+}
+
+/**
+ * The pieces of the artist's own list that carry what a request named, or the whole list where it
+ * named nothing the list holds: a request that named a piece of somebody else's is never offered
+ * another artist's work in its place.
+ */
+export function piecesNamedBy(videos: ArtistVideo[], words: any): ArtistVideo[] {
+  const wanted = Array.isArray(words) ? words : [];
+  const named = (Array.isArray(videos) ? videos : []).filter((one) =>
+    nameWords(one?.name).some((word) => wanted.includes(word))
+  );
+  return named.length ? named : videos;
+}
+
 /**
  * The app's own artist, for a turn that asks for their work without naming them: the story that
  * carries the artist's own channel and their own pieces is the app's artist.
