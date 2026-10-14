@@ -9,7 +9,9 @@ import { artistVideosFor, asksArtist } from '../../shared/artistVideos.ts';
  * names, read where its counts are not known yet. What comes back is one piece the artist has really
  * published, with the address it stands at and the verified channel behind it, or the short list of
  * the artist's own pieces when the title asked for is not among them, or nothing at all when no
- * artist of the app's own answers the request.
+ * artist of the app's own answers the request. A turn that names an artist, or a song, the app holds
+ * nowhere is answered with nothing at all as well, and the name is handed back plainly: another
+ * artist's work is never put in its place.
  *
  * A request is read for the artist and the title together: the words that name the artist — who the
  * list already belongs to — are taken out of it, and what is left is what tells one of the artist's
@@ -131,6 +133,24 @@ export default async function (req: Request): Promise<Response> {
     const found = await artistVideosFor(base44, query, MATCH_ROWS);
     const videos = Array.isArray(found?.videos) ? found.videos : [];
     const channel = String(found?.channel || '').trim();
+
+    // The turn carries a name the app holds nowhere — an artist, or a song, it has nothing of. Nothing
+    // is chosen and nothing of another artist's is offered: the name itself is handed back, so the
+    // person is told what the app holds instead of being played a piece nobody asked for.
+    if (found?.stranger) {
+      return Response.json({
+        ok: true,
+        intent: playerIntent,
+        chosen: null,
+        candidates: [],
+        others: [],
+        channel: '',
+        unknown: true,
+        asked: String(found.stranger),
+        reason:
+          'The name in that request stands in none of the app\u2019s own stories, songs or channels, so nothing was chosen.',
+      });
+    }
 
     if (!videos.length && !channel) {
       // a turn that named a piece without asking for one is left exactly as it was where the app

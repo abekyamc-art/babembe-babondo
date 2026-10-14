@@ -200,3 +200,80 @@ function artistNote(story) {
     "here, and never say it is unknown.\n"
   );
 }
+
+// The words a request wraps itself in: a word for playing, for music, or for the artist as such names
+// nothing of its own, so it is never read as a name.
+const WRAP_WORDS = new Set([
+  "play", "playing", "piga", "weka", "imba", "sing", "nyimbo", "wimbo", "muziki", "mziki", "song",
+  "songs", "music", "video", "videos", "kanda", "album", "albamu", "msanii", "wasanii", "msani",
+  "mwimbaji", "mwanamuziki", "mchezaji", "mwandishi", "sanaa", "artist", "artists", "singer",
+  "singers", "musician", "musicians", "band", "kwaya", "channel", "youtube", "listen", "sikiliza",
+  "pause", "pausa", "stop", "next", "another", "nyingine", "ingine",
+]);
+
+// The words ordinary talk carries: they name nothing the app could hold, so they are never read as a
+// name either.
+const TALK_WORDS = new Set([
+  "asante", "sana", "tena", "sema", "sawa", "vizuri", "nzuri", "habari", "poa", "karibu", "samahani",
+  "ndiyo", "hapana", "leo", "kesho", "jana", "sasa", "bado", "kweli", "hello", "hey", "thanks",
+  "thank", "sorry", "again", "repeat", "slowly", "now", "today", "tomorrow", "good", "bad", "fine",
+  "okay", "yes", "maybe", "well", "very", "much", "more", "little", "small", "big",
+]);
+
+/** The words of a turn and of a name, read the same way on both sides: no case, no accents, no filler. */
+function nameWords(value: any): string[] {
+  const found =
+    String(value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .match(/[a-z0-9']+/g) || [];
+  return found.filter((word) => word.length > 2);
+}
+
+/** Every name the app holds: each story's own title, its tags, its channel, and every name published with it. */
+function heldNames(rows: any[]): string {
+  const parts: string[] = [];
+  for (const row of Array.isArray(rows) ? rows : []) {
+    parts.push(String(row?.title ?? ""));
+    for (const tag of Array.isArray(row?.tags) ? row.tags : []) parts.push(String(tag ?? ""));
+    parts.push(String(row?.channel_url ?? ""));
+    for (const entry of Array.isArray(row?.artist_links) ? row.artist_links : []) {
+      parts.push(String(entry?.name ?? ""));
+    }
+  }
+  return nameWords(parts.join(" ")).join(" ");
+}
+
+/**
+ * The name a turn carries that the app holds nowhere, or an empty string when the turn names nothing
+ * of its own.
+ *
+ * A request for the artist's own work as a whole — "play the artist's songs", "piga nyimbo za msanii"
+ * — carries no name at all, and the app's own artist answers it. A turn that carries a name the app
+ * holds nowhere — an artist, or a song, it has nothing of — names someone of its own, and no other
+ * artist's work may answer it: the name is handed back plainly instead, so a piece nobody asked for
+ * is never put in the player.
+ *
+ * Only a turn whose every name word stands nowhere is read this way: a turn that names one of the
+ * app's own names, however many other words it carries, is answered exactly as it always was.
+ */
+export function unheldName(rows: any[], query: any): string {
+  const said = String(query ?? "");
+  const all = nameWords(said);
+  const rest = all.filter(
+    (word) => !STOPWORDS.has(word) && !WRAP_WORDS.has(word) && !TALK_WORDS.has(word)
+  );
+  if (!rest.length) return "";
+
+  const held = heldNames(rows);
+  const unknown = rest.filter((word) => !held.includes(word));
+  // a name the app does hold stands in the turn: this is not somebody the app has nothing of
+  if (unknown.length !== rest.length) return "";
+
+  // A turn asks for something when it carries a word for playing, for music or for the artist as such;
+  // without one, a single word of its own is not read as a name.
+  const asking = all.some((word) => WRAP_WORDS.has(word));
+  if (unknown.length < 2 && !asking) return "";
+  return unknown.join(" ");
+}

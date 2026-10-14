@@ -251,6 +251,12 @@ export default function useHomeMedia({ onTell, onEndVoice, onHandoff } = {}) {
         }
 
         if (result.intent === "play" || result.intent === "listen") {
+          // The name in that turn stands in none of the app's own stories, songs or channels: no other
+          // artist's work is put in its place. The app says plainly what it holds, and the voice is told
+          // the same, so the answer never names a piece the person did not ask for.
+          if (result.unknown) {
+            return say("unknown", { name: result.asked });
+          }
           if (result.chosen?.url) {
             // the artist's own set: the piece asked for, and the artist's own pieces behind it
             const behind = (Array.isArray(result.others) ? result.others : []).filter(

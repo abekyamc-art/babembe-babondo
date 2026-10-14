@@ -1,5 +1,5 @@
 import { readChannel } from "./channelRead.ts";
-import { bestStory } from "./storyMatch.ts";
+import { bestStory, unheldName } from "./storyMatch.ts";
 
 /**
  * The artist's own videos, the most watched first, for a turn that is about them.
@@ -50,6 +50,11 @@ export type ArtistList = {
   read: boolean;
   /** why the channel could not be read, when one was read and could not be reached */
   reason?: string;
+  /**
+   * the name the turn carried that the app holds nowhere, where it named one. A turn naming somebody
+   * the app has nothing of is answered by no list at all — never by another artist's work.
+   */
+  stranger?: string;
 };
 
 /** One saved entry as the list reads it, and nothing at all when it carries no address. */
@@ -127,11 +132,18 @@ export async function artistVideosFor(base44: any, query: any, limit = SHOWN): P
       }
     );
     const rows = page?.items || [];
+    // A turn carrying a name the app holds nowhere — an artist, or a song, the app has nothing of — is
+    // never answered with another artist's work: no list at all answers a name nobody here carries, so
+    // the turn is handed back plainly and nothing of anybody else's is put in the player.
+    const stranger = unheldName(rows, String(query || ''));
+    if (stranger) return { videos: [], channel: '', artist: '', read: false, stranger };
+
     const matched = bestStory(rows, String(query || ''));
-    // The story the turn is about answers when it carries the artist's own work. A story that carries
-    // none — a telling only — is not what a piece of the artist's is chosen from, so the app's own
-    // artist answers instead, where the app holds one.
-    story = carriesWork(matched) ? matched : ownArtist(rows) || matched;
+    // A turn that names one of the admin's own stories is answered by that story alone. Where that
+    // story carries no work of the artist's, the app holds nothing of them to play, and no other
+    // artist's list is stood in its place. The app's own artist answers only a turn that names none of
+    // the app's stories at all — "play the artist's songs", "piga nyimbo za msanii".
+    story = matched || ownArtist(rows);
   } catch (error: any) {
     // a story that could not be read is no list at all: nothing is claimed about an artist here
     console.error('The artist could not be found for the video list:', error?.message);

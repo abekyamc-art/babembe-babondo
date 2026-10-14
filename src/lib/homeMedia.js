@@ -147,6 +147,18 @@ export function mediaLines(step, data = {}) {
           `More than one of the artist's own pieces answers that title: ${names}. The app chose none of them. ` +
           `Ask the person which one they mean, in one short question, and choose nothing yourself.`,
       };
+    case "unknown":
+      // The name in that turn stands in none of the app's own stories, songs or channels. Nothing was
+      // put in the player and nothing was put to the person: another artist's work never answers a
+      // name the app has nothing of, and the app says plainly what it holds.
+      return {
+        line: `The app holds nothing under that name${name ? ` — ${name}` : ""}. Nothing was put in the player.`,
+        spoken:
+          `The name the person asked for${name ? `, "${name}",` : ""} stands in none of the app's own stories, ` +
+          `songs or channels: nothing was chosen and the app's own player is empty. Say plainly that the app ` +
+          `holds nothing under that name, never invent a song, a title or a link, and ask which artist or song ` +
+          `they mean.`,
+      };
     case "none": {
       // The one piece the app named to the person, where it named one: it stands first among what the
       // app holds of the artist, and a plain yes plays it. The app's own line says what it holds as well
