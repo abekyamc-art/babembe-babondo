@@ -4,7 +4,7 @@
   "properties": {
     "key": {
       "type": "string",
-      "description": "Which app-level setting this row holds. The voice setting is kept under the key \"voice\"."
+      "description": "Which app-level setting this row holds. The voice setting is kept under the key \"voice\" and the unrestricted examination access under the key \"exam\"."
     },
     "mode": {
       "type": "string",
@@ -16,6 +16,11 @@
       ],
       "default": "agent",
       "description": "Who answers in the app: the original outside voice, the second outside voice that speaks for Base44 mode, Mbondo AI, or Sadiki AI. The last two answer both written and spoken questions themselves."
+    },
+    "open_exams": {
+      "type": "boolean",
+      "default": false,
+      "description": "Whether the whole examination is open to an admin: with it on, an admin takes any season and any episode, whatever stands passed before it, so the examination can be read through before students meet it. It is the examination's own setting, standing under the key \"exam\", and it is kept apart from every student's progress and from the leaderboard: a student's examination is not changed by it, and neither is the standing written down for an attempt taken this way."
     }
   },
   "required": [

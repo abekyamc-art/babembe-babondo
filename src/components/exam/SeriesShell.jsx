@@ -7,6 +7,7 @@ import ExamQuestionCard from "./ExamQuestionCard";
 import ExamResults from "./ExamResults";
 import ExamPrizes from "./ExamPrizes";
 import ExamSeasons from "./ExamSeasons";
+import ExamAccessToggle from "./ExamAccessToggle";
 import { reportOf, scoreOf, pointsOf } from "@/lib/examSession";
 import { EXAM_SEASONS, episodeSize, episodesInSeason, seasonByNo } from "@/lib/examSeasons";
 import { loadStudentProgress, saveStudentProgress } from '@/lib/examProgressSync';
@@ -21,6 +22,7 @@ import {
 } from "@/lib/examProgress";
 import { saveScore } from "@/lib/examLeaderboard";
 import { loadExamPool } from "@/lib/examPool";
+import { loadExamAccess, useExamAccess } from "@/lib/examAccess";
 import "@/exam.css";
 
 // a season still waiting for its own list of words is not one a student can play, so it is not counted
@@ -53,6 +55,8 @@ export default function SeriesShell({ open, onClose }) {
   const [saving, setSaving] = useState(false);
   // the finish of one attempt is written down once, never twice however the screen redraws
   const written = useRef("");
+  // an admin who has opened the whole examination is reading it, not standing in it
+  const openAll = useExamAccess();
 
   // Each time the examination is opened: what stands passed on this phone, the episode left
   // half-answered, and the season it belongs to.
@@ -67,7 +71,7 @@ export default function SeriesShell({ open, onClose }) {
     written.current = '';
     // the confirmed words are read before any paper is drawn, so no episode is opened on the written
     // lists while the document's own words are still on their way
-    Promise.all([loadExamPool().catch(() => null), loadStudentProgress()]).then(([, held]) => {
+    Promise.all([loadExamPool().catch(() => null), loadStudentProgress(), loadExamAccess()]).then(([, held]) => {
       if (!active) return;
       const half = loadAttempt();
       setProgress(held);
@@ -93,11 +97,18 @@ export default function SeriesShell({ open, onClose }) {
   useEffect(() => {
     if (!finished || written.current === attempt.id) return;
     written.current = attempt.id;
+    // An attempt taken with unrestricted access is read, not written: the paper is marked and its report
+    // shown, and nothing of it is written down — not on the phone, not with the account, and not on the
+    // leaderboard. The episode stays open to be read again.
+    if (openAll) {
+      setResume(null);
+      return;
+    }
     const held = recordFinish(attempt.season, attempt.episode, reportOf(attempt));
     setProgress(held);
     setResume(null);
     persistFinish(held);
-  }, [finished, attempt]);
+  }, [finished, attempt, openAll]);
 
   const persistFinish = async (held) => {
     setSaving(true);
@@ -130,12 +141,16 @@ export default function SeriesShell({ open, onClose }) {
   const seasonAfter = attempt && went && !nextOpen && afterAt > 0 ? after : null;
   const again = !!attempt && !went;
   // the note is written from a finished paper's report, so it stands empty while the paper is still open
-  const note = !report ? '' : went
-    ? nextOpen
-      ? `Episode ${attempt.episode} is passed and is now closed. Episode ${nextNo} is next.`
-      : seasonAfter ? `Season ${attempt.season} is complete — its gold trophy now stands on the prize shelf. Season ${seasonAfter.no} is next.`
-      : "All available seasons are complete, and every season's gold trophy stands on the prize shelf. Passed episodes will not be repeated."
-    : `You scored ${report.percent}% of ${report.total} points — more than 80% opens the next episode. Take episode ${attempt.episode} again.`;
+  const note = !report
+    ? ''
+    : openAll
+      ? 'Unrestricted access is on — this attempt was read, not written: nothing of it stands in your progress or on the leaderboard, and every season and episode stays open to read.'
+      : went
+        ? nextOpen
+          ? `Episode ${attempt.episode} is passed and is now closed. Episode ${nextNo} is next.`
+          : seasonAfter ? `Season ${attempt.season} is complete — its gold trophy now stands on the prize shelf. Season ${seasonAfter.no} is next.`
+            : "All available seasons are complete, and every season's gold trophy stands on the prize shelf. Passed episodes will not be repeated."
+        : `You scored ${report.percent}% of ${report.total} points — more than 80% opens the next episode. Take episode ${attempt.episode} again.`;
 
   // An episode is opened whatever the account syncing is doing: a slow or a failed save is written down
   // and retried, but it never stands between the student and the episode they have just earned.
@@ -263,14 +278,17 @@ export default function SeriesShell({ open, onClose }) {
               onBack={() => setView("seasons")}
             />
           ) : (
-            <ExamSeasons
-              progress={progress}
-              resume={resume}
-              onOpenSeason={openSeason}
-              onResume={resumeEpisode}
-              onBoard={() => setView("board")}
-              onPrizes={() => setView("prizes")}
-            />
+            <>
+              <ExamAccessToggle />
+              <ExamSeasons
+                progress={progress}
+                resume={resume}
+                onOpenSeason={openSeason}
+                onResume={resumeEpisode}
+                onBoard={() => setView("board")}
+                onPrizes={() => setView("prizes")}
+              />
+            </>
           )}
         </div>
       </div>

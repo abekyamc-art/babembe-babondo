@@ -24,6 +24,14 @@ export function setProgressOwner(id) { progressOwner = id; kept = null; }
 const scoped = (key) => `${key}:${progressOwner}`;
 export function storeProgress(progress) { write(PROGRESS_KEY, progress); }
 
+/**
+ * Whether the whole examination stands open to the person signed in: an admin who has switched
+ * unrestricted access on. It changes what stands open and nothing else — no episode is closed by it,
+ * nothing is written down differently, and a student's examination is never held this way.
+ */
+let openAll = false;
+export function setExamOverride(on) { openAll = !!on; }
+
 /** One episode's own name in the store: the season it belongs to and its number inside it. */
 export function episodeKey(season, episode) {
   return `${season}:${episode}`;
@@ -94,6 +102,8 @@ export function seasonCleared(progress, season) {
  */
 export function seasonOpen(progress, season) {
   if (seasonByNo(season)?.waiting) return false;
+  // the whole examination stands open to an admin who has switched it open, whatever is cleared before it
+  if (openAll) return true;
   const before = seasonBefore(season);
   if (!before) return true;
   return seasonCleared(progress, before.no);
@@ -118,6 +128,8 @@ export function completedIn(progress, season) {
 
 export function episodeOpen(progress, season, episode) {
   if (!seasonOpen(progress, season) || episode < 1 || episode > episodesInSeason(season)) return false;
+  // the same reading: every episode of every season stands open, passed or not
+  if (openAll) return true;
   if (episodeCompleted(progress, season, episode)) return false;
   return episode === 1 || episodeCompleted(progress, season, episode - 1);
 }

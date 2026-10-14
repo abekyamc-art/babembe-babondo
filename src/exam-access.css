@@ -1,0 +1,142 @@
+/*
+ * GLOIRE AI — unrestricted examination access.
+ *
+ * The admin's own switch at the head of the examination seasons. It is the admin's alone: a student is
+ * shown nothing of it, and no student's examination follows it. Its palette is the examination's own,
+ * so the row reads as part of that surface.
+ */
+
+.exam-access {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  padding: 12px 14px;
+  background: #101728;
+  border: 1px solid #2b3a5e;
+  border-radius: 14px;
+}
+
+.exam-access.is-on {
+  background: #12243a;
+  border-color: #3d6ea8;
+}
+
+.exam-access-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.exam-access-body {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.exam-access-title {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  color: #f5f6ff;
+  font-size: 12.5px;
+  font-weight: 750;
+  letter-spacing: 0.2px;
+}
+
+.exam-access-title svg {
+  width: 15px;
+  height: 15px;
+  flex: none;
+  color: #8ebaff;
+}
+
+.exam-access-note {
+  color: #9ba9c6;
+  font-size: 11.5px;
+  font-weight: 600;
+  line-height: 1.5;
+}
+
+.exam-access.is-on .exam-access-note {
+  color: #cfe3ff;
+}
+
+.exam-access-switch {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  padding: 8px 13px;
+  color: #c8d7f5;
+  background: #141c32;
+  border: 1px solid #354568;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  cursor: pointer;
+  transition: background 0.18s ease, border-color 0.18s ease, color 0.18s ease;
+}
+
+.exam-access-switch:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.exam-access-switch:focus-visible {
+  outline: 2px solid #6ba8ff;
+  outline-offset: 3px;
+}
+
+.exam-access.is-on .exam-access-switch {
+  color: #ffffff;
+  background: #1f8a5f;
+  border-color: #2aa877;
+}
+
+.exam-access-knob {
+  position: relative;
+  width: 34px;
+  height: 18px;
+  flex: none;
+  border-radius: 999px;
+  background: #2b3a5e;
+  transition: background 0.18s ease;
+}
+
+.exam-access-knob::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #9ba9c6;
+  transition: transform 0.18s ease, background 0.18s ease;
+}
+
+.exam-access.is-on .exam-access-knob {
+  background: #0f5c3d;
+}
+
+.exam-access.is-on .exam-access-knob::after {
+  background: #ffffff;
+  transform: translateX(16px);
+}
+
+.exam-access-state {
+  min-width: 22px;
+  text-align: right;
+}
+
+.exam-access-error {
+  margin: 0;
+  color: #ffb6bd;
+  font-size: 11.5px;
+  font-weight: 600;
+}
