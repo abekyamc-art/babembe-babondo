@@ -17,6 +17,10 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
  *
  * Only an admin may call it, and only with the email of the student to drop.
  */
+// The last season the examination holds: a drop reaches every season after it, this one included, so the
+// whole run of seasons above the drop is closed out at once and nothing waits unseen behind a number.
+const LAST_SEASON = 11;
+
 export default async function (req: Request): Promise<Response> {
   try {
     const base44 = createClientFromRequest(req);
@@ -74,10 +78,13 @@ export default async function (req: Request): Promise<Response> {
       if (!falls(key)) taken[key] = before.taken[key];
     });
 
-    // the drop's own time, written down for the season named and for every season after it that holds
-    // anything — the marks of a phone that has not yet taken the account's copy up are let go by it
+    // the drop's own time, written down for the season named and for every season after it — the last
+    // season of the examination included, whether or not it holds anything yet — so the marks of a phone
+    // that has not taken the account's copy up are let go by it, season by season, and no season after the
+    // drop can ever hold a mark written before it
     const resets: Record<string, string> = { ...(before.season_resets || {}) };
-    const reached = new Set<number>([season]);
+    const reached = new Set<number>();
+    for (let no = season; no <= LAST_SEASON; no += 1) reached.add(no);
     [...Object.keys(before.passed || {}), ...Object.keys(before.completed || {}), ...Object.keys(before.taken || {})]
       .forEach((key) => {
         const no = Number(String(key).split(':')[0]);
