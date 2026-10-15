@@ -184,6 +184,91 @@ function carriesTerm(reply: string, terms: string[]): boolean {
   });
 }
 
+/**
+ * The framing a translation is allowed to stand in: the everyday words of the app's own three
+ * languages that carry the answer around the Kibembe — what it is called, how it sounds, what it
+ * means. What is never in it is the thing itself: a Kibembe word the Bank does not hold, or a word
+ * about the app's own knowledge.
+ */
+const FRAME = new Set([
+  "the", "a", "an", "and", "or", "of", "for", "in", "into", "to", "is", "are", "was", "be", "it",
+  "its", "this", "that", "these", "those", "as", "also", "so", "but", "not", "no", "yes", "you",
+  "your", "i", "we", "they", "he", "she", "them", "here", "there", "then", "than", "when", "where",
+  "why", "how", "what", "which", "who", "our", "my", "same", "one", "two", "three", "say", "says",
+  "said", "saying", "mean", "means", "meaning", "word", "words", "phrase", "phrases", "sound",
+  "sounds", "sounding", "pronounce", "pronounced", "pronunciation", "read", "reading", "written",
+  "write", "translation", "translate", "translated", "kibembe", "ebembe", "bembe", "kiswahili",
+  "swahili", "english", "kiingereza", "kwa", "na", "ni", "ya", "wa", "hii", "hilo", "hiyo",
+  "maneno", "neno", "maana", "lugha", "jinsi", "kusema", "sema", "semaje", "unasema", "unasemaje",
+  "tafsiri", "ombi", "lako", "swali", "jibu", "uliza", "yake", "yangu", "sana", "kama", "hivyo",
+  "pia", "lakini", "kisha", "basi", "sawa", "yetu", "yao", "wetu", "mtu", "watu", "kitu", "vitu",
+  "moja", "mbili", "tatu", "hapa", "pale", "ndiyo", "hapana", "kila", "huyu", "hawa",
+]);
+
+/**
+ * A remark about the app's own knowledge — about the Word Bank, about what is confirmed, about what
+ * could not be found. Such a line is never a translation, whatever language it is written in, and it
+ * is never given where a translation was asked for.
+ */
+const NOTICE =
+  /(\bword ?bank\b|\bbank\b|database|\bapp\b|\bdata\b|\bconfirmed\b|\bkamusi\b|\bkuthibitishwa\b)/i;
+
+/** The head of a reply: the Kibembe itself, where the Kibembe always stands — its first line, or its first sentence. */
+function headOf(reply: string): string {
+  const line = String(reply || "").trim();
+  const at = line.indexOf("\n");
+  const first = at === -1 ? line : line.slice(0, at);
+  return first.split(/\.\s+/)[0] || first;
+}
+
+/**
+ * The words of a reply's Kibembe that stand in neither the app's Word Bank nor the framing around a
+ * translation: invented Kibembe, or a word of another language borrowed into the line. They are what
+ * says the line is not the app's own translation of anything.
+ */
+function strayWords(reply: string, rows: any[], said: any): string[] {
+  const held = (Array.isArray(rows) ? rows : [])
+    .map((row) => `${row?.term || ""} ${row?.meaning || ""}`)
+    .join(" ")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase();
+  const asked = new Set(wordsOf(said));
+  const out: string[] = [];
+  for (const word of wordsOf(reply)) {
+    if (word.length < 3 || FRAME.has(word) || asked.has(word) || held.includes(word)) continue;
+    out.push(word);
+  }
+  return out;
+}
+
+/**
+ * Whether a reply really is the app's own translation: a word the Bank holds, standing in a line whose
+ * every word is either the Bank's or the framing around it, and no remark about the app itself. A line
+ * that fails this is never given to a person — the app says plainly instead that it holds no confirmed
+ * translation yet.
+ */
+function isConfirmedTranslation(reply: any, rows: any[], said: any, terms: string[]): boolean {
+  const line = String(reply || "").trim();
+  if (!line || !terms.length) return false;
+  if (!carriesTerm(line, terms)) return false;
+  if (NOTICE.test(line)) return false;
+  return strayWords(headOf(line), rows, said).length === 0;
+}
+
+/**
+ * Why a translation was not given, in one short phrase for the app's own logs. Nothing of the reply
+ * itself is ever logged.
+ */
+function refusalWhy(reply: any, rows: any[], said: any, terms: string[]): string {
+  const line = String(reply || "").trim();
+  if (!line) return "it was empty";
+  if (!terms.length) return "the Word Bank holds nothing for the ask";
+  if (!carriesTerm(line, terms)) return "no word of the Bank stood in it";
+  if (NOTICE.test(line)) return "it was a remark about the app, not a translation";
+  return "it carried words the Bank does not hold";
+}
+
 /** The answer as the person reads it: the whole translation, cut at a sentence where it runs long. */
 function asAnswer(value: any): string {
   const line = String(value ?? "")
@@ -219,6 +304,13 @@ const ROLE = [
   "- One word asked about is answered with what the Bank says it means, so the person sees the word they",
   "  were given standing in the Bank itself.",
   "- Never repeat a line you have already given in this conversation.",
+  "- Never write a remark, a refusal, an explanation or an apology — not in Kibembe, not in Kiswahili",
+  "  and not in English. There is no such thing here as a translation that says the Bank holds nothing:",
+  "  where the Bank carries nothing for what was asked for, reply is empty and confident is false, and",
+  "  the app itself tells the person plainly, in English, that it holds no confirmed word for it yet.",
+  "- Every Kibembe word you write stands in the Word Bank handed to you, and the translation is the",
+  "  whole of your answer: never a sentence about the app, about the Bank, about what is confirmed, or",
+  "  about what you could not find — in any language.",
   KIBEMBE_GUIDE,
   ANSWER_LANGUAGE,
   TRUTH_RULES,
@@ -350,11 +442,14 @@ export async function translationAnswer(
   if (apiKey) {
     try {
       const out = await specialist(apiKey, prompt);
-      if (out?.confident && out.reply && carriesTerm(out.reply, terms)) {
+      if (out?.confident && isConfirmedTranslation(out.reply, rows, said, terms)) {
         return { reply: out.reply, via: "specialist" };
       }
       if (out) {
-        console.log("The translation AI did not confirm a translation for this turn, or did not use it.");
+        console.log(
+          "The translation AI did not give a translation of the Bank for this turn:",
+          refusalWhy(out.reply, rows, said, terms)
+        );
       }
     } catch (error: any) {
       console.error("The translation AI could not answer:", error?.message);
@@ -365,8 +460,14 @@ export async function translationAnswer(
     const out = readOut(
       await geminiText({ base44, group: "answer", prompt, response_json_schema: SHAPE })
     );
-    if (out?.confident && out.reply && carriesTerm(out.reply, terms)) {
+    if (out?.confident && isConfirmedTranslation(out.reply, rows, said, terms)) {
       return { reply: out.reply, via: "fallback" };
+    }
+    if (out) {
+      console.log(
+        "The second AI did not give a translation of the Bank for this turn:",
+        refusalWhy(out.reply, rows, said, terms)
+      );
     }
   } catch (error: any) {
     console.error("The second AI could not answer the translation:", error?.message);
