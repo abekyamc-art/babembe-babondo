@@ -8,11 +8,21 @@ export async function loadStudentProgress() {
   setProgressOwner(owner?.id || 'guest');
   const local = loadProgress();
   if (!owner) return local;
-  const [page, scores] = await Promise.all([
+  const [page, scores, dropped] = await Promise.all([
     base44.entities.ExamStudentProgress.filter({ owner_id: owner.id }, { limit: 1 }),
     base44.entities.ExamRecord.filter({ user_email: owner.email }, { limit: 1 }),
+    base44.entities.ExamSeasonReset.filter({ user_email: owner.email }, { limit: 100 }).catch(() => ({ items: [] })),
   ]);
   const remote = page.items[0]?.progress || {};
+  // A drop an admin has made stands on its own record, apart from the progress and never written by the
+  // phone: a phone still holding the dropped seasons' older marks in its own store reads the drops here
+  // and lets those marks go, so what it writes back cannot put a dropped season together again.
+  const drops = { ...(remote.season_resets || {}) };
+  (dropped?.items || []).forEach((row) => {
+    const no = String(row?.season ?? "");
+    if (!no || !row?.at) return;
+    if (!drops[no] || Date.parse(row.at) > (Date.parse(drops[no]) || 0)) drops[no] = row.at;
+  });
   const completed = { ...remote.completed, ...local.completed };
   const previous = scores.items[0];
   // Recover the already-cleared sequential path from the existing leaderboard.
@@ -21,6 +31,7 @@ export async function loadStudentProgress() {
     for (let no = 1; no <= end; no++) completed[episodeKey(season.no, no)] = true;
   });
   const progress = { ...remote, ...local, passed: { ...remote.passed, ...local.passed }, taken: { ...remote.taken, ...local.taken }, completed,
+    season_resets: drops,
     baseline_score: remote.baseline_score || local.baseline_score || 0,
     baseline_passed: remote.baseline_passed || local.baseline_passed || 0 };
   // Preserve earlier leaderboard points whose per-episode marks were on another device.
@@ -30,7 +41,7 @@ export async function loadStudentProgress() {
   }
   // A season the examination has been started over again is taken from its first episode: what stood
   // passed before the restart is dropped, on the phone as well as with the account.
-  applySeasonResets(progress, remote.season_resets);
+  applySeasonResets(progress, drops);
   storeProgress(progress);
   await saveStudentProgress(progress);
   return progress;

@@ -1,0 +1,57 @@
+{
+  "name": "ExamSeasonReset",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "The drop's own key: the student's email and the season, joined. One row stands for each student and season, so a second drop on the same season writes the same row again with its own time."
+    },
+    "user_email": {
+      "type": "string",
+      "description": "Email of the student this drop was made on. It is what the student's own phone reads the drops by, so only their own drops ever reach it."
+    },
+    "season": {
+      "type": "number",
+      "description": "The season the student was dropped on. The season itself and every season after it are cleared from that moment on."
+    },
+    "at": {
+      "type": "string",
+      "description": "ISO time the drop was made. What stood passed in the dropped seasons before this moment is let go; an episode passed after it is kept."
+    }
+  },
+  "required": [
+    "key",
+    "user_email",
+    "season",
+    "at"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.user_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

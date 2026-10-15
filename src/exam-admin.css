@@ -1,0 +1,198 @@
+/*
+ * GLOIRE AI — the admin's own list of students, where one student is dropped on a season.
+ *
+ * It stands in the examination's own dark-navy surface, in the account sheet's palette, so it reads as
+ * the admin tool it is and not as part of a student's paper.
+ */
+
+.exam-admin {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  padding: 14px;
+  background: #101728;
+  border: 1px solid #26304d;
+  border-radius: 16px;
+}
+
+.exam-admin-top {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.exam-admin-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #f5f6ff;
+  font-size: 13px;
+  font-weight: 750;
+  letter-spacing: -0.1px;
+}
+
+.exam-admin-title svg {
+  width: 16px;
+  height: 16px;
+  color: #8ebaff;
+}
+
+.exam-admin-count {
+  margin: 0;
+  color: #9ba9c6;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+}
+
+.exam-admin-note {
+  margin: 0;
+  color: #9ba9c6;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+}
+
+.exam-admin-toggle {
+  padding: 9px 13px;
+  color: #8ebaff;
+  background: #17223b;
+  border: 1px solid #354568;
+  border-radius: 999px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background 0.18s ease, color 0.18s ease;
+}
+
+.exam-admin-toggle:hover {
+  background: #233659;
+  color: #ffffff;
+}
+
+.exam-admin-toggle:focus-visible,
+.exam-admin-select:focus-visible,
+.exam-admin-drop:focus-visible {
+  outline: 2px solid #6ba8ff;
+  outline-offset: 3px;
+}
+
+.exam-admin-list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+/* one student: who they are, where they stand now, and the one action that drops them */
+.exam-admin-row {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  padding: 12px;
+  background: #0d1425;
+  border: 1px solid #1c2440;
+  border-radius: 14px;
+}
+
+.exam-admin-body {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
+
+.exam-admin-name {
+  color: #f5f6ff;
+  font-size: 14px;
+  font-weight: 750;
+  letter-spacing: -0.2px;
+  overflow-wrap: anywhere;
+}
+
+.exam-admin-meta {
+  color: #9ba9c6;
+  font-size: 11.5px;
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.exam-admin-tools {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+}
+
+.exam-admin-select {
+  flex: 1 1 190px;
+  min-width: 0;
+  padding: 11px 12px;
+  color: #f5f6ff;
+  background: #141c32;
+  border: 1px solid #293654;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 650;
+}
+
+.exam-admin-drop {
+  flex: none;
+  padding: 12px 15px;
+  color: #ffffff;
+  background: #2f4a7d;
+  border: 1px solid #3f5e97;
+  border-radius: 12px;
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 750;
+  cursor: pointer;
+  transition: background 0.18s ease;
+}
+
+.exam-admin-drop:hover:not(:disabled) {
+  background: #3a5a94;
+}
+
+/* the second tap: the drop is asked for once more before it is made */
+.exam-admin-drop.is-ask {
+  background: #6d2030;
+  border-color: #8f3548;
+}
+
+.exam-admin-drop.is-ask:hover:not(:disabled) {
+  background: #83283b;
+}
+
+.exam-admin-drop:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.exam-admin-done {
+  margin: 0;
+  color: #8ff0c8;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.exam-admin-error {
+  margin: 0;
+  color: #ffb6bd;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.5;
+}
+
+.exam-admin-empty {
+  margin: 0;
+  color: #9ba9c6;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1.55;
+}

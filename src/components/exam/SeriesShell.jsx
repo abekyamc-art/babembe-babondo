@@ -8,6 +8,7 @@ import ExamResults from "./ExamResults";
 import ExamPrizes from "./ExamPrizes";
 import ExamSeasons from "./ExamSeasons";
 import ExamAccessToggle from "./ExamAccessToggle";
+import ExamAdminReset from "./ExamAdminReset";
 import { reportOf, scoreOf, pointsOf } from "@/lib/examSession";
 import { EXAM_SEASONS, episodeSize, episodesInSeason, seasonByNo } from "@/lib/examSeasons";
 import { loadStudentProgress, saveStudentProgress } from '@/lib/examProgressSync';
@@ -280,6 +281,7 @@ export default function SeriesShell({ open, onClose }) {
           ) : (
             <>
               <ExamAccessToggle />
+              <ExamAdminReset />
               <ExamSeasons
                 progress={progress}
                 resume={resume}
