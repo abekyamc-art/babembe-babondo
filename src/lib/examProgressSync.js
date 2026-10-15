@@ -34,14 +34,11 @@ export async function loadStudentProgress() {
     season_resets: drops,
     baseline_score: remote.baseline_score || local.baseline_score || 0,
     baseline_passed: remote.baseline_passed || local.baseline_passed || 0 };
-  // Preserve earlier leaderboard points whose per-episode marks were on another device.
-  if (previous) {
-    progress.baseline_score += Math.max(0, previous.score - totalScore(progress));
-    progress.baseline_passed += Math.max(0, previous.passed - episodesPassed(progress));
-  }
-  // A season the examination has been started over again is taken from its first episode: what stood
-  // passed before the restart is dropped, on the phone as well as with the account.
-  applySeasonResets(progress, drops);
+  // Every drop stands above what the phone and the leaderboard still carry: the marks of the dropped
+  // seasons are let go, and the standing they carried with them is brought no higher than the seasons
+  // standing before the drop hold — so a standing written before the drop can never lift the student
+  // back over it, and every episode passed after the drop is counted from its own mark as it is earned.
+  clipToDrops(progress, drops, previous);
   storeProgress(progress);
   await saveStudentProgress(progress);
   return progress;
@@ -71,6 +68,56 @@ function applySeasonResets(progress, resets) {
       if (key.startsWith(prefix)) delete progress.taken[key];
     });
   });
+  return progress;
+}
+
+/** How many episodes stand in the seasons before a season: what a standing may still carry after a drop. */
+function episodesBefore(season) {
+  if (!season) return 0;
+  let total = 0;
+  EXAM_SEASONS.forEach((one) => {
+    if (one.no < season) total += episodesInSeason(one.no);
+  });
+  return total;
+}
+
+/** The lowest season a drop reaches, or nothing where no drop stands. */
+function dropFloor(drops) {
+  const held = Object.keys(drops || {})
+    .map((no) => Number(no))
+    .filter((no) => Number.isInteger(no) && no > 0);
+  return held.length ? Math.min(...held) : 0;
+}
+
+/** The drops a student stands under, one time for every season they reach, read from their own rows. */
+export function dropsOf(rows) {
+  const drops = {};
+  (rows?.items || []).forEach((row) => {
+    const no = String(row?.season ?? "");
+    if (!no || !row?.at) return;
+    if (!drops[no] || Date.parse(row.at) > (Date.parse(drops[no]) || 0)) drops[no] = row.at;
+  });
+  return drops;
+}
+
+/**
+ * One student's progress with every drop standing on it applied: the marks of a dropped season are let
+ * go — on the phone as well as with the account — and the older standing carried for marks that live on
+ * another device is brought no higher than the seasons standing before the drop hold. Everything passed
+ * after the drop is counted from its own mark, as it is really earned.
+ */
+export function clipToDrops(progress, drops, previous) {
+  applySeasonResets(progress, drops);
+  const floor = dropFloor(drops);
+  if (!floor && !previous) return progress;
+  const most = floor ? episodesBefore(floor) : Infinity;
+  const keepPassed = Math.min(Number(previous?.passed ?? progress.baseline_passed) || 0, most);
+  const keepScore = Math.min(Number(previous?.score ?? progress.baseline_score) || 0, most * 100);
+  // the marks themselves, apart from the baseline, so the lift is measured against what is really passed
+  const marks = totalScore(progress) - (Number(progress.baseline_score) || 0);
+  const keys = episodesPassed(progress) - (Number(progress.baseline_passed) || 0);
+  progress.baseline_score = Math.max(0, keepScore - marks);
+  progress.baseline_passed = Math.max(0, keepPassed - keys);
   return progress;
 }
 

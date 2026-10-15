@@ -1,6 +1,7 @@
 import { base44 } from "@/api/base44Client";
 import { episodesInSeason } from '@/lib/examSeasons';
 import { episodesPassed, nextEpisode, seasonReached, totalScore } from "@/lib/examProgress";
+import { clipToDrops, dropsOf } from "@/lib/examProgressSync";
 import { levelsPassed, loadGame } from "@/lib/differenceGame/store";
 
 /**
@@ -90,7 +91,21 @@ export async function saveScore(progress) {
     if (!me?.email) return null;
 
     const found = await base44.entities.Profile.filter({ user_email: me.email }, { limit: 1 });
-    const record = recordOf(me, found?.items?.[0] || null, progress);
+    // A standing is never written above a drop an admin has made. The copy a caller hands over is the
+    // phone's own, and it still carries the dropped seasons' marks until it takes the account's copy up,
+    // so it is read for the drop here before the standing is read off it: the game's own write cannot
+    // lift a dropped student back over the drop either.
+    let held = progress;
+    const rows = await base44.entities.ExamSeasonReset.filter(
+      { user_email: me.email },
+      { limit: 100 }
+    ).catch(() => ({ items: [] }));
+    const drops = dropsOf(rows);
+    if (Object.keys(drops).length) {
+      const standing = await base44.entities.ExamRecord.filter({ user_email: me.email }, { limit: 1 });
+      held = clipToDrops({ ...progress }, drops, standing?.items?.[0] || null);
+    }
+    const record = recordOf(me, found?.items?.[0] || null, held);
     await base44.entities.ExamRecord.upsert([record], { key: "user_email" });
     return record;
   } catch (err) {
