@@ -6,7 +6,8 @@ import { lifeQuestionOf, lifeWordOrder, shuffled } from "./examSeries";
 import { buildCalculationPaper, challengeAt } from '@/lib/challengeQuestions';
 import { buildPeoplePaper, peopleEpisodes } from '@/lib/peopleChallenges';
 import { SCENE_POOL, currentQueues, poolShare } from './examPool';
-import { buildSetPaper, setEpisodes } from './examSetPapers';
+import { buildSetPaper } from './examSetPapers';
+import { buildTopUp } from './examTopUp';
 import { differencePuzzle } from './diffPuzzles';
 
 /**
@@ -94,16 +95,17 @@ const SEASONS = [
   {
     no: 9,
     title: 'The anatomy',
-    blurb: 'The confirmed terms of the adult body, one after another, on a season of their own',
+    blurb:
+      "The confirmed terms of the adult body, one after another, on a season of their own — and, once the body's own list has been asked through, the examination's other confirmed words beside them",
     pool: 'anatomy',
-    episodes: 24,
   },
   // The two seasons of the teaching sets of 12 October 2026 — the words Gloire taught by voice, which
-  // the seasons already standing had no room for. Each season carries as many episodes as its own set's
-  // questions fill; the lesson the season before it cannot hold stands here, and every pair of both
-  // sets is asked, in Kibembe and English. Their own pages are written from the same record, so the
-  // lesson can be read before it is asked. They wait on the season before them like every other season,
-  // and the one after them waits on them.
+  // the seasons already standing had no room for. Each runs the hundred episodes every season of the
+  // examination runs: the lesson the season before it cannot hold stands here, every pair of both sets is
+  // asked, in Kibembe and English, and the papers past the set's own end are topped up from the
+  // examination's other confirmed words. Their own pages are written from the same record, so the lesson
+  // can be read before it is asked. They wait on the season before them like every other season, and the
+  // one after them waits on them.
   {
     no: 10,
     title: 'Watu, mahali na kazi',
@@ -112,9 +114,6 @@ const SEASONS = [
     pool: 'set',
     set: 'watu',
     study: 'watu',
-    // the episodes the set's own questions fill: nine to a paper, and the food lesson it cannot hold
-    // stands in the season after this one
-    episodes: setEpisodes('watu'),
   },
   {
     no: 11,
@@ -124,7 +123,6 @@ const SEASONS = [
     pool: 'set',
     set: 'chakula',
     study: 'chakula',
-    episodes: setEpisodes('chakula'),
   },
 ];
 
@@ -355,9 +353,23 @@ function poolPaper(season, episode, queues) {
  * The anatomy season's own paper: the terms of the adult body — its bank's own run of nine, beginning
  * where the episode before it left off, so the terms of the papers beside each other never cross — with
  * the picture puzzle standing last, where every paper of the examination ends.
+ *
+ * The body's own list fills the first papers of the season, and the season runs the hundred episodes
+ * every season of the examination runs: a paper past the end of that list is topped up from the
+ * examination's other confirmed words rather than asking a term of the body a second time.
  */
 function anatomyPaper(episode, queues) {
-  const paper = take(queues.anatomy, (episode - 1) * ANATOMY_PER_PAPER, QUESTIONS_PER_EPISODE);
+  const start = (episode - 1) * ANATOMY_PER_PAPER;
+  const own = queues.anatomy.slice(start, start + ANATOMY_PER_PAPER);
+  const paper = [
+    ...own,
+    ...buildTopUp(
+      ANATOMY_PER_PAPER - own.length,
+      'anatomy',
+      episode,
+      own.map((question) => question.kb || question.key)
+    ),
+  ];
   return withScenes(paper, (episode - 1) * QUESTIONS_PER_EPISODE);
 }
 

@@ -1,6 +1,6 @@
 import { lifeQuestionOf, shuffled } from "./examSeries";
-import { buildExtraMix } from "./examExtras";
 import { SCENE_POOL } from "./examPool";
+import { buildTopUp } from "./examTopUp";
 import { marksOff, pairsOf } from "./examSets";
 
 /**
@@ -14,19 +14,24 @@ import { marksOff, pairsOf } from "./examSets";
  * and no form is ever left out.
  *
  * The two directions of a pair are laid half a list apart, so a paper is never handed the same word
- * twice, and each paper takes its own run of nine questions from that order — the tenth is the picture
- * puzzle's, which the season itself puts last. Where a set's own words come to their end before a paper
- * is full, the paper is filled from the examination's own confirmed extras, asked in English as well: a
- * word that has already stood is never put in front of a student again. A question asked is a question
- * of the lesson, and every choice put up beside it is another form of the same lesson.
+ * twice, and each paper takes its own run of nine questions from that order — the tenth seat, the picture
+ * puzzle, is put there by the examination's own paper builder. Where a set's own words come to their end
+ * before a paper is full — every season of the examination runs a hundred episodes — the paper is topped
+ * up from the examination's other confirmed words, asked in English as well, and on a phone that could
+ * not read them from the examination's own written banks: a word that has already stood is never put in
+ * front of a student again. A question asked is a question of the lesson, and every choice put up beside
+ * it is another form of the same lesson.
  *
  * Nothing of a season is cut until the season is opened, so the sets the examination does not ask cost
  * it nothing.
  */
 
-/** The set's own questions in a paper, and the paper the season is handed — the tenth seat is the puzzle's. */
+/**
+ * The set's own questions in a paper. The tenth seat of every paper — the picture puzzle — is put there
+ * by the examination's own paper builder, so a season hands it the nine questions the set itself asks and
+ * nothing else.
+ */
 const SET_PER_PAPER = 9;
-const PAPER = SET_PER_PAPER + 1;
 
 /** The picture a question with none of its own is studied on: one of the examination's own scenes. */
 const sceneOf = (at) => SCENE_POOL[at % SCENE_POOL.length];
@@ -107,23 +112,26 @@ export function setEpisodes(id) {
 /**
  * One episode's paper of a set: its own run of nine questions, beginning where the paper before it left
  * off — so the papers beside each other never ask the same word and a word only comes back once the
- * whole set has been round — and the tenth question standing where the season's own picture puzzle is
- * put. Where the set's questions come to their end, the paper is filled from the examination's own
- * confirmed extras rather than from a word of the set that has already been asked.
+ * whole set has been round — with the tenth seat left to the season's own picture puzzle.
+ *
+ * A set's own words fill only the first papers of its season, and the season runs the hundred episodes
+ * every season of the examination runs: a paper the set cannot fill from its own list is topped up from
+ * the examination's other confirmed words, so no paper is left standing short, and no word the paper
+ * already asks comes back beside itself.
  */
 export function buildSetPaper(id, episode) {
   const list = order(id);
-  if (!list.length) return [];
   const start = (episode - 1) * SET_PER_PAPER;
   const run = list.slice(start, start + SET_PER_PAPER);
-  if (!run.length) return [];
-  const filler = buildExtraMix(
-    PAPER - run.length,
-    start,
-    run.map((question) => question.key),
-    // these seasons are put in Kibembe and English, so the questions filling a paper's last seats are
-    // asked in English as well
+  const filler = buildTopUp(
+    SET_PER_PAPER - run.length,
+    // the season's own order of the shared bank, so the two seasons of the sets never ask the same words
+    `set:${id}`,
+    episode,
+    run.map((question) => question.kb || question.key),
+    // these seasons are put in Kibembe and English, so the questions topping a paper up are asked in
+    // English as well
     "en"
   );
-  return [...run, ...filler].slice(0, PAPER);
+  return [...run, ...filler];
 }
