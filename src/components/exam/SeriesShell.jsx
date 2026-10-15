@@ -58,8 +58,7 @@ export default function SeriesShell({ open, onClose }) {
   const written = useRef("");
   // an admin who has opened the whole examination is reading it, not standing in it
   const openAll = useExamAccess();
-  // the seasons this person is met with: a student meets the examination up to the last season it is being
-  // taken in, and an admin meets the whole of it
+  // the seasons this person is met with: every season of the examination is met by everyone alike
   const admin = useExamAdmin();
   const shownSeasons = EXAM_SEASONS.filter(
     (season) => !season.waiting && seasonShown(season.no, admin)

@@ -130,14 +130,15 @@ const SEASONS = [
 export const EXAM_SEASONS = SEASONS;
 
 /**
- * The last season a student is met with. Every season above it waits: it is not listed for a student, no
- * season after it is offered when the one before it is cleared, and its cup waits on the shelf. The whole
- * examination still stands open to an admin, so what waits can be read through before a student reaches it.
+ * The last season that may be held back from a person, held at nothing at all: every season of the
+ * examination now stands open to everyone alike — the whole eleven-season run is listed, taken and prized
+ * the same for a student as for an admin — and the season a person is on still waits on the seasons before
+ * it exactly as it did. The mark is kept as the one place a season's visibility is decided, so a season
+ * can be held back again by moving it here and nowhere else.
  */
-export const LAST_STUDENT_SEASON = 5;
+export const LAST_STUDENT_SEASON = Infinity;
 
-/** Whether a season is shown to a person: an admin meets the whole examination, a student meets it up to
- *  the last season it is being taken in. */
+/** Whether a season is shown to a person: every season of the examination is shown to every person. */
 export function seasonShown(no, admin) {
   return admin === true || no <= LAST_STUDENT_SEASON;
 }

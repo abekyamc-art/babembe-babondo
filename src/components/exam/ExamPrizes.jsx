@@ -1,10 +1,10 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Award, ChevronRight } from "lucide-react";
-import { episodesInSeason, seasonByNo, seasonShown } from "@/lib/examSeasons";
+import { EXAM_SEASONS, episodesInSeason, seasonByNo, seasonShown } from "@/lib/examSeasons";
 import { useExamAdmin } from "@/lib/examAccess";
 import { completedIn, episodeKey, seasonCleared } from "@/lib/examProgress";
 import { prizeCover, trophyOf, waitingCup } from "@/lib/examTrophies";
-import { REWARD_SEASONS, rewardOf } from "@/lib/examRewards";
+import { rewardOf } from "@/lib/examRewards";
 import { claimTrophyCode, loadCopiedSeasons } from "@/lib/trophyCodes";
 import { Image } from "@/components/ui/image";
 import TrophyCard from "./TrophyCard";
@@ -22,8 +22,9 @@ import "@/exam-prizes.css";
  * a season still to be cleared shows no code of its own.
  */
 
-/** Every season the shelf holds a cup and a code for, in their own order. */
-const SEASON_NUMBERS = Array.from({ length: REWARD_SEASONS }, (_, step) => step + 1);
+/** Every season the shelf holds a cup and a code for: the seasons the examination really runs, in their
+ *  own order, so the gallery shows a cup for each of them and none for a season that is not there. */
+const SEASON_NUMBERS = EXAM_SEASONS.filter((season) => !season.waiting).map((season) => season.no);
 
 /** When a season was won: the time the last of its episodes was passed. */
 function wonAt(progress, season, total) {
@@ -41,8 +42,7 @@ export default function ExamPrizes({ progress, onBack }) {
   // Nothing is written on a cup until the account has answered, so a code that was taken before is
   // never written on the shelf again — not on another opening, and not on another device.
   const [taken, setTaken] = useState(null);
-  // the cups this person is met with: a student meets the seasons it is being taken in, and an admin meets
-  // the whole examination's
+  // the cups this person is met with: every season of the examination stands on the shelf for everyone
   const admin = useExamAdmin();
   const seasons = SEASON_NUMBERS.filter((no) => seasonShown(no, admin));
   const won = seasons.filter((no) => seasonCleared(progress, no)).length;

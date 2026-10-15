@@ -15,8 +15,7 @@ import { nextEpisode, completedIn, seasonBefore, seasonCleared, seasonOpen } fro
  * public leaderboard is met in one tap at the head of them.
  */
 export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, onBoard, onPrizes }) {
-  // the seasons this person is met with: a student meets the examination up to the last season it is being
-  // taken in, and an admin meets the whole of it
+  // the seasons this person is met with: every season of the examination is met by everyone alike
   const admin = useExamAdmin();
   const shown = EXAM_SEASONS.filter((season) => seasonShown(season.no, admin));
   // a season still waiting for its own list of words cannot be cleared, so it is not counted among the
