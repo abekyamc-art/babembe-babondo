@@ -13,6 +13,7 @@ import { engineReply, engineTurn } from "../../shared/phraseEngine.ts";
 import { turnPictures } from "../../shared/answerPictures.ts";
 import { isRepeatAsk } from "../../shared/repeatAsk.ts";
 import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
+import { greetingAnswer, greetingForms, isGreetingTurn } from "../../shared/greetingTurn.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
@@ -163,9 +164,12 @@ export default async function (req) {
     // catalogue, a document part — lose the whole Word Bank and leave the person with nothing.
     const reads = await Promise.allSettled([
       rulesText(base44).then((rows) => trimToLines(rows, RULES_BUDGET)),
-      bankRows(base44).then((rows) =>
-        wordListBlock(rows, message, translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET)
-      ),
+      bankRows(base44).then((rows) => ({
+        block: wordListBlock(rows, message, translating ? TRANSLATE_WORD_BUDGET : WORD_BUDGET),
+        // the rows themselves are kept beside the block: the greetings the admin saved are found among
+        // them, and they are what the greetings AI is handed
+        rows,
+      })),
       // the rest of the document — the admin's notes, their questions and answers, and anything they
       // filed under a heading of their own — rides with the turn too
       // the document is handed over as the parts this message needs: its rules whole, the parts the
@@ -221,7 +225,11 @@ export default async function (req) {
       return fallback;
     };
     const rules = took(0, '');
-    const words = took(1, '');
+    const bank = took(1, { block: '', rows: [] });
+    const words = bank?.block || '';
+    // every word the admin saved, kept as the rows themselves: the greetings among them are what the
+    // greetings AI answers from, and they are never guessed at
+    const savedRows = Array.isArray(bank?.rows) ? bank.rows : [];
     const doc = took(2, '');
     const storyPage = took(3, null);
     const tales = took(4, '');
@@ -306,6 +314,31 @@ export default async function (req) {
           candidates: [],
         });
       }
+    }
+
+    // A greeting is answered by the greetings AI alone — the one AI kept for greetings — and by nobody
+    // else: it is handed the greetings the admin saved and nothing else, so a greeting is answered from
+    // the confirmed forms rather than from everything this app knows at once. Where that AI cannot
+    // answer, the very same greeting is put to a second configured AI; where neither of them can answer,
+    // the person is told plainly rather than left with a line nobody confirmed. Every other turn is
+    // answered exactly as it was before.
+    if (!asking && isGreetingTurn(message, greetingForms(savedRows))) {
+      const greeted = await greetingAnswer(base44, {
+        said: message,
+        rows: savedRows,
+        rules,
+        lastAgent,
+      });
+      console.log('The greeting turn was answered by:', greeted.via);
+      return Response.json({
+        reply: greeted.reply,
+        // the pictures the admin saved beside the words of the greeting ride with it, exactly as they do
+        // with any other answer — apart from a greeting nobody could confirm, which carries none
+        pictures: greeted.via === 'none' ? [] : await turnPictures(base44, message, greeted.reply),
+        source: null,
+        candidates: [],
+        videos: [],
+      });
     }
 
     // Every turn is answered, whether or not the app's own knowledge holds a word of it: the saved
