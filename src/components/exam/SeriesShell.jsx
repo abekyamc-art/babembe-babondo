@@ -10,7 +10,7 @@ import ExamSeasons from "./ExamSeasons";
 import ExamAccessToggle from "./ExamAccessToggle";
 import ExamAdminReset from "./ExamAdminReset";
 import { reportOf, scoreOf, pointsOf } from "@/lib/examSession";
-import { EXAM_SEASONS, episodeSize, episodesInSeason, seasonByNo } from "@/lib/examSeasons";
+import { EXAM_SEASONS, episodeSize, episodesInSeason, seasonByNo, seasonShown } from "@/lib/examSeasons";
 import { loadStudentProgress, saveStudentProgress } from '@/lib/examProgressSync';
 import {
   attemptsOf,
@@ -23,7 +23,7 @@ import {
 } from "@/lib/examProgress";
 import { saveScore } from "@/lib/examLeaderboard";
 import { loadExamPool } from "@/lib/examPool";
-import { loadExamAccess, useExamAccess } from "@/lib/examAccess";
+import { loadExamAccess, useExamAccess, useExamAdmin } from "@/lib/examAccess";
 import "@/exam.css";
 
 // a season still waiting for its own list of words is not one a student can play, so it is not counted
@@ -58,6 +58,12 @@ export default function SeriesShell({ open, onClose }) {
   const written = useRef("");
   // an admin who has opened the whole examination is reading it, not standing in it
   const openAll = useExamAccess();
+  // the seasons this person is met with: a student meets the examination up to the last season it is being
+  // taken in, and an admin meets the whole of it
+  const admin = useExamAdmin();
+  const shownSeasons = EXAM_SEASONS.filter(
+    (season) => !season.waiting && seasonShown(season.no, admin)
+  ).length;
 
   // Each time the examination is opened: what stands passed on this phone, the episode left
   // half-answered, and the season it belongs to.
@@ -138,7 +144,10 @@ export default function SeriesShell({ open, onClose }) {
   const afterAt = EXAM_SEASONS.findIndex((held) => held.no === attempt?.season) + 1;
   // a season still waiting for its own list of words is stepped over, so the season after this one is the
   // next one that is really played
-  const after = EXAM_SEASONS.slice(afterAt).find((held) => !held.waiting) || null;
+  const after =
+    EXAM_SEASONS.slice(afterAt).find(
+      (held) => !held.waiting && seasonShown(held.no, admin)
+    ) || null;
   const seasonAfter = attempt && went && !nextOpen && afterAt > 0 ? after : null;
   const again = !!attempt && !went;
   // the note is written from a finished paper's report, so it stands empty while the paper is still open
@@ -156,7 +165,8 @@ export default function SeriesShell({ open, onClose }) {
   // An episode is opened whatever the account syncing is doing: a slow or a failed save is written down
   // and retried, but it never stands between the student and the episode they have just earned.
   const openEpisode = (no, seasonNo = season) => {
-    if (loading || !episodeOpen(loadProgress(), seasonNo, no)) return;
+    // an episode of a season this person is not met with is never opened
+    if (loading || !seasonShown(seasonNo, admin) || !episodeOpen(loadProgress(), seasonNo, no)) return;
     const fresh = startEpisode(seasonNo, no);
     if (!fresh) return;
     written.current = '';
@@ -172,7 +182,11 @@ export default function SeriesShell({ open, onClose }) {
   };
 
   const resumeEpisode = () => {
-    if (!resume || !episodeOpen(loadProgress(), resume.season, resume.episode)) return;
+    if (
+      !resume ||
+      !seasonShown(resume.season, admin) ||
+      !episodeOpen(loadProgress(), resume.season, resume.episode)
+    ) { return; }
     setSeason(resume.season);
     setAttempt(resume);
   };
@@ -219,7 +233,11 @@ export default function SeriesShell({ open, onClose }) {
     >
       <div className="exam-scroll">
         <div className="exam-inner">
-          <ExamHeader {...HEAD} onClose={onClose} />
+          <ExamHeader
+            {...HEAD}
+            subtitle={`Learning & Challenges · ${shownSeasons} seasons · 10 questions per episode`}
+            onClose={onClose}
+          />
 
           {syncError ? <p className="exam-empty" role="alert">{syncError}</p> : null}
           {saving ? <p className="exam-empty" role="status">Saving your completed episode…</p> : null}

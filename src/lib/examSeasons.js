@@ -131,6 +131,19 @@ const SEASONS = [
 /** The seasons of the examination, in their own order. */
 export const EXAM_SEASONS = SEASONS;
 
+/**
+ * The last season a student is met with. Every season above it waits: it is not listed for a student, no
+ * season after it is offered when the one before it is cleared, and its cup waits on the shelf. The whole
+ * examination still stands open to an admin, so what waits can be read through before a student reaches it.
+ */
+export const LAST_STUDENT_SEASON = 5;
+
+/** Whether a season is shown to a person: an admin meets the whole examination, a student meets it up to
+ *  the last season it is being taken in. */
+export function seasonShown(no, admin) {
+  return admin === true || no <= LAST_STUDENT_SEASON;
+}
+
 /** One season, by the number it goes by. */
 export function seasonByNo(no) {
   return EXAM_SEASONS.find((season) => season.no === no) || null;

@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { ArrowLeft, Award, ChevronRight } from "lucide-react";
-import { episodesInSeason, seasonByNo } from "@/lib/examSeasons";
+import { episodesInSeason, seasonByNo, seasonShown } from "@/lib/examSeasons";
+import { useExamAdmin } from "@/lib/examAccess";
 import { completedIn, episodeKey, seasonCleared } from "@/lib/examProgress";
 import { prizeCover, trophyOf, waitingCup } from "@/lib/examTrophies";
 import { REWARD_SEASONS, rewardOf } from "@/lib/examRewards";
@@ -40,7 +41,11 @@ export default function ExamPrizes({ progress, onBack }) {
   // Nothing is written on a cup until the account has answered, so a code that was taken before is
   // never written on the shelf again — not on another opening, and not on another device.
   const [taken, setTaken] = useState(null);
-  const won = SEASON_NUMBERS.filter((no) => seasonCleared(progress, no)).length;
+  // the cups this person is met with: a student meets the seasons it is being taken in, and an admin meets
+  // the whole examination's
+  const admin = useExamAdmin();
+  const seasons = SEASON_NUMBERS.filter((no) => seasonShown(no, admin));
+  const won = seasons.filter((no) => seasonCleared(progress, no)).length;
 
   useEffect(() => {
     if (!gallery) return;
@@ -98,7 +103,7 @@ export default function ExamPrizes({ progress, onBack }) {
             <span className="exam-cover-name">All prizes</span>
             <span className="exam-cover-title">Every cup in one place</span>
             <span className="exam-cover-tag">
-              {won} of {REWARD_SEASONS} trophies won
+              {won} of {seasons.length} trophies won
             </span>
           </span>
           <span className="exam-cover-go" aria-hidden="true">
@@ -125,7 +130,7 @@ export default function ExamPrizes({ progress, onBack }) {
       </div>
 
       <span className="exam-shelf-count">
-        <Award className="h-3.5 w-3.5" /> {won} of {REWARD_SEASONS} trophies won
+        <Award className="h-3.5 w-3.5" /> {won} of {seasons.length} trophies won
       </span>
 
       <p className="exam-ep-note">
@@ -142,7 +147,7 @@ export default function ExamPrizes({ progress, onBack }) {
       </p>
 
       <div className="exam-shelf-grid">
-        {SEASON_NUMBERS.map((no) => {
+        {seasons.map((no) => {
           const season = seasonByNo(no);
           const cleared = seasonCleared(progress, no);
           const total = season ? episodesInSeason(no) : 0;

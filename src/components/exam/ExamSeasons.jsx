@@ -1,7 +1,8 @@
 import React from "react";
 import { Award, Lock, Trophy } from "lucide-react";
 import { Image } from "@/components/ui/image";
-import { EXAM_SEASONS, episodesInSeason } from "@/lib/examSeasons";
+import { EXAM_SEASONS, episodesInSeason, seasonShown } from "@/lib/examSeasons";
+import { useExamAdmin } from "@/lib/examAccess";
 import { examCoverOf } from "@/lib/examSeasonCovers";
 import { nextEpisode, completedIn, seasonBefore, seasonCleared, seasonOpen } from "@/lib/examProgress";
 
@@ -14,9 +15,13 @@ import { nextEpisode, completedIn, seasonBefore, seasonCleared, seasonOpen } fro
  * public leaderboard is met in one tap at the head of them.
  */
 export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, onBoard, onPrizes }) {
+  // the seasons this person is met with: a student meets the examination up to the last season it is being
+  // taken in, and an admin meets the whole of it
+  const admin = useExamAdmin();
+  const shown = EXAM_SEASONS.filter((season) => seasonShown(season.no, admin));
   // a season still waiting for its own list of words cannot be cleared, so it is not counted among the
   // seasons a student is working through
-  const playable = EXAM_SEASONS.filter((season) => !season.waiting);
+  const playable = shown.filter((season) => !season.waiting);
   const cleared = playable.filter((season) => seasonCleared(progress, season.no)).length;
 
   return (
@@ -37,13 +42,13 @@ export default function ExamSeasons({ progress, resume, onOpenSeason, onResume, 
         {cleared} of {playable.length} seasons cleared.
       </p>
 
-      {resume ? (
+      {resume && seasonShown(resume.season, admin) ? (
         <button type="button" className="exam-next is-go" onClick={onResume}>
           Resume season {resume.season} · episode {resume.episode} — question {resume.at + 1}
         </button>
       ) : null}
 
-      {EXAM_SEASONS.map((season) => {
+      {shown.map((season) => {
         const open = seasonOpen(progress, season.no);
         const done = completedIn(progress, season.no);
         const total = episodesInSeason(season.no);
