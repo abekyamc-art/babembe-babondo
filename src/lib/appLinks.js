@@ -6,7 +6,7 @@
 
 // The app as it is published. A link built while the app is being looked at inside the builder's own
 // preview would otherwise carry the preview's address, which opens nothing for anyone else.
-const PUBLISHED_ORIGIN = "https://babembe.base44.app";
+const PUBLISHED_ORIGIN = "https://babembegs.base44.app";
 
 /** The address a shared link should carry: this app's own, and never a preview's. */
 export function appOrigin() {

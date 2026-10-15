@@ -11,4 +11,4 @@ Disallow: /kibembe
 Disallow: /live/
 Disallow: /u/
 
-Sitemap: https://babembe.base44.app/sitemap.xml
+Sitemap: https://babembegs.base44.app/sitemap.xml
