@@ -14,6 +14,7 @@ import { turnPictures } from "../../shared/answerPictures.ts";
 import { isRepeatAsk } from "../../shared/repeatAsk.ts";
 import { wantsEbembeTranslation } from "../../shared/ebembeTranslation.ts";
 import { greetingAnswer, greetingForms, isGreetingTurn } from "../../shared/greetingTurn.ts";
+import { isTranslationTurn, translationAnswer } from "../../shared/translationTurn.ts";
 
 // The model that answers, and the bounds on one turn: a message is never longer than a
 // paragraph, and an answer is never longer than a few sentences.
@@ -335,6 +336,34 @@ export default async function (req) {
         // the pictures the admin saved beside the words of the greeting ride with it, exactly as they do
         // with any other answer — apart from a greeting nobody could confirm, which carries none
         pictures: greeted.via === 'none' ? [] : await turnPictures(base44, message, greeted.reply),
+        source: null,
+        candidates: [],
+        videos: [],
+      });
+    }
+
+    // A translation is answered by the translation AI alone — the one AI kept for translations — and by
+    // nobody else: it is handed the app's own Word Bank and the admin's rule book for translating into
+    // Kibembe, and nothing else, so every word of it is a word the app already holds. Where that AI
+    // cannot answer, or the Bank really holds no word for what was asked for, the very same asking is put
+    // to a second configured AI; where neither of them can answer, the person is told plainly that no
+    // confirmed translation could be found rather than being given a word the app has not confirmed. A
+    // translation asked for a story the app holds stays with the path that holds the story, exactly as it
+    // did, and every other turn is answered exactly as it was before.
+    if (!asking && !story && isTranslationTurn(message, savedRows)) {
+      const translated = await translationAnswer(base44, {
+        said: message,
+        rows: savedRows,
+        rules,
+        lastAgent,
+      });
+      console.log('The translation turn was answered by:', translated.via);
+      return Response.json({
+        reply: translated.reply,
+        // the pictures the admin saved beside the words of the translation ride with it, exactly as they
+        // do with any other answer — apart from a translation nobody could confirm, which carries none
+        pictures:
+          translated.via === 'none' ? [] : await turnPictures(base44, message, translated.reply),
         source: null,
         candidates: [],
         videos: [],
