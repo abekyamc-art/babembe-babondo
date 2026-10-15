@@ -31,7 +31,7 @@ export function peopleEpisodes() {
  */
 const PEOPLE = [
   ['Diamond Platnumz', 'Artist', ['Comedian', 'President']],
-  ['Gloire Sadiki', 'Artist', ['Comedian', 'President']],
+  ['Gloire Sadiki', 'Comedian', ['Artist', 'President']],
   ['Koffi Olomide', 'Singer', ['Astronaut', 'Footballer']],
   ['Fally Ipupa', 'Singer', ['Astronaut', 'Tennis player']],
   ['Papa Wemba', 'Singer', ['Scientist', 'Footballer']],
