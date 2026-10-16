@@ -16,7 +16,12 @@ import AccountProfile from "@/components/voice/AccountProfile";
 import ChangePasswordSheet from "@/components/voice/ChangePasswordSheet";
 import DeleteAccount from "@/components/voice/DeleteAccount";
 import { langLabel, nextLangMode, saveLangMode, useLangMode } from "@/lib/langMode";
-import { otherLoginEmail } from "@/lib/loginAlias";
+import {
+  otherLoginEmail,
+  saveLoginSpelling,
+  shownLoginEmail,
+  useLoginSpelling,
+} from "@/lib/loginAlias";
 
 function Chevron() {
   return (
@@ -52,11 +57,14 @@ export default function AccountSheet({
 }) {
   // the language being answered in: it stands across turns and calls, and one tap moves it on
   const lang = useLangMode();
+  // the spelling written for this account, kept in step with the row that switches it
+  const spelling = useLoginSpelling();
 
   if (!open) return null;
 
   const signedIn = !!user;
-  // the other spelling of this same account, shown on the row that switches to it
+  // the address written on the panel, and the other spelling the row moves it to
+  const shownEmail = shownLoginEmail(user?.email);
   const otherEmail = otherLoginEmail(user?.email);
   const usage = !ready
     ? "Checking…"
@@ -84,7 +92,12 @@ export default function AccountSheet({
         </div>
 
         <div className="account-panel">
-          <AccountProfile user={user} wallet={wallet} onGetCoins={onGetCoins} />
+          <AccountProfile
+            user={user}
+            email={shownEmail}
+            wallet={wallet}
+            onGetCoins={onGetCoins}
+          />
 
           <div className="account-actions">
             <button
@@ -167,8 +180,17 @@ export default function AccountSheet({
                 {/* the row shows itself only while a password change stands open for this
                     account, and it is gone the moment the change is made */}
                 <ChangePasswordSheet user={user} />
-                <button type="button" className="account-action" onClick={onSwitchAccount}>
-                  <span>Switch account</span>
+                {/* This account keeps a second spelling of its own: the row writes the other one
+                    on the panel the moment it is tapped, without ending the session — the account
+                    and everything in it stay exactly as they are. Any other account keeps the row
+                    it has always had. */}
+                <button
+                  type="button"
+                  className="account-action"
+                  onClick={() => (otherEmail ? saveLoginSpelling(otherEmail) : onSwitchAccount())}
+                  aria-label={otherEmail ? `Email spelling ${spelling} — tap to switch` : undefined}
+                >
+                  <span>{otherEmail ? "Switch email spelling" : "Switch account"}</span>
                   {otherEmail ? <span className="account-coins">{otherEmail}</span> : <Chevron />}
                 </button>
                 <button type="button" className="account-action" onClick={onSignOut}>

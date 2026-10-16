@@ -19,7 +19,7 @@ function PersonIcon() {
   );
 }
 
-export default function AccountProfile({ user, wallet, onGetCoins }) {
+export default function AccountProfile({ user, wallet, email, onGetCoins }) {
   const fileRef = useRef(null);
   const [profile, setProfile] = useState(null);
   const [username, setUsername] = useState("");
@@ -147,7 +147,9 @@ export default function AccountProfile({ user, wallet, onGetCoins }) {
         />
         <div className="account-label">Account</div>
         <div className="account-name">{user.full_name || "Signed in"}</div>
-        <div className="account-email">{user.email}</div>
+        {/* the address as it is written right now: the spelling chosen on this phone, when the
+            account keeps a second spelling of its own */}
+        <div className="account-email">{email || user.email}</div>
       </div>
 
       <div className="account-edit">
