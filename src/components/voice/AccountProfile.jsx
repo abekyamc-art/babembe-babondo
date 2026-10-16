@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import AvatarCrop, { cropOf } from "@/components/profile/AvatarCrop";
 import { balanceOf } from "@/lib/coins";
+import { syncStandingName } from "@/lib/pairStanding";
 import { ensureProfile, publicFile } from "@/lib/social";
 
 function PersonIcon() {
@@ -80,6 +81,9 @@ export default function AccountProfile({ user, wallet, email, onGetCoins }) {
       });
       setProfile(saved);
       setPending(null);
+      // the new picture stands beside the name on the leaderboard's own record of the account too —
+      // and, where the account stands by two spellings, on both of its entries at once
+      syncStandingName(user.email, saved.username || "", saved.avatar_url || "");
     } finally {
       setBusy("");
     }
@@ -93,6 +97,10 @@ export default function AccountProfile({ user, wallet, email, onGetCoins }) {
       const saved = await base44.entities.Profile.update(profile.id, { username: clean });
       setProfile(saved);
       setUsername(saved.username || clean);
+      // A name changed here stands on the leaderboard the moment it is saved, rather than waiting for
+      // the next episode to be passed — and, where the account stands by two spellings, on both of its
+      // entries at once, in the one name.
+      syncStandingName(user.email, saved.username || clean, saved.avatar_url || "");
     } finally {
       setBusy("");
     }

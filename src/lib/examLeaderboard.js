@@ -3,6 +3,7 @@ import { episodesInSeason } from '@/lib/examSeasons';
 import { episodesPassed, nextEpisode, seasonReached, totalScore } from "@/lib/examProgress";
 import { clipToDrops, dropsOf } from "@/lib/examProgressSync";
 import { levelsPassed, loadGame } from "@/lib/differenceGame/store";
+import { savePairStanding, standsPair } from "@/lib/pairStanding";
 
 /**
  * The app's public leaderboard: one record stands for each student, holding every episode they have
@@ -106,7 +107,12 @@ export async function saveScore(progress) {
       held = clipToDrops({ ...progress }, drops, standing?.items?.[0] || null);
     }
     const record = recordOf(me, found?.items?.[0] || null, held);
-    await base44.entities.ExamRecord.upsert([record], { key: "user_email" });
+    // The account that stands under two spellings of its own address keeps an entry under each, one
+    // beside the other on the leaderboard, and both are written together in one hand with the one name
+    // on them — so neither spelling is ever left standing on an older name or an older standing. Every
+    // other account's own record is written here, as it has always been.
+    if (standsPair(me.email)) await savePairStanding(record);
+    else await base44.entities.ExamRecord.upsert([record], { key: "user_email" });
     return record;
   } catch (err) {
     console.error("The examination score could not be written down:", err?.message);
