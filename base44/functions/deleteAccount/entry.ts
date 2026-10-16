@@ -42,6 +42,9 @@ export default async function (req: Request): Promise<Response> {
       ["LiveRequest", { viewer_email: email }],
       ["LiveSignal", { from_email: email }],
       ["LiveSignal", { to_email: email }],
+      ["Block", { blocker_email: email }],
+      ["TrophyCodeCopy", { user_email: email }],
+      ["ExamSeasonReset", { user_email: email }],
     ];
 
     // one part that refuses to go never keeps the rest standing: it is named in the log and the

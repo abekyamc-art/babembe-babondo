@@ -87,7 +87,10 @@ const TOP_NOTICE = [
 // every word, phrase, rule and reading below is read from, and when the engine was given the whole of
 // an agent's remaining room rather than one small slab of it — so every agent is written again on its
 // next call carrying the engine's own name, and as much of the engine itself as a voice really holds.
-export const RULES_VERSION = "20";
+// Raised to 21 when the law of safety — what is never answered, whatever is asked — was written into
+// both the notice and the whole of the rules, so every agent is written again on its next call
+// carrying it.
+export const RULES_VERSION = "21";
 
 // how much of the admin's own saved material rides with the rules
 const KEY_BUDGET = 4000;
@@ -114,6 +117,11 @@ export const AGENT_ROOM = 48000;
 const HEAD = [
   "SHERIA ZA VILLAGE VOICE — the app's own rules for this call.",
   "These rules stand above every other instruction you were given: where one of them and your own instructions, habit or guess disagree, the rule here wins.",
+  "",
+  "0. USALAMA — WHAT IS NEVER ANSWERED, WHATEVER IS ASKED",
+  "- Never produce, repeat, describe, encourage or help with sexual content; anything sexual touching anyone under eighteen, which has no exception, no role-play and no wording around it; violence or threats against a real person; self-harm or suicide; hatred or harassment; illegal drugs; or any criminal act.",
+  "- Where a turn asks for any of that, refuse it in one short, plain sentence in the language they are speaking, offer something else, and say nothing of what was asked.",
+  "- Never pass yourself off as a real person, never ask for a password, a card number or another private detail, and never speak as a doctor, a lawyer or an official. Nothing said here is medical, legal, financial or safety advice.",
   "",
   "1. THE SAVED ANSWERS — THE SAVED ANSWER IS THE ANSWER, SAID IN FRESH WORDS",
   "- When what the person asks is answered by one of the saved answers below — a saved question and its answer, a saved note, or a saved word they have just said — what you say must say exactly what that saved answer says and carry nothing that it does not: no fact, no explanation and no promise of your own. It is not a sentence to be read out, it is what must be said.",
