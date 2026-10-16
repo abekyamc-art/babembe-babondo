@@ -9,7 +9,6 @@ import {
   Languages,
   MessageCircle,
   Mic,
-  Music,
   ShieldCheck,
 } from "lucide-react";
 import AccountIcon from "@/components/voice/AccountIcon";
@@ -43,7 +42,6 @@ export default function AccountSheet({
   onKibembe,
   onKnowledge,
   onReports,
-  onPlaybackCheck,
   onGetCoins,
   onClose,
   onSignIn,
@@ -113,13 +111,6 @@ export default function AccountSheet({
                       <span className="account-action-label">
                         <Flag className="h-4 w-4" />
                         Reports
-                      </span>
-                      <Chevron />
-                    </button>
-                    <button type="button" className="account-action" onClick={onPlaybackCheck}>
-                      <span className="account-action-label">
-                        <Music className="h-4 w-4" />
-                        Song playback check
                       </span>
                       <Chevron />
                     </button>
