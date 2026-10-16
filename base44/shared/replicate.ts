@@ -24,6 +24,23 @@ const FROM_PICTURE = "black-forest-labs/flux-kontext-pro";
 const WAIT = 120000;
 const LOOK = 3000;
 
+/**
+ * The account takes only so many drawings a minute. Several episodes are drawn at once, so a drawing
+ * that is refused for no other reason than the pace is not lost: it waits its turn and is put again,
+ * and the waits grow a little each time. A whole run on this account therefore comes out one picture
+ * after another at the pace the account allows, rather than every picture of the run failing at once.
+ */
+const ASKS = 4;
+const PAUSE = 10000;
+
+const rest = (ms: number) => new Promise((sit) => setTimeout(sit, ms));
+
+/** The wait the account itself asked for, where it named one. */
+function askedFor(res: Response) {
+  const said = Number(res.headers.get("retry-after"));
+  return Number.isFinite(said) && said > 0 ? Math.min(said * 1000, 60000) : 0;
+}
+
 export async function replicateImage({ base44, prompt, reference_url = null, aspect = null }: any = {}) {
   if (!prompt) throw new Error("No picture was asked for.");
 
@@ -41,26 +58,35 @@ export async function replicateImage({ base44, prompt, reference_url = null, asp
   };
   if (reference_url) input.input_image = reference_url;
 
-  let res: Response;
-  try {
-    res = await fetch(`${API}/models/${model}/predictions`, {
-      method: "POST",
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-        Prefer: "wait=60",
-      },
-      body: JSON.stringify({ input }),
-      signal: AbortSignal.timeout(WAIT),
-    });
-  } catch {
-    throw new Error("The Replicate account could not be reached.");
+  // The drawing is put to the account, and put again while the only thing in the way is the pace the
+  // account sets: a refusal for pace is waited out rather than thrown away, so a picture that was asked
+  // for by several episodes at once still stands in the end.
+  let res: Response | null = null;
+  let held: any = {};
+  for (let ask = 1; ask <= ASKS; ask += 1) {
+    try {
+      res = await fetch(`${API}/models/${model}/predictions`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+          Prefer: "wait=60",
+        },
+        body: JSON.stringify({ input }),
+        signal: AbortSignal.timeout(WAIT),
+      });
+    } catch {
+      throw new Error("The Replicate account could not be reached.");
+    }
+
+    held = await res.json().catch(() => ({}));
+    if (res.ok || res.status !== 429 || ask === ASKS) break;
+    await rest(askedFor(res) || PAUSE * ask);
   }
 
-  let held: any = await res.json().catch(() => ({}));
-  if (!res.ok) {
+  if (!res || !res.ok) {
     throw new Error(
-      `The Replicate account answered ${res.status}. ${String(held?.detail || "").slice(0, 200)}`
+      `The Replicate account answered ${res?.status}. ${String(held?.detail || "").slice(0, 200)}`
     );
   }
 
