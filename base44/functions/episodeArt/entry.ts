@@ -2,6 +2,7 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
 import { photoPuzzleAreas } from '../../shared/photoPuzzleAreas.ts';
 import { replicateImage } from '../../shared/replicate.ts';
+import { creditImage } from '../../shared/creditPicture.ts';
 
 /**
  * GLOIRE AI — FIND THE DIFFERENCES: one episode drawn as its own cartoon picture.
@@ -313,8 +314,13 @@ function changedPrompt(changes) {
  * allowance is skipped rather than waited on, because several episodes are drawn in a run.
  *
  * When none of the app's own accounts can draw it, the owner's own Replicate account draws it instead,
- * and that drawing is paid out of that account's own allowance rather than the app's credits. When
- * neither can draw it, both answers are named, so the reason an episode is waiting is never hidden.
+ * and that drawing is paid out of that account's own allowance rather than the app's credits.
+ *
+ * When that account cannot draw it either — an allowance that has run out, or an account with no credit
+ * left — the picture is drawn on the app's own credits. That is the one source the app itself pays for,
+ * and it is reached only after every source of the owner's own has refused, so nothing is ever drawn on
+ * the app's credits while one of theirs can still draw. When none of the three can draw it, all three
+ * answers are named, so the reason an episode is waiting is never hidden.
  */
 async function drawn(base44, group, prompt, reference_urls = []) {
   let onOwn = '';
@@ -334,11 +340,22 @@ async function drawn(base44, group, prompt, reference_urls = []) {
     console.error('An episode picture was not drawn on the app\u2019s own accounts:', onOwn);
   }
 
+  let onReplicate = '';
   try {
     return await replicateImage({ base44, prompt, reference_url: reference_urls[0] || null });
   } catch (error: any) {
+    onReplicate = error?.message || 'The Replicate account did not answer.';
+    console.error('An episode picture was not drawn on the Replicate account:', onReplicate);
+  }
+
+  // Both sources of the owner's own have refused, so the picture is drawn on the app's own credits: an
+  // episode is never left waiting on an allowance that has run out. This is the only source the app
+  // itself pays for, and it is reached only here, after every source of the owner's own has refused.
+  try {
+    return await creditImage({ base44, prompt, reference_url: reference_urls[0] || null });
+  } catch (error: any) {
     throw new Error(
-      `The app's own accounts could not draw it (${String(onOwn).slice(0, 150)}), and the Replicate account could not either (${String(error?.message || '').slice(0, 150)}).`
+      `The app's own accounts could not draw it (${String(onOwn).slice(0, 150)}), the Replicate account could not either (${String(onReplicate).slice(0, 150)}), and the app's own credits could not either (${String(error?.message || '').slice(0, 150)}).`
     );
   }
 }
