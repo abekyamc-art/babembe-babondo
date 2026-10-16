@@ -6,6 +6,8 @@ import { Image } from "@/components/ui/image";
 import { otherMember, sendPhoto, sendText, threadMessages } from "@/lib/chat";
 import MessageBubble from "@/components/chat/MessageBubble";
 import ChatComposer from "@/components/chat/ChatComposer";
+import ModerationMenu from "@/components/moderation/ModerationMenu";
+import { blockedEmails, unblockPerson } from "@/lib/moderation";
 
 export default function Chat() {
   const { threadId } = useParams();
@@ -17,6 +19,7 @@ export default function Chat() {
   const [messages, setMessages] = useState([]);
   const [ready, setReady] = useState(false);
   const [sending, setSending] = useState(false);
+  const [blocked, setBlocked] = useState(false);
   const endRef = useRef(null);
 
   useEffect(() => {
@@ -62,6 +65,23 @@ export default function Chat() {
   useEffect(() => {
     endRef.current?.scrollIntoView({ block: "end" });
   }, [messages.length]);
+
+  // whether this person is one the reader has kept out of their way
+  useEffect(() => {
+    if (!me?.email || !other?.user_email) return undefined;
+    let alive = true;
+    blockedEmails(me.email).then((list) => {
+      if (alive) setBlocked(list.includes(other.user_email));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [me, other]);
+
+  const release = async () => {
+    await unblockPerson(me.email, other.user_email);
+    setBlocked(false);
+  };
 
   // The line stands on screen the moment it is written, marked as still on its way. When the server
   // answers it becomes the saved line; if the answer never comes it is shown as not sent. A saved line
@@ -171,6 +191,21 @@ export default function Chat() {
             <span className="block text-[11px] text-muted-foreground">Tap for profile</span>
           </span>
         </button>
+        {/* a conversation carries the same menu a reel does */}
+        {other?.user_email ? (
+          <div className="shrink-0">
+            <ModerationMenu
+              me={me}
+              ownerEmail={other.user_email}
+              ownerUsername={username}
+              contentType="message"
+              contentId={thread?.id || ""}
+              excerpt={messages[messages.length - 1]?.text || ""}
+              blocked={blocked}
+              tone="plain"
+              onChanged={setBlocked} />
+          </div>
+        ) : null}
       </header>
 
       <div className="min-h-0 flex-1 space-y-2 overflow-y-auto overscroll-none px-4 py-4">
@@ -186,9 +221,26 @@ export default function Chat() {
         <div ref={endRef} />
       </div>
 
-      <div className="shrink-0 px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-1">
-        <ChatComposer onSendText={sendLine} onSendPhoto={sendPhotoLine} sending={sending} />
-      </div>
+      {blocked ? (
+        <div className="shrink-0 px-4 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-1">
+          <div className="flex items-center justify-between gap-3 rounded-2xl border border-border bg-card px-4 py-3">
+            <p className="text-[13px] text-muted-foreground">
+              You blocked @{username}. Unblock to keep talking.
+            </p>
+            <button
+              type="button"
+              onClick={release}
+              className="shrink-0 rounded-full border border-border px-3 py-1.5 text-[12px] font-semibold"
+            >
+              Unblock
+            </button>
+          </div>
+        </div>
+      ) : (
+        <div className="shrink-0 px-3 pb-[max(0.7rem,env(safe-area-inset-bottom))] pt-1">
+          <ChatComposer onSendText={sendLine} onSendPhoto={sendPhotoLine} sending={sending} />
+        </div>
+      )}
     </div>
   );
 }

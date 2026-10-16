@@ -1,0 +1,97 @@
+{
+  "name": "Report",
+  "type": "object",
+  "properties": {
+    "reporter_email": {
+      "type": "string",
+      "description": "Email of the person who made the report. It is read from the signed-in person and never from what was asked, so a report is always filed in that person's own name."
+    },
+    "content_type": {
+      "type": "string",
+      "enum": [
+        "reel",
+        "comment",
+        "message",
+        "profile",
+        "live"
+      ],
+      "default": "reel",
+      "description": "What was reported: a reel, a comment, a private message, a person's own profile page, or a live room."
+    },
+    "content_id": {
+      "type": "string",
+      "description": "Which record was reported, by its own id, when the report is about one piece of content. It is what the app opens and what an admin can take down."
+    },
+    "content_owner_email": {
+      "type": "string",
+      "description": "Email of the person the reported content belongs to, so the same person's reports are read together."
+    },
+    "excerpt": {
+      "type": "string",
+      "description": "The words that were reported, kept as they stood at the moment of the report, so a report is read without hunting for the content behind it."
+    },
+    "reason": {
+      "type": "string",
+      "enum": [
+        "nudity",
+        "violence",
+        "harassment",
+        "hate",
+        "spam",
+        "minor",
+        "other"
+      ],
+      "description": "Why it was reported, chosen from the app's own short list."
+    },
+    "note": {
+      "type": "string",
+      "description": "Anything more the person wrote about the report."
+    },
+    "status": {
+      "type": "string",
+      "enum": [
+        "open",
+        "reviewed"
+      ],
+      "default": "open",
+      "description": "An open report is still waiting to be read; a reviewed one has been looked at by an admin and closed."
+    },
+    "at": {
+      "type": "string",
+      "description": "ISO time the report was made."
+    }
+  },
+  "required": [
+    "reporter_email",
+    "content_type",
+    "content_owner_email",
+    "reason"
+  ],
+  "rls": {
+    "read": {
+      "$or": [
+        {
+          "data.reporter_email": "{{user.email}}"
+        },
+        {
+          "user_condition": {
+            "role": "admin"
+          }
+        }
+      ]
+    },
+    "create": {
+      "data.reporter_email": "{{user.email}}"
+    },
+    "update": {
+      "user_condition": {
+        "role": "admin"
+      }
+    },
+    "delete": {
+      "user_condition": {
+        "role": "admin"
+      }
+    }
+  }
+}

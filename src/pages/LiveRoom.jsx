@@ -17,6 +17,8 @@ import GiftSheet from "@/components/live/GiftSheet";
 import EffectsSheet from "@/components/live/EffectsSheet";
 import FilterSheet from "@/components/live/FilterSheet";
 import ZoomControl from "@/components/live/ZoomControl";
+import ReportSheet from "@/components/moderation/ReportSheet";
+import { blockPerson } from "@/lib/moderation";
 
 export default function LiveRoom() {
   const { id } = useParams();
@@ -34,6 +36,7 @@ export default function LiveRoom() {
   const [zoomOpen, setZoomOpen] = useState(false);
   const [giftRequest, setGiftRequest] = useState(null);
   const [effectRequest, setEffectRequest] = useState(null);
+  const [reportOpen, setReportOpen] = useState(false);
   const [ready, setReady] = useState(false);
   const approvedRef = useRef(null);
 
@@ -201,6 +204,17 @@ export default function LiveRoom() {
     navigate("/reels");
   };
 
+  // keeping the host out of your way closes the room you were watching them in
+  const blockHost = async () => {
+    if (!me?.email || !room?.host_email || me.email === room.host_email) return;
+    await blockPerson(me.email, room.host_email);
+    toast({
+      title: `Blocked @${room.host_username || room.host_email.split("@")[0]}`,
+      description: "You will not see their reels, their rooms or their messages.",
+    });
+    await leaveRoom();
+  };
+
   const endLive = async () => {
     await base44.entities.LiveRoom.update(room.id, {
       status: "ended",
@@ -329,6 +343,19 @@ export default function LiveRoom() {
               onPick={pickEffect}
               onClose={() => setSheet(null)}
             />
+            <ReportSheet
+              open={reportOpen}
+              onClose={() => setReportOpen(false)}
+              target={{
+                contentType: "live",
+                contentId: room.id,
+                ownerEmail: room.host_email,
+                excerpt: room.title || "",
+              }}
+              me={me}
+              onDone={() =>
+                toast({ title: "Report sent", description: "An admin will read it. Thank you." })
+              } />
           </>
         }
       >
@@ -345,6 +372,8 @@ export default function LiveRoom() {
           onEffects={() => setSheet("effects")}
           onGifts={() => setSheet("gifts")}
           onZoom={() => setZoomOpen((prev) => !prev)}
+          onReport={() => setReportOpen(true)}
+          onBlock={isHost ? undefined : blockHost}
         />
         {isHost ? (
           <ZoomControl

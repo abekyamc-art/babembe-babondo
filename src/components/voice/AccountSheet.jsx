@@ -1,6 +1,6 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, Clapperboard, Languages, MessageCircle, Mic, Music } from "lucide-react";
+import { BookOpen, Clapperboard, Flag, Languages, MessageCircle, Mic, Music } from "lucide-react";
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountProfile from "@/components/voice/AccountProfile";
 import DeleteAccount from "@/components/voice/DeleteAccount";
@@ -31,6 +31,7 @@ export default function AccountSheet({
   onStudio,
   onKibembe,
   onKnowledge,
+  onReports,
   onPlaybackCheck,
   onGetCoins,
   onClose,
@@ -94,6 +95,13 @@ export default function AccountSheet({
                       <span className="account-action-label">
                         <BookOpen className="h-4 w-4" />
                         Assistant knowledge
+                      </span>
+                      <Chevron />
+                    </button>
+                    <button type="button" className="account-action" onClick={onReports}>
+                      <span className="account-action-label">
+                        <Flag className="h-4 w-4" />
+                        Reports
                       </span>
                       <Chevron />
                     </button>

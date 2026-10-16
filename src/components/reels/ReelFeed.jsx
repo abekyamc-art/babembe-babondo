@@ -13,6 +13,9 @@ export default function ReelFeed({
   me,
   people,
   muted,
+  blockedAuthors,
+  onDelete,
+  onChanged,
   onLike,
   onComments,
   onShare,
@@ -61,6 +64,10 @@ export default function ReelFeed({
             isMine={reel.author_email === me?.email}
             boosted={!!reel.boost_until && Date.parse(reel.boost_until) > Date.now()}
             muted={muted}
+            me={me}
+            blocked={(blockedAuthors || []).includes(reel.author_email)}
+            onDelete={() => onDelete?.(reel)}
+            onChanged={onChanged}
             onLike={() => onLike(reel)}
             onComments={() => onComments(reel)}
             onShare={() => onShare(reel)}

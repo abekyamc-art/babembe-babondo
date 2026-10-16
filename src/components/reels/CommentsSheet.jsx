@@ -11,8 +11,18 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useNavigate } from "react-router-dom";
 import { base44 } from "@/api/base44Client";
+import ModerationMenu from "@/components/moderation/ModerationMenu";
 
-export default function CommentsSheet({ open, onOpenChange, reel, me, username, onAdded }) {
+export default function CommentsSheet({
+  open,
+  onOpenChange,
+  reel,
+  me,
+  username,
+  onAdded,
+  onDeleted,
+  onChanged,
+}) {
   const navigate = useNavigate();
   const [comments, setComments] = useState([]);
   const [text, setText] = useState("");
@@ -58,6 +68,13 @@ export default function CommentsSheet({ open, onOpenChange, reel, me, username, 
     }
   };
 
+  // your own comment comes down at once, and the count on the reel follows it
+  const removeComment = async (comment) => {
+    await base44.entities.ReelComment.delete(comment.id);
+    setComments((prev) => prev.filter((item) => item.id !== comment.id));
+    onDeleted?.(comment.reel_id);
+  };
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-sm rounded-3xl">
@@ -77,7 +94,7 @@ export default function CommentsSheet({ open, onOpenChange, reel, me, username, 
             </div>
           ) : comments.length ? (
             comments.map((comment) => (
-              <div key={comment.id} className="flex gap-2.5">
+              <div key={comment.id} className="flex items-start gap-2.5">
                 <button
                   type="button"
                   onClick={() => navigate(`/u/${comment.author_email}`)}
@@ -86,6 +103,18 @@ export default function CommentsSheet({ open, onOpenChange, reel, me, username, 
                   @{comment.author_username || "friend"}
                 </button>
                 <span className="min-w-0 flex-1 text-[13px] text-muted-foreground">{comment.text}</span>
+                {/* a comment carries the same menu a reel does, so a report is never out of reach */}
+                <ModerationMenu
+                  me={me}
+                  ownerEmail={comment.author_email}
+                  ownerUsername={comment.author_username}
+                  contentType="comment"
+                  contentId={comment.id}
+                  excerpt={comment.text}
+                  isMine={comment.author_email === me?.email}
+                  tone="plain"
+                  onDelete={() => removeComment(comment)}
+                  onChanged={onChanged} />
               </div>
             ))
           ) : (

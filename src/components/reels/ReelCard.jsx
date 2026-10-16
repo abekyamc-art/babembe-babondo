@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from "react";
 import { Heart, Link2, MessageCircle, Send, Volume2, VolumeX } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Image } from "@/components/ui/image";
+import ModerationMenu from "@/components/moderation/ModerationMenu";
 
 export default function ReelCard({
   reel,
@@ -14,6 +15,10 @@ export default function ReelCard({
   isMine,
   boosted,
   muted,
+  me,
+  blocked,
+  onDelete,
+  onChanged,
   onLike,
   onComments,
   onShare,
@@ -77,6 +82,22 @@ export default function ReelCard({
       >
         {muted ? <VolumeX className="h-4 w-4" /> : <Volume2 className="h-4 w-4" />}
       </button>
+
+      {/* the same menu stands on every reel: report it, keep its owner out of the way, or take your
+           own down */}
+      <div className="absolute right-3 top-14">
+        <ModerationMenu
+          me={me}
+          ownerEmail={reel.author_email}
+          ownerUsername={reel.author_username}
+          contentType="reel"
+          contentId={reel.id}
+          excerpt={reel.caption || ""}
+          isMine={isMine}
+          blocked={!!blocked}
+          onDelete={onDelete}
+          onChanged={onChanged} />
+      </div>
 
       <div className="absolute bottom-24 right-3 flex flex-col items-center gap-5 text-white">
         <button type="button" onClick={onLike} aria-label="Like" className="flex flex-col items-center gap-1">

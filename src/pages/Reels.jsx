@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import { useToast } from "@/components/ui/use-toast";
 import { BOOST_COST, BOOST_HOURS, balanceOf, spendCoins } from "@/lib/coins";
 import { countMap, ensureProfile, escapeRegex, nowIso } from "@/lib/social";
+import { blockedEmails } from "@/lib/moderation";
 import { copyLink, reelLink, reelShareText, shareLink } from "@/lib/appLinks";
 import usePageMeta from "@/lib/pageMeta";
 import LiveBar from "@/components/live/LiveBar";
@@ -41,6 +42,7 @@ export default function Reels() {
   const [liveOpen, setLiveOpen] = useState(false);
   const [rooms, setRooms] = useState([]);
   const [commentReel, setCommentReel] = useState(null);
+  const [blocked, setBlocked] = useState([]);
   const [ready, setReady] = useState(false);
 
   // the feed's own loader: the first load and a pull-to-refresh run the same queries
@@ -72,11 +74,16 @@ export default function Reels() {
         if (shared) items.unshift(shared);
       }
 
+      // whoever this person has kept out of their way is left out of the feed
+      const kept = await blockedEmails(user.email);
+      const feed = items.filter((reel) => !kept.includes(reel.author_email));
+
       setMe(user);
       setProfile(mine);
-      setReels(items);
+      setBlocked(kept);
+      setReels(feed);
 
-      const ids = items.map((reel) => reel.id);
+      const ids = feed.map((reel) => reel.id);
       const [likes, comments, mineLikes, following, followers, everyone, liveRooms] = await Promise.all([
         ids.length
           ? base44.entities.ReelLike.aggregate({
@@ -263,6 +270,19 @@ export default function Reels() {
     );
   };
 
+  // taking your own reel down, and keeping somebody out of your way: both are felt here at once
+  const handleDeleteReel = async (reel) => {
+    await base44.entities.Reel.delete(reel.id);
+    setReels((prev) => prev.filter((item) => item.id !== reel.id));
+    toast({ title: "Reel taken down", description: "It is off the app for everyone." });
+  };
+
+  const handleBlocked = (email, isBlocked) => {
+    setBlocked((prev) => (isBlocked ? [...prev, email] : prev.filter((one) => one !== email)));
+    if (isBlocked) setReels((prev) => prev.filter((reel) => reel.author_email !== email));
+    else loadFeed();
+  };
+
   const handlePosted = (reel, scheduled) => {
     if (scheduled) {
       toast({ title: "Reel scheduled", description: "It appears in the feed at that time." });
@@ -331,6 +351,9 @@ export default function Reels() {
         me={me}
         people={people}
         muted={muted}
+        blockedAuthors={blocked}
+        onDelete={handleDeleteReel}
+        onChanged={handleBlocked}
         onLike={handleLike}
         onComments={setCommentReel}
         onShare={handleShare}
@@ -384,6 +407,13 @@ export default function Reels() {
         onAdded={(reelId) =>
           setCommentCounts((prev) => ({ ...prev, [reelId]: (prev[reelId] || 0) + 1 }))
         }
+        onDeleted={(reelId) =>
+          setCommentCounts((prev) => ({
+            ...prev,
+            [reelId]: Math.max(0, (prev[reelId] || 0) - 1),
+          }))
+        }
+        onChanged={handleBlocked}
       />
     </div>
   );

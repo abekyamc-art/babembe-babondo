@@ -34,6 +34,7 @@ import { CARTESIA_AI, CARTESIA_AI1, CARTESIA_AI2, KIBEMBE_CLASS } from "@/lib/pr
 import AccountSheet from "@/components/voice/AccountSheet";
 import PlaybackCheck from "@/components/voice/PlaybackCheck";
 import KnowledgeSheet from "@/components/knowledge/KnowledgeSheet";
+import ReportsSheet from "@/components/moderation/ReportsSheet";
 import { HOME_SEATS } from "@/lib/homeRotation";
 import StorySheet from "@/components/story/StorySheet";
 import StoryRail from "@/components/story/StoryRail";
@@ -83,6 +84,7 @@ export default function VoiceAssistant() {
   const [gate, setGate] = useState(null);
   const [accountOpen, setAccountOpen] = useState(false);
   const [knowledgeOpen, setKnowledgeOpen] = useState(false);
+  const [reportsOpen, setReportsOpen] = useState(false);
   // the walk of the whole ring, checking the app's own song playback on each AI in turn
   const [checkOpen, setCheckOpen] = useState(false);
   // the whole examination series stands over the call screen, which it never touches
@@ -281,6 +283,11 @@ export default function VoiceAssistant() {
   const handlePlaybackCheck = () => {
     setAccountOpen(false);
     setCheckOpen(true);
+  };
+
+  const handleReports = () => {
+    setAccountOpen(false);
+    setReportsOpen(true);
   };
 
   const handleReels = () => {
@@ -524,6 +531,7 @@ export default function VoiceAssistant() {
         onStudio={handleStudio}
         onKibembe={handleKibembe}
         onKnowledge={handleKnowledge}
+        onReports={handleReports}
         onPlaybackCheck={handlePlaybackCheck}
         onGetCoins={handleMarkets}
         onSwitchAccount={handleSwitchAccount}
@@ -539,6 +547,8 @@ export default function VoiceAssistant() {
           setKnowledgeOpen(false);
           setStoriesKey((count) => count + 1);
         }} />
+
+      <ReportsSheet open={reportsOpen} onClose={() => setReportsOpen(false)} />
 
       <PlaybackCheck
         open={checkOpen}

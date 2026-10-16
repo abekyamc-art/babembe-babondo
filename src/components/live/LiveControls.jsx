@@ -1,5 +1,7 @@
 import React from "react";
 import {
+  Ban,
+  Flag,
   Gift,
   Mic,
   MicOff,
@@ -25,6 +27,8 @@ export default function LiveControls({
   onEffects,
   onGifts,
   onZoom,
+  onReport,
+  onBlock,
 }) {
   const items = [];
 
@@ -55,6 +59,13 @@ export default function LiveControls({
     items.push({ key: "zoom", icon: ZoomIn, label: "Zoom", onClick: onZoom });
   }
   items.push({ key: "effects", icon: Volume2, label: "Sound", onClick: onEffects });
+  // a viewer can always report a room or keep its host out of their way
+  if (!isHost && onReport) {
+    items.push({ key: "report", icon: Flag, label: "Report", onClick: onReport });
+  }
+  if (!isHost && onBlock) {
+    items.push({ key: "block", icon: Ban, label: "Block", onClick: onBlock });
+  }
   if (canGift) {
     items.push({ key: "gift", icon: Gift, label: "Gift", onClick: onGifts });
   }

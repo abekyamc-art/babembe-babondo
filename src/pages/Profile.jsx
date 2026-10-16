@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Ban, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { nowIso } from "@/lib/social";
 import { openThread } from "@/lib/chat";
@@ -8,6 +8,9 @@ import usePageMeta from "@/lib/pageMeta";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileReels from "@/components/profile/ProfileReels";
 import DeleteAccountSheet from "@/components/profile/DeleteAccountSheet";
+import ModerationMenu from "@/components/moderation/ModerationMenu";
+import BlockedSheet from "@/components/moderation/BlockedSheet";
+import { blockedEmails } from "@/lib/moderation";
 
 export default function Profile() {
   const { email } = useParams();
@@ -19,6 +22,8 @@ export default function Profile() {
   const [counts, setCounts] = useState({ followers: 0, following: 0 });
   const [following, setFollowing] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [blocked, setBlocked] = useState(false);
+  const [blocksOpen, setBlocksOpen] = useState(false);
   const [ready, setReady] = useState(false);
 
   // the page names the person it shows, and stays out of search results: a profile here is opened by
@@ -67,6 +72,18 @@ export default function Profile() {
       alive = false;
     };
   }, [email]);
+
+  // whether this person is one the reader has kept out of their way
+  useEffect(() => {
+    if (!me?.email || !email || email === me.email) return undefined;
+    let alive = true;
+    blockedEmails(me.email).then((list) => {
+      if (alive) setBlocked(list.includes(email));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [me, email]);
 
   const toggleFollow = async () => {
     if (busy) return;
@@ -120,6 +137,20 @@ export default function Profile() {
           <ArrowLeft className="h-4 w-4" />
         </button>
         <h1 className="font-display text-[16px] tracking-tight">Profile</h1>
+        {/* the same menu stands on somebody else's page: report them, or keep them out of your way */}
+        {me?.email && me.email !== email ? (
+          <div className="ml-auto">
+            <ModerationMenu
+              me={me}
+              ownerEmail={email}
+              ownerUsername={person?.username}
+              contentType="profile"
+              contentId={email}
+              excerpt={person?.username ? `@${person.username}` : ""}
+              blocked={blocked}
+              onChanged={setBlocked} />
+          </div>
+        ) : null}
       </header>
 
       <ProfileHeader
@@ -142,9 +173,29 @@ export default function Profile() {
           <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
             Account
           </p>
+          <div className="account-actions border-border">
+            <button
+              type="button"
+              className="account-action account-action-neutral"
+              onClick={() => setBlocksOpen(true)}
+            >
+              <span className="account-action-label">
+                <Ban className="h-4 w-4" aria-hidden="true" />
+                Blocked accounts
+              </span>
+            </button>
+          </div>
           <DeleteAccountSheet />
         </section>
       ) : null}
+
+      <BlockedSheet
+        open={blocksOpen}
+        onClose={() => setBlocksOpen(false)}
+        me={me}
+        onChanged={(released, isBlocked) => {
+          if (!isBlocked && released === email) setBlocked(false);
+        }} />
     </div>
   );
 }

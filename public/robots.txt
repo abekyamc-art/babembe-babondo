@@ -8,6 +8,9 @@ Disallow: /rap
 Disallow: /markets
 Disallow: /messages
 Disallow: /kibembe
+Disallow: /differences
+Disallow: /companion
+Disallow: /studio
 Disallow: /live/
 Disallow: /u/
 

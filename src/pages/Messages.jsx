@@ -5,6 +5,7 @@ import { formatDistanceToNow } from "date-fns";
 import { base44 } from "@/api/base44Client";
 import { Image } from "@/components/ui/image";
 import { otherMember, previewOf } from "@/lib/chat";
+import { blockedEmails } from "@/lib/moderation";
 import PullToRefresh from "@/components/PullToRefresh";
 
 export default function Messages() {
@@ -32,7 +33,11 @@ export default function Messages() {
       { members: me.email },
       { sort: "-last_at", limit: 50 }
     );
-    const rows = page?.items || [];
+    // whoever this person has blocked keeps out of the inbox as well as the feed
+    const kept = await blockedEmails(me.email);
+    const rows = (page?.items || []).filter(
+      (thread) => !kept.includes(otherMember(thread, me.email))
+    );
     const others = [...new Set(rows.map((thread) => otherMember(thread, me.email)))];
     const found = others.length
       ? await base44.entities.Profile.filter({ user_email: { $in: others } }, { limit: 50 })

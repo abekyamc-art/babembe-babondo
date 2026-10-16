@@ -1,0 +1,41 @@
+{
+  "name": "Block",
+  "type": "object",
+  "properties": {
+    "key": {
+      "type": "string",
+      "description": "The block's own key: the two emails joined. One block stands for each pair, so blocking the same person twice writes the same row again instead of a second one."
+    },
+    "blocker_email": {
+      "type": "string",
+      "description": "Email of the person who did the blocking. It is read from the signed-in person and never from what was asked, so nobody can keep another person's way clean for them."
+    },
+    "blocked_email": {
+      "type": "string",
+      "description": "Email of the person who is blocked: their reels, their profile and their messages are kept out of the blocker's way."
+    },
+    "at": {
+      "type": "string",
+      "description": "ISO time the block was made."
+    }
+  },
+  "required": [
+    "key",
+    "blocker_email",
+    "blocked_email"
+  ],
+  "rls": {
+    "read": {
+      "data.blocker_email": "{{user.email}}"
+    },
+    "create": {
+      "data.blocker_email": "{{user.email}}"
+    },
+    "update": {
+      "data.blocker_email": "{{user.email}}"
+    },
+    "delete": {
+      "data.blocker_email": "{{user.email}}"
+    }
+  }
+}
