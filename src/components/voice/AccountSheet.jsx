@@ -13,6 +13,7 @@ import {
 } from "lucide-react";
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountProfile from "@/components/voice/AccountProfile";
+import ChangePasswordSheet from "@/components/voice/ChangePasswordSheet";
 import DeleteAccount from "@/components/voice/DeleteAccount";
 import { langLabel, nextLangMode, saveLangMode, useLangMode } from "@/lib/langMode";
 
@@ -160,6 +161,9 @@ export default function AccountSheet({
                   </span>
                   <Chevron />
                 </Link>
+                {/* the row shows itself only while a password change stands open for this
+                    account, and it is gone the moment the change is made */}
+                <ChangePasswordSheet user={user} />
                 <button type="button" className="account-action" onClick={onSwitchAccount}>
                   <span>Switch account</span>
                   <Chevron />
