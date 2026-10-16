@@ -39,6 +39,7 @@ import StorySheet from "@/components/story/StorySheet";
 import StoryRail from "@/components/story/StoryRail";
 import ExamLauncher from "@/components/exam/ExamLauncher";
 import GameLauncher from "@/components/diffgame/GameLauncher";
+import LegalLinks from "@/components/legal/LegalLinks";
 import SeriesShell from "@/components/exam/SeriesShell";
 
 // the outside voice the call hands over to on its own carries its own mark; the older talk AIs
@@ -473,7 +474,7 @@ export default function VoiceAssistant() {
         </div>
       ) : null}
 
-      <footer className="relative z-10 px-5 pb-6 pt-2">
+      <footer className="relative z-10 px-5 pb-3 pt-2">
         {/* the same progress as the conversation, over the box, with its room kept so
              nothing on the screen moves when it comes and goes */}
         <div className="flex h-5 items-center justify-center">
@@ -489,6 +490,8 @@ export default function VoiceAssistant() {
             <ChatInput onSend={handleSend} onCall={handleCall} inCall={micActive} />
           </div>
         </div>
+        {/* the home screen is met before signing in, so the policy and the terms stand here too */}
+        <LegalLinks className="pt-2" />
       </footer>
 
       <SeriesShell open={levelsOpen} onClose={() => setLevelsOpen(false)} />

@@ -1,4 +1,5 @@
 import React from "react";
+import LegalLinks from "@/components/legal/LegalLinks";
 
 export default function AuthLayout({ icon: Icon, title, subtitle, footer, children }) {
   return (
@@ -17,6 +18,8 @@ export default function AuthLayout({ icon: Icon, title, subtitle, footer, childr
         {footer && (
           <p className="text-center text-sm text-muted-foreground mt-6">{footer}</p>
         )}
+        {/* the policy and the terms are met on every signing-in screen, before an account is made */}
+        <LegalLinks className="mt-4" />
       </div>
     </div>
   );

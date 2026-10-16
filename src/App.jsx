@@ -20,6 +20,8 @@ import Login from './pages/Login';
 import Register from './pages/Register';
 import ForgotPassword from './pages/ForgotPassword';
 import ResetPassword from './pages/ResetPassword';
+import Privacy from './pages/Privacy';
+import Terms from './pages/Terms';
 
 // the heavier screens arrive on demand, so the voice screen opens straight away
 const LiveRoom = lazy(() => import('./pages/LiveRoom'));
@@ -100,6 +102,9 @@ const AuthenticatedApp = () => {
                 <Route path="/register" element={<Register />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
                 <Route path="/reset-password" element={<ResetPassword />} />
+                {/* the app's own policy and terms, open to everyone before anything is signed up for */}
+                <Route path="/privacy" element={<Privacy />} />
+                <Route path="/terms" element={<Terms />} />
                 {/* Rap Studio lives inside Gloire Studio now, so its old link opens the studio */}
                 <Route path="/rap" element={<Navigate to="/studio" replace />} />
                 <Route element={<ProtectedRoute unauthenticatedElement={<NeedsSignIn />} />}>
