@@ -1164,6 +1164,11 @@
     overflow-x: hidden;
     overflow-y: auto;
     overscroll-behavior: none;
+    /* The status bar and the home indicator are the phone's own room, not the page's: their insets
+       are left open here, so a screen that draws to the very top or bottom of its own page is never
+       clipped or covered by the phone's own furniture. */
+    padding-top: env(safe-area-inset-top, 0px);
+    padding-bottom: env(safe-area-inset-bottom, 0px);
   }
 
   .tab-bar {

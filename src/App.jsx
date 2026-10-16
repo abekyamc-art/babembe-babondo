@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Navigate, Route, Routes, useLocation } from 'react-router-dom';
+import { BrowserRouter as Router, Navigate, Route, Routes, useLocation, useNavigationType } from 'react-router-dom';
 import { isTabPath } from '@/lib/tabs';
 import ProtectedRoute from '@/components/ProtectedRoute';
 import { loadVoiceMode } from '@/lib/voiceMode';
@@ -54,6 +54,11 @@ const AuthenticatedApp = () => {
   const location = useLocation();
   // a phone that asks for less motion gets the screen change without the slide
   const calm = useReducedMotion();
+  // Which way the screen change moves. A screen opened afresh arrives from the right; a screen come
+  // back to — a back step, the phone's own back button, or a swipe's own POP — slides in from the
+  // left and settles rightwards, so going back reads as going back.
+  const navType = useNavigationType();
+  const backStep = navType === 'POP';
 
   // the admin's own setting decides who answers, and it is read once for the whole app, so
   // every screen that follows the mode agrees with the one the admin last set
@@ -92,7 +97,7 @@ const AuthenticatedApp = () => {
           <motion.div
             key={location.pathname}
             className="h-full w-full"
-            initial={calm ? false : { x: "100%" }}
+            initial={calm ? false : { x: backStep ? "-30%" : "100%" }}
             animate={{ x: 0 }}
             exit={calm ? { x: 0 } : { x: "100%" }}
             transition={{ duration: calm ? 0 : 0.24, ease: "easeOut" }}

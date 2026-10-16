@@ -89,8 +89,9 @@
 }
 
 .rap-tool-sm {
-  width: 30px;
-  height: 30px;
+  /* a thumb, not a mouse: this one's row has the room for the whole tap target */
+  width: 44px;
+  height: 44px;
 }
 
 .rap-mini {
@@ -535,8 +536,8 @@
 }
 
 .rap-fold {
-  width: 26px;
-  height: 26px;
+  width: 44px;
+  height: 44px;
   display: grid;
   place-items: center;
   color: #cfd1dc;

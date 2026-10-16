@@ -1069,8 +1069,11 @@
 }
 
 .gs-mini {
+  /* a thumb, not a mouse: the switch carries the full tap target wherever its row has the room */
   width: 26px;
   height: 26px;
+  min-width: 44px;
+  min-height: 44px;
   display: grid;
   place-items: center;
   flex: none;
@@ -1080,6 +1083,16 @@
   color: var(--gs-muted);
   font: 700 11px/1 var(--font-body);
   cursor: pointer;
+}
+
+/* Where a run of switches shares a strip of a fixed width — the five in a track's head, the pair in
+   a mixer strip — the strip is only so wide: five 44px switches cannot stand in the head's 116px
+   without spilling into the lanes beside them. There the switches keep the box they have, and it is
+   the strip's own room that answers the thumb. */
+.gs-head-tools .gs-mini,
+.gs-strip-btns .gs-mini {
+  min-width: 0;
+  min-height: 0;
 }
 
 .gs-mini svg {
