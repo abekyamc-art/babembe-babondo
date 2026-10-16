@@ -5,6 +5,7 @@ import { base44 } from "@/api/base44Client";
 import useHomeVoice from "@/hooks/useHomeVoice";
 import useStoryTurn from "@/hooks/useStoryTurn";
 import { noteKibembeSession } from "@/lib/kpiEvents";
+import { otherLoginEmail } from "@/lib/loginAlias";
 import {
   DAILY_LIMIT,
   GUEST_LIMIT,
@@ -317,7 +318,11 @@ export default function VoiceAssistant() {
 
   // switch account signs out first, so Google shows its account chooser
   const handleSwitchAccount = async () => {
-    await base44.auth.logout("/login");
+    // The other spelling of the same account is written into the sign-in screen, so the person
+    // comes back to the address they chose instead of an empty box. Every other account simply
+    // reaches the sign-in screen as it always did.
+    const other = otherLoginEmail(user?.email);
+    await base44.auth.logout(other ? `/login?email=${encodeURIComponent(other)}` : "/login");
   };
 
   const handleSignOut = async () => {

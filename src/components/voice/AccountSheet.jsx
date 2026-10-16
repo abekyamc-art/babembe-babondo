@@ -16,6 +16,7 @@ import AccountProfile from "@/components/voice/AccountProfile";
 import ChangePasswordSheet from "@/components/voice/ChangePasswordSheet";
 import DeleteAccount from "@/components/voice/DeleteAccount";
 import { langLabel, nextLangMode, saveLangMode, useLangMode } from "@/lib/langMode";
+import { otherLoginEmail } from "@/lib/loginAlias";
 
 function Chevron() {
   return (
@@ -55,6 +56,8 @@ export default function AccountSheet({
   if (!open) return null;
 
   const signedIn = !!user;
+  // the other spelling of this same account, shown on the row that switches to it
+  const otherEmail = otherLoginEmail(user?.email);
   const usage = !ready
     ? "Checking…"
     : signedIn
@@ -166,7 +169,7 @@ export default function AccountSheet({
                 <ChangePasswordSheet user={user} />
                 <button type="button" className="account-action" onClick={onSwitchAccount}>
                   <span>Switch account</span>
-                  <Chevron />
+                  {otherEmail ? <span className="account-coins">{otherEmail}</span> : <Chevron />}
                 </button>
                 <button type="button" className="account-action" onClick={onSignOut}>
                   <span>Sign out</span>

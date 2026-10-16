@@ -8,9 +8,13 @@ import { LogIn, Mail, Lock, Loader2 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import GoogleIcon from "@/components/GoogleIcon";
 import { safeReturnTo } from "@/lib/authReturnTo";
+import { resolveLoginEmail } from "@/lib/loginAlias";
 
 export default function Login() {
-  const [email, setEmail] = useState("");
+  // the address may already be written in — the app's own switch hands on the other spelling
+  const [email, setEmail] = useState(() =>
+    resolveLoginEmail(new URLSearchParams(window.location.search).get("email") || "")
+  );
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -23,7 +27,9 @@ export default function Login() {
     setError("");
     setLoading(true);
     try {
-      await base44.auth.loginViaEmailPassword(email, password);
+      // either spelling of the one account is answered with the account's own address, so both
+      // open the same account and its data; every other address is used exactly as typed
+      await base44.auth.loginViaEmailPassword(resolveLoginEmail(email), password);
       window.location.href = returnTo;
     } catch (err) {
       setError(err.message || "Invalid email or password");
