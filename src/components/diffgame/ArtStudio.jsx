@@ -14,14 +14,22 @@ import "@/art-studio.css";
  * An episode whose picture comes back short is left standing where it was and named here, so a run goes
  * on past it and it waits for the next run instead of holding the rest back.
  */
+
+/**
+ * How many episodes are drawn at the same time. Drawing the whole game one episode after another took
+ * hours, so a few are drawn together — quick enough to finish the game, and few enough that the accounts
+ * the pictures come from are never swamped.
+ */
+const PARALLEL = 4;
 export default function ArtStudio() {
   const [admin, setAdmin] = useState(false);
   const [done, setDone] = useState(null);
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState("");
   const [waiting, setWaiting] = useState([]);
-  // the episode being drawn at this moment, and how many this run has drawn, so a long run shows its place
-  const [now, setNow] = useState(null);
+  // how many episodes are being drawn at this very moment, and how many this run has drawn, so a long run
+  // shows its place
+  const [active, setActive] = useState(0);
   const [madeNow, setMadeNow] = useState(0);
   // a run is stopped by the admin, and it stops where it stands rather than losing what it has drawn
   const stop = useRef(false);
@@ -54,43 +62,56 @@ export default function ArtStudio() {
     setWaiting([]);
     setSaid("");
     setMadeNow(0);
-    setNow(null);
+    setActive(0);
     const held = new Set(done);
     const bad = [];
+    const queue = [...left];
+    let next = 0;
+    let started = 0;
     let made = 0;
-    let tried = 0;
 
-    // One episode at a time, so the accounts are asked gently and a run can be stopped at any point.
-    // Every picture is written down the moment it is drawn, so a run taken up again goes on from where it
-    // stopped and never draws an episode that already stands. An episode that will not draw is named here
-    // and left where it is: it waits for another run instead of holding back the hundreds behind it.
-    for (const level of left) {
-      if (stop.current || made >= howMany) break;
-      tried += 1;
-      setNow(level);
-      try {
-        await drawEpisode(briefOf(level));
-        held.add(level.id);
-        made += 1;
-        setMadeNow(made);
-        setDone(new Set(held));
-      } catch (error) {
-        bad.push({
-          id: level.id,
-          title: level.title,
-          reason: error?.message || "The picture could not be drawn.",
-        });
-        setWaiting([...bad]);
-        // a short run gives up after a few failures; a whole run goes on, because a few episodes that will
-        // not draw must never stop the rest of the game from being drawn
-        if (Number.isFinite(howMany) && tried >= howMany + 3) break;
+    // The next episode no one has taken yet: a whole run takes every one of them, a short run only as many
+    // as it was asked for, and nothing more is taken once the run is stopped. A short run also gives up
+    // after a few failures; a whole run goes on, because a few episodes that will not draw must never stop
+    // the rest of the game from being drawn.
+    const claim = () => {
+      if (stop.current || started >= howMany || next >= queue.length) return null;
+      if (Number.isFinite(howMany) && bad.length >= 3) return null;
+      const level = queue[next];
+      next += 1;
+      started += 1;
+      return level;
+    };
+
+    // One worker draws one episode at a time, and four of them draw together. Every picture is written down
+    // the moment it is drawn, so a run taken up again goes on from where it stopped and never draws an
+    // episode that already stands. An episode that will not draw is named here and left where it is: it
+    // waits for another run instead of holding back the hundreds behind it.
+    const worker = async () => {
+      for (let level = claim(); level; level = claim()) {
+        setActive((drawing) => drawing + 1);
+        try {
+          await drawEpisode(briefOf(level));
+          held.add(level.id);
+          made += 1;
+          setMadeNow(made);
+          setDone(new Set(held));
+        } catch (error) {
+          bad.push({
+            id: level.id,
+            title: level.title,
+            reason: error?.message || "The picture could not be drawn.",
+          });
+          setWaiting([...bad]);
+        }
+        setActive((drawing) => drawing - 1);
       }
-      // a breath between episodes, so a long run stays gentle on the accounts it draws from
-      await new Promise((go) => setTimeout(go, 600));
-    }
+    };
+
+    await Promise.all(Array.from({ length: PARALLEL }, worker));
 
     const wasStopped = stop.current;
-    setNow(null);
+    setActive(0);
     setSaid(
       made
         ? `${made} episode picture${made === 1 ? "" : "s"} drawn this run. ${held.size} of ${CARTOON_EPISODES.length} stand.${
@@ -154,9 +175,9 @@ export default function ArtStudio() {
           </button>
         ) : null}
       </div>
-      {busy && now ? (
+      {busy ? (
         <p className="dg-note" role="status">
-          {`Drawing episode ${now.id} — ${now.title}… ${madeNow} drawn this run, ${done.size} of ${CARTOON_EPISODES.length} stand.`}
+          {`Drawing ${active || PARALLEL} at a time — ${madeNow} drawn this run, ${done.size} of ${CARTOON_EPISODES.length} stand.`}
         </p>
       ) : said ? (
         <p className="dg-note" role="status">
