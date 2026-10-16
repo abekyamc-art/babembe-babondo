@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import OpenAI from 'npm:openai@6.45.0';
 import { photoPuzzle } from '../../shared/photoPuzzle.ts';
+import { replicateImage } from '../../shared/replicate.ts';
 import { geminiText, geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
 
 /** The least side a prize photograph is accepted at: a true 4K photograph, or the app draws it itself. */
@@ -530,6 +531,13 @@ const SCENES = {
       'the black cooking pot on the fire in the middle of the yard has changed colour to bright red',
       'the red bucket standing at the bottom-right of the yard has gone',
       'the flowers in the pot beside the wooden bench have changed colour from yellow to bright purple',
+      'the clothes drying on the line have changed colour to bright green',
+      'one of the mangoes on the tree has changed colour to bright red',
+      'a brown hen has appeared pecking in the swept yard',
+      'the woven mat lying beside the wooden bench has gone from the ground',
+      'the wooden bench in the yard has changed colour to bright yellow',
+      'a grey cat has appeared sitting on the wooden bench',
+      'one of the white clouds in the sky has gone',
     ],
   },
   2: {
@@ -546,6 +554,13 @@ const SCENES = {
       'the multi-coloured canopy over the middle stall is now a plain bright green cloth',
       'in the sky above the market, one white cloud has gone',
       'the wooden crate standing on the ground at the bottom-middle of the market has gone',
+      'the wrap of the trader woman behind the middle stall has changed colour to bright purple',
+      'a brown hen has appeared pecking on the ground beside the baskets',
+      'the pile of green vegetables on the middle table has gone',
+      'a bright red plastic bucket has appeared on the ground beside the middle stall',
+      'the biggest woven basket standing on the ground has changed colour to bright blue',
+      'the tall green tree behind the market has gone from the skyline',
+      'a small black dog has appeared walking between the stalls',
     ],
   },
   3: {
@@ -562,6 +577,13 @@ const SCENES = {
       'the school backpack at the bottom-left of the classroom has gone',
       'the clock on the wall at the top of the classroom has turned bright yellow instead of white',
       'the wooden desk standing in the middle of the classroom is now bright green instead of brown',
+      'one of the open windows of the classroom is now closed',
+      'a yellow bird has appeared sitting on the window sill',
+      'one shirt among the children\u2019s uniforms is now bright red',
+      'the stack of books on the teacher\u2019s table has gone',
+      'a wooden stool has appeared beside the blackboard',
+      'the green band along the lower wall of the classroom is now bright blue',
+      'one of the two birds flying past the windows has gone',
     ],
   },
   37: {
@@ -578,6 +600,13 @@ const SCENES = {
       'the black metal cooking pot over the fire at the bottom-right has changed colour to bright red',
       'the woman dancing in the middle of the clearing now wears a bright green sari instead of a pink one',
       'one of the onlookers standing at the bottom-right of the clearing now wears a bright yellow hat',
+      'the tallest drum standing in the ring has changed colour to bright blue',
+      'a brown hen has appeared pecking on the swept earth of the clearing',
+      'one of the soft clouds in the sunset sky has gone',
+      'the cloth wrapped around the middle drummer has changed colour to bright purple',
+      'a wooden bench with two children has appeared at the edge of the clearing',
+      'the fire in the ring of stones at the right of the clearing has gone out',
+      'one of the tall green trees behind the mud houses has gone',
     ],
   },
   38: {
@@ -596,6 +625,11 @@ const SCENES = {
       'the woman washing clothes in the middle of the bank now wears a bright green sari instead of an orange one',
       'the wooden pole holding the right end of the drying line has changed colour to bright yellow',
       'a wooden stool has appeared on the bank at the bottom-left of the picture',
+      'one of the white clouds in the sky has gone',
+      'a blue cloth has appeared hanging on the drying line',
+      'the mango tree on the left bank has lost its orange fruit',
+      'a brown dog has appeared standing on the bank',
+      'the flat grey stone at the water\u2019s edge has changed colour to bright blue',
     ],
   },
   39: {
@@ -611,6 +645,12 @@ const SCENES = {
       'the single white cloud in the sky at the top of the picture has gone',
       'the large grey boulder at the bottom-right of the hillside has gone from the grass',
       'a brown hen has appeared pecking in the grass beside the goats in the middle of the hillside',
+      'the mango tree on the right of the slope has lost its orange fruit',
+      'the wooden staff carried by the young herder has changed colour to bright blue',
+      'a small black dog has appeared standing beside the young herder',
+      'the yellow flowers on the flowering bush have changed colour to bright purple',
+      'a wooden fence has appeared along the ridge behind the herd',
+      'a grey goat has appeared grazing at the right of the herd',
     ],
   },
 };
@@ -701,21 +741,10 @@ export default async function differenceScenes(req) {
       // Each photograph of a pair stands on an account of its own; a picture that comes back smaller than
       // a true 4K photograph is refused, and the app's own 4K picture service draws it exactly as before.
       let drawnCredits = 0;
-      try {
-        baseUrl = await geminiImage({
-          base44,
-          group: 'sceneone',
-          model: DRAW_BIG,
-          prompt: `${scene.look}. ${LOOK}`,
-          aspect: '16:9',
-          imageSize: '4K',
-          least: LEAST_4K,
-        });
-      } catch (error: any) {
-        console.error('The first photograph was not drawn on its own account:', error?.message);
-      }
-      if (!baseUrl) {
-        const first = await client.images.generate({
+      // A first photograph asked for on the picture service the game draws its own with goes straight
+      // there, so no time is spent on an account whose allowance has already run out.
+      if (body?.baseModel === 'seedream') {
+        const straight = await client.images.generate({
           model: 'seedream_5_0_lite',
           prompt: `${scene.look}. ${LOOK}`,
           n: 1,
@@ -725,10 +754,43 @@ export default async function differenceScenes(req) {
           output_format: 'jpeg',
           quality: 'auto',
         });
-        baseUrl = first.data?.[0]?.url || '';
-        drawnCredits += first.usage?.base44_credits || 0;
+        baseUrl = straight.data?.[0]?.url || '';
+        drawnCredits += straight.usage?.base44_credits || 0;
+      } else if (!baseUrl) {
+        try {
+          baseUrl = await geminiImage({
+            base44,
+            group: 'sceneone',
+            model: DRAW_BIG,
+            prompt: `${scene.look}. ${LOOK}`,
+            aspect: '16:9',
+            imageSize: '4K',
+            least: LEAST_4K,
+          });
+        } catch (error: any) {
+          console.error('The first photograph was not drawn on its own account:', error?.message);
+        }
+        if (!baseUrl) {
+          const first = await client.images.generate({
+            model: 'seedream_5_0_lite',
+            prompt: `${scene.look}. ${LOOK}`,
+            n: 1,
+            response_format: 'url',
+            aspect_ratio: '16:9',
+            resolution: '4K',
+            output_format: 'jpeg',
+            quality: 'auto',
+          });
+          baseUrl = first.data?.[0]?.url || '';
+          drawnCredits += first.usage?.base44_credits || 0;
+        }
       }
       if (!baseUrl) throw new Error('The first picture could not be drawn.');
+      // a first photograph asked for on its own is handed back here, and its copy is drawn from it in a
+      // later asking, so a long drawing never puts a pair's own two addresses out of reach
+      if (body?.draw === 'base') {
+        return Response.json({ level, scene: scene.name, base: baseUrl, credits: drawnCredits });
+      }
 
       const changedPrompt =
         'Keep this picture exactly as it is — the same scene, the same people, the same animals, the same ' +
@@ -737,19 +799,30 @@ export default async function differenceScenes(req) {
         'those places and in nothing else. This is an edit of the picture given to you, not a new picture: ' +
         'return that very photograph with those changes made and every other thing in it untouched, and ' +
         'apply all of the changes listed, each one clearly visible.';
-      try {
-        changedUrl = await geminiImage({
-          base44,
-          group: 'scenetwo',
-          model: DRAW_BIG,
-          prompt: changedPrompt,
-          reference_urls: [baseUrl],
-          aspect: '16:9',
-          imageSize: '4K',
-          least: LEAST_4K,
-        });
-      } catch (error: any) {
-        console.error('The changed photograph was not drawn on its own account:', error?.message);
+      // A copy asked for on the owner's own Replicate account is drawn there by the service that follows
+      // an edit most truly: it keeps the very picture it is handed and changes only what it is asked to.
+      if (body?.pairModel === 'replicate') {
+        try {
+          changedUrl = await replicateImage({ base44, prompt: changedPrompt, reference_url: baseUrl });
+        } catch (error: any) {
+          console.error('The changed photograph was not drawn on the Replicate account:', error?.message);
+        }
+      }
+      if (!changedUrl) {
+        try {
+          changedUrl = await geminiImage({
+            base44,
+            group: 'scenetwo',
+            model: DRAW_BIG,
+            prompt: changedPrompt,
+            reference_urls: [baseUrl],
+            aspect: '16:9',
+            imageSize: '4K',
+            least: LEAST_4K,
+          });
+        } catch (error: any) {
+          console.error('The changed photograph was not drawn on its own account:', error?.message);
+        }
       }
       if (!changedUrl) {
         const second = await client.images.generate({

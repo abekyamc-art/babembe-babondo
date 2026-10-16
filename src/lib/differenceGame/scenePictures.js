@@ -149,6 +149,32 @@ export const SCENE_PICTURES = {
     base: `${AT}43e6c952b_generated_9fceed15.jpg`,
     changed: `${AT}9a6e3ef55_generated_0a84b4ec.jpg`,
   },
+  // the compound, the market day and the classroom the game opens on, and the three drawn episodes
+  // that stood beside them: each now keeps its own pair of pictures, like every episode after it
+  village: {
+    base: `${AT}6ddbe0635_generated_39326ad1.jpg`,
+    changed: `${AT}20af1a6c6_generated_f2c7960d.jpg`,
+  },
+  market: {
+    base: `${AT}2bbc48456_generated_e4ae72ec.jpg`,
+    changed: `${AT}fc0ce8256_generated_c419d528.jpg`,
+  },
+  classroom: {
+    base: `${AT}c68a811be_generated_ff52e656.jpg`,
+    changed: `${AT}3acac40e8_generated_dee93c19.jpg`,
+  },
+  drumcircle: {
+    base: `${AT}b4b21e9e7_generated_b869af61.jpg`,
+    changed: `${AT}2b050089c_generated_cc10e154.jpg`,
+  },
+  riverwash: {
+    base: `${AT}9e314961f_generated_8890240c.jpg`,
+    changed: `${AT}266db462a_generated_3bf76c61.jpg`,
+  },
+  goathill: {
+    base: `${AT}7e8a74a56_generated_b156e1a5.jpg`,
+    changed: `${AT}099d054f0_generated_f63c59b6.jpg`,
+  },
 };
 
 /** The two pictures of a scene, or nothing where that scene is one of the app's own drawings. */

@@ -244,4 +244,55 @@ export const PHOTO_PUZZLE_UPDATES = {
       { id: 'schoolwalk-photo-7', x: 0.435, y: 0.105, w: 0.085, h: 0.041, label: 'A cloud has gone from the sky', extra: true },
     ],
   },
+  // the episodes the game opens on, and the last of the drawn ones: their places were read off their
+  // own drawn pairs one place at a time, so every place they ask for is one the picture truly holds
+  village: {
+    changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/20af1a6c6_generated_f2c7960d.jpg',
+    differences: [
+      { id: 'village-photo-1', x: 0.3182, y: 0.5218, w: 0.0901, h: 0.2203, label: 'The door of the house has turned bright red' },
+      { id: 'village-photo-2', x: 0.7713, y: 0.7162, w: 0.1018, h: 0.1509, label: 'The flowers have turned bright purple' },
+      { id: 'village-photo-3', x: 0.5526, y: 0.7579, w: 0.1643, h: 0.1787, label: 'The red bucket has gone from the yard' },
+      { id: 'village-photo-4', x: 0.1893, y: 0.6954, w: 0.0745, h: 0.1023, label: 'The cooking pot has turned bright red' },
+    ],
+  },
+  market: {
+    changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/fc0ce8256_generated_c419d528.jpg',
+    differences: [
+      { id: 'market-photo-1', x: 0.3768, y: 0.7023, w: 0.0823, h: 0.1092, label: 'The cut watermelon has gone from the table' },
+      { id: 'market-photo-2', x: 0.2792, y: 0.7301, w: 0.1097, h: 0.2064, label: 'The tomatoes have turned bright yellow' },
+      { id: 'market-photo-3', x: 0.2635, y: 0.0912, w: 0.1253, h: 0.1023, label: 'A cloud has gone from the sky' },
+    ],
+  },
+  classroom: {
+    changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/3acac40e8_generated_dee93c19.jpg',
+    differences: [
+      { id: 'classroom-photo-1', x: 0.592, y: 0.1607, w: 0.07, h: 0.0884, label: 'A bird has gone from outside the window' },
+      { id: 'classroom-photo-2', x: 0.2697, y: 0.0843, w: 0.07, h: 0.1092, label: 'The clock has turned bright yellow' },
+      { id: 'classroom-photo-3', x: 0.2323, y: 0.8213, w: 0.1409, h: 0.1787, label: 'A shirt among the children has turned red' },
+      { id: 'classroom-photo-4', x: 0.0292, y: 0.7168, w: 0.1018, h: 0.24, label: 'The school bag has gone from the floor' },
+    ],
+  },
+  drumcircle: {
+    changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/2b050089c_generated_cc10e154.jpg',
+    differences: [
+      { id: 'drumcircle-photo-1', x: 0, y: 0.6537, w: 0.1292, h: 0.1856, label: 'A wooden bench has appeared at the edge of the clearing' },
+      { id: 'drumcircle-photo-2', x: 0.422, y: 0.4842, w: 0.07, h: 0.24, label: 'The dancer wears a green sari' },
+      { id: 'drumcircle-photo-3', x: 0.3221, y: 0.7411, w: 0.1409, h: 0.24, label: 'A hen stands where the stool stood' },
+      { id: 'drumcircle-photo-4', x: 0.1659, y: 0.6537, w: 0.1136, h: 0.1926, label: 'A drum has turned bright blue' },
+    ],
+  },
+  riverwash: {
+    changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/266db462a_generated_3bf76c61.jpg',
+    differences: [
+      { id: 'riverwash-photo-1', x: 0.2362, y: 0.6676, w: 0.0979, h: 0.1787, label: 'The white hen has gone from the water\u2019s edge' },
+      { id: 'riverwash-photo-2', x: 0.0213, y: 0.689, w: 0.1409, h: 0.24, label: 'A wooden stool has appeared on the bank' },
+      { id: 'riverwash-photo-3', x: 0.092, y: 0.4871, w: 0.07, h: 0.1023, label: 'Three mangoes have gone from the tree' },
+    ],
+  },
+  goathill: {
+    changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/099d054f0_generated_f63c59b6.jpg',
+    differences: [
+      { id: 'goathill-photo-1', x: 0.1346, y: 0.6398, w: 0.1175, h: 0.1231, label: 'A black goat has appeared beside the herd' },
+    ],
+  },
 };
