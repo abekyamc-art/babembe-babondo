@@ -1,5 +1,5 @@
-import React, { useEffect, useState } from "react";
-import { Loader, Palette } from "lucide-react";
+import React, { useEffect, useRef, useState } from "react";
+import { Loader, Palette, Square } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { CARTOON_EPISODES, briefOf, drawEpisode, drawnEpisodes } from "@/lib/differenceGame/episodeArt";
 import "@/art-studio.css";
@@ -20,6 +20,11 @@ export default function ArtStudio() {
   const [busy, setBusy] = useState(false);
   const [said, setSaid] = useState("");
   const [waiting, setWaiting] = useState([]);
+  // the episode being drawn at this moment, and how many this run has drawn, so a long run shows its place
+  const [now, setNow] = useState(null);
+  const [madeNow, setMadeNow] = useState(0);
+  // a run is stopped by the admin, and it stops where it stands rather than losing what it has drawn
+  const stop = useRef(false);
 
   const count = async () => setDone(new Set(await drawnEpisodes()));
 
@@ -43,22 +48,31 @@ export default function ArtStudio() {
   const left = CARTOON_EPISODES.filter((level) => !done.has(level.id));
 
   const run = async (howMany) => {
+    if (busy) return;
+    stop.current = false;
     setBusy(true);
     setWaiting([]);
+    setSaid("");
+    setMadeNow(0);
+    setNow(null);
     const held = new Set(done);
     const bad = [];
     let made = 0;
     let tried = 0;
 
-    // one episode at a time, so the accounts are asked gently and a run can be stopped at any point
+    // One episode at a time, so the accounts are asked gently and a run can be stopped at any point.
+    // Every picture is written down the moment it is drawn, so a run taken up again goes on from where it
+    // stopped and never draws an episode that already stands. An episode that will not draw is named here
+    // and left where it is: it waits for another run instead of holding back the hundreds behind it.
     for (const level of left) {
-      if (made >= howMany || tried >= howMany + 3) break;
+      if (stop.current || made >= howMany) break;
       tried += 1;
-      setSaid(`Drawing episode ${level.id} — ${level.title}…`);
+      setNow(level);
       try {
         await drawEpisode(briefOf(level));
         held.add(level.id);
         made += 1;
+        setMadeNow(made);
         setDone(new Set(held));
       } catch (error) {
         bad.push({
@@ -67,13 +81,24 @@ export default function ArtStudio() {
           reason: error?.message || "The picture could not be drawn.",
         });
         setWaiting([...bad]);
+        // a short run gives up after a few failures; a whole run goes on, because a few episodes that will
+        // not draw must never stop the rest of the game from being drawn
+        if (Number.isFinite(howMany) && tried >= howMany + 3) break;
       }
+      // a breath between episodes, so a long run stays gentle on the accounts it draws from
+      await new Promise((go) => setTimeout(go, 600));
     }
 
+    const wasStopped = stop.current;
+    setNow(null);
     setSaid(
       made
-        ? `${made} episode picture${made === 1 ? "" : "s"} drawn. ${held.size} of ${CARTOON_EPISODES.length} stand.`
-        : "Nothing was drawn this time — the accounts may need a while before the next run."
+        ? `${made} episode picture${made === 1 ? "" : "s"} drawn this run. ${held.size} of ${CARTOON_EPISODES.length} stand.${
+            bad.length ? ` ${bad.length} waited for another run.` : ""
+          }`
+        : wasStopped
+          ? `The run was stopped. ${held.size} of ${CARTOON_EPISODES.length} stand.`
+          : "Nothing was drawn this time — the accounts may need a while before the next run."
     );
     setBusy(false);
   };
@@ -108,8 +133,32 @@ export default function ArtStudio() {
         >
           Draw the next five
         </button>
+        <button
+          type="button"
+          className="dg-switch"
+          onClick={() => run(Infinity)}
+          disabled={busy || !left.length}
+        >
+          {`Draw all the rest (${left.length})`}
+        </button>
+        {busy ? (
+          <button
+            type="button"
+            className="dg-switch"
+            onClick={() => {
+              stop.current = true;
+            }}
+          >
+            <Square aria-hidden="true" />
+            Stop
+          </button>
+        ) : null}
       </div>
-      {said ? (
+      {busy && now ? (
+        <p className="dg-note" role="status">
+          {`Drawing episode ${now.id} — ${now.title}… ${madeNow} drawn this run, ${done.size} of ${CARTOON_EPISODES.length} stand.`}
+        </p>
+      ) : said ? (
         <p className="dg-note" role="status">
           {said}
         </p>
