@@ -1,6 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.52';
 import { geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
 import { replicateImage } from '../../shared/replicate.ts';
+import { creditImage } from '../../shared/creditPicture.ts';
 
 /** The least side a trophy card is accepted at: a full card, or the Replicate account draws it instead. */
 const LEAST_4K = 3000;
@@ -78,7 +79,23 @@ export default async function prizeTrophies(req) {
       } catch (error: any) {
         console.error('A trophy was not drawn on its own account:', error?.message);
       }
-      if (!url) url = await replicateImage({ base44, prompt: wanted, aspect: '3:4' });
+      // The owner's own Replicate account draws it next, and the app's own credits draw it last, so a cup
+      // is never left undrawn while any of the three sources can still draw. A source that refuses is said
+      // and stepped over rather than thrown, so the seasons after it still get their own cups.
+      if (!url) {
+        try {
+          url = await replicateImage({ base44, prompt: wanted, aspect: '3:4' });
+        } catch (error: any) {
+          console.error(`The trophy of season ${no} was not drawn on the Replicate account:`, error?.message);
+        }
+      }
+      if (!url) {
+        try {
+          url = await creditImage({ base44, prompt: wanted });
+        } catch (error: any) {
+          console.error(`The trophy of season ${no} was not drawn on the app's own credits:`, error?.message);
+        }
+      }
       drawn.push({ season: no, url: url || null, credits: 0 });
     }
 
