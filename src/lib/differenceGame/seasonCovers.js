@@ -18,6 +18,18 @@ export const SEASON_COVERS = {
   2: `${AT}9c0c2e2e3_generated_62db5e08.png`,
   3: `${AT}dea8119f0_generated_81811349.png`,
   4: `${AT}4b089f49c_generated_e2736a99.png`,
+  // the wide water: the landing at first light, nets over the drying racks and the riverside market
+  5: `${AT}1a53432f5_generated_6472178c.png`,
+  // the wood and the wild: the honey tree, the goat herd and the drums in their clearing
+  6: `${AT}f449ef3c1_generated_7bdb2cfc.png`,
+  // the town as it grows: the first shops with their shutters open and the market square behind them
+  7: `${AT}324691287_generated_96a9c0d3.png`,
+  // the dry season and its first rains: the deep well in the cracked earth and the clouds over the hills
+  8: `${AT}58769daf7_generated_05266350.png`,
+  // the year of festivals: the drums, the dancers and the long table at golden hour
+  9: `${AT}851a30633_generated_7d1ba5a3.png`,
+  // the mountain and its sky: the high pasture, the goat bells and the well at the top of the path
+  10: `${AT}c74ac6985_generated_df7a25d1.png`,
 };
 
 /** The photograph a season opens on, or nothing where that season keeps the scene it already had. */

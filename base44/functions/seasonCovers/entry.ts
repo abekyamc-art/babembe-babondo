@@ -19,6 +19,12 @@ const PLACES: Record<number, string> = {
   2: 'a drum circle at golden hour on a village clearing above a river: tall hand-carved wooden drums, dancers in bright printed cloth caught mid-step, dust hanging in the low sun, tall palms behind them',
   3: 'a wide calm river at dawn seen from the bank: wooden pirogues resting at the edge, fishermen casting long nets, mist lying on the water, papyrus reeds, the sun just rising behind the far bank',
   4: 'a green hillside in the afternoon with a herd of goats: a young herder leaning on a staff, tall grasses, scattered trees, soft clouds in a wide blue sky, a village far down in the valley',
+  5: 'the wide water at its landing at first light: wooden pirogues drawn up on the bank, fishermen spreading long nets over the drying racks, baskets of fresh fish and a market opening along the water, palms behind and a dugout ferry crossing in the mist',
+  6: 'the wood and the wild in the afternoon: a tall honey tree, a young herder walking a herd of goats along a path through tall grass, a clearing where tall wooden drums stand waiting to be brought out, thick green bush and palms behind',
+  7: 'the town as it grows along its one street in bright daylight: the first shops with their shutters open, small workshops with a carpentry bench at the roadside, a new school wall, and a busy market square with crates and baskets set out',
+  8: 'the dry season and its first rains: cracked red earth around a deep well with its rope and bucket, dry grass and a thorn fence, and dark rain clouds gathering over the hills behind',
+  9: 'a village festival at golden hour: a dancing crowd in bright printed cloth around tall hand-carved drums, a long table of food set out under the trees, lanterns lit and dust hanging in the low sun',
+  10: 'the high mountain pasture in the late afternoon: a grassy peak standing above the clouds, a young herder with a herd of goats whose bells hang at their necks, a stone well at the top of the path and distant hills far below',
 };
 
 /** The one look every cover is drawn in: a real photograph of the real world, never a drawing. */
