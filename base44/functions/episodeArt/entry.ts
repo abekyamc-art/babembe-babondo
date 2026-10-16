@@ -380,7 +380,12 @@ export default async function episodeArt(req) {
       { limit: 1 }
     );
     if (already.items[0] && body?.redraw !== true) {
-      return Response.json({ level: brief.level, drawn: false, art: already.items[0] });
+      // a run asked for quietly is given the one line it needs: the episode already stands
+      return Response.json(
+        body?.quiet === true
+          ? { level: brief.level, drawn: false, places: already.items[0].differences?.length || 0 }
+          : { level: brief.level, drawn: false, art: already.items[0] }
+      );
     }
 
     const place = PLACES[brief.setting][(brief.level - 1) % PLACES[brief.setting].length];
@@ -415,13 +420,20 @@ export default async function episodeArt(req) {
       });
 
     if (places.length < tier.required) {
+      // nothing is installed from a pair that came back short: the episode waits to be drawn anew
       return Response.json(
-        {
-          error: `The pair came back with ${places.length} clear places, and the episode asks for ${tier.required}. It was not installed — ask again and it will be drawn anew.`,
-          level: brief.level,
-          base,
-          changed,
-        },
+        body?.quiet === true
+          ? {
+              level: brief.level,
+              drawn: false,
+              error: `${places.length} clear places were read, and ${tier.required} are asked for.`,
+            }
+          : {
+              error: `The pair came back with ${places.length} clear places, and the episode asks for ${tier.required}. It was not installed — ask again and it will be drawn anew.`,
+              level: brief.level,
+              base,
+              changed,
+            },
         { status: 422 }
       );
     }
@@ -451,16 +463,27 @@ export default async function episodeArt(req) {
       ? await base44.asServiceRole.entities.EpisodeArt.update(already.items[0].id, record)
       : await base44.asServiceRole.entities.EpisodeArt.create(record);
 
-    return Response.json({
-      level: brief.level,
-      season,
-      title: brief.named,
-      place,
-      drawn: true,
-      required: tier.required,
-      places: places.length,
-      art,
-    });
+    // an episode asked for quietly is answered with the one line it was asked for: the pictures and their
+    // places are read back in the admin's own list, and a run of many episodes is not buried in them
+    return Response.json(
+      body?.quiet === true
+        ? {
+            level: brief.level,
+            drawn: true,
+            places: places.length,
+            required: tier.required,
+          }
+        : {
+            level: brief.level,
+            season,
+            title: brief.named,
+            place,
+            drawn: true,
+            required: tier.required,
+            places: places.length,
+            art,
+          }
+    );
   } catch (error) {
     return Response.json({ error: error?.message || 'The episode could not be drawn.' }, { status: 500 });
   }
