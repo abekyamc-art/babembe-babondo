@@ -30,11 +30,18 @@ export async function openWindowFor(email) {
   if (!standing || standing.open_until) return standing || null;
 
   const now = Date.now();
-  return base44.entities.PasswordWindow.update(standing.id, {
-    user_email: standing.user_email,
-    opened_at: new Date(now).toISOString(),
-    open_until: new Date(now + OPEN_MS).toISOString(),
-  });
+  try {
+    const stamped = await base44.entities.PasswordWindow.update(standing.id, {
+      user_email: standing.user_email,
+      opened_at: new Date(now).toISOString(),
+      open_until: new Date(now + OPEN_MS).toISOString(),
+    });
+    return stamped || standing;
+  } catch {
+    // The door opens whether or not those two hours could be written down: the change itself is
+    // what the person came for, and it is never lost to a bookkeeping write.
+    return standing;
+  }
 }
 
 /** The door shuts the moment the password is changed, so it never stands open twice. */
