@@ -24,6 +24,7 @@ export default function PickSheet({
   description,
   ariaLabel,
   disabled = false,
+  className = "",
 }) {
   const [open, setOpen] = useState(false);
   const current = options.find((option) => String(option.value) === String(value)) || options[0];
@@ -40,7 +41,7 @@ export default function PickSheet({
         onClick={() => setOpen(true)}
         disabled={disabled}
         aria-label={ariaLabel}
-        className="account-input flex items-center justify-between gap-2 text-left disabled:opacity-50"
+        className={`account-input flex items-center justify-between gap-2 text-left disabled:opacity-50 ${className}`}
       >
         <span className="min-w-0 flex-1 truncate">{current?.label || "Choose one"}</span>
         <ChevronDown className="h-4 w-4 flex-none opacity-70" aria-hidden="true" />

@@ -12,6 +12,7 @@ import PageNotFound from './lib/PageNotFound';
 import { AuthProvider, useAuth } from '@/lib/AuthContext';
 import UserNotRegisteredError from '@/components/UserNotRegisteredError';
 import ScrollToTop from './components/ScrollToTop';
+import NativeBack from '@/components/NativeBack';
 // Add page imports here
 import BottomTabs from '@/components/BottomTabs';
 import PageSpinner from '@/components/PageSpinner';
@@ -147,6 +148,7 @@ function App() {
       <QueryClientProvider client={queryClientInstance}>
         <Router>
           <ScrollToTop />
+          <NativeBack />
           <TabMemoryProvider>
             <AuthenticatedApp />
           </TabMemoryProvider>

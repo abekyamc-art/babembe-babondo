@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { EXAM_SEASONS } from "@/lib/examSeasons";
+import PickSheet from "@/components/knowledge/PickSheet";
 
 /**
  * One student in the admin's own list: who they are, where they stand now, the season they are to be
@@ -52,26 +53,26 @@ export default function ExamAdminStudent({ record, onDone }) {
       </span>
 
       <div className="exam-admin-tools">
-        <label className="exam-admin-meta" htmlFor={`drop-season-${record.id}`}>
-          Drop on
-        </label>
-        <select
-          id={`drop-season-${record.id}`}
-          className="exam-admin-select"
+        <span className="exam-admin-meta">Drop on</span>
+        {/* the season is chosen in the app's own sheet rather than the browser's own chooser, which a
+            WebView draws small, cuts short and can lay over the row being worked in */}
+        <PickSheet
           value={season}
-          disabled={busy}
-          onChange={(event) => {
-            setSeason(Number(event.target.value));
+          options={EXAM_SEASONS.map((held) => ({
+            value: held.no,
+            label: `Season ${held.no} · ${held.title}`,
+          }))}
+          onChange={(next) => {
+            setSeason(Number(next));
             setAsk(false);
             setDone("");
           }}
-        >
-          {EXAM_SEASONS.map((held) => (
-            <option key={held.no} value={held.no}>
-              Season {held.no} · {held.title}
-            </option>
-          ))}
-        </select>
+          title="Drop on which season"
+          description="The season chosen, and every season after it, are cleared from that moment on."
+          ariaLabel={`Drop ${record.username || record.user_email} on a season`}
+          disabled={busy}
+          className="min-w-0 flex-1 basis-[190px]"
+        />
         <button
           type="button"
           className={`exam-admin-drop${ask ? " is-ask" : ""}`}
