@@ -6,6 +6,9 @@ import { geminiText, geminiImage, DRAW_BIG } from '../../shared/gemini.ts';
 /** The least side a prize photograph is accepted at: a true 4K photograph, or the app draws it itself. */
 const LEAST_4K = 3000;
 
+/** The picture services that take a file format; every other one is asked for the picture alone. */
+const TAKING_FORMAT = ['gemini', 'seedream', 'flux_2', 'gpt_image', 'nano_banana', 'muse', 'grok'];
+
 /**
  * The new picture scenes of GLOIRE AI — FIND THE DIFFERENCES, drawn as 4K pictures.
  *
@@ -522,11 +525,11 @@ const SCENES = {
       'woven mat beside it, a small clay pot of yellow flowers, clothes drying on a line, tall palms and ' +
       'green bush behind, a wide bright sky with a few white clouds and a warm sun with a gentle smiling face',
     changes: [
-      'in the top-left of the sky, the smiling face on the warm sun has gone, leaving a plain round sun',
-      'in the middle of the yard, the steam rising from the black cooking pot has gone',
-      'the wooden door of the house has changed colour from bright blue to bright red',
-      'on the right, the orange fruit has disappeared from the branches of the mango tree',
-      'in the bottom-left of the yard, the red plastic bucket beside the wooden bench has gone',
+      'the blue door of the house has changed colour to bright red',
+      'the smiling face on the sun at the top of the sky has gone, leaving a plain round sun',
+      'the black cooking pot on the fire in the middle of the yard has changed colour to bright red',
+      'the red bucket standing at the bottom-right of the yard has gone',
+      'the flowers in the pot beside the wooden bench have changed colour from yellow to bright purple',
     ],
   },
   2: {
@@ -538,11 +541,11 @@ const SCENES = {
       'people shopping, tall trees and mud houses behind, warm late-morning light and a wide blue sky with ' +
       'a few white clouds',
     changes: [
-      'the striped band on the cloth hanging at the left stall has changed colour from green to bright purple',
-      'in the middle of the stall table, the big cut watermelon has gone',
-      'the tomatoes in the basket at the left of the stall have changed colour from bright red to bright yellow',
-      'the trader woman behind the middle stall now wears a bright green blouse instead of a blue one',
-      'in the bottom-right of the ground beside the stall, the wooden crate has gone',
+      'the cut watermelon on the table in the middle of the market has gone',
+      'the tomatoes in the woven basket in the middle have changed colour from bright red to bright yellow',
+      'the multi-coloured canopy over the middle stall is now a plain bright green cloth',
+      'in the sky above the market, one white cloud has gone',
+      'the wooden crate standing on the ground at the bottom-middle of the market has gone',
     ],
   },
   3: {
@@ -554,11 +557,11 @@ const SCENES = {
       "teacher's table, a school backpack on the floor beside the front bench, a potted plant in the corner, " +
       'a green band along the lower wall and bright warm light through the windows',
     changes: [
-      'on the blackboard in the middle of the wall, one letter has been rubbed off so the words read differently',
-      'the hands of the round wall clock above the blackboard now show a different time',
-      'outside the window on the right, the two birds flying past have gone from the sky',
-      "on the teacher's table, the top book in the stack has changed colour from bright blue to bright red",
-      'in the bottom-left of the classroom, the school backpack on the floor beside the front bench has gone',
+      'the potted plant standing at the far left of the classroom has gone',
+      'the globe at the left of the classroom has changed colour: its sea is now bright purple instead of blue',
+      'the school backpack at the bottom-left of the classroom has gone',
+      'the clock on the wall at the top of the classroom has turned bright yellow instead of white',
+      'the wooden desk standing in the middle of the classroom is now bright green instead of brown',
     ],
   },
   37: {
@@ -570,11 +573,11 @@ const SCENES = {
       'fire with a black pot at the right, mud houses and tall green trees behind, a wide sunset sky with a ' +
       'warm sun carrying a gentle smiling face and a few soft clouds',
     changes: [
-      'the cloth wrapped around the tallest drum on the left has changed colour from green to bright purple',
-      'in the bottom-left of the circle, the carved wooden stool beside the drums has gone',
-      'in the sky, the smiling face on the warm sun has gone, leaving a plain round sun',
-      'the front drummer in the middle now wears a bright yellow hat on his head',
-      "the dancing woman's wrap on the right has changed to bright yellow",
+      'the carved wooden stool standing in the middle of the foreground has gone',
+      'the smiling face on the sun at the top of the sky has gone, leaving a plain round sun',
+      'the black metal cooking pot over the fire at the bottom-right has changed colour to bright red',
+      'the woman dancing in the middle of the clearing now wears a bright green sari instead of a pink one',
+      'one of the onlookers standing at the bottom-right of the clearing now wears a bright yellow hat',
     ],
   },
   38: {
@@ -586,13 +589,13 @@ const SCENES = {
       'hen pecking at the water\u2019s edge, a mango tree carrying orange fruit on the bank at the left, the ' +
       'wide slow river and a green far bank behind, a wide sky with a few white clouds',
     changes: [
-      'one cloth hanging on the drying line has changed colour from white to bright blue',
-      'the washerwoman on the left now wears a bright green blouse instead of a yellow one',
-      'the basin on the flat stones beside the women has changed colour from grey to bright red',
-      'the woven basket of clothes standing beside the stones has gone',
-      'in the middle of the picture, a white hen stands at the edge of the water',
-      'in the top-right of the sky, one white cloud has gone',
-      'on the left bank, the orange fruit has disappeared from the branches of the mango tree',
+      'the white garment hanging on the drying line at the right has changed colour to bright purple',
+      'the metal bucket standing at the bottom-right of the bank has changed colour from silver to bright red',
+      'the wicker laundry basket at the bottom-left of the bank has gone',
+      'the white chicken standing at the bottom-middle of the bank has gone',
+      'the woman washing clothes in the middle of the bank now wears a bright green sari instead of an orange one',
+      'the wooden pole holding the right end of the drying line has changed colour to bright yellow',
+      'a wooden stool has appeared on the bank at the bottom-left of the picture',
     ],
   },
   39: {
@@ -604,10 +607,10 @@ const SCENES = {
       'village roofs far below in the valley, distant blue hills and a wide sky with a few white clouds',
     changes: [
       'one of the goats in the middle of the herd has disappeared from the hillside',
-      'the young herder now wears a bright red shirt instead of a white one',
-      "in the herder's hand, the wooden staff has changed colour to bright red",
-      'on the right of the slope, the orange fruit has disappeared from the branches of the mango tree',
-      'in the top-left of the sky, one white cloud has gone',
+      'the cloth wrapped around the waist of the young herder on the left has changed colour to bright red',
+      'the single white cloud in the sky at the top of the picture has gone',
+      'the large grey boulder at the bottom-right of the hillside has gone from the grass',
+      'a brown hen has appeared pecking in the grass beside the goats in the middle of the hillside',
     ],
   },
 };
@@ -659,11 +662,34 @@ export default async function differenceScenes(req) {
       const result = await photoPuzzle(base44, scene, body);
       return Response.json({ level, ...result }, { status: result.error ? 422 : 200 });
     }
+    // A picture already standing is read for what it really holds, so the changes asked of it are chosen
+    // from the things in it rather than from what the scene was once written to carry.
+    if (body.read === true) {
+      const base = typeof body?.base === 'string' ? body.base : '';
+      if (!base) return Response.json({ error: 'No picture was named to read.' }, { status: 400 });
+      const held = await geminiText({
+        base44,
+        group: 'pictures',
+        prompt:
+          'List what stands in this photograph, in the order it catches the eye: first the setting, then ' +
+          'each clearly visible object, person, animal, plant and garment, told with where it stands in ' +
+          'the picture — far left, left, middle, right, far right, and very top, top, middle, bottom, very ' +
+          'bottom — and the colour it carries. Name fifteen things at least, one to a line, plainly.',
+        file_urls: [base],
+      });
+      return Response.json({ level, read: held });
+    }
 
     const { baseURL, token, headers } = base44.asServiceRole.aiGateway.connection();
     const client = new OpenAI({ baseURL, apiKey: token, defaultHeaders: headers, maxRetries: 0 });
 
     const listed = scene.changes.map((change, i) => `(${i + 1}) ${change}`).join(' ');
+    // Which picture service draws the changed copy. A pair is only worth playing when every change asked
+    // for really stands in it, so the copy is drawn by the service that follows an edit most truly unless
+    // another is named.
+    const editModel =
+      typeof body?.pairModel === 'string' && body.pairModel ? body.pairModel : 'gemini_3_1_flash_image';
+    const editSize = typeof body?.pairSize === 'string' && body.pairSize ? body.pairSize : '4K';
     const compact = body?.compact === true;
     const only = Array.isArray(body?.only) ? body.only.map(Number) : null;
     let baseUrl = typeof body?.base === 'string' ? body.base : '';
@@ -707,8 +733,10 @@ export default async function differenceScenes(req) {
       const changedPrompt =
         'Keep this picture exactly as it is — the same scene, the same people, the same animals, the same ' +
         'ground, the same sky, the same light, the same framing and the same detail — and change only these ' +
-        `five places: ${listed} Everything else must stay identical, so the two pictures differ in exactly ` +
-        'those five places and in nothing else.';
+        `places: ${listed} Everything else must stay identical, so the two pictures differ in exactly ` +
+        'those places and in nothing else. This is an edit of the picture given to you, not a new picture: ' +
+        'return that very photograph with those changes made and every other thing in it untouched, and ' +
+        'apply all of the changes listed, each one clearly visible.';
       try {
         changedUrl = await geminiImage({
           base44,
@@ -725,15 +753,17 @@ export default async function differenceScenes(req) {
       }
       if (!changedUrl) {
         const second = await client.images.generate({
-          model: 'seedream_5_0_lite',
+          model: editModel,
           prompt: changedPrompt,
           reference_image_urls: [baseUrl],
           n: 1,
           response_format: 'url',
           aspect_ratio: '16:9',
-          resolution: '4K',
-          output_format: 'jpeg',
-          quality: 'auto',
+          resolution: editSize,
+          // a control belongs to the picture services that take it, and is left out entirely for the
+          // services that take none
+          ...(TAKING_FORMAT.some((held) => editModel.startsWith(held)) ? { output_format: 'jpeg' } : {}),
+          ...(editModel.startsWith('seedream') ? { quality: 'auto' } : {}),
         });
         changedUrl = second.data?.[0]?.url || '';
         drawnCredits += second.usage?.base44_credits || 0;
