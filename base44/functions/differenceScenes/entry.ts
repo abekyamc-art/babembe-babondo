@@ -513,6 +513,103 @@ const SCENES = {
       'in the bottom-right corner, a grey stone on the path has disappeared',
     ],
   },
+  1: {
+    name: 'village',
+    look:
+      'A family compound in a Kibembe village in warm morning light: a round mud house with a thatched ' +
+      'roof and a bright blue painted wooden door, a cooking fire with a black pot on it outside, a mango ' +
+      'tree heavy with orange fruit beside the swept yard, a wooden bench with a red plastic bucket and a ' +
+      'woven mat beside it, a small clay pot of yellow flowers, clothes drying on a line, tall palms and ' +
+      'green bush behind, a wide bright sky with a few white clouds and a warm sun with a gentle smiling face',
+    changes: [
+      'in the top-left of the sky, the smiling face on the warm sun has gone, leaving a plain round sun',
+      'in the middle of the yard, the steam rising from the black cooking pot has gone',
+      'the wooden door of the house has changed colour from bright blue to bright red',
+      'on the right, the orange fruit has disappeared from the branches of the mango tree',
+      'in the bottom-left of the yard, the red plastic bucket beside the wooden bench has gone',
+    ],
+  },
+  2: {
+    name: 'market',
+    look:
+      'A busy village market day in a Kibembe village: wooden stalls with bright printed cloth awnings, ' +
+      'baskets of red tomatoes and green vegetables, a big watermelon cut open on a table, a trader woman ' +
+      'in a bright wrap behind the middle stall, wooden crates and woven baskets on the swept ground, other ' +
+      'people shopping, tall trees and mud houses behind, warm late-morning light and a wide blue sky with ' +
+      'a few white clouds',
+    changes: [
+      'the striped band on the cloth hanging at the left stall has changed colour from green to bright purple',
+      'in the middle of the stall table, the big cut watermelon has gone',
+      'the tomatoes in the basket at the left of the stall have changed colour from bright red to bright yellow',
+      'the trader woman behind the middle stall now wears a bright green blouse instead of a blue one',
+      'in the bottom-right of the ground beside the stall, the wooden crate has gone',
+    ],
+  },
+  3: {
+    name: 'classroom',
+    look:
+      'A village primary school classroom in the afternoon: rows of wooden benches and desks with children, ' +
+      'a blackboard on the cream wall with letters written in white chalk, a round wall clock above it, open ' +
+      'windows with green trees outside and two birds flying past, a globe and a stack of books on the ' +
+      "teacher's table, a school backpack on the floor beside the front bench, a potted plant in the corner, " +
+      'a green band along the lower wall and bright warm light through the windows',
+    changes: [
+      'on the blackboard in the middle of the wall, one letter has been rubbed off so the words read differently',
+      'the hands of the round wall clock above the blackboard now show a different time',
+      'outside the window on the right, the two birds flying past have gone from the sky',
+      "on the teacher's table, the top book in the stack has changed colour from bright blue to bright red",
+      'in the bottom-left of the classroom, the school backpack on the floor beside the front bench has gone',
+    ],
+  },
+  37: {
+    name: 'drumcircle',
+    look:
+      'A village drum circle at golden hour: five tall hand-carved wooden drums of different sizes standing ' +
+      'in a ring on swept earth, drummers in bright cloth with their sticks raised, a carved wooden stool ' +
+      'beside the drums, a woman dancing in a bright wrap with her arms out, onlookers clapping, a cooking ' +
+      'fire with a black pot at the right, mud houses and tall green trees behind, a wide sunset sky with a ' +
+      'warm sun carrying a gentle smiling face and a few soft clouds',
+    changes: [
+      'the cloth wrapped around the tallest drum on the left has changed colour from green to bright purple',
+      'in the bottom-left of the circle, the carved wooden stool beside the drums has gone',
+      'in the sky, the smiling face on the warm sun has gone, leaving a plain round sun',
+      'the front drummer in the middle now wears a bright yellow hat on his head',
+      "the dancing woman's wrap on the right has changed to bright yellow",
+    ],
+  },
+  38: {
+    name: 'riverwash',
+    look:
+      "Washing day at the river in a Kibembe village in the middle of the morning: two women kneeling on " +
+      'flat stones at the water\u2019s edge scrubbing clothes, a line of bright cloths hung to dry on a rope ' +
+      'between two poles, a woven basket of clothes beside the stones, a metal bucket on the bank, a white ' +
+      'hen pecking at the water\u2019s edge, a mango tree carrying orange fruit on the bank at the left, the ' +
+      'wide slow river and a green far bank behind, a wide sky with a few white clouds',
+    changes: [
+      'one cloth hanging on the drying line has changed colour from white to bright blue',
+      'the washerwoman on the left now wears a bright green blouse instead of a yellow one',
+      'the basin on the flat stones beside the women has changed colour from grey to bright red',
+      'the woven basket of clothes standing beside the stones has gone',
+      'in the middle of the picture, a white hen stands at the edge of the water',
+      'in the top-right of the sky, one white cloud has gone',
+      'on the left bank, the orange fruit has disappeared from the branches of the mango tree',
+    ],
+  },
+  39: {
+    name: 'goathill',
+    look:
+      'A green hillside above a Kibembe village in the late afternoon: a young herder with a wooden staff ' +
+      'standing beside a small herd of goats with two kids, tall grass and a few flat rocks, a flowering ' +
+      'bush with bright yellow flowers, a mango tree carrying orange fruit on the right of the slope, the ' +
+      'village roofs far below in the valley, distant blue hills and a wide sky with a few white clouds',
+    changes: [
+      'one of the goats in the middle of the herd has disappeared from the hillside',
+      'the young herder now wears a bright red shirt instead of a white one',
+      "in the herder's hand, the wooden staff has changed colour to bright red",
+      'on the right of the slope, the orange fruit has disappeared from the branches of the mango tree',
+      'in the top-left of the sky, one white cloud has gone',
+    ],
+  },
 };
 
 /** A share of the picture, kept to four places. */
