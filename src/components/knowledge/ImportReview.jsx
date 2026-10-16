@@ -4,6 +4,7 @@ import { base44 } from "@/api/base44Client";
 import { DOC_MAX } from "@/lib/knowledgeDoc";
 import { appendText, mergeWords } from "@/lib/importWords";
 import PictureThumb from "@/components/knowledge/PictureThumb";
+import PickSheet from "@/components/knowledge/PickSheet";
 
 /**
  * What a package turned out to hold: the words found in it, and the picture standing beside each one.
@@ -174,19 +175,20 @@ export default function ImportReview({ result, doc, onState, onDone, onClose }) 
                 />
                 <div className="flex items-center gap-2">
                   {row.at >= 0 ? <PictureThumb picture={pictures[row.at]} /> : null}
-                  <select
+                  <PickSheet
                     value={String(row.at)}
-                    onChange={(event) => patch(row.key, { at: Number(event.target.value) })}
-                    aria-label="The picture beside this word"
-                    className="account-input"
-                  >
-                    <option value="-1">No picture</option>
-                    {pictures.map((pic, index) => (
-                      <option key={`${pic.file_uri}-${index}`} value={String(index)}>
-                        {pic.name}
-                      </option>
-                    ))}
-                  </select>
+                    options={[
+                      { value: "-1", label: "No picture" },
+                      ...pictures.map((pic, index) => ({
+                        value: String(index),
+                        label: pic.name,
+                      })),
+                    ]}
+                    onChange={(value) => patch(row.key, { at: Number(value) })}
+                    title="The picture beside this word"
+                    description="Every picture the package held stands here — choose the one that belongs to this word."
+                    ariaLabel="The picture beside this word"
+                  />
                 </div>
                 {row.how ? <span className="knowledge-meter-text">{row.how}</span> : null}
                 {row.where ? (

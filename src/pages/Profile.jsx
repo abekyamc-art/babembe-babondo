@@ -7,6 +7,7 @@ import { openThread } from "@/lib/chat";
 import usePageMeta from "@/lib/pageMeta";
 import ProfileHeader from "@/components/profile/ProfileHeader";
 import ProfileReels from "@/components/profile/ProfileReels";
+import DeleteAccountSheet from "@/components/profile/DeleteAccountSheet";
 
 export default function Profile() {
   const { email } = useParams();
@@ -133,6 +134,17 @@ export default function Profile() {
       />
 
       <ProfileReels reels={reels} onOpen={(reel) => navigate(`/reels?reel=${reel.id}`)} />
+
+      {/* The person's own page carries the one row that ends their account, and the question asked
+          before it does; somebody else's page carries none of it. */}
+      {me?.email === email ? (
+        <section className="px-4 pb-8 pt-6">
+          <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.14em] text-muted-foreground">
+            Account
+          </p>
+          <DeleteAccountSheet />
+        </section>
+      ) : null}
     </div>
   );
 }

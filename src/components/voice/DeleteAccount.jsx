@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { ChevronRight, Loader2, Trash2 } from "lucide-react";
-import { base44 } from "@/api/base44Client";
+import { deleteMyAccount } from "@/lib/deleteAccount";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -23,13 +23,7 @@ export default function DeleteAccount() {
     setBusy(true);
     setError("");
     try {
-      const res = await base44.functions.invoke("deleteAccount", {});
-      if (res?.data?.error) throw new Error(res.data.error);
-      // nothing of the account is left behind on the phone: its stored keys and tokens go with it
-      window.localStorage.clear();
-      window.sessionStorage.clear();
-      // the account is gone, so the app opens again at its first screen
-      await base44.auth.logout("/");
+      await deleteMyAccount();
     } catch (err) {
       setError("Could not delete your account. Please try again.");
       setBusy(false);

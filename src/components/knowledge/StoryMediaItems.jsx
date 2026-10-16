@@ -2,6 +2,7 @@ import React, { useRef, useState } from "react";
 import { Loader2, Trash2, Upload } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { hostOf } from "@/lib/stories";
+import PickSheet from "@/components/knowledge/PickSheet";
 import {
   kindOfFile,
   kindOfLink,
@@ -174,17 +175,17 @@ export default function StoryMediaItems({ text, items = [], onChange }) {
                   {KIND_WORD[thing.kind] || "Media"} · {labelOf(thing)}
                 </div>
                 <div className="knowledge-text">{placeText(thing)}</div>
-                <select
-                  value={spotOf(thing)}
-                  onChange={(event) => move(index, event.target.value)}
-                  className="account-input"
-                >
-                  {places.map((place) => (
-                    <option key={place.value} value={place.value}>
-                      {place.label}
-                    </option>
-                  ))}
-                </select>
+                <PickSheet
+                  value={String(spotOf(thing))}
+                  options={places.map((place) => ({
+                    value: String(place.value),
+                    label: place.label,
+                  }))}
+                  onChange={(value) => move(index, value)}
+                  title="Where this stands in the telling"
+                  description="The app placed it by reading the telling. Move it to any line it should stand after."
+                  ariaLabel="Where it stands in the telling"
+                />
               </div>
               <div className="knowledge-tools">
                 <button
