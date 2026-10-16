@@ -23,6 +23,13 @@ export function resolveLoginEmail(email) {
   return written === ALIAS ? ACCOUNT : written;
 }
 
+/** Every spelling the one account answers to: both, for this account; its own address otherwise. */
+export function loginSpellings(email) {
+  const account = clean(email);
+  if (!account) return [];
+  return account === ACCOUNT ? SPELLINGS : [account];
+}
+
 let current = "";
 const listeners = new Set();
 

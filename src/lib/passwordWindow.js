@@ -1,4 +1,5 @@
 import { base44 } from "@/api/base44Client";
+import { loginSpellings } from "@/lib/loginAlias";
 
 /** How long the door stands open once it is first reached. */
 const OPEN_MS = 2 * 60 * 60 * 1000;
@@ -22,8 +23,12 @@ export function isShut(row) {
  */
 export async function openWindowFor(email) {
   if (!email) return null;
+  // The one account answers to both spellings of its address, so a door opened under either
+  // spelling is found by the account itself — whichever spelling is written on the panel. Nothing
+  // is widened by the wider look: the same read rules decide what comes back, so a person is only
+  // ever handed the door that names their own account.
   const page = await base44.entities.PasswordWindow.filter(
-    { user_email: email },
+    { user_email: { $in: loginSpellings(email) } },
     { sort: "-created_date", limit: 5 }
   );
   const standing = (page?.items || []).find((row) => !isShut(row));
