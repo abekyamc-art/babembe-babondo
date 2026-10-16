@@ -5,6 +5,7 @@ import AnswerText from "@/components/kibembe/AnswerText";
 import AnswerPictures from "@/components/kibembe/AnswerPictures";
 import AskNames from "@/components/kibembe/AskNames";
 import AnswerVideos from "@/components/voice/AnswerVideos";
+import AnswerReport from "@/components/moderation/AnswerReport";
 
 // only the newest lines stay on screen: ten at most, both sides counted together
 const SHOWN = 10;
@@ -69,6 +70,9 @@ export default function ConversationStrip({ turns, pending, onCorrectTurn, onPic
                       Source: {turn.source.label || "online"} — {turn.source.url}
                     </a>
                   ) : null}
+                  {/* the assistant's own words are the app's content, and a person may report them the
+                      way they report anything else they meet in the app */}
+                  <AnswerReport text={turn.text} className="font-body" />
                 </div>
               )}
             </div>

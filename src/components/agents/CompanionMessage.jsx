@@ -1,6 +1,7 @@
 import React from "react";
 import ReactMarkdown from "react-markdown";
 import ToolCallList from "@/components/agents/ToolCallList";
+import AnswerReport from "@/components/moderation/AnswerReport";
 
 /**
  * One line of the companion's talk: what the person wrote, or what the companion answered. An answer
@@ -30,6 +31,8 @@ export default function CompanionMessage({ message }) {
           </div>
         )}
         <ToolCallList calls={message.tool_calls} />
+        {/* the companion's own words are the app's content, and may be reported like anything else */}
+        {mine ? null : <AnswerReport text={message.content || ""} />}
       </div>
     </div>
   );

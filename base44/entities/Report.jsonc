@@ -13,10 +13,11 @@
         "comment",
         "message",
         "profile",
-        "live"
+        "live",
+        "answer"
       ],
       "default": "reel",
-      "description": "What was reported: a reel, a comment, a private message, a person's own profile page, or a live room."
+      "description": "What was reported: a reel, a comment, a private message, a person's own profile page, a live room, or an answer the app's own AI gave."
     },
     "content_id": {
       "type": "string",
@@ -24,7 +25,7 @@
     },
     "content_owner_email": {
       "type": "string",
-      "description": "Email of the person the reported content belongs to, so the same person's reports are read together."
+      "description": "Email of the person the reported content belongs to, so the same person's reports are read together. It stands empty where the content reported is the app's own answer and belongs to nobody."
     },
     "excerpt": {
       "type": "string",
@@ -64,7 +65,6 @@
   "required": [
     "reporter_email",
     "content_type",
-    "content_owner_email",
     "reason"
   ],
   "rls": {

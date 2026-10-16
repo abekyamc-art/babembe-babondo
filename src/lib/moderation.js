@@ -22,6 +22,7 @@ export const CONTENT_LABELS = {
   message: "message",
   profile: "profile",
   live: "live room",
+  answer: "answer from the app's AI",
 };
 
 export function reasonLabel(id) {

@@ -2,6 +2,7 @@ import React from "react";
 import AnswerText from "@/components/kibembe/AnswerText";
 import AnswerPictures from "@/components/kibembe/AnswerPictures";
 import AskNames from "@/components/kibembe/AskNames";
+import AnswerReport from "@/components/moderation/AnswerReport";
 
 /**
  * One line of the talk: what the person wrote, or what the assistant answered — and, where the admin
@@ -35,6 +36,8 @@ export default function ChatBubble({ role, text, pictures = [], source = null, c
             Source: {source.label || "online"} — {source.url}
           </a>
         ) : null}
+        {/* what the assistant answered may be reported like anything else the app carries */}
+        {mine ? null : <AnswerReport text={text} />}
       </div>
     </div>
   );
