@@ -16,11 +16,12 @@ import "@/art-studio.css";
  */
 
 /**
- * How many episodes are drawn at the same time. Drawing the whole game one episode after another took
- * hours, so a few are drawn together — quick enough to finish the game, and few enough that the accounts
- * the pictures come from are never swamped.
+ * How many episodes are drawn at the same time. Each episode's two pictures are drawn one after the other
+ * — the second comes out of the first — so the only way the whole game is finished in one sitting is to
+ * draw several episodes alongside each other. Six are drawn together: enough to carry the game through,
+ * and few enough that the accounts the pictures come from are not swamped.
  */
-const PARALLEL = 4;
+const PARALLEL = 6;
 export default function ArtStudio() {
   const [admin, setAdmin] = useState(false);
   const [done, setDone] = useState(null);
@@ -66,6 +67,9 @@ export default function ArtStudio() {
     const held = new Set(done);
     const bad = [];
     const queue = [...left];
+    // how many times each episode has been asked for this run, so an episode that fails is asked for once
+    // more and then let be, and no episode is ever drawn round and round
+    const attempts = new Map();
     let next = 0;
     let started = 0;
     let made = 0;
@@ -75,18 +79,19 @@ export default function ArtStudio() {
     // after a few failures; a whole run goes on, because a few episodes that will not draw must never stop
     // the rest of the game from being drawn.
     const claim = () => {
-      if (stop.current || started >= howMany || next >= queue.length) return null;
-      if (Number.isFinite(howMany) && bad.length >= 3) return null;
+      if (stop.current || next >= queue.length) return null;
+      if (Number.isFinite(howMany) && (started >= howMany || bad.length >= 3)) return null;
       const level = queue[next];
       next += 1;
-      started += 1;
+      if (!attempts.has(level.id)) started += 1;
       return level;
     };
 
-    // One worker draws one episode at a time, and four of them draw together. Every picture is written down
-    // the moment it is drawn, so a run taken up again goes on from where it stopped and never draws an
-    // episode that already stands. An episode that will not draw is named here and left where it is: it
-    // waits for another run instead of holding back the hundreds behind it.
+    // One worker draws one episode at a time, and several of them draw together. Every picture is written
+    // down the moment it is drawn, so a run taken up again goes on from where it stopped and never draws an
+    // episode that already stands. An episode that will not draw is asked for once more later in the same
+    // run — so one run carries as much of the game through as it can — and only then named here and left
+    // where it is, waiting for another run instead of holding back the hundreds behind it.
     const worker = async () => {
       for (let level = claim(); level; level = claim()) {
         setActive((drawing) => drawing + 1);
@@ -97,12 +102,18 @@ export default function ArtStudio() {
           setMadeNow(made);
           setDone(new Set(held));
         } catch (error) {
-          bad.push({
-            id: level.id,
-            title: level.title,
-            reason: error?.message || "The picture could not be drawn.",
-          });
-          setWaiting([...bad]);
+          const tries = (attempts.get(level.id) || 0) + 1;
+          attempts.set(level.id, tries);
+          if (tries < 2) {
+            queue.push(level);
+          } else {
+            bad.push({
+              id: level.id,
+              title: level.title,
+              reason: error?.message || "The picture could not be drawn.",
+            });
+            setWaiting([...bad]);
+          }
         }
         setActive((drawing) => drawing - 1);
       }
@@ -176,9 +187,19 @@ export default function ArtStudio() {
         ) : null}
       </div>
       {busy ? (
-        <p className="dg-note" role="status">
-          {`Drawing ${active || PARALLEL} at a time — ${madeNow} drawn this run, ${done.size} of ${CARTOON_EPISODES.length} stand.`}
-        </p>
+        <div className="dg-studio-run" role="status">
+          <span className="dg-studio-bar">
+            <span
+              className="dg-studio-fill"
+              style={{ width: `${Math.round((done.size / CARTOON_EPISODES.length) * 100)}%` }}
+            />
+          </span>
+          <p className="dg-note">
+            {`${active || PARALLEL} drawn at a time — ${madeNow} made this run, ${done.size} of ${CARTOON_EPISODES.length} stand (${Math.round(
+              (done.size / CARTOON_EPISODES.length) * 100
+            )}%).`}
+          </p>
+        </div>
       ) : said ? (
         <p className="dg-note" role="status">
           {said}

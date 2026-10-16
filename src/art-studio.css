@@ -60,6 +60,30 @@
   overflow-wrap: anywhere;
 }
 
+/* The whole game's progress: a long run is watched as it fills rather than waited on blind. */
+.dg-studio-run {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+}
+
+.dg-studio-bar {
+  display: block;
+  height: 8px;
+  overflow: hidden;
+  border-radius: 999px;
+  background: #1b2450;
+}
+
+.dg-studio-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: linear-gradient(90deg, #ffb347, #ff7a59);
+  transition: width 0.4s ease;
+}
+
 /* an episode's picture is fetched before the episode opens, so the places never move under a finger */
 .dg-opening {
   position: fixed;
