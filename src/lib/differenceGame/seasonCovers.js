@@ -8,13 +8,15 @@
  * addresses here, so the season menu opens with its pictures already standing and draws nothing while a
  * player is looking at it.
  *
- * Season 1 keeps the picture its cover already had: the first scene of the season drawn by the app itself.
- * A season named here opens on its photograph instead.
+ * Every season of the ten stands here, so each one opens on a picture of its own and no season falls back
+ * to a scene drawn by the app.
  */
 
 const AT = "https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/";
 
 export const SEASON_COVERS = {
+  // the village in the first light: the school lane and the drums before the day's work begins
+  1: `${AT}548bee101_generated_d2484c8d.png`,
   2: `${AT}9c0c2e2e3_generated_62db5e08.png`,
   3: `${AT}dea8119f0_generated_81811349.png`,
   4: `${AT}4b089f49c_generated_e2736a99.png`,
