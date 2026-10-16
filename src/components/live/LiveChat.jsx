@@ -141,7 +141,7 @@ export default function LiveChat({
 
   return (
     <section className="flex flex-col gap-2">
-      <div className="max-h-[30vh] min-h-[4.5rem] space-y-2 overflow-y-auto overscroll-none px-1">
+      <div className="max-h-[30dvh] min-h-[4.5rem] space-y-2 overflow-y-auto overscroll-none px-1">
         {messages.length ? (
           messages.map((line) =>
             line.kind === "effect" ? (

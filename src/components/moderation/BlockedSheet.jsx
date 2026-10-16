@@ -51,7 +51,7 @@ export default function BlockedSheet({ open, onClose, me, onChanged }) {
 
   return (
     <Drawer open={open} onOpenChange={(next) => (next ? null : onClose())}>
-      <DrawerContent className="max-h-[80vh]">
+      <DrawerContent className="max-h-[80dvh]">
         <DrawerHeader className="text-left">
           <DrawerTitle className="font-display text-[18px] tracking-tight">Blocked accounts</DrawerTitle>
           <DrawerDescription className="text-[12.5px]">
@@ -59,7 +59,7 @@ export default function BlockedSheet({ open, onClose, me, onChanged }) {
           </DrawerDescription>
         </DrawerHeader>
 
-        <div className="overflow-y-auto px-4 pb-6">
+        <div className="overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

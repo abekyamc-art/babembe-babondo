@@ -6,7 +6,7 @@ import { GLOIRE_AI } from "@/lib/providerNames";
 /** The companion screen's own head: who is answering, and the way back to the Kibembe assistant. */
 export default function CompanionHeader({ onRestart, voiceOpen, onToggleVoice }) {
   return (
-    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 py-3 backdrop-blur">
+    <header className="sticky top-0 z-10 flex items-center gap-3 border-b border-border bg-background/95 px-4 pb-3 pt-[max(0.75rem,env(safe-area-inset-top))] backdrop-blur">
       <Link
         to="/kibembe"
         aria-label="Back to the Kibembe assistant"

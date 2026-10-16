@@ -29,9 +29,9 @@ export default function LiveGuests({ guests, isHost, onRemove }) {
               type="button"
               onClick={() => onRemove(guest)}
               aria-label={`Let @${guest.username || "guest"} go`}
-              className="grid h-5 w-5 place-items-center rounded-full bg-white/15 text-white"
+              className="grid h-6 w-6 place-items-center rounded-full bg-white/15 text-white"
             >
-              <X className="h-3 w-3" />
+              <X className="h-3.5 w-3.5" />
             </button>
           ) : null}
         </div>

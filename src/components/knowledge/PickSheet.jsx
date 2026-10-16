@@ -48,7 +48,7 @@ export default function PickSheet({
       </button>
 
       <Drawer open={open} onOpenChange={setOpen}>
-        <DrawerContent className="max-h-[80vh]">
+        <DrawerContent className="max-h-[80dvh]">
           <DrawerHeader className="pb-2">
             <DrawerTitle className="text-[16px]">{title}</DrawerTitle>
             {description ? (

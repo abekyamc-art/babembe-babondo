@@ -59,7 +59,7 @@ export default function DeleteAccountSheet() {
       </div>
 
       <Drawer open={open} onOpenChange={(next) => (!busy ? setOpen(next) : null)}>
-        <DrawerContent className="max-h-[88vh] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
+        <DrawerContent className="max-h-[88dvh] px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
           <DrawerHeader className="px-0 pb-3">
             <DrawerTitle className="font-display text-[19px]">Delete your account?</DrawerTitle>
             <DrawerDescription className="text-[13px] leading-relaxed">

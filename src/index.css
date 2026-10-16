@@ -118,6 +118,27 @@
     user-select: none;
   }
 
+  /* A tap answers the moment it lands: no double-tap zoom stands between a thumb and a control.
+     A gesture that needs the raw touch — a clip being dragged, a key being held — says so itself
+     and keeps its own rule. */
+  button,
+  a,
+  label,
+  [role="tab"],
+  input,
+  select,
+  textarea {
+    touch-action: manipulation;
+  }
+
+  /* A picture in the app is the app's own furniture and not a file in a browser: a long press opens
+     no browser menu over it, and a drag leaves no ghost behind. */
+  img,
+  svg {
+    -webkit-touch-callout: none;
+    -webkit-user-drag: none;
+  }
+
   input,
   textarea,
   [contenteditable="true"],
@@ -311,14 +332,16 @@
 
   .account-sheet {
     position: absolute;
-    top: 12px;
+    /* the panel keeps clear of the phone's own furniture: its head stands below the status bar and
+       its last row above the home indicator */
+    top: calc(12px + env(safe-area-inset-top, 0px));
     right: 0;
     bottom: 0;
     left: 0;
     display: flex;
     flex-direction: column;
     gap: 24px;
-    padding: 18px 20px 20px;
+    padding: 18px 20px calc(20px + env(safe-area-inset-bottom, 0px));
     overflow-y: auto;
     color: #f5f6ff;
     background: #0b1020;

@@ -53,7 +53,7 @@ export default function ReportSheet({ open, onClose, target, me, onDone }) {
 
   return (
     <Drawer open={open} onOpenChange={(next) => (next ? null : close())}>
-      <DrawerContent className="max-h-[88vh]">
+      <DrawerContent className="max-h-[88dvh]">
         <DrawerHeader className="text-left">
           <DrawerTitle className="flex items-center gap-2 font-display text-[18px] tracking-tight">
             <ShieldAlert className="h-4 w-4" />
@@ -65,7 +65,7 @@ export default function ReportSheet({ open, onClose, target, me, onDone }) {
           </DrawerDescription>
         </DrawerHeader>
 
-        <div className="space-y-4 overflow-y-auto px-4 pb-6">
+        <div className="space-y-4 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <div className="space-y-2">
             {REPORT_REASONS.map((option) => (
               <button

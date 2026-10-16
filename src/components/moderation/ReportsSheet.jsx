@@ -68,7 +68,7 @@ export default function ReportsSheet({ open, onClose }) {
 
   return (
     <Drawer open={open} onOpenChange={(next) => (next ? null : onClose())}>
-      <DrawerContent className="max-h-[88vh]">
+      <DrawerContent className="max-h-[88dvh]">
         <DrawerHeader className="text-left">
           <DrawerTitle className="flex items-center gap-2 font-display text-[18px] tracking-tight">
             <ShieldAlert className="h-4 w-4" />
@@ -79,7 +79,7 @@ export default function ReportsSheet({ open, onClose }) {
           </DrawerDescription>
         </DrawerHeader>
 
-        <div className="overflow-y-auto px-4 pb-6">
+        <div className="overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           {loading ? (
             <div className="flex justify-center py-8">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

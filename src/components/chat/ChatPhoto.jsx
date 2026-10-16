@@ -56,7 +56,7 @@ export default function ChatPhoto({ fileUri, localUrl }) {
           >
             <X className="h-5 w-5" />
           </button>
-          <Image src={url} alt="Photo" className="max-h-[80vh] w-full" fittingType="fit" />
+          <Image src={url} alt="Photo" className="max-h-[80dvh] w-full" fittingType="fit" />
         </div>
       ) : null}
     </>
