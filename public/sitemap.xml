@@ -6,6 +6,13 @@
     <changefreq>weekly</changefreq>
     <priority>1.0</priority>
   </url>
+  <!-- the page the stores ask for: anyone may open it and delete their account -->
+  <url>
+    <loc>https://babembegs.base44.app/delete-account</loc>
+    <lastmod>2026-10-16</lastmod>
+    <changefreq>yearly</changefreq>
+    <priority>0.4</priority>
+  </url>
   <!-- the two pages anyone may read before signing up -->
   <url>
     <loc>https://babembegs.base44.app/privacy</loc>

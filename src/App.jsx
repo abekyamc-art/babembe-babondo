@@ -23,6 +23,7 @@ import ResetPassword from './pages/ResetPassword';
 import Privacy from './pages/Privacy';
 import Terms from './pages/Terms';
 import OAuthConsent from './pages/OAuthConsent';
+import AccountDeletion from './pages/AccountDeletion';
 
 // the heavier screens arrive on demand, so the voice screen opens straight away
 const LiveRoom = lazy(() => import('./pages/LiveRoom'));
@@ -106,6 +107,8 @@ const AuthenticatedApp = () => {
                 {/* the app's own policy and terms, open to everyone before anything is signed up for */}
                 <Route path="/privacy" element={<Privacy />} />
                 <Route path="/terms" element={<Terms />} />
+                {/* the web address the stores ask for: anyone can open it and delete their account */}
+                <Route path="/delete-account" element={<AccountDeletion />} />
                 {/* the screen an AI client's authorization request lands on */}
                 <Route path="/oauth-consent" element={<OAuthConsent />} />
                 {/* Rap Studio lives inside Gloire Studio now, so its old link opens the studio */}

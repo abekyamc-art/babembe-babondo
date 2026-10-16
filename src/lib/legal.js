@@ -74,6 +74,7 @@ export const PRIVACY_SECTIONS = [
     h: "Deleting your account",
     p: [
       "You can delete your account inside the app: open your account panel on the home screen, or your own profile page, and choose Delete account. It asks you to confirm first.",
+      "You can also delete it on the web, without the app: open https://babembegs.base44.app/delete-account, sign in with the same account, and delete it there.",
       "Your profile and coin balance, your voice recordings, your conversations, your exam progress, your songs, your videos and your comments are removed, and you are signed out.",
       "Deleting your account cannot be undone. Copies may remain for a short time in our service providers' backups before they are cleared.",
     ],

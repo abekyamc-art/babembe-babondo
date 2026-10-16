@@ -1,6 +1,17 @@
 import React from "react";
 import { createPortal } from "react-dom";
-import { BookOpen, Clapperboard, Flag, Languages, MessageCircle, Mic, Music } from "lucide-react";
+import { Link } from "react-router-dom";
+import {
+  BookOpen,
+  Clapperboard,
+  FileText,
+  Flag,
+  Languages,
+  MessageCircle,
+  Mic,
+  Music,
+  ShieldCheck,
+} from "lucide-react";
 import AccountIcon from "@/components/voice/AccountIcon";
 import AccountProfile from "@/components/voice/AccountProfile";
 import DeleteAccount from "@/components/voice/DeleteAccount";
@@ -142,6 +153,22 @@ export default function AccountSheet({
                   </span>
                   <Chevron />
                 </button>
+                {/* the app's own policy and terms, and the page that ends an account, stand on the
+                    main screen itself — where the stores ask for them to be reachable */}
+                <Link to="/privacy" className="account-action" onClick={onClose}>
+                  <span className="account-action-label">
+                    <ShieldCheck className="h-4 w-4" />
+                    Privacy Policy
+                  </span>
+                  <Chevron />
+                </Link>
+                <Link to="/terms" className="account-action" onClick={onClose}>
+                  <span className="account-action-label">
+                    <FileText className="h-4 w-4" />
+                    Terms of use
+                  </span>
+                  <Chevron />
+                </Link>
                 <button type="button" className="account-action" onClick={onSwitchAccount}>
                   <span>Switch account</span>
                   <Chevron />
