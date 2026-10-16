@@ -4,17 +4,26 @@ import { Loader2 } from "lucide-react";
 // how far the finger travels before the reload is taken, and the most the list moves
 const TRIGGER = 64;
 const MAX_PULL = 92;
+// how far the finger must travel straight down before the pull is taken at all
+const PULL_START = 10;
 
 /**
  * A native-feeling pull-to-refresh around a scroll container: the list follows the
  * finger, a small spinner grows at the top, and letting go past the mark reloads.
+ *
+ * The pull is taken only when one finger travels straight down from the very top of the list:
+ * a sideways swipe, a tap that shakes a little, and a second finger all leave the list where it
+ * stands, and the pull is dropped the moment the list has been scrolled away from its top.
  */
 export default function PullToRefresh({ onRefresh, className = "", children }) {
   const scroller = useRef(null);
   const content = useRef(null);
   const head = useRef(null);
   const dial = useRef(null);
+  const startX = useRef(0);
   const startY = useRef(0);
+  // a touch that has begun at the very top, before it has said whether it is a pull
+  const tracking = useRef(false);
   const dragging = useRef(false);
   const pulled = useRef(0);
   const [busy, setBusy] = useState(false);
@@ -36,24 +45,52 @@ export default function PullToRefresh({ onRefresh, className = "", children }) {
 
   const begin = (event) => {
     if (busy || dragging.current || !scroller.current) return;
+    // one finger only: a second one ends the gesture instead of taking the list over
+    if (event.touches.length !== 1) return;
     if (scroller.current.scrollTop > 0) return;
-    startY.current = event.touches[0].clientY;
-    dragging.current = true;
+    const touch = event.touches[0];
+    startX.current = touch.clientX;
+    startY.current = touch.clientY;
+    tracking.current = true;
   };
 
   const move = (event) => {
-    if (!dragging.current || !scroller.current) return;
-    const delta = event.touches[0].clientY - startY.current;
-    // the list only gives way at its very top, and only downwards
-    if (delta <= 0 || scroller.current.scrollTop > 0) {
-      dragging.current = delta > 0;
+    if (!tracking.current || !scroller.current) return;
+
+    const touch = event.touches[0];
+    if (event.touches.length !== 1 || !touch) {
+      tracking.current = false;
+      dragging.current = false;
       if (pulled.current) paint(0, true);
       return;
     }
-    paint(Math.min(MAX_PULL, delta * 0.5), false);
+
+    const down = touch.clientY - startY.current;
+    const across = Math.abs(touch.clientX - startX.current);
+
+    // the pull is taken only once the finger has clearly gone downwards and not sideways, so a
+    // sideways swipe across a card is never read as a pull
+    if (!dragging.current) {
+      if (down <= 0 || scroller.current.scrollTop > 0) {
+        tracking.current = false;
+        if (pulled.current) paint(0, true);
+        return;
+      }
+      if (down < PULL_START || down < across) return;
+      dragging.current = true;
+    }
+
+    // the list only gives way at its very top, and only downwards
+    if (down <= 0 || scroller.current.scrollTop > 0) {
+      dragging.current = false;
+      if (pulled.current) paint(0, true);
+      return;
+    }
+    paint(Math.min(MAX_PULL, down * 0.5), false);
   };
 
   const release = async () => {
+    tracking.current = false;
     if (!dragging.current) return;
     dragging.current = false;
     if (pulled.current < TRIGGER) {

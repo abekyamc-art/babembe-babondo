@@ -87,7 +87,7 @@ export default function CommentsSheet({
           </DialogDescription>
         </DialogHeader>
 
-        <div className="max-h-64 space-y-3 overflow-y-auto">
+        <div className="max-h-64 space-y-3 overflow-y-auto overscroll-contain">
           {loading ? (
             <div className="flex justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />

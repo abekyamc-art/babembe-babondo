@@ -65,7 +65,7 @@ export default function ReportSheet({ open, onClose, target, me, onDone }) {
           </DrawerDescription>
         </DrawerHeader>
 
-        <div className="space-y-4 overflow-y-auto px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
+        <div className="space-y-4 overflow-y-auto overscroll-contain px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))]">
           <div className="space-y-2">
             {REPORT_REASONS.map((option) => (
               <button

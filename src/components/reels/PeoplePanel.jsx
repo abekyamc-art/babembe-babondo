@@ -55,7 +55,7 @@ export default function PeoplePanel({
           />
         </div>
 
-        <div className="max-h-72 overflow-y-auto">
+        <div className="max-h-72 overflow-y-auto overscroll-contain">
           {searching && !people.length ? (
             <div className="flex justify-center py-6">
               <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
