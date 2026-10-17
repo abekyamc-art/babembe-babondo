@@ -1,0 +1,15 @@
+{
+  "expo": {
+    "name": "Babembe Babondo GS",
+    "slug": "babembe-babondo-gs",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "bundleIdentifier": "com.gloiresadiki.babembebabondo",
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "Babembe Babondo GS uses your microphone for voice conversations."
+      }
+    }
+  }
+}
