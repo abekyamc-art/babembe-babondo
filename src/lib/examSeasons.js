@@ -8,6 +8,8 @@ import { buildPeoplePaper, peopleEpisodes } from '@/lib/peopleChallenges';
 import { SCENE_POOL, currentQueues, poolShare } from './examPool';
 import { buildSetPaper } from './examSetPapers';
 import { buildTopUp } from './examTopUp';
+import { buildTopicPaper } from './examTopicPapers';
+import { THEME_SEASONS } from './examThemes';
 import { differencePuzzle } from './diffPuzzles';
 
 /**
@@ -124,6 +126,11 @@ const SEASONS = [
     set: 'chakula',
     study: 'chakula',
   },
+  // The nine seasons of ideas, twelve to twenty. Each one runs the hundred episodes every season of the
+  // examination runs, and each episode of it carries an idea of its own, so a season is never the same
+  // paper asked a hundred times. They wait on the season before them like every other season, and their
+  // papers are cut from the examination's own confirmed words exactly as the word seasons are.
+  ...THEME_SEASONS,
 ];
 
 /** The seasons of the examination, in their own order. */
@@ -408,6 +415,9 @@ function paperOf(seasonNo, episode) {
   // nine of them, in the run the season has left off at — and what its own set cannot fill is filled
   // from the examination's own confirmed extras
   if (season.pool === 'set') return buildSetPaper(season.set, episode);
+  // the seasons of ideas: the confirmed words in the season's own order, with the episode's own idea over
+  // every question of the paper
+  if (season.pool === 'topic') return buildTopicPaper(season.no, episode);
   // a season still waiting for its own list of words writes no paper at all
   if (season.pool === 'waiting') return [];
   const { life, extras, medical } = partsOf(season, episode);

@@ -11,6 +11,7 @@ import ExamAccessToggle from "./ExamAccessToggle";
 import ExamAdminReset from "./ExamAdminReset";
 import { reportOf, scoreOf, pointsOf } from "@/lib/examSession";
 import { EXAM_SEASONS, episodeSize, episodesInSeason, seasonByNo, seasonShown } from "@/lib/examSeasons";
+import { episodeIdea } from "@/lib/examThemes";
 import { loadStudentProgress, saveStudentProgress } from '@/lib/examProgressSync';
 import {
   attemptsOf,
@@ -255,6 +256,11 @@ export default function SeriesShell({ open, onClose }) {
                 <p className="exam-count">
                   Season {attempt.season} · Episode {attempt.episode} · {seasonOf.title}
                 </p>
+                {episodeIdea(attempt.season, attempt.episode) ? (
+                  <p className="exam-ep-note">
+                    This episode: {episodeIdea(attempt.season, attempt.episode)}
+                  </p>
+                ) : null}
                 <ExamProgress
                   at={attempt.at}
                   total={attempt.questions.length}

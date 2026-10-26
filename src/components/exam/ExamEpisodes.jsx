@@ -1,8 +1,10 @@
 import React from "react";
 import { ArrowLeft, Lock } from "lucide-react";
 import { episodesInSeason, episodeSize } from "@/lib/examSeasons";
+import { episodeIdea } from "@/lib/examThemes";
 import { bestOf, episodeCompleted, episodeOpen, nextEpisode, completedIn } from "@/lib/examProgress";
 import ExamSetStudy from "./ExamSetStudy";
+import EpisodeIdeas from "./EpisodeIdeas";
 
 /**
  * One season's hundred episodes, laid out as its own paper: what has been passed with the best mark it
@@ -34,8 +36,11 @@ export default function ExamEpisodes({ season, progress, onOpen, onBack }) {
       {/* the teaching set this season's papers are cut from, read before it is asked */}
       {season.study ? <ExamSetStudy setId={season.study} /> : null}
 
+      {/* the ideas this season's hundred episodes are met under, read before the season is taken */}
+      <EpisodeIdeas seasonNo={season.no} next={next} />
+
       {next ? <button type="button" className="exam-next is-go" onClick={() => onOpen(next)}>
-        Take episode {next}
+        Take episode {next} — {episodeIdea(season.no, next)}
       </button> : <p className="exam-ep-note">Season completed — choose the next season.</p>}
 
       <div className="exam-ep-grid">
@@ -43,6 +48,8 @@ export default function ExamEpisodes({ season, progress, onOpen, onBack }) {
           const best = bestOf(progress, season.no, no);
           const passed = episodeCompleted(progress, season.no, no);
           const open = episodeOpen(progress, season.no, no);
+          // the idea this episode is met under, where the season carries one for each of its episodes
+          const idea = episodeIdea(season.no, no);
 
           return (
             <button
@@ -51,7 +58,8 @@ export default function ExamEpisodes({ season, progress, onOpen, onBack }) {
               className={`exam-ep ${passed ? "is-passed" : open ? "is-open" : "is-locked"}`}
               onClick={open ? () => onOpen(no) : undefined}
               disabled={!open}
-              aria-label={`Episode ${no}${
+              title={idea || undefined}
+              aria-label={`Episode ${no}${idea ? ` — ${idea}` : ""}${
                 passed ? ` — completed${best ? `, score ${best}%` : ''}` : open ? " — open" : " — locked"
               }`}
             >
