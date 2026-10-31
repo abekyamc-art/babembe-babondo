@@ -211,13 +211,16 @@ export function clearAttempt() {
 
 /** Begin an episode: its paper, freshly drawn and shuffled. */
 export function startEpisode(season, episode) {
-  if (!episodeOpen(loadProgress(), season, episode)) return null;
+  const progress = loadProgress();
+  if (!episodeOpen(progress, season, episode)) return null;
   return saveAttempt({
     id: `${season}:${episode}:${Date.now()}`,
     season,
     episode,
     at: 0,
-    questions: buildEpisodePaper(season, episode),
+    // the attempt's own turn decides the size of the number puzzle standing last: easy on the first
+    // attempt of an episode, medium on the second, and round again
+    questions: buildEpisodePaper(season, episode, attemptsOf(progress, season, episode)),
     marks: {},
     started_at: new Date().toISOString(),
   });

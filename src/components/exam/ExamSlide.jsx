@@ -2,11 +2,23 @@ import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, Flag } from "lucide-react";
 import { useLangMode } from "@/lib/langMode";
 import { slideText } from "@/lib/slideText";
-import { SLIDE_SIZE, SLIDE_TILES, blankAt, canSlide, isSolved, shuffleBoard, slid } from "@/lib/slidePuzzle";
+import { SLIDE_SIZE, blankAt, canSlide, isSolved, shuffleBoard, sizeOf, slideLevel, slid } from "@/lib/slidePuzzle";
 import "@/exam-slide.css";
 
 /**
- * The last question of an episode: the eight numbers and the empty space, to be slid back into order.
+ * The board an attempt handed over: its own saved arrangement when it still fits the size the attempt
+ * was given, and a mixed board of that size when a new attempt has just begun.
+ */
+function boardFor(puzzle) {
+  const size = Number(puzzle?.size) || SLIDE_SIZE;
+  const board = puzzle?.board;
+  return Array.isArray(board) && board.length === size * size ? board : shuffleBoard(size);
+}
+
+/**
+ * The last question of an episode: the numbers and the empty space, to be slid back into order. The board
+ * comes in two sizes — an easy eight-number board and a medium fifteen-number one — and each new attempt
+ * takes the next of them, so the ending of a paper turns between the two.
  *
  * The board belongs to the attempt and not to this screen: every slide is written into the attempt as
  * soon as it is made, so a step to another screen or a refresh of the page brings back the same
@@ -27,14 +39,16 @@ export default function ExamSlide({
   onBoard,
 }) {
   const lang = useLangMode();
-  const words = slideText(lang);
 
   const held = question.puzzle || {};
-  const [board, setBoard] = useState(() =>
-    Array.isArray(held.board) && held.board.length === SLIDE_TILES ? held.board : shuffleBoard()
-  );
+  // the board's own size is read from the board itself, so what the attempt was given is what stands on
+  // the screen — and the words around it follow that size
+  const [board, setBoard] = useState(() => boardFor(held));
   const [moves, setMoves] = useState(() => held.moves || 0);
   const solved = isSolved(board);
+  const size = sizeOf(board) || SLIDE_SIZE;
+  const level = slideLevel(size);
+  const words = slideText(lang, size * size - 1);
 
   // the board is read again only when a different question is on the screen — never on a redraw, so a
   // board being worked on is never pulled back to an older arrangement
@@ -42,9 +56,8 @@ export default function ExamSlide({
   useEffect(() => {
     if (shown.current === question.id) return;
     shown.current = question.id;
-    const fresh = question.puzzle?.board;
-    setBoard(Array.isArray(fresh) && fresh.length === SLIDE_TILES ? fresh : shuffleBoard());
-    setMoves(question.puzzle.moves || 0);
+    setBoard(boardFor(question.puzzle));
+    setMoves(question.puzzle?.moves || 0);
   }, [question]);
 
   const move = (tileAt) => {
@@ -61,8 +74,8 @@ export default function ExamSlide({
 
   const blank = blankAt(board);
   const tileAt = (place) => ({
-    "--col": String(place % SLIDE_SIZE),
-    "--row": String(Math.floor(place / SLIDE_SIZE)),
+    "--col": String(place % size),
+    "--row": String(Math.floor(place / size)),
   });
 
   return (
@@ -77,11 +90,16 @@ export default function ExamSlide({
       <h2 className="exam-prompt">{words.title}</h2>
       <p className="exam-hint">{words.how}</p>
 
+      <p className="slide-level">
+        {words[level]} · {size}×{size}
+      </p>
+
       <div
         className={`slide-board ${solved ? "is-solved" : ""}`}
-        style={{ "--n": String(SLIDE_SIZE) }}
+        style={{ "--n": String(size) }}
+        data-size={size}
         role="group"
-        aria-label={words.title}
+        aria-label={`${words.title} — ${words[level]}`}
       >
         <div className="slide-well" style={tileAt(blank < 0 ? 0 : blank)} aria-hidden="true" />
         {board.map((value, place) =>

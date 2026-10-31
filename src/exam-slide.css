@@ -101,6 +101,28 @@
   background: linear-gradient(163deg, #c8694a 0%, #b1522f 46%, #94402a 100%);
 }
 
+/* which board is standing: the easy eight-number one, or the medium fifteen-number one */
+.slide-level {
+  margin: 0 auto 8px;
+  padding: 5px 12px;
+  width: fit-content;
+  border: 1px solid rgba(124, 58, 34, 0.35);
+  border-radius: 999px;
+  background: rgba(124, 58, 34, 0.09);
+  color: #7c3a22;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+/* the medium board carries sixteen places, so its numbers and rounded corners step down to fit */
+.slide-board[data-size="4"] .slide-face {
+  inset: 3px;
+  border-radius: 8px;
+  font-size: clamp(19px, 6.4vmin, 32px);
+}
+
 .slide-moves {
   margin: 0;
   text-align: center;

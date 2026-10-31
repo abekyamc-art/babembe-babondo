@@ -10,7 +10,7 @@ import { buildSetPaper } from './examSetPapers';
 import { buildTopUp } from './examTopUp';
 import { buildTopicPaper } from './examTopicPapers';
 import { THEME_SEASONS } from './examThemes';
-import { shuffleBoard } from './slidePuzzle';
+import { shuffleBoard, slideSizeFor } from './slidePuzzle';
 
 /**
  * The everyday words in one order for the whole season, shuffled once and then kept: every episode's
@@ -225,12 +225,15 @@ function lifeQuestions(season, episode, count) {
 const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "");
 
 /**
- * The last question of every episode: the eight numbers and the empty space of the sliding puzzle, to
- * be slid back into order. Its board is shuffled once, as the paper is drawn for a new attempt, and kept
- * with that attempt from then on — so a refresh brings back the same arrangement rather than a new one.
- * It is worth the one point a question of the paper is worth, and no more however often it is solved.
+ * The last question of every episode: the numbers and the empty space of the sliding puzzle, to be slid
+ * back into order. Its board turns size with the attempt — an easy three by three board on one attempt,
+ * a medium four by four on the next, and round again — so the ending of a paper is never the same twice
+ * running. The board is shuffled once, as the paper is drawn for a new attempt, and kept with that
+ * attempt from then on — so a refresh brings back the same arrangement rather than a new one. It is worth
+ * the one point a question of the paper is worth, and no more however often it is solved.
  */
-function slideQuestion(seasonNo, episode) {
+function slideQuestion(seasonNo, episode, attempt = 0) {
+  const size = slideSizeFor(attempt);
   return {
     id: `slide:${seasonNo}:${episode}`,
     kind: 'slide',
@@ -238,10 +241,10 @@ function slideQuestion(seasonNo, episode) {
     prompt: 'Slide the numbers into order.',
     options: ['Solved'],
     correct: 0,
-    explain: 'The numbers stood 1 to 8 in order, with the empty space at the bottom-right.',
+    explain: `The numbers stood 1 to ${size * size - 1} in order, with the empty space at the bottom-right.`,
     practice: [],
     image: null,
-    puzzle: { size: 3, board: shuffleBoard(), moves: 0 },
+    puzzle: { size, board: shuffleBoard(size), moves: 0 },
   };
 }
 
@@ -249,10 +252,10 @@ function slideQuestion(seasonNo, episode) {
  * One episode's paper — its own questions, and the sliding number puzzle standing last, where the last
  * question of every paper always stands.
  */
-export function buildEpisodePaper(seasonNo, episode) {
+export function buildEpisodePaper(seasonNo, episode, attempt = 0) {
   const paper = paperOf(seasonNo, episode);
   if (!paper.length) return paper;
-  const puzzle = slideQuestion(seasonNo, episode);
+  const puzzle = slideQuestion(seasonNo, episode, attempt);
   // A paper that already asks its whole count has its last place given to the number puzzle. A paper cut
   // a question short — the newest papers of the season of people — has the puzzle stood at its end
   // instead, so every episode of the examination asks its whole count of questions either way, and the
