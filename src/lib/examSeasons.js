@@ -225,7 +225,7 @@ function lifeQuestions(season, episode, count) {
 const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "");
 
 /**
- * The last question of every episode: the fifteen numbers and the empty space of the sliding puzzle, to
+ * The last question of every episode: the eight numbers and the empty space of the sliding puzzle, to
  * be slid back into order. Its board is shuffled once, as the paper is drawn for a new attempt, and kept
  * with that attempt from then on — so a refresh brings back the same arrangement rather than a new one.
  * It is worth the one point a question of the paper is worth, and no more however often it is solved.
@@ -238,10 +238,10 @@ function slideQuestion(seasonNo, episode) {
     prompt: 'Slide the numbers into order.',
     options: ['Solved'],
     correct: 0,
-    explain: 'The numbers stood 1 to 15 in order, with the empty space at the bottom-right.',
+    explain: 'The numbers stood 1 to 8 in order, with the empty space at the bottom-right.',
     practice: [],
     image: null,
-    puzzle: { size: 4, board: shuffleBoard(), moves: 0 },
+    puzzle: { size: 3, board: shuffleBoard(), moves: 0 },
   };
 }
 

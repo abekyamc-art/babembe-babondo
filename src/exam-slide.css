@@ -32,8 +32,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: calc(100% / 4);
-  height: calc(100% / 4);
+  width: calc(100% / var(--n, 3));
+  height: calc(100% / var(--n, 3));
   transform: translate(calc(var(--col) * 100%), calc(var(--row) * 100%));
   transition: transform 0.19s cubic-bezier(0.22, 0.61, 0.36, 1);
   border-radius: 12px;
@@ -46,8 +46,8 @@
   position: absolute;
   top: 0;
   left: 0;
-  width: calc(100% / 4);
-  height: calc(100% / 4);
+  width: calc(100% / var(--n, 3));
+  height: calc(100% / var(--n, 3));
   padding: 0;
   border: 0;
   background: none;
@@ -70,7 +70,7 @@
     inset 0 -3px 0 rgba(88, 32, 15, 0.55),
     0 3px 6px rgba(0, 0, 0, 0.3);
   font-family: system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: clamp(20px, 7.4vmin, 34px);
+  font-size: clamp(26px, 9.6vmin, 44px);
   font-weight: 800;
   line-height: 1;
   letter-spacing: -0.5px;

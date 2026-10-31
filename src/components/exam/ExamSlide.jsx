@@ -2,11 +2,11 @@ import React, { useEffect, useRef, useState } from "react";
 import { ArrowRight, Flag } from "lucide-react";
 import { useLangMode } from "@/lib/langMode";
 import { slideText } from "@/lib/slideText";
-import { SLIDE_SIZE, blankAt, canSlide, isSolved, shuffleBoard, slid } from "@/lib/slidePuzzle";
+import { SLIDE_SIZE, SLIDE_TILES, blankAt, canSlide, isSolved, shuffleBoard, slid } from "@/lib/slidePuzzle";
 import "@/exam-slide.css";
 
 /**
- * The last question of an episode: the fifteen numbers and the empty space, to be slid back into order.
+ * The last question of an episode: the eight numbers and the empty space, to be slid back into order.
  *
  * The board belongs to the attempt and not to this screen: every slide is written into the attempt as
  * soon as it is made, so a step to another screen or a refresh of the page brings back the same
@@ -30,7 +30,9 @@ export default function ExamSlide({
   const words = slideText(lang);
 
   const held = question.puzzle || {};
-  const [board, setBoard] = useState(() => (Array.isArray(held.board) ? held.board : shuffleBoard()));
+  const [board, setBoard] = useState(() =>
+    Array.isArray(held.board) && held.board.length === SLIDE_TILES ? held.board : shuffleBoard()
+  );
   const [moves, setMoves] = useState(() => held.moves || 0);
   const solved = isSolved(board);
 
@@ -40,7 +42,8 @@ export default function ExamSlide({
   useEffect(() => {
     if (shown.current === question.id) return;
     shown.current = question.id;
-    setBoard(question.puzzle.board);
+    const fresh = question.puzzle?.board;
+    setBoard(Array.isArray(fresh) && fresh.length === SLIDE_TILES ? fresh : shuffleBoard());
     setMoves(question.puzzle.moves || 0);
   }, [question]);
 
@@ -74,7 +77,12 @@ export default function ExamSlide({
       <h2 className="exam-prompt">{words.title}</h2>
       <p className="exam-hint">{words.how}</p>
 
-      <div className={`slide-board ${solved ? "is-solved" : ""}`} role="group" aria-label={words.title}>
+      <div
+        className={`slide-board ${solved ? "is-solved" : ""}`}
+        style={{ "--n": String(SLIDE_SIZE) }}
+        role="group"
+        aria-label={words.title}
+      >
         <div className="slide-well" style={tileAt(blank < 0 ? 0 : blank)} aria-hidden="true" />
         {board.map((value, place) =>
           value === 0 ? null : (

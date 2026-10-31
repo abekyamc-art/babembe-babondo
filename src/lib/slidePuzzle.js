@@ -1,27 +1,29 @@
 /**
- * The sliding number puzzle that ends an episode: fifteen tiles and one empty space in a four by four
- * board. A tile standing beside the empty space slides into it; a tile standing anywhere else does
- * nothing at all. The board is kept as a list of the sixteen places, read from the top-left corner
- * along each row, with nothing at all standing for the empty space.
+ * The sliding number puzzle that ends an episode: eight tiles and one empty space in a three by three
+ * board — small enough to be put back in order in a handful of slides, so it ends a paper as a reward
+ * rather than a wall. A tile standing beside the empty space slides into it; a tile standing anywhere
+ * else does nothing at all. The board is kept as a list of the nine places, read from the top-left
+ * corner along each row, with nothing at all standing for the empty space.
  *
  * A board is only ever made by sliding the solved board a good many times, so every arrangement the
  * student is handed can be brought back to order — and a shuffle that happens to land home is made
  * again, so no episode ever opens already solved.
  */
-export const SLIDE_SIZE = 4;
+export const SLIDE_SIZE = 3;
 export const SLIDE_TILES = SLIDE_SIZE * SLIDE_SIZE;
 
-/** How many slides a fresh board is taken through before it is handed over. */
-const SHUFFLE_STEPS = 90;
+/** How many slides a fresh board is taken through before it is handed over: enough to mix it, few
+ * enough that it stays close to order and quick to settle. */
+const SHUFFLE_STEPS = 30;
 
-/** The solved board: one to fifteen in order, and the empty space at the bottom-right. */
+/** The solved board: one to eight in order, and the empty space at the bottom-right. */
 export function solvedBoard() {
   return Array.from({ length: SLIDE_TILES }, (_, at) =>
     at === SLIDE_TILES - 1 ? 0 : at + 1
   );
 }
 
-/** Whether a board stands solved: one to fifteen in order, the empty space at the bottom-right. */
+/** Whether a board stands solved: one to eight in order, the empty space at the bottom-right. */
 export function isSolved(board) {
   if (!Array.isArray(board) || board.length !== SLIDE_TILES) return false;
   return board.every((value, at) => value === (at === SLIDE_TILES - 1 ? 0 : at + 1));
@@ -83,9 +85,9 @@ export function shuffleBoard(steps = SHUFFLE_STEPS) {
     }
     if (!isSolved(board)) return board;
   }
-  // a run that somehow always wandered home still hands over a board that is not solved
+  // a run that somehow always wandered home still hands over a board one slide from order
   const last = solvedBoard();
-  last[SLIDE_TILES - 1] = 15;
+  last[SLIDE_TILES - 1] = last[SLIDE_TILES - 2];
   last[SLIDE_TILES - 2] = 0;
   return last;
 }

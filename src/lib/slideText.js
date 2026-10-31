@@ -8,19 +8,19 @@
 const TEXT = {
   english: {
     title: "Slide the numbers into order",
-    how: "Tap a tile standing beside the empty space to slide it in. Put 1 to 15 in order, with the empty space at the bottom-right.",
+    how: "Tap a tile standing beside the empty space to slide it in. Put 1 to 8 in order, with the empty space at the bottom-right.",
     moves: "Moves",
     solved: "✓ SOLVED! Every number stands in order.",
   },
   swahili: {
     title: "Sogeza namba kwa mpangilio",
-    how: "Gusa kigae kilicho karibu na nafasi tupu ili kukisogeza. Panga 1 hadi 15 kwa mpangilio, na nafasi tupu ibaki chini kulia.",
+    how: "Gusa kigae kilicho karibu na nafasi tupu ili kukisogeza. Panga 1 hadi 8 kwa mpangilio, na nafasi tupu ibaki chini kulia.",
     moves: "Hatua",
     solved: "✓ UMEMALIZA! Namba zote zimesimama kwa mpangilio.",
   },
   kibembe: {
     title: "Sogeza namba kwa mpangilio",
-    how: "Gusa kigae kilicho karibu na nafasi tupu ili kukisogeza. Panga 1 hadi 15 kwa mpangilio, na nafasi tupu ibaki chini kulia.",
+    how: "Gusa kigae kilicho karibu na nafasi tupu ili kukisogeza. Panga 1 hadi 8 kwa mpangilio, na nafasi tupu ibaki chini kulia.",
     moves: "Hatua",
     solved: "✓ UMEMALIZA! Namba zote zimesimama kwa mpangilio.",
   },
