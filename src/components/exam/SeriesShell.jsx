@@ -218,6 +218,19 @@ export default function SeriesShell({ open, onClose }) {
     });
   };
 
+  // Every slide of the number puzzle is written into the attempt itself, so leaving the paper — or
+  // refreshing the page — brings back the same arrangement at the same move count, and the board is only
+  // ever shuffled again when a genuinely new attempt is begun.
+  const keepBoard = (at, board, moves) => {
+    setAttempt((held) => {
+      if (!held) return held;
+      const questions = held.questions.map((question, index) =>
+        index === at ? { ...question, puzzle: { ...question.puzzle, board, moves } } : question
+      );
+      return saveAttempt({ ...held, questions });
+    });
+  };
+
   const goNext = () => {
     setAttempt((held) =>
       held && held.marks[held.at] ? saveAttempt({ ...held, at: held.at + 1 }) : held
@@ -278,6 +291,7 @@ export default function SeriesShell({ open, onClose }) {
                   onChoose={choose}
                   onNext={goNext}
                   isLast={attempt.at === attempt.questions.length - 1}
+                  onBoard={keepBoard}
                 />
                 <div className="exam-tools">
                   <button type="button" className="exam-ghost" onClick={backToEpisodes}>

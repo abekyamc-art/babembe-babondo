@@ -10,7 +10,7 @@ import { buildSetPaper } from './examSetPapers';
 import { buildTopUp } from './examTopUp';
 import { buildTopicPaper } from './examTopicPapers';
 import { THEME_SEASONS } from './examThemes';
-import { differencePuzzle } from './diffPuzzles';
+import { shuffleBoard } from './slidePuzzle';
 
 /**
  * The everyday words in one order for the whole season, shuffled once and then kept: every episode's
@@ -225,43 +225,38 @@ function lifeQuestions(season, episode, count) {
 const form = (text) => String(text || "").toLowerCase().replace(/[.?!\s]+$/, "");
 
 /**
- * The last question of every episode: one picture shown twice, with differences standing in the lower
- * copy for the student to find. It is the same question the whole examination ends on, and it is drawn
- * from the app's own pictures in turn, so an episode beside this one is never given the same picture.
+ * The last question of every episode: the fifteen numbers and the empty space of the sliding puzzle, to
+ * be slid back into order. Its board is shuffled once, as the paper is drawn for a new attempt, and kept
+ * with that attempt from then on — so a refresh brings back the same arrangement rather than a new one.
+ * It is worth the one point a question of the paper is worth, and no more however often it is solved.
  */
-function differenceQuestion(seasonNo, episode) {
-  const puzzle = differencePuzzle(seasonNo, episode);
+function slideQuestion(seasonNo, episode) {
   return {
-    id: `difference:${seasonNo}:${episode}`,
-    kind: 'difference',
-    focus: 'Find the differences',
-    prompt: `Find the ${puzzle.differences.length} differences between the two pictures.`,
-    lead: 'Find the ',
-    key: `${puzzle.differences.length} differences`,
-    tail: ' between the two pictures.',
-    kb: '',
-    options: ['Found every difference'],
+    id: `slide:${seasonNo}:${episode}`,
+    kind: 'slide',
+    focus: 'Number puzzle',
+    prompt: 'Slide the numbers into order.',
+    options: ['Solved'],
     correct: 0,
-    explain: 'Every difference stood where the rings are marked.',
+    explain: 'The numbers stood 1 to 15 in order, with the empty space at the bottom-right.',
     practice: [],
     image: null,
-    hint: 'Look closely — nothing is marked. Tap each place where the lower picture differs from the one above it.',
-    puzzle,
+    puzzle: { size: 4, board: shuffleBoard(), moves: 0 },
   };
 }
 
 /**
- * One episode's paper of ten — its own questions, and the picture puzzle standing last, where the
- * examination's own question of pictures always stands.
+ * One episode's paper — its own questions, and the sliding number puzzle standing last, where the last
+ * question of every paper always stands.
  */
 export function buildEpisodePaper(seasonNo, episode) {
   const paper = paperOf(seasonNo, episode);
   if (!paper.length) return paper;
-  const puzzle = differenceQuestion(seasonNo, episode);
-  // A paper that already asks its whole ten has its last place given to the picture puzzle, where the
-  // examination's own question of pictures always stands. A paper cut a question short — the newest
-  // papers of the season of people — has the puzzle stood at its end instead, so every episode of the
-  // examination asks ten questions either way.
+  const puzzle = slideQuestion(seasonNo, episode);
+  // A paper that already asks its whole count has its last place given to the number puzzle. A paper cut
+  // a question short — the newest papers of the season of people — has the puzzle stood at its end
+  // instead, so every episode of the examination asks its whole count of questions either way, and the
+  // puzzle is always the one standing last.
   if (paper.length >= QUESTIONS_PER_EPISODE) paper[paper.length - 1] = puzzle;
   else paper.push(puzzle);
   return paper;

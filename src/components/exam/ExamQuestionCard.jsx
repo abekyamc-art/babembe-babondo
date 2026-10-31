@@ -3,6 +3,7 @@ import { ArrowRight, Flag } from "lucide-react";
 import { LETTERS } from "@/lib/examBank";
 import { stopReading } from "@/lib/examVoice";
 import ExamDifference from "./ExamDifference";
+import ExamSlide from "./ExamSlide";
 import ExamFigure from "./ExamFigure";
 import ExamOption from "./ExamOption";
 import ExamPrompt from "./ExamPrompt";
@@ -36,10 +37,30 @@ export default function ExamQuestionCard({
   onChoose,
   onNext,
   isLast,
+  onBoard,
 }) {
-  // The last question of every episode is a picture puzzle: the same picture twice, with the differences
-  // to be found between them. It is answered by tapping rather than by choosing, so it has a card of its
-  // own — taken after the hooks, so the same card can carry it and carry a question of choices alike.
+  // The last question of every episode is a puzzle: the numbers to be slid back into order. It is
+  // answered by moving tiles rather than by choosing, so it has a card of its own, and every slide of it
+  // is written back into the attempt by onBoard, so the board outlives the screen.
+  if (question.kind === "slide") {
+    return (
+      <ExamSlide
+        question={question}
+        mark={mark}
+        at={at}
+        total={total}
+        score={score}
+        onChoose={onChoose}
+        onNext={onNext}
+        isLast={isLast}
+        onBoard={(board, moves) => onBoard?.(at, board, moves)}
+      />
+    );
+  }
+
+  // An episode saved before the number puzzle ends on the picture puzzle still stands: the same picture
+  // twice, with the differences to be found between them. It is kept so those attempts finish as they
+  // were drawn.
   if (question.kind === "difference") {
     return (
       <ExamDifference
