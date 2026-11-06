@@ -27,6 +27,15 @@ const PLACES: Record<number, string> = {
   7: 'a Congolese village classroom at midday, the lesson of counting: children at long wooden benches working with a wooden counting frame strung with beads and neat rows of small stones and bottle caps laid out on the board, a girl holding her hands up with the fingers spread, a hand chalking large simple sums — a plus, a minus and a times sign with their own numbers — on a dark slate board propped against the wall, warm daylight through the open window and red dust outside',
   8: 'a wide Congolese landscape at golden hour seen from the top of a hill: a small whitewashed church with a wooden cross standing on the ridge, people hoeing a cassava field below, a broad river winding away between green hills, smoke rising from the roofs of a village further off, the whole world of the people spread out under a wide sky',
   9: 'a traditional Congolese healer\'s compound at dawn: bundles of dried herbs and bark hanging from the eaves, clay pots and a carved wooden bowl on a woven mat, a polished wooden carving of a human torso standing among them, soft misty morning light',
+  12: 'a Congolese market trading table under a mango tree at mid-morning: neat heaps of groundnuts and cassava flour in woven baskets, an old brass balance scale with its weights, a trader\'s hands counting coins and folded notes into a tin, sacks of grain stacked behind, a loaded bicycle leaning nearby, red earth swept clean',
+  13: 'a Congolese family garden at mid-morning: rows of cassava and green leafy vegetables in dark soil, a woman harvesting leaves into a wide woven basket, a man hoeing further down the row, a black cooking pot steaming on three stones beside the garden with vegetables being washed in a basin, banana plants, warm daylight',
+  14: 'a red-earth road leaving a Congolese village in the early morning: thatched houses on either side, a stone well in the square with a woman drawing water, a man walking out along the road with a bundle on his head and a loaded bicycle beside him, a narrow log footbridge over a stream further off, green hills beyond',
+  15: 'a Congolese family celebration in a swept compound in the afternoon: elders seated on low carved stools under a shade tree, women in bright printed cloth talking and laughing, a shared enamel bowl of food on a mat, two drums beside them, children watching from the edge, a thatched house behind',
+  16: 'a Congolese village at play in bright daylight: children running and jumping on a swept dusty ground, a boy climbing a low tree, a girl carrying a small basin, a mother resting on a bench with a baby, a nurse in a white coat writing at a folding table under a mango tree with a first-aid tin and a jerrycan of clean water',
+  17: 'a Congolese craftsmen\'s yard at mid-morning: a carpenter planing a plank on a bench with his hand tools laid in a row, a blacksmith at a charcoal forge with his hammer and glowing metal, a tailor bent over a treadle sewing machine under a thatched shelter, shavings and iron offcuts on the red earth',
+  18: 'a wide Congolese valley under gathering rain clouds: a broad brown river winding between green hills, tall trees and palms on its banks, a herd of goats and a few cattle grazing, a small garden plot on the slope, heavy grey clouds with shafts of sunlight breaking through in the distance',
+  19: 'two Congolese elders greeting one another warmly in a village compound in the morning: the younger man bowing slightly with both hands clasped as he offers a greeting, the older man smiling and answering him, a woman standing nearby with a basket, children listening from the doorway of a thatched hut, a swept red-earth courtyard',
+  20: 'an evening gathering around a small fire in a Congolese village: an old man with a carved stick speaking, seated on a low stool, children and a few adults sitting close on a mat listening, faces lit warm orange by the flames, thatched roofs and a dark blue sky with the first stars behind them',
 };
 
 /** The one look every cover is drawn in: a real photograph of the real world, never a drawing. */
@@ -57,7 +66,7 @@ export default async function examSeasonCovers(req) {
     const seasons = asked
       .map(Number)
       .filter((no: number) => PLACES[no])
-      .slice(0, 9);
+      .slice(0, 20);
     if (!seasons.length) return Response.json({ error: 'No season was named.' }, { status: 400 });
 
     const { baseURL, token, headers } = base44.asServiceRole.aiGateway.connection();

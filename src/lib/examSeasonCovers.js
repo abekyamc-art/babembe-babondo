@@ -28,6 +28,16 @@ const COVERS = {
   // the food lesson of 12 October 2026: the market photographed under its thatch at golden hour, the
   // vegetables, the greens and the fruit of the season standing in their baskets
   11: `${AT}c70b15ba0_generated_4c9e1fd1.png`,
+  // the nine seasons of ideas, twelve to twenty: each one photographed in the life its own papers are about
+  12: `${AT}8c0121a7d_generated_image.png`,
+  13: `${AT}95fea3fd7_generated_image.png`,
+  14: `${AT}ef5fc2682_generated_image.png`,
+  15: `${AT}0fa071541_generated_image.png`,
+  16: `${AT}300c2310c_generated_image.png`,
+  17: `${AT}809dd4689_generated_image.png`,
+  18: `${AT}53fb3bf5f_generated_image.png`,
+  19: `${AT}0d9e2bae5_generated_image.png`,
+  20: `${AT}9c7276545_generated_image.png`,
 };
 
 /** The photograph a season opens on, or nothing where no cover has been drawn for it yet. */

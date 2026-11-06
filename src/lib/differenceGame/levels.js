@@ -114,7 +114,7 @@ export const LEVELS = [
       { id: "pitch-2", x: 0.5529, y: 0.175, w: 0.18, h: 0.25, label: "A cloud has gone from the sky" },
       { id: "pitch-3", x: 0, y: 0.6417, w: 0.18, h: 0.25, label: "A wooden bench has appeared", group: "0:3" },
       { id: "pitch-4", x: 0.6957, y: 0.375, w: 0.18, h: 0.25, label: "A child's shirt turned green" },
-      { id: "pitch-5", x: 0, y: 0.6417, w: 0.18, h: 0.25, label: "The bucket has gone from beside the goal", group: "0:3" },
+      { id: "pitch-5", x: 0.82, y: 0.375, w: 0.18, h: 0.25, label: "The bucket has gone from beside the goal" },
       { id: "pitch-6", x: 0.6957, y: 0.175, w: 0.18, h: 0.25, label: "A bird flies in the sky" },
       { id: "pitch-7", x: 0, y: 0.75, w: 0.18, h: 0.25, label: "A blue jerrycan lies on the dust" },
     ],

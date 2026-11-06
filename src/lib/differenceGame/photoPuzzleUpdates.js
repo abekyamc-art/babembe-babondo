@@ -21,17 +21,20 @@ export const PHOTO_PUZZLE_UPDATES = {
       { id: 'lake-photo-birds', x: 0.82, y: 0.317, w: 0.07, h: 0.059, label: 'A flock of birds appears in the right-hand sky', extra: true },
     ],
   },
+  // the football ground: every place stands on its own change with room for a thumb, so the five the paper
+  // asks for — the net, the palm branch, the storm cloud, the water bottle and the dog — can each be touched
+  // where it really stands on the pitch
   pitch: {
     changed: 'https://media.base44.com/images/public/6ac0821625ce2ff98ccb0871/2efad9bf6_generated_8e81e2d3.jpg',
     differences: [
       { id: 'pitch-photo-net', x: 0.204, y: 0.427, w: 0.218, h: 0.328, label: 'A net appears in the football goal' },
-      { id: 'pitch-photo-palm', x: 0.212, y: 0.001, w: 0.052, h: 0.357, label: 'A palm branch hangs from the top' },
-      { id: 'pitch-photo-cloud', x: 0.353, y: 0.08, w: 0.578, h: 0.339, label: 'A dark storm cloud appears in the sky' },
-      { id: 'pitch-photo-bottle', x: 0.416, y: 0.796, w: 0.043, h: 0.022, label: 'A water bottle lies on the ground' },
-      { id: 'pitch-photo-dog', x: 0.574, y: 0.68, w: 0.067, h: 0.105, label: 'A dog stands on the pitch' },
-      { id: 'pitch-photo-cat', x: 0.767, y: 0.686, w: 0.034, h: 0.026, label: 'A cat sits on the pitch' },
-      { id: 'pitch-photo-rocks', x: 0.242, y: 0.904, w: 0.228, h: 0.085, label: 'A pile of rocks appears in the foreground' },
-      { id: 'pitch-photo-player', x: 0.352, y: 0.564, w: 0.033, h: 0.113, label: 'The boy in red is missing', extra: true },
+      { id: 'pitch-photo-palm', x: 0.195, y: 0.040, w: 0.090, h: 0.280, label: 'A palm branch hangs from the top' },
+      { id: 'pitch-photo-cloud', x: 0.660, y: 0.080, w: 0.260, h: 0.250, label: 'A dark storm cloud appears in the sky' },
+      { id: 'pitch-photo-bottle', x: 0.395, y: 0.770, w: 0.085, h: 0.075, label: 'A water bottle lies on the ground' },
+      { id: 'pitch-photo-dog', x: 0.555, y: 0.672, w: 0.110, h: 0.125, label: 'A dog stands on the pitch' },
+      { id: 'pitch-photo-cat', x: 0.748, y: 0.664, w: 0.078, h: 0.072, label: 'A cat sits on the pitch' },
+      { id: 'pitch-photo-rocks', x: 0.242, y: 0.896, w: 0.228, h: 0.095, label: 'A pile of rocks appears in the foreground' },
+      { id: 'pitch-photo-player', x: 0.340, y: 0.556, w: 0.062, h: 0.124, label: 'The boy in red is missing', extra: true },
       { id: 'pitch-photo-tree', x: 0.454, y: 0.045, w: 0.182, h: 0.461, label: 'A large leafy tree appears behind the fence', extra: true },
     ],
   },
