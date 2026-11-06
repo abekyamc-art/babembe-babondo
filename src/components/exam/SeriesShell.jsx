@@ -23,6 +23,8 @@ import {
   startEpisode,
 } from "@/lib/examProgress";
 import { saveScore } from "@/lib/examLeaderboard";
+import { rewardOf } from "@/lib/examRewards";
+import { grantMissingCodes } from "@/lib/trophyCodes";
 import { loadExamPool } from "@/lib/examPool";
 import { loadExamAccess, useExamAccess, useExamAdmin } from "@/lib/examAccess";
 import "@/exam.css";
@@ -55,6 +57,9 @@ export default function SeriesShell({ open, onClose }) {
   const [loading, setLoading] = useState(true);
   const [syncError, setSyncError] = useState('');
   const [saving, setSaving] = useState(false);
+  // the run that has just been closed by passing the whole examination, and the codes it handed over
+  const [restarted, setRestarted] = useState(false);
+  const [granted, setGranted] = useState([]);
   // the finish of one attempt is written down once, never twice however the screen redraws
   const written = useRef("");
   // an admin who has opened the whole examination is reading it, not standing in it
@@ -76,6 +81,8 @@ export default function SeriesShell({ open, onClose }) {
     setResume(null);
     setView('seasons');
     written.current = '';
+    setRestarted(false);
+    setGranted([]);
     // the confirmed words are read before any paper is drawn, so no episode is opened on the written
     // lists while the document's own words are still on their way
     Promise.all([loadExamPool().catch(() => null), loadStudentProgress(), loadExamAccess()]).then(([, held]) => {
@@ -112,15 +119,21 @@ export default function SeriesShell({ open, onClose }) {
       return;
     }
     const held = recordFinish(attempt.season, attempt.episode, reportOf(attempt));
+    // a progress carrying the moment of a restart is a run just closed: the whole examination was passed
+    const closed = !!held.reset_at;
     setProgress(held);
     setResume(null);
-    persistFinish(held);
+    setRestarted(closed);
+    persistFinish(held, closed);
   }, [finished, attempt, openAll]);
 
-  const persistFinish = async (held) => {
+  // A closed run hands over every code it won and never took before the shelf is left behind, so starting
+  // again takes nothing away from the student.
+  const persistFinish = async (held, closed = false) => {
     setSaving(true);
     setSyncError('');
     try {
+      if (closed) setGranted(await grantMissingCodes(PLAYABLE.map((season) => season.no)));
       await saveStudentProgress(held);
       await saveScore(held);
     } catch {
@@ -155,7 +168,9 @@ export default function SeriesShell({ open, onClose }) {
     ? ''
     : openAll
       ? 'Unrestricted access is on — this attempt was read, not written: nothing of it stands in your progress or on the leaderboard, and every season and episode stays open to read.'
-      : went
+      : restarted
+        ? `You have passed every episode of all ${PLAYABLE.length} seasons — the whole examination. It starts again now at season 1, episode 1, and nothing you have won is taken away: your cups and every code you took stay with your account.${granted.length ? ` The codes you had not yet taken are yours here: ${granted.map((no) => `season ${no} — ${rewardOf(no)}`).join('; ')}.` : ''}`
+        : went
         ? nextOpen
           ? `Episode ${attempt.episode} is passed and is now closed. Episode ${nextNo} is next.`
           : seasonAfter ? `Season ${attempt.season} is complete — its gold trophy now stands on the prize shelf. Season ${seasonAfter.no} is next.`
@@ -260,8 +275,8 @@ export default function SeriesShell({ open, onClose }) {
               <ExamResults
                 report={report}
                 note={note}
-                onNext={nextOpen ? () => openEpisode(nextNo, attempt.season) : seasonAfter ? () => openEpisode(1, seasonAfter.no) : again ? () => openEpisode(attempt.episode, attempt.season) : null}
-                nextLabel={nextOpen ? `Go to episode ${nextNo}` : seasonAfter ? `Start season ${seasonAfter.no}` : again ? `Try episode ${attempt.episode} again` : ''}
+                onNext={restarted ? () => openEpisode(1, 1) : nextOpen ? () => openEpisode(nextNo, attempt.season) : seasonAfter ? () => openEpisode(1, seasonAfter.no) : again ? () => openEpisode(attempt.episode, attempt.season) : null}
+                nextLabel={restarted ? 'Start again at season 1' : nextOpen ? `Go to episode ${nextNo}` : seasonAfter ? `Start season ${seasonAfter.no}` : again ? `Try episode ${attempt.episode} again` : ''}
                 onLevels={backToEpisodes}
               />
             ) : (

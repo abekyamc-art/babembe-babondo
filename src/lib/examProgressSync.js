@@ -23,14 +23,23 @@ export async function loadStudentProgress() {
     if (!no || !row?.at) return;
     if (!drops[no] || Date.parse(row.at) > (Date.parse(drops[no]) || 0)) drops[no] = row.at;
   });
-  const completed = { ...remote.completed, ...local.completed };
+  // A run that was closed on this phone — the whole examination passed, and started again from its first
+  // episode — stands above the account's older copy: the marks written before the restart are never laid
+  // back over the fresh run, whether or not the account was reached to write the restart down.
+  const restarted =
+    (Date.parse(local.reset_at) || 0) > (Date.parse(remote.reset_at) || 0);
+  const completed = restarted ? { ...local.completed } : { ...remote.completed, ...local.completed };
   const previous = scores.items[0];
   // Recover the already-cleared sequential path from the existing leaderboard.
-  if (previous) EXAM_SEASONS.forEach((season) => {
+  if (previous && !restarted) EXAM_SEASONS.forEach((season) => {
     const end = season.no < previous.season ? episodesInSeason(season.no) : season.no === previous.season ? previous.episode - 1 : 0;
     for (let no = 1; no <= end; no++) completed[episodeKey(season.no, no)] = true;
   });
-  const progress = { ...remote, ...local, passed: { ...remote.passed, ...local.passed }, taken: { ...remote.taken, ...local.taken }, completed,
+  const progress = { ...remote, ...local,
+    passed: restarted ? { ...local.passed } : { ...remote.passed, ...local.passed },
+    taken: restarted ? { ...local.taken } : { ...remote.taken, ...local.taken },
+    completed,
+    reset_at: local.reset_at || remote.reset_at || "",
     season_resets: drops,
     baseline_score: remote.baseline_score || local.baseline_score || 0,
     baseline_passed: remote.baseline_passed || local.baseline_passed || 0 };

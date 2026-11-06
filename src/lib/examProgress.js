@@ -75,7 +75,15 @@ export function loadProgress() {
   const taken = held && held.taken && typeof held.taken === "object" ? held.taken : {};
   const completed = { ...(held?.completed || {}) };
   Object.keys(passed).forEach((key) => { completed[key] = true; });
-  return { passed, taken, completed, baseline_score: held?.baseline_score || 0, baseline_passed: held?.baseline_passed || 0 };
+  return {
+    passed,
+    taken,
+    completed,
+    baseline_score: held?.baseline_score || 0,
+    baseline_passed: held?.baseline_passed || 0,
+    // when the run was last closed and started again, so the account's older copy is never laid over it
+    reset_at: held?.reset_at || "",
+  };
 }
 
 /** How many episodes of a season have been passed. */
@@ -172,6 +180,16 @@ export function totalScore(progress) {
   return total;
 }
 
+/**
+ * Whether the whole examination has been passed: every episode of every season that is really played,
+ * in every season alike. It is what closes a run — a student who has passed all of it is handed the
+ * examination again from its very first episode.
+ */
+export function examComplete(progress) {
+  const played = EXAM_SEASONS.filter((season) => !season.waiting);
+  return played.every((season) => seasonCleared(progress, season.no));
+}
+
 /** The furthest season a student has reached: the last one that stands open. */
 export function seasonReached(progress) {
   let at = 1;
@@ -251,5 +269,24 @@ export function recordFinish(season, episode, report) {
   const next = { ...progress, passed, taken, completed };
   write(PROGRESS_KEY, next);
   clearAttempt();
+
+  // The whole examination passed: the run is closed and the study begins again at season 1, episode 1.
+  // Nothing already won is thrown away — the cups stand and the reward codes taken stay with the account —
+  // and the standing the finished run earned is carried on the baseline, so the leaderboard keeps it while
+  // the seasons themselves start over. The moment of the restart is written down, so the account's older
+  // copy of the run is never laid back over the fresh one.
+  if (!openAll && examComplete(next)) {
+    const restarted = {
+      passed: {},
+      taken: {},
+      completed: {},
+      baseline_score: totalScore(next),
+      baseline_passed: episodesPassed(next),
+      reset_at: new Date().toISOString(),
+    };
+    write(PROGRESS_KEY, restarted);
+    return restarted;
+  }
+
   return next;
 }

@@ -29,3 +29,19 @@ export async function claimTrophyCode(season) {
     return false;
   }
 }
+
+/**
+ * The codes of the seasons a finished run had won but never taken: every one of them whose code was not
+ * yet copied is copied now, so a code the student never had is handed over before the shelf is put behind
+ * the fresh run. The seasons it managed to take are returned, and nothing already taken is taken again.
+ */
+export async function grantMissingCodes(seasons) {
+  const held = Array.isArray(seasons) ? seasons : [];
+  if (!held.length) return [];
+  const taken = await loadCopiedSeasons();
+  const missing = held.filter((no) => !taken.includes(no));
+  const done = await Promise.all(
+    missing.map(async (no) => ((await claimTrophyCode(no)) ? no : null))
+  );
+  return done.filter((no) => Number.isInteger(no));
+}
